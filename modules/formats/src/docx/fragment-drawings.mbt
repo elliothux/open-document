@@ -63,6 +63,14 @@ fn WordTree::check_shape_metadata(
       | "solidFill"
       | "noFill"
       | "avLst"
+      | "custGeom"
+      | "gdLst"
+      | "ahLst"
+      | "cxnLst"
+      | "pathLst"
+      | "moveTo"
+      | "lnTo"
+      | "round"
       | "cNvGraphicFramePr"
       | "noAutofit"
       | "spAutoFit" => []
@@ -99,8 +107,11 @@ fn WordTree::check_shape_metadata(
       "xfrm" => ["rot", "flipH", "flipV"]
       "off" => ["x", "y"]
       "prstGeom" | "prstTxWarp" => ["prst"]
-      "srgbClr" | "prstDash" => ["val"]
-      "ln" => ["w"]
+      "srgbClr" | "prstDash" | "alpha" => ["val"]
+      "ln" => ["w", "cap"]
+      "rect" => ["l", "t", "r", "b"]
+      "path" => ["w", "h", "fill"]
+      "pt" => ["x", "y"]
       "normAutofit" => ["fontScale", "lnSpcReduction"]
       _ => @failure.reject("protected-content", "Unknown rich shape content")
     }

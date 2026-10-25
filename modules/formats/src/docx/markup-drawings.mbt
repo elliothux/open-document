@@ -6,8 +6,7 @@ fn shape_markup_svg(
   decoration~ : Bool = false,
 ) -> String raise @failure.Failure {
   let path = StringBuilder()
-  for
-    segment in @layout.basic_shape_path(shape.preset, frame.width, frame.height) {
+  for segment in shape.path(frame.width, frame.height) {
     match segment {
       @layout.Move(x, y) => path.write_string("M\{x} \{y} ")
       @layout.Line(x, y) => path.write_string("L\{x} \{y} ")
@@ -39,7 +38,13 @@ fn shape_markup_svg(
   }) +
   "vertical-align:middle\"><path d=\"" +
   path.to_string() +
-  "\" fill=\"\{fill}\" stroke=\"\{stroke}\" stroke-width=\"\{shape.lineWidth}\" /></svg>"
+  "\" fill=\"\{fill}\" stroke=\"\{stroke}\" stroke-width=\"\{shape.lineWidth}\" stroke-opacity=\"\{shape.strokeAlpha}\"" +
+  (if shape.preset == "polyline" {
+    " stroke-linecap=\"round\" stroke-linejoin=\"round\""
+  } else {
+    ""
+  }) +
+  " /></svg>"
 }
 
 ///|

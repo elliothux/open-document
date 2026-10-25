@@ -21,7 +21,8 @@ fn Session::drawing_frame(
     let frame = tree.read_basic_shape(id, data.id)
     let shape = tree.children[data.id][0]
     if tree.drawing_child(shape, "txbx", uri=word_shape_uri) is Some(text) {
-      guard frame.content is @layout.Shape(paint) && paint.preset != "line" else {
+      guard frame.content is @layout.Shape(paint) &&
+        !["line", "polyline"].contains(paint.preset) else {
         @failure.reject(
           "unsupported-layout", "Line shape text requires support",
         )

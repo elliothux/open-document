@@ -84,6 +84,15 @@ export class CanvasSurface {
     return context;
   }
 
+  drawOverlay(layout: DrawingBatch, cssScale: number): void {
+    this.renderer.drawRegion(
+      this.clearOverlay(cssScale),
+      layout,
+      0,
+      this.images,
+    );
+  }
+
   async exportImage(
     layout: DrawingBatch,
     index: number,

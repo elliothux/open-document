@@ -233,7 +233,11 @@ pub fn Session::query_formatting(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
-  let mut reason = ""
+  let mut reason = if self.tracking_context is Some(_) {
+    "Recording format revisions requires support; turn recording off to format"
+  } else {
+    ""
+  }
   let range = try {
     let range = self.formatting_range(
       self.document(),
@@ -292,18 +296,28 @@ pub fn Session::query_formatting(
   {
     "revision": revision,
     "reason": reason,
-    "fontReason": if font_range is Some(_) {
+    "fontReason": if font_range is Some(_) && self.tracking_context is None {
       ""
     } else {
       reason
     },
-    "paragraphReason": if font_range is Some(_) {
+    "paragraphReason": if font_range is Some(_) && self.tracking_context is None {
       ""
     } else {
       reason
     },
     "inputReason": if reason.is_empty() {
       ""
+    } else if selection.anchor.paragraph == selection.focus.paragraph &&
+      tree.has_text_revisions(selection.anchor.paragraph) {
+      try {
+        self.check_document_protection()
+        self.check_position(selection.anchor)
+        self.check_position(selection.focus)
+        ""
+      } catch {
+        @failure.Failure(message~, ..) => message
+      }
     } else {
       try {
         self.check_document_protection()

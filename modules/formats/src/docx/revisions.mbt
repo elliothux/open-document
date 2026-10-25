@@ -390,6 +390,7 @@ pub fn Session::resolve_revisions(
       bytes,
     },
     candidate,
+    tracking_edit=true,
   )
   self.edit_result(affected)
 }

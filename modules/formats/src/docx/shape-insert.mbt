@@ -40,6 +40,9 @@ fn Session::prepare_shape_insertion(
   line_width : Double,
   text? : String,
 ) -> PreparedEdit raise @failure.Failure {
+  guard ["rect", "ellipse", "line"].contains(preset) else {
+    @failure.reject("invalid-operation", "Unsupported inserted shape preset")
+  }
   let (width, height, line_width) = check_shape_properties(
     preset, width, height, fill, stroke, line_width,
   )

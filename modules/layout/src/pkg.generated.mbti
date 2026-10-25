@@ -41,7 +41,10 @@ pub(all) struct BasicShape {
   fill : String
   stroke : String
   lineWidth : Double
+  points : Array[(Double, Double)]
+  strokeAlpha : Double
 } derive(ToJson)
+pub fn BasicShape::path(Self, Double, Double) -> Array[PathSegment]
 pub fn BasicShape::to_json(Self) -> Json
 
 pub(all) struct Border {

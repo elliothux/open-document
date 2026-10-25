@@ -9,6 +9,8 @@ import { isPptxCommand, type PptxSession } from "@open-document/wasm/pptx";
 import { isPdfCommand, type PdfSession } from "@open-document/wasm/pdf";
 import { errorResponse, type Request, type Response } from "./protocol";
 import { mathOperation } from "./worker-math.js";
+import { inkOperation } from "./worker-docx-ink.js";
+import { reviewOperation } from "./worker-docx-review.js";
 let text: TextSession | undefined;
 let foundation: FoundationSession | undefined;
 let workbook: XlsxSession | undefined;
@@ -469,6 +471,8 @@ async function dispatch(request: Request): Promise<unknown> {
           );
         case "docxShapes":
           return foundation.shapes(request.revision);
+        case "docxInk":
+          return inkOperation(foundation, request);
         case "docxMathFractions":
         case "docxMathScripts":
         case "docxMathExpressions":
@@ -591,15 +595,11 @@ async function dispatch(request: Request): Promise<unknown> {
         case "docxComments":
           return foundation.comments(request.revision);
         case "docxRevisions":
-          return foundation.revisions(request.revision);
         case "docxRevisionGeometry":
-          return foundation.revisionGeometry(
-            request.revision,
-            request.layoutId,
-            request.revisionId,
-          );
         case "resolveDocxRevisions":
-          return foundation.resolveRevisions(request.revision, request.change);
+        case "docxTracking":
+        case "setDocxTracking":
+          return reviewOperation(foundation, request);
         case "navigateComment":
           return foundation.navigateComment(
             request.revision,

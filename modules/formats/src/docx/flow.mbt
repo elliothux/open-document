@@ -491,7 +491,13 @@ fn Session::paragraph(
           tree.nodes[item].uri == word_uri &&
           revision_element(tree.nodes[item].name)
         }) {
-        "Tracked revisions require review before editing"
+        try {
+          ignore(tree.review_text_parts(id))
+          ""
+        } catch {
+          @failure.Failure(..) =>
+            "Tracked revisions require review before editing"
+        }
       } else if tree.contents.get(id) is Some(contents) {
         contents.edit_reason()
       } else if tree.field_spans.contains(id) {

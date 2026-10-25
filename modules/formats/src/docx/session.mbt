@@ -30,6 +30,7 @@ pub struct Session {
   priv mut composition_id : Int
   priv mut drawing_gesture : DrawingGesture?
   priv mut drawing_gesture_id : Int
+  priv mut tracking_context : (String, String)?
   priv mut closed : Bool
   priv diagnostics : Array[String]
 }
@@ -130,6 +131,7 @@ fn Session::from_package(opc : @opc.Package) -> Session raise @failure.Failure {
     composition_id: 0,
     drawing_gesture: None,
     drawing_gesture_id: 0,
+    tracking_context: None,
     closed: false,
     diagnostics,
   }
@@ -214,6 +216,27 @@ pub fn Session::replace(
     }
     offset += inline_text(nodes[item.id]).length()
   }
+  if self.tracking_context is Some(_) ||
+    WordTree::new(document).has_text_revisions(node.paragraph) {
+    let start : Position = {
+      paragraph: node.paragraph,
+      offset,
+      affinity: "after",
+      bidiLevel: None,
+      frameStart: None,
+    }
+    ignore(
+      self.replace_range(
+        revision,
+        {
+          anchor: start,
+          focus: { ..start, offset: offset + before.length(), },
+        },
+        text,
+      ),
+    )
+    return self.revision
+  }
   let after = self.selection.map(selection => {
     if selection.anchor.paragraph != node.paragraph &&
       selection.focus.paragraph != node.paragraph {
@@ -264,6 +287,7 @@ pub fn Session::save(self : Session) -> Bytes raise @failure.Failure {
 ///|
 pub fn Session::close(self : Session) -> Unit {
   self.closed = true
+  self.tracking_context = None
   self.composition = None
   self.drawing_gesture = None
   self.opc.close()

@@ -9,6 +9,7 @@ import {
   type DocxPageBorders,
 } from "./docx-format.js";
 import { record } from "./validation.js";
+import { checkShapePath, type BasicDrawingShape } from "./preview-shape.js";
 import { checkDocxSpanField } from "./preview-fields.js";
 import { checkDocxSections, type DocxSectionBreak } from "./docx-sections.js";
 export type { DocxSectionBreak } from "./docx-sections.js";
@@ -143,21 +144,10 @@ export interface DrawingFrame {
     | { kind: "picture"; key: string; crop: number[] }
     | { kind: "math"; math: MathFormula }
     | { kind: "chart"; chart: ChartSettings }
-    | {
-        kind: "shape";
-        preset: "rect" | "ellipse" | "line";
-        fill: string;
-        stroke: string;
-        lineWidth: number;
-      }
+    | ({ kind: "shape" } & BasicDrawingShape)
     | {
         kind: "textBox";
-        shape: {
-          preset: "rect" | "ellipse";
-          fill: string;
-          stroke: string;
-          lineWidth: number;
-        };
+        shape: BasicDrawingShape & { preset: "rect" | "ellipse" };
         text: {
           paragraphs: DocxFlow["paragraphs"];
           insets: number[];
@@ -479,11 +469,14 @@ export function docxFlow(value: unknown): DocxFlow {
         if (content.kind === "shape" || content.kind === "textBox") {
           const shape = fields(
             content.kind === "textBox" ? content.shape : content,
-            ["lineWidth"],
+            ["lineWidth", "strokeAlpha"],
             ["preset", "fill", "stroke"],
           );
+          checkShapePath(shape);
           if (
-            !["rect", "ellipse", "line"].includes(String(shape.preset)) ||
+            !["rect", "ellipse", "line", "polyline"].includes(
+              String(shape.preset),
+            ) ||
             !(
               positive ||
               (shape.preset === "line" &&
@@ -503,6 +496,7 @@ export function docxFlow(value: unknown): DocxFlow {
             const paragraphs = entries(text.paragraphs);
             if (
               shape.preset === "line" ||
+              shape.preset === "polyline" ||
               !["t", "ctr", "b"].includes(String(text.anchor)) ||
               typeof text.wrap !== "boolean" ||
               typeof text.clip !== "boolean" ||

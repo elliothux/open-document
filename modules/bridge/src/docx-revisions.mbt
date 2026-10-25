@@ -6,6 +6,24 @@ fn Foundation::docx_revisions(
   operation : String,
 ) -> Json raise @failure.Failure {
   let revision = field_int(request, "revision")
+  if operation == "docxTracking" {
+    return session.tracking(revision)
+  }
+  if operation == "setDocxTracking" {
+    let author = match request {
+      { "author": Null, .. } => None
+      { "author": String(author), .. } => Some(author)
+      _ =>
+        @failure.reject(
+          "invalid-operation", "Revision author must be text or null",
+        )
+    }
+    return session.track_changes(
+      revision,
+      author,
+      field_string(request, "date"),
+    )
+  }
   if operation == "docxRevisions" {
     return session.revisions(revision)
   }

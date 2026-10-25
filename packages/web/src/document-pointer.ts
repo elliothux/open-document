@@ -4,6 +4,7 @@ import type {
   EditState,
   DocxSelectionGeometry,
   DocxDrawingGestureCommand,
+  DocxInkTool,
 } from "@open-document/wasm/foundation";
 import {
   PointerSelection,
@@ -13,9 +14,12 @@ import {
 } from "./pointer-selection.js";
 import { pointerDocxSelection } from "./document-selection.js";
 import { DocxDrawingGesture } from "./document-drawing-gesture.js";
+import { DocumentInkGesture } from "./document-ink.js";
+import type { PageCanvas } from "./page-canvas.js";
 
 export interface DocxPointerHost {
   assertOpen(): void;
+  ink(): { options: DocxInkTool; profile: Record<string, string> };
   available(): boolean;
   current(): {
     state: EditState;
@@ -36,15 +40,19 @@ export interface DocxPointerHost {
 export class DocumentPointer {
   private readonly text: PointerSelection;
   private readonly drawing: DocxDrawingGesture;
+  private readonly ink: DocumentInkGesture;
+  private readonly canvas: HTMLCanvasElement;
   private pageTime = 0;
   private pendingComment: string | undefined;
   constructor(
-    private readonly canvas: HTMLCanvasElement,
+    surface: PageCanvas,
     private readonly viewport: HTMLElement,
     client: FoundationClient,
     signal: AbortSignal,
     private readonly host: DocxPointerHost,
   ) {
+    const canvas = (this.canvas = surface.canvas);
+    this.ink = new DocumentInkGesture(surface, viewport, client, signal, host);
     this.drawing = new DocxDrawingGesture(
       canvas,
       viewport,
@@ -58,7 +66,10 @@ export class DocumentPointer {
       signal,
       (point, initial, extend, elapsed) =>
         this.select(client, point, initial, extend, elapsed),
-      () => host.available() && !this.drawing.active,
+      () =>
+        host.available() &&
+        !this.drawing.active &&
+        host.ink().options.tool === "select",
       (cancelled) => {
         const id = cancelled ? undefined : this.pendingComment;
         this.pendingComment = undefined;
@@ -67,15 +78,17 @@ export class DocumentPointer {
     );
   }
   get active() {
-    return this.text.active || this.drawing.active;
+    return this.text.active || this.drawing.active || this.ink.active;
   }
   flush() {
     this.text.flush();
     this.drawing.flush();
+    this.ink.flush();
   }
   finish() {
     this.text.finish();
     this.drawing.finish();
+    this.ink.finish();
   }
   finishText() {
     this.text.finish();
@@ -84,6 +97,7 @@ export class DocumentPointer {
     this.pendingComment = undefined;
     this.text.cancel();
     this.drawing.reset();
+    this.ink.cancel();
   }
   refresh(geometry: DocxSelectionGeometry | undefined) {
     return this.drawing.refresh(geometry);

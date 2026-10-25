@@ -483,7 +483,13 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 `DocumentEditor.resolveRevisions(catalog, { action: "accept" | "reject", ids })` 显式处理目录内的一项或一批修订。Wasm/Worker 使用 `docxRevisions` 和 `resolveDocxRevisions`，携带 revision；同步会话提供对应方法。旧目录或其他文档的目录被拒绝。核心预检整批后提交一次源历史：接受插入或拒绝删除保留普通 run，接受删除或拒绝插入移除包装及内容。拒绝删除把 `delText` 恢复为 `t`，保留样式、命名空间、空白、Tab 和软换行；其他源内容及部件保持。撤销/重做恢复精确源，处理后的普通段落可继续输入。
 
-受支持的待处理文字修订参与正文和普通单元格的同一份布局。插入文字加下划线，删除文字加删除线，保留原字体、颜色及其他字符属性；属性修订显示当前格式。语义文本、Canvas、页面图片和 PDF 共用这些标记，处理修订后恢复普通输出。默认面板明确说明导出页面也会包含待处理标记。包含修订的段落继续拒绝普通光标编辑，查找与统计保留既有保护说明，不把已显示的修订文字伪装为可编辑位置。
+受支持的待处理文字修订参与正文和普通单元格的同一份布局。插入文字加下划线，删除文字加删除线，保留原字体、颜色及其他字符属性；属性修订显示当前格式。语义文本、Canvas、页面图片和 PDF 共用这些标记，处理修订后恢复普通输出。默认面板明确说明导出页面也会包含待处理标记。仅含已知普通文字修订的段落支持光标输入和删除；属性修订及未知内容继续保护。
+
+`DocumentEditor.tracking()` 查询 `{ revision, enabled, author, reason }`，`setTracking(author: string | null)` 启用指定作者的记录或关闭。同步 `FoundationSession` 与 Worker `FoundationClient` 使用相同方法并显式携带 revision。默认审阅面板提供作者输入和开始/停止按钮。模式属于当前会话，切换不修改源或历史；保存保留原生修订，重开默认关闭记录。宿主明确提供作者，平台为各记录事务提供 UTC 时间。
+
+记录范围为同一普通正文或单元格段落内的文字替换、连续输入、删除及组合输入。新增文字保存为 `w:ins`，删除原文保存为 `w:del/w:delText`；连续输入复用本作者插入身份，删除本作者新增文字直接收缩该插入。已有删除文字保留，删除键跳过它；记录中删除其他作者的插入保持保护。关闭记录后可继续普通文字编辑，已有修订保留。源运行格式、Tab、软换行、其他部件和精确历史沿原事务保持，组合取消不提交。
+
+单次文字最多 65536 个 UTF-16 单元，并沿字素边界校验。跨段替换、段落拆合、字符/段落格式和其他结构修改的记录尚未实现；记录中这些修改由核心拒绝，避免无记录写入。字段、图形、书签/批注标记、嵌套修订或未知源的混合段落继续保护。核心实现归 [tracking.mbt](../../modules/formats/src/docx/tracking.mbt)和 [tracking-text.mbt](../../modules/formats/src/docx/tracking-text.mbt)，默认控件归 [docx-tracking.tsx](../../packages/ui/src/docx-tracking.tsx)。
 
 `DocumentEditor.showRevision(catalog, id)` 定位目录中的普通文字或属性修订。它复用现有队列，请求当前布局的核心区域，显示首个区域所在页并滚动、高亮；跨页范围返回各页区域，定位时高亮首段所在页。定位不改变正文编辑选区、revision、历史、源或修改状态。高亮是临时覆盖层，其他编辑或页面操作会清除，也不进入导出。同步会话和 `FoundationClient` 提供 `revisionGeometry(revision, layoutId, id)`，返回既有 `{ layoutId, revision, rects }` 结构；底层 `docxRevisionGeometry` 命令使用 `revisionId` 字段，避免与 Worker 消息序号混用。
 
@@ -491,7 +497,7 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 当前处理正文直属段落及普通正文表格单元格内、直接包裹普通 run 的 `w:ins/w:del`，以及普通 run 的 `rPr/rPrChange` 和段落的 `pPr/pPrChange`。属性修订必须含一份匹配的旧属性，当前与旧属性均沿已有结构属性校验；字符属性预览该 run 的文字，段落属性预览该段文字。接受移除修订记录并保留当前属性，拒绝恢复旧属性及其命名空间；拒绝段落属性保留当前段落标记的 `rPr`，不把标记格式当作旧段落属性覆盖。空旧属性恢复继承。属性和文字修订可在一个显式批次内处理，共用历史与预算。
 
-字段、图片、嵌套修订、移动、段落结构修订、未知内容或元数据保持保护并给出条目原因。当前或旧属性中的未知项、重复属性、旧段落属性包含标记格式或节结构、属性源中的注释/处理指令，以及段落标记自身的修订继续保护。启用的文档保护由核心拒绝接受/拒绝事务，保留保护标记；只读定位不移除保护。未支持内容继续给出布局诊断，不声明完整显示。记录新修改、作者颜色、更广结构及显示模式兼容继续实施。
+字段、图片、嵌套修订、移动、段落结构修订、未知内容或元数据保持保护并给出条目原因。当前或旧属性中的未知项、重复属性、旧段落属性包含标记格式或节结构、属性源中的注释/处理指令，以及段落标记自身的修订继续保护。启用的文档保护由核心拒绝接受/拒绝事务，保留保护标记；只读定位不移除保护。未支持内容继续给出布局诊断，不声明完整显示。格式与结构修改记录、作者颜色及更广显示模式兼容继续实施。
 
 目录最多 4096 项，每项预览最多 32767 UTF-16 单元，总预览最多 1 Mi 单元；作者最多 255，日期及源编号最多 128。提交接受现有 XML、包输出和历史预算，空批次、重复或缺失身份、活动候选及任意受保护项使整批失败。保留选区位于未受影响段落时的原位置；受影响时移至首个可编辑的处理段落，否则清除选区。
 
@@ -547,7 +553,7 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 正文 DrawingML 矩形、椭圆和线已接通读取与矢量 Canvas/PDF。支持无文字的 `wps:wsp`，普通文本内容见下方[文本框](#docx-文本框)。画笔支持显式 RGB/无填充、实线及匹配框尺寸的未旋转几何。行内框参与行宽和行高；正文浮动框复用既有定位、图层、上下型/方形环绕及缓存。线可有一个零尺寸轴。图形不生成位图资源。
 
-Flow 使用 `spans[].drawing: DrawingFrame | null`。框为 `{ width, height, anchor, content }`；图片内容为 `{ kind: "picture", key, crop }`，基础图形内容为 `{ kind: "shape", preset, fill, stroke, lineWidth }`。`preset` 为 `rect/ellipse/line`，颜色为六位 RGB 或空字符串，尺寸和线宽使用 point。空颜色表示不绘制该项。共享锚点类型为 `DrawingAnchor/DrawingAxis`；原生定位结果为 `Line.drawings: PlacedDrawingFrame[]`，命中使用 `Hit.drawingStart`。图片源编辑命令、裁剪值和资源键继续表达图片本身。正文可访问文字把对象单元标为 `[drawing]`。
+Flow 使用 `spans[].drawing: DrawingFrame | null`。框为 `{ width, height, anchor, content }`；图片内容为 `{ kind: "picture", key, crop }`，基础图形内容为 `{ kind: "shape", preset, fill, stroke, lineWidth, points, strokeAlpha }`。`preset` 为 `rect/ellipse/line/polyline`；普通形状的 `points` 为空、`strokeAlpha` 为 1，墨迹折线归[下方合同](#docx-墨迹)，颜色为六位 RGB 或空字符串，尺寸和线宽使用 point。空颜色表示不绘制该项。共享锚点类型为 `DrawingAnchor/DrawingAxis`；原生定位结果为 `Line.drawings: PlacedDrawingFrame[]`，命中使用 `Hit.drawingStart`。图片源编辑命令、裁剪值和资源键继续表达图片本身。正文可访问文字把对象单元标为 `[drawing]`。
 
 `DocumentEditor.shapes()` 返回 `{ revision, items }`，每项包含 `{ id, name, selected, preset, width, height, fill, stroke, lineWidth, anchor, reason, sizeReason, deleteReason, positionReason, textBox, textReason }`。文本框的 `textBox` 返回下述文字区域属性，普通无文字图形返回 `null`；`textReason` 说明文字区域编辑的保护原因。同步 `FoundationSession` 与 Worker `FoundationClient` 使用 `shapes(revision)`。目录最多 256 项，节点身份仅在当前会话有效；重开后重新查询。
 
@@ -568,6 +574,18 @@ Flow 使用 `spans[].drawing: DrawingFrame | null`。框为 `{ width, height, an
 `editShape(revision, { action: "position", id, anchor, target? })` 修改图形定位。图形与图片共用 `DocxDrawingPositionEdit`、核心 `set_drawing_anchor` 和默认定位面板。`anchor` 为 `null` 时恢复行内；浮动框支持前置/后置、两轴基准与偏移/对齐、层次、方形/上下型环绕和四边间距，参数归[图片定位](#图片定位)。图形目录返回当前 `anchor` 及 `positionReason`。
 
 `target` 显式把浮动图形重锚到正文段落，可跨页；偏移按移除前文档计算。事务保留原运行格式、命名空间、身份、矢量源和非目标部件，选择新逻辑范围，修改合为一项精确历史。`noMove`、`noChangeWrap` 阻止定位，`noResize`、`noCopy`、`noDelete` 不阻止定位。跨段迁移遵循 `wp:anchor locked`。浮动图形要求正文容器；源不明、位置无效、布局或预算失败保持原文档与历史。默认宿主已接通指针选择、四角及键盘缩放、浮动拖动、跨段/跨页重锚和边缘翻页。图形目录的 `selected` 标记当前单对象范围，默认面板自动跟随；`noSelect` 阻止图形手势。图形允许独立调整宽高，`noChangeAspect` 存在时保持比例，`noResize` 保护缩放；图片继续保持原比例与裁剪。矩形/椭圆的最小尺寸为一个 EMU；线允许零轴，交互命中与选择框将零轴扩展为 6 pt，源尺寸和绘制不变。候选、取消、最终坐标、原生删除、历史与持久化屏障复用[绘图对象手势](#绘图对象移动与缩放手势)。
+
+### DOCX 墨迹
+
+默认图形面板提供选择、画笔、荧光笔、整笔橡皮、RGB 颜色和 0.5–24 pt 线宽。`DocumentEditor.setInkTool({ tool, color, width })` 设置临时工具，`tool` 为 `select/pen/highlighter/eraser`。输入仍使用现有 Chromium 指针与原生文字输入。按下、移动和抬起形成一笔；Escape、指针取消或窗口失焦丢弃未完成笔画。保存及其他编辑屏障先提交完整笔画。工具切换不改变源或历史。
+
+同步 `FoundationSession` 和 Worker `FoundationClient` 提供 `previewInk(revision, layoutId, page, stroke)`、`insertInk(revision, layoutId, page, stroke, profile)`、`eraseInk(revision, layoutId, page, x, y)`。`stroke` 为 `{ points: [x,y][], color, width, highlighter }`，坐标使用当前页面中的 point；最多 4096 个采样点。预览返回透明 R0 批次，保持源、选择和历史。Web 只采样和重放；核心校验当前布局、样本和预算，生成轮廓与原生 XML。过期布局或失败候选保留文档、修订、选择与重做。
+
+完成的一笔是无填充的 `wps:wsp` 自定义开放折线，使用原生 `a:custGeom`、圆端/圆连接和显式 RGB。普通笔不透明，荧光笔 `strokeAlpha=0.45`；单点用极短线段显示圆点。锚点归属当前页最近的可编辑正文段落，横向相对分栏、纵向相对段落，前置且不环绕。每笔占一个原生绘图单元并产生一项历史，保留原选择范围中的文字。图形目录返回 `preset: "polyline"`；Flow 的归一化 `points` 随宽高缩放。既有图形属性、定位、删除、正文富文本剪贴板、保存重开及 Canvas/PDF/矢量 SVG 输出复用同一对象。墨迹保持无填充且描边非空，修改颜色和线宽保留透明度与路径。
+
+命中使用距真实线段不超过半线宽加 3 pt 的范围，空外接框区域不选择或擦除墨迹。橡皮删除命中的最上层整笔，保留其他图形与未命中的笔画，服从文档保护、删除锁、引用和现有 256 项绘图上限。多条开放线、曲线、压力元数据、未知填充/画笔与扩展几何继续保护；不把不支持的路径转成错误图像。更广导入和压力笔继续实施。
+
+实现归 [ink.mbt](../../modules/formats/src/docx/ink.mbt)、[原生折线读取](../../modules/formats/src/docx/shape-polyline-read.mbt)、[共享命中](../../modules/layout/src/drawing-frame.mbt)、[指针工具](../../packages/web/src/document-ink.ts)和[默认控件](../../packages/ui/src/docx-ink.tsx)。原生开放几何、Word 零原点和无填充参考 [ONLYOFFICE PolyLine](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/PolyLine.js#L180-L300)，未复制上游执行代码。
 
 ### DOCX 普通图表
 

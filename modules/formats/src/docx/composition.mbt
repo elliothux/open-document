@@ -72,7 +72,11 @@ pub fn Session::begin_composition(
     @failure.reject("invalid-operation", "Composition requires a selection")
   }
   let tree = WordTree::new(self.document())
-  if self.table_cell_range(
+  if selection.anchor.paragraph == selection.focus.paragraph &&
+    tree.has_text_revisions(selection.anchor.paragraph) {
+    self.check_position(selection.anchor)
+    self.check_position(selection.focus)
+  } else if self.table_cell_range(
       tree,
       selection,
       pictures=true,
@@ -154,7 +158,7 @@ pub fn Session::commit_composition(
       self.composition = None
       return self.select(revision, prepared.edit.after.unwrap())
     }
-    self.commit_edit(prepared.edit, prepared.document)
+    self.commit_edit(prepared.edit, prepared.document, tracking_edit=true)
     self.typing_text = prepared.typing_text
   }
   self.composition = None

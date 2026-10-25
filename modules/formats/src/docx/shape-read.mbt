@@ -38,6 +38,7 @@ fn WordTree::shape_children(
 fn WordTree::shape_rgb(
   self : WordTree,
   parent : Int,
+  alpha~ : Bool = false,
 ) -> String raise @failure.Failure {
   let no_fill = self.drawing_child(parent, "noFill")
   let solid = self.drawing_child(parent, "solidFill")
@@ -58,7 +59,7 @@ fn WordTree::shape_rgb(
       "unsupported-layout", "Shape color requires an explicit RGB fill",
     )
   }
-  self.shape_children(color, [])
+  self.shape_children(color, if alpha { ["alpha"] } else { [] })
   let node = self.nodes[color]
   let rgb = node.attribute("val").unwrap_or("")
   guard node.attributes.all(a => a.uri.is_empty() && a.name == "val") &&
@@ -147,16 +148,32 @@ fn WordTree::read_basic_shape(
     @failure.reject("unsupported-layout", "Shape properties are required")
   }
   self.shape_children(properties, [
-    "xfrm", "prstGeom", "solidFill", "noFill", "ln",
+    "xfrm", "prstGeom", "custGeom", "solidFill", "noFill", "ln",
   ])
-  guard self.drawing_child(properties, "prstGeom") is Some(geometry) else {
-    @failure.reject("unsupported-layout", "Shape preset geometry is required")
+  let custom = self.drawing_child(properties, "custGeom")
+  let ordinary = self.drawing_child(properties, "prstGeom")
+  let selected = if ordinary is Some(_) { ordinary } else { custom }
+  guard !(custom is Some(_) && ordinary is Some(_)) &&
+    selected is Some(geometry) else {
+    @failure.reject("unsupported-layout", "One shape geometry is required")
   }
-  let preset = self.nodes[geometry].attribute("prst").unwrap_or("")
-  guard ["rect", "ellipse", "line"].contains(preset) &&
-    self.nodes[geometry].attributes.all(a => {
-      a.uri.is_empty() && a.name == "prst"
-    }) &&
+  let points = if custom is Some(_) {
+    self.shape_polyline(geometry)
+  } else {
+    []
+  }
+  let preset = if custom is Some(_) {
+    "polyline"
+  } else {
+    self.nodes[geometry].attribute("prst").unwrap_or("")
+  }
+  guard ["rect", "ellipse", "line", "polyline"].contains(preset) &&
+    (
+      custom is Some(_) ||
+      self.nodes[geometry].attributes.all(a => {
+        a.uri.is_empty() && a.name == "prst"
+      })
+    ) &&
     (if preset == "line" {
       width > 0 || height > 0
     } else {
@@ -166,9 +183,11 @@ fn WordTree::read_basic_shape(
       "unsupported-layout", "Shape preset or dimensions require support",
     )
   }
-  self.shape_children(geometry, ["avLst"])
-  if self.drawing_child(geometry, "avLst") is Some(id) {
-    self.shape_children(id, [])
+  if custom is None {
+    self.shape_children(geometry, ["avLst"])
+    if self.drawing_child(geometry, "avLst") is Some(id) {
+      self.shape_children(id, [])
+    }
   }
   if self.drawing_child(properties, "xfrm") is Some(id) {
     let node = self.nodes[id]
@@ -202,10 +221,29 @@ fn WordTree::read_basic_shape(
   }
   let (stroke, line_width) = if self.drawing_child(properties, "ln") is Some(id) {
     let node = self.nodes[id]
-    guard node.attributes.all(a => a.uri.is_empty() && a.name == "w") else {
+    guard node.attributes.all(a => {
+      a.uri.is_empty() &&
+      (
+        a.name == "w" ||
+        (preset == "polyline" && a.name == "cap" && a.value == "rnd")
+      )
+    }) else {
       @failure.reject("unsupported-layout", "Unknown shape line attributes")
     }
-    self.shape_children(id, ["solidFill", "noFill", "prstDash"])
+    self.shape_children(
+      id,
+      if preset == "polyline" {
+        ["solidFill", "noFill", "prstDash", "round"]
+      } else {
+        ["solidFill", "noFill", "prstDash"]
+      },
+    )
+    if self.drawing_child(id, "round") is Some(join) {
+      self.shape_children(join, [])
+      guard self.nodes[join].attributes.is_empty() else {
+        @failure.reject("unsupported-layout", "Unknown ink stroke join")
+      }
+    }
     if self.drawing_child(id, "prstDash") is Some(dash) {
       self.shape_children(dash, [])
       guard self.nodes[dash].attribute("val") == Some("solid") &&
@@ -215,7 +253,7 @@ fn WordTree::read_basic_shape(
         )
       }
     }
-    let stroke = self.shape_rgb(id)
+    let stroke = self.shape_rgb(id, alpha=preset == "polyline")
     (
       stroke,
       if node.attribute("w") is Some(_) {
@@ -230,6 +268,17 @@ fn WordTree::read_basic_shape(
   guard line_width <= 1584 && (stroke.is_empty() || line_width > 0) else {
     @failure.reject("unsupported-layout", "Shape line width requires support")
   }
+  if preset == "polyline" {
+    guard self.shape_rgb(properties).is_empty() &&
+      !stroke.is_empty() &&
+      self.drawing_child(properties, "ln") is Some(line) &&
+      self.nodes[line].attribute("cap") == Some("rnd") &&
+      self.drawing_child(line, "round") is Some(_) else {
+      @failure.reject(
+        "unsupported-layout", "Ink requires an unfilled round stroke",
+      )
+    }
+  }
   {
     width,
     height,
@@ -239,6 +288,15 @@ fn WordTree::read_basic_shape(
       fill: self.shape_rgb(properties),
       stroke,
       lineWidth: line_width,
+      points,
+      strokeAlpha: if preset == "polyline" {
+        self
+        .drawing_child(properties, "ln")
+        .map(line => self.shape_stroke_alpha(line))
+        .unwrap_or(1)
+      } else {
+        1
+      },
     }),
   }
 }

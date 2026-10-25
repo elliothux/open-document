@@ -274,11 +274,26 @@ fn PlacedDrawingFrame::paint(
     )
     primitives.push(
       Path(
-        basic_shape_path(shape.preset, self.width, self.height),
+        shape.path(self.width, self.height),
         shape.fill,
         shape.stroke,
         shape.lineWidth,
-        { fillAlpha: 1, strokeAlpha: 1, dash: [], cap: 0, join: 0, miter: 10, },
+        {
+          fillAlpha: 1,
+          strokeAlpha: shape.strokeAlpha,
+          dash: [],
+          cap: if shape.preset == "polyline" {
+            1
+          } else {
+            0
+          },
+          join: if shape.preset == "polyline" {
+            1
+          } else {
+            0
+          },
+          miter: 10,
+        },
       ),
     )
     if self.content is TextBox(_, text) {
@@ -391,7 +406,8 @@ fn Layout::floating_image_hit(
       x >= left &&
       x <= left + width &&
       y >= top &&
-      y <= top + height {
+      y <= top + height &&
+      image.ink_hit(x, y) {
       return Some(
         self
         .text_box_hit(image, page, x, y)

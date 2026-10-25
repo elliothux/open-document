@@ -4,6 +4,8 @@ pub(all) struct BasicShape {
   fill : String
   stroke : String
   lineWidth : Double
+  points : Array[(Double, Double)]
+  strokeAlpha : Double
 } derive(ToJson)
 
 ///|
@@ -29,6 +31,8 @@ pub impl ToJson for DrawingContent with fn to_json(self) {
         "fill": shape.fill,
         "stroke": shape.stroke,
         "lineWidth": shape.lineWidth,
+        "points": shape.points,
+        "strokeAlpha": shape.strokeAlpha,
       }
     TextBox(shape, text) => { "kind": "textBox", "shape": shape, "text": text }
     Math(formula) => { "kind": "math", "math": formula }
@@ -43,7 +47,7 @@ pub extend DrawingContent with ToJson::{to_json}
 fn DrawingContent::copy(self : DrawingContent) -> DrawingContent {
   match self {
     Picture(key, crop) => Picture(key, crop.copy())
-    Shape(_) => self
+    Shape(shape) => Shape({ ..shape, points: shape.points.copy(), })
     TextBox(shape, text) => TextBox(shape, text.copy())
     Math(formula) => Math(formula.copy())
     Chart(chart) => Chart(chart.copy())
@@ -114,7 +118,7 @@ pub fn DrawingFrame::validate(
       }
     }
     Shape(shape) | TextBox(shape, _) => {
-      guard ["rect", "ellipse", "line"].contains(shape.preset) &&
+      guard ["rect", "ellipse", "line", "polyline"].contains(shape.preset) &&
         (if shape.preset == "line" {
           self.width > 0 || self.height > 0
         } else {
@@ -130,13 +134,30 @@ pub fn DrawingFrame::validate(
         !shape.lineWidth.is_nan() &&
         !shape.lineWidth.is_inf() &&
         shape.lineWidth >= 0 &&
-        shape.lineWidth <= 1584 else {
+        shape.lineWidth <= 1584 &&
+        shape.strokeAlpha >= 0 &&
+        shape.strokeAlpha <= 1 &&
+        !shape.strokeAlpha.is_nan() &&
+        (if shape.preset == "polyline" {
+          shape.points.length() >= 2 &&
+          shape.points.length() <= 4096 &&
+          shape.fill.is_empty() &&
+          !shape.stroke.is_empty() &&
+          shape.lineWidth > 0 &&
+          shape.points.all(point => {
+            [point.0, point.1].all(value => {
+              !value.is_nan() && !value.is_inf() && value >= 0 && value <= 1
+            })
+          })
+        } else {
+          shape.points.is_empty() && shape.strokeAlpha == 1
+        }) else {
         @failure.reject("invalid-drawing", "Invalid basic shape frame")
       }
     }
   }
   if self.content is TextBox(shape, text) {
-    guard shape.preset != "line" else {
+    guard !["line", "polyline"].contains(shape.preset) else {
       @failure.reject("invalid-drawing", "Line shapes cannot contain text")
     }
     text.validate()
@@ -163,14 +184,57 @@ pub extend PlacedDrawingFrame with ToJson::{to_json}
 fn PlacedDrawingFrame::interaction_bounds(
   self : PlacedDrawingFrame,
 ) -> (Double, Double, Double, Double) {
-  let horizontal = if self.width == 0 { 3.0 } else { 0.0 }
-  let vertical = if self.height == 0 { 3.0 } else { 0.0 }
+  let ink = match self.content {
+    Shape(shape) =>
+      if shape.preset == "polyline" {
+        shape.lineWidth / 2 + 3
+      } else {
+        0.0
+      }
+    _ => 0.0
+  }
+  let horizontal = if self.width == 0 { 3.0 } else { ink }
+  let vertical = if self.height == 0 { 3.0 } else { ink }
   (
     self.x - horizontal,
     self.y - vertical,
     self.width + 2 * horizontal,
     self.height + 2 * vertical,
   )
+}
+
+///|
+fn PlacedDrawingFrame::ink_hit(
+  self : PlacedDrawingFrame,
+  x : Double,
+  y : Double,
+) -> Bool {
+  guard self.content is Shape(shape) && shape.preset == "polyline" else {
+    return true
+  }
+  let radius = shape.lineWidth / 2 + 3
+  let x = x - self.x
+  let y = y - self.y
+  for index in 1..<shape.points.length() {
+    let a = shape.points[index - 1]
+    let b = shape.points[index]
+    let ax = a.0 * self.width
+    let ay = a.1 * self.height
+    let dx = (b.0 - a.0) * self.width
+    let dy = (b.1 - a.1) * self.height
+    let length = dx * dx + dy * dy
+    let ratio = if length == 0 {
+      0.0
+    } else {
+      (((x - ax) * dx + (y - ay) * dy) / length).clamp(min=0, max=1)
+    }
+    let rx = x - ax - ratio * dx
+    let ry = y - ay - ratio * dy
+    if rx * rx + ry * ry <= radius * radius {
+      return true
+    }
+  }
+  false
 }
 
 ///|

@@ -11,6 +11,7 @@ import { DocxDrawingPosition } from "./docx-drawing-position.js";
 import { DocxDrawingLink } from "./docx-drawing-link.js";
 import { DocxTextBoxProperties } from "./docx-text-box-properties.js";
 import { WordArt } from "./word-art.js";
+import { DocxInk } from "./docx-ink.js";
 
 export function DocxShapes({
   controller,
@@ -87,6 +88,13 @@ export function DocxShapes({
   return (
     <section aria-label={t.docxShapeProperties}>
       <h3>{t.docxShapeProperties}</h3>
+      <DocxInk
+        key={editor.getSnapshot().documentId}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
       <WordArt
         controller={controller}
         state={state}
@@ -314,7 +322,8 @@ export function DocxShapes({
                     required
                     step="any"
                     min={
-                      key === "lineWidth" || shape.preset === "line"
+                      (key === "lineWidth" && shape.preset !== "polyline") ||
+                      shape.preset === "line"
                         ? 0
                         : 1 / 12700
                     }
@@ -341,6 +350,8 @@ export function DocxShapes({
                   {label}
                   <input
                     type="text"
+                    disabled={key === "fill" && shape.preset === "polyline"}
+                    required={key === "stroke" && shape.preset === "polyline"}
                     pattern="[A-Fa-f0-9]{6}|"
                     maxLength={6}
                     value={draft[key]}

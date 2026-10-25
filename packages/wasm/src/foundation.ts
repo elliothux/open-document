@@ -5,7 +5,9 @@ import {
 } from "./docx-chart.js";
 export * from "./docx-chart.js";
 export { type ChartSettings } from "./chart.js";
-import { FoundationMathSession } from "./docx-math.js";
+import { FoundationInkSession } from "./docx-ink.js";
+export * from "./docx-ink.js";
+export * from "./docx-tracking.js";
 export * from "./docx-clipboard.js";
 export * from "./docx-toc.js";
 export * from "./docx-index.js";
@@ -301,7 +303,7 @@ export function shapeBatch(value: unknown): ShapeBatch {
   return value as ShapeBatch;
 }
 
-export class FoundationSession extends FoundationMathSession {
+export class FoundationSession extends FoundationInkSession {
   charts(revision: number) {
     return docxCharts(this.call({ operation: "docxCharts", revision }));
   }

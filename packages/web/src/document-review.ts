@@ -5,8 +5,15 @@ import {
   type DocumentOverview,
 } from "./document-selection.js";
 import type { PageLayout } from "@open-document/wasm/preview";
+import { drawingBatch } from "@open-document/wasm/drawing";
 import {
   docxCharts,
+  docxTracking,
+  checkTrackingAuthor,
+  checkInkStroke,
+  checkInkPoint,
+  checkInkTarget,
+  type DocxInkStroke,
   checkDocxChartEdit,
   type DocxChartEdit,
   docxRevisions,
@@ -61,6 +68,82 @@ export interface DocumentRevisions extends DocxRevisions {
 
 /** Review calls retain the same Worker protocol and validation as other document commands. */
 export class FoundationReviewClient {
+  async tracking(revision: number) {
+    return docxTracking(
+      await this.connection.request({ operation: "docxTracking", revision }),
+    );
+  }
+  async setTracking(revision: number, author: string | null) {
+    checkTrackingAuthor(author);
+    return docxTracking(
+      await this.connection.request({
+        operation: "setDocxTracking",
+        revision,
+        author,
+      }),
+    );
+  }
+  async previewInk(
+    revision: number,
+    layoutId: number,
+    page: number,
+    stroke: DocxInkStroke,
+  ) {
+    checkInkTarget(revision, layoutId, page);
+    checkInkStroke(stroke);
+    return drawingBatch(
+      await this.connection.request({
+        operation: "docxInk",
+        action: "preview",
+        revision,
+        layoutId,
+        page,
+        stroke,
+      }),
+    );
+  }
+  async insertInk(
+    revision: number,
+    layoutId: number,
+    page: number,
+    stroke: DocxInkStroke,
+    profile: Record<string, string> = {},
+  ) {
+    checkInkTarget(revision, layoutId, page);
+    checkInkStroke(stroke);
+    return editState(
+      await this.connection.request({
+        operation: "docxInk",
+        action: "insert",
+        revision,
+        layoutId,
+        page,
+        stroke,
+        profile,
+      }),
+    );
+  }
+  async eraseInk(
+    revision: number,
+    layoutId: number,
+    page: number,
+    x: number,
+    y: number,
+  ) {
+    checkInkTarget(revision, layoutId, page);
+    checkInkPoint(x, y);
+    return editState(
+      await this.connection.request({
+        operation: "docxInk",
+        action: "erase",
+        revision,
+        layoutId,
+        page,
+        x,
+        y,
+      }),
+    );
+  }
   async insertNote(
     revision: number,
     note: DocxNoteCreate,
@@ -310,6 +393,21 @@ export class FoundationReviewClient {
 
 /** Review catalogs and commands use the editor's existing input and output queue. */
 export abstract class DocumentReview {
+  tracking() {
+    return this.review.read(() =>
+      this.review.client.tracking(this.review.snapshot().revision),
+    );
+  }
+  setTracking(author: string | null): Promise<void> {
+    checkTrackingAuthor(author);
+    return this.review.edit(async () => {
+      await this.review.client.setTracking(
+        this.review.snapshot().revision,
+        author,
+      );
+      return this.review.client.editState();
+    });
+  }
   notes(): Promise<DocumentNotes> {
     return this.review
       .read(async () => {

@@ -115,6 +115,7 @@ export class DocxDrawingGesture {
         },
         () =>
           host.available() &&
+          host.ink().options.tool === "select" &&
           !this.active &&
           !!this.image &&
           this.revision === host.current().state.revision,
@@ -292,6 +293,7 @@ export class DocxDrawingGesture {
       );
       button.hidden =
         !rect ||
+        this.host.ink().options.tool !== "select" ||
         !this.host.available() ||
         (i === 4
           ? !this.image?.anchor || !!this.image.positionReason

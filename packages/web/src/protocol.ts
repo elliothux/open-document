@@ -1,4 +1,6 @@
 import type { DocxWatermarkRequest } from "./protocol-watermark.js";
+import type { DocxInkRequest } from "./protocol-docx-ink.js";
+import type { DocxTrackingRequest } from "./protocol-docx-tracking.js";
 import type { DocxPageCommand } from "./protocol-docx-page.js";
 import type { XlsxAnalysisRequest } from "./protocol-xlsx-analysis.js";
 import type {
@@ -64,6 +66,8 @@ import type { PptxCommand } from "@open-document/wasm/pptx";
 import type { PdfCommand } from "@open-document/wasm/pdf";
 
 export type Operation =
+  | DocxTrackingRequest
+  | DocxInkRequest
   | DocxNoteRequest
   | XlsxAnalysisRequest
   | {

@@ -1,4 +1,5 @@
 import { DocumentSourcesEditor } from "./document-sources.js";
+import { checkInkTool, type DocxInkTool } from "@open-document/wasm/foundation";
 import type {
   DocxTocEdit,
   DocxTableOfContents,
@@ -56,6 +57,19 @@ export type DocumentProtection = DocxProtection & { documentId: string };
 
 /** Document-wide page commands use the editor's existing read and edit queues. */
 export abstract class DocumentPage extends DocumentSourcesEditor {
+  protected inkOptions: DocxInkTool = {
+    tool: "select",
+    color: "174CA0",
+    width: 2,
+  };
+  setInkTool(options: DocxInkTool): Promise<void> {
+    checkInkTool(options);
+    const value = { ...options };
+    return this.review.edit(async () => {
+      this.inkOptions = value;
+      return this.review.client.editState();
+    });
+  }
   indexes(): Promise<DocumentIndexes> {
     return this.review.read(async () => ({
       ...(await this.review.client.indexes(this.review.snapshot().revision)),

@@ -48,7 +48,10 @@ fn paragraph_cache_units(key : String, lines : Array[Line]) -> Int {
           Math(formula) => formula.cache_units()
           Chart(chart) => chart.cache_units()
           Shape(shape) =>
-            shape.preset.length() + shape.fill.length() + shape.stroke.length()
+            shape.preset.length() +
+            shape.fill.length() +
+            shape.stroke.length() +
+            shape.points.length() * 4
           TextBox(shape, text) =>
             shape.preset.length() +
             shape.fill.length() +
@@ -107,7 +110,12 @@ fn Paragraph::finite_geometry(paragraph : Paragraph) -> Bool {
         Math(formula) => numbers.push(formula.style.size)
         Chart(_) => ()
         Picture(_, crop) => numbers.append(crop)
-        Shape(shape) => numbers.push(shape.lineWidth)
+        Shape(shape) => {
+          numbers.append([shape.lineWidth, shape.strokeAlpha])
+          for point in shape.points {
+            numbers.append([point.0, point.1])
+          }
+        }
         TextBox(shape, text) => {
           numbers.push(shape.lineWidth)
           numbers.append(text.insets)

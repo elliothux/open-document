@@ -13,6 +13,7 @@ import {
   type DocxBookmarkEdit,
 } from "./docx-overview.js";
 import { WasmSession } from "./session.js";
+import { docxTracking, checkTrackingAuthor } from "./docx-tracking.js";
 import {
   docxNotes,
   checkDocxNoteEdit,
@@ -140,6 +141,34 @@ export function docxRevisionGeometry(value: unknown): DocxSelectionGeometry {
 }
 
 export class FoundationReviewSession extends WasmSession {
+  private recording = false;
+  protected override call(request: object): unknown {
+    return super.call(
+      this.recording
+        ? { ...request, trackingDate: new Date().toISOString() }
+        : request,
+    );
+  }
+  tracking(revision: number) {
+    const state = docxTracking(
+      this.call({ operation: "docxTracking", revision }),
+    );
+    this.recording = state.enabled;
+    return state;
+  }
+  setTracking(revision: number, author: string | null) {
+    checkTrackingAuthor(author);
+    const state = docxTracking(
+      this.call({
+        operation: "setDocxTracking",
+        revision,
+        author,
+        date: new Date().toISOString(),
+      }),
+    );
+    this.recording = state.enabled;
+    return state;
+  }
   insertNote(
     revision: number,
     note: DocxNoteCreate,

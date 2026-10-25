@@ -1,4 +1,24 @@
 ///|
+/// Returns the shape's local vector outline, including bounded native ink paths.
+pub fn BasicShape::path(
+  self : BasicShape,
+  width : Double,
+  height : Double,
+) -> Array[PathSegment] {
+  if self.preset == "polyline" {
+    self.points.mapi((index, point) => {
+      if index == 0 {
+        Move(point.0 * width, point.1 * height)
+      } else {
+        Line(point.0 * width, point.1 * height)
+      }
+    })
+  } else {
+    basic_shape_path(self.preset, width, height)
+  }
+}
+
+///|
 /// Builds the shared rectangle, ellipse or diagonal-line outline in local points.
 pub fn basic_shape_path(
   preset : String,

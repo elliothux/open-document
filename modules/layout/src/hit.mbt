@@ -256,6 +256,7 @@ pub fn Layout::hit_test(
         x <= left + width &&
         y >= top &&
         y <= top + height &&
+        image.ink_hit(x, y) &&
         (!line.clip || (y >= line.y && y <= line.y + line.height)) {
         return self
           .text_box_hit(image, page, x, y)

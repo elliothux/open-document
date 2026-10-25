@@ -60,7 +60,7 @@ fn docx_texts(tree : WordTree) -> Array[TextNode] {
     }
     if node.uri != word_uri ||
       ![
-        "t", "br", "cr", "tab", "drawing", "footnoteReference", "endnoteReference",
+        "t", "delText", "br", "cr", "tab", "drawing", "footnoteReference", "endnoteReference",
       ].contains(node.name) {
       continue
     }
@@ -73,7 +73,19 @@ fn docx_texts(tree : WordTree) -> Array[TextNode] {
       tree.nodes[tree.nodes[run].parent].name == "fldSimple" {
       continue
     }
-    let paragraph = tree.run_paragraph(run)
+    let parent = tree.nodes[run].parent
+    let paragraph = if parent >= 0 &&
+      tree.nodes[parent].uri == word_uri &&
+      ["ins", "del"].contains(tree.nodes[parent].name) {
+      try {
+        ignore(tree.check_text_revision(parent))
+        tree.nodes[parent].parent
+      } catch {
+        @failure.Failure(..) => -1
+      }
+    } else {
+      tree.run_paragraph(run)
+    }
     if paragraph < 0 ||
       tree.nodes[paragraph].uri != word_uri ||
       tree.nodes[paragraph].name != "p" {

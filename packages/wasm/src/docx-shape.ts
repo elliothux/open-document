@@ -34,7 +34,7 @@ export interface DocxShapes {
   items: (DocxShape & {
     name: string;
     selected: boolean;
-    preset: DocxShapePreset;
+    preset: DocxShapePreset | "polyline";
     reason: string;
     sizeReason: string;
     deleteReason: string;
@@ -186,7 +186,8 @@ export function docxShapes(value: unknown): DocxShapes {
       ].every((key) => typeof shape[key] === "string") ||
       (shape.preset !== "rect" &&
         shape.preset !== "ellipse" &&
-        shape.preset !== "line") ||
+        shape.preset !== "line" &&
+        shape.preset !== "polyline") ||
       (shape.preset !== "line" && (shape.width === 0 || shape.height === 0))
     )
       throw new Error("Invalid DOCX shape entry");
@@ -194,7 +195,7 @@ export function docxShapes(value: unknown): DocxShapes {
     checkDrawingAnchor(shape.anchor);
     checkDocxDrawingHyperlink(shape.hyperlink);
     if (shape.textBox !== null) {
-      if (shape.preset === "line")
+      if (shape.preset === "line" || shape.preset === "polyline")
         throw new Error("Line shapes cannot contain text");
       checkTextBoxProperties(shape.textBox);
     }

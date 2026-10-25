@@ -83,7 +83,12 @@ pub fn Session::delete(
   }
   self.replace_range(
     revision,
-    { anchor: { ..focus, offset: boundaries[target], }, focus, },
+    if self.tracking_context is Some(_) ||
+      WordTree::new(document).has_text_revisions(focus.paragraph) {
+      { anchor: focus, focus: { ..focus, offset: boundaries[target], }, }
+    } else {
+      { anchor: { ..focus, offset: boundaries[target], }, focus, }
+    },
     "",
   )
 }

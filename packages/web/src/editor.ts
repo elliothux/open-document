@@ -111,12 +111,13 @@ export class DocumentEditor extends DocumentTables {
       options,
     );
     this.pointerSelection = new DocumentPointer(
-      this.surface.canvas,
+      this.surface,
       this.viewport,
       this.client,
       this.listeners.signal,
       {
         assertOpen: () => this.assertOpen(),
+        ink: () => ({ options: this.inkOptions, profile: this.profile }),
         available: () =>
           !this.closed &&
           !this.paused &&

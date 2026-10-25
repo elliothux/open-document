@@ -5,6 +5,7 @@ import type {
 } from "@open-document/web/editor";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+import { DocxTracking } from "./docx-tracking.js";
 
 export function DocxRevisions({
   controller,
@@ -72,6 +73,13 @@ export function DocxRevisions({
   return (
     <section aria-label={t.docxRevisions}>
       <h3>{t.docxRevisions}</h3>
+      <DocxTracking
+        key={snapshot.documentId}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled || blocked}
+      />
       <p>{t.revisionScope}</p>
       <p>{t.revisionDisplay}</p>
       {error && <p role="alert">{error}</p>}

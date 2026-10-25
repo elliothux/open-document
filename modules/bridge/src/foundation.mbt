@@ -29,20 +29,6 @@ pub fn new_foundation() -> Foundation {
 }
 
 ///|
-fn Foundation::current_layout(
-  self : Foundation,
-  request : Json,
-) -> @layout.Layout raise @failure.Failure {
-  guard field_int(request, "layoutId") == self.layout_id &&
-    self.layout is Some(layout) else {
-    @failure.reject(
-      "stale-layout", "Geometry requires the current displayed layout",
-    )
-  }
-  layout
-}
-
-///|
 fn Foundation::dispatch(
   self : Foundation,
   request : Json,
@@ -51,6 +37,10 @@ fn Foundation::dispatch(
     @failure.reject("closed-session", "Foundation session is closed")
   }
   let operation = field_string(request, "operation")
+  if self.docx is Some(session) &&
+    request is { "trackingDate": String(date), .. } {
+    session.tracking_clock(date)
+  }
   if operation == "insertXlsxTimeline" {
     return self.insert_xlsx_timeline(request)
   }
@@ -78,6 +68,7 @@ fn Foundation::dispatch(
     | "editDocxMathScript" => self.math_operation(operation, request)
     "docxCharts" | "editDocxChart" => self.chart_operation(operation, request)
     "docxShapes" | "editDocxShape" => self.shape_operation(operation, request)
+    "docxInk" => self.ink_operation(request)
     "docxPictures" | "editDocxPicture" | "docxDrawingGesture" =>
       self.picture_operation(operation, request)
     "budget" => {
@@ -297,6 +288,8 @@ fn Foundation::dispatch(
     | "docxOverview"
     | "docxComments"
     | "docxRevisions"
+    | "docxTracking"
+    | "setDocxTracking"
     | "docxRevisionGeometry"
     | "resolveDocxRevisions"
     | "navigateComment"
@@ -368,8 +361,11 @@ fn Foundation::dispatch(
         }
         "docxOverview" => session.overview(field_int(request, "revision"))
         "docxComments" => session.comments(field_int(request, "revision"))
-        "docxRevisions" | "resolveDocxRevisions" | "docxRevisionGeometry" =>
-          self.docx_revisions(session, request, operation)
+        "docxRevisions"
+        | "resolveDocxRevisions"
+        | "docxRevisionGeometry"
+        | "docxTracking"
+        | "setDocxTracking" => self.docx_revisions(session, request, operation)
         "navigateComment" =>
           session.navigate_comment(
             field_int(request, "revision"),

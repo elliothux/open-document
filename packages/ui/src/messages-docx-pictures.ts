@@ -1,4 +1,11 @@
 export const docxPicturesEn = {
+  docxInk: "Ink",
+  docxInkSelect: "Select ink",
+  docxInkPen: "Ink pen",
+  docxInkHighlighter: "Ink highlighter",
+  docxInkEraser: "Erase ink stroke",
+  docxInkColor: "Ink color",
+  docxInkWidth: "Ink width (pt)",
   docxShapeProperties: "Shape properties",
   insertDocxShape: "Insert shape",
   docxShapeKind: "Shape kind",
@@ -79,6 +86,13 @@ export const docxPicturesEn = {
   imageInputLimit: "Choose a nonempty picture up to 4 MiB.",
 };
 export const docxPicturesZh = {
+  docxInk: "墨迹",
+  docxInkSelect: "选择墨迹",
+  docxInkPen: "墨迹画笔",
+  docxInkHighlighter: "墨迹荧光笔",
+  docxInkEraser: "擦除整笔墨迹",
+  docxInkColor: "墨迹颜色",
+  docxInkWidth: "墨迹线宽（pt）",
   docxShapeProperties: "图形属性",
   insertDocxShape: "插入图形",
   docxShapeKind: "图形类型",

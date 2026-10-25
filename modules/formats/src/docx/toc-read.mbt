@@ -278,6 +278,20 @@ fn WordTree::read_contents(
     if node.uri != word_uri {
       continue
     }
+    if ["fldChar", "instrText"].contains(node.name) &&
+      (for ancestor = node.parent
+           ancestor >= 0
+           ancestor = self.nodes[ancestor].parent {
+        if self.nodes[ancestor].uri == word_uri &&
+          revision_element(self.nodes[ancestor].name) {
+          break true
+        }
+      } nobreak {
+        false
+      }) {
+      // Unresolved revision contents do not extend the active field stream.
+      continue
+    }
     if node.name == "p" && depth > 0 {
       paragraphs.push(id)
     }

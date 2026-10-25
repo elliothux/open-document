@@ -162,11 +162,16 @@ pub fn Session::shapes(
 }
 
 ///|
-fn shape_fill_markup(color : String) -> String {
+fn shape_fill_markup(color : String, alpha~ : Double = 1) -> String {
   if color.is_empty() {
     "<a:noFill xmlns:a=\"\{picture_drawing_uri}\"/>"
   } else {
-    "<a:solidFill xmlns:a=\"\{picture_drawing_uri}\"><a:srgbClr val=\"\{color}\"/></a:solidFill>"
+    let rgb = if alpha == 1 {
+      "<a:srgbClr val=\"\{color}\"/>"
+    } else {
+      "<a:srgbClr val=\"\{color}\"><a:alpha val=\"\{(alpha * 100000).round().to_int()}\"/></a:srgbClr>"
+    }
+    "<a:solidFill xmlns:a=\"\{picture_drawing_uri}\">\{rgb}</a:solidFill>"
   }
 }
 
@@ -210,7 +215,7 @@ fn check_shape_properties(
   stroke : String,
   line_width : Double,
 ) -> (Double, Double, Double) raise @failure.Failure {
-  guard ["rect", "ellipse", "line"].contains(preset) &&
+  guard ["rect", "ellipse", "line", "polyline"].contains(preset) &&
     [width, height].all(v => !v.is_nan() && !v.is_inf() && v >= 0 && v <= 14400) &&
     !line_width.is_nan() &&
     !line_width.is_inf() &&
@@ -225,7 +230,8 @@ fn check_shape_properties(
   let width = (width * 12700).round() / 12700
   let height = (height * 12700).round() / 12700
   let line_width = (line_width * 12700).round() / 12700
-  guard (if preset == "line" {
+  guard (preset != "polyline" || (fill.is_empty() && !stroke.is_empty())) &&
+    (if preset == "line" {
       width > 0 || height > 0
     } else {
       width > 0 && height > 0
@@ -336,7 +342,8 @@ fn Session::prepare_shape_edit(
   }
   if stroke.to_upper() != shape.stroke.to_upper() ||
     line_width != shape.lineWidth {
-    let markup = "<a:ln xmlns:a=\"\{picture_drawing_uri}\" w=\"\{(line_width * 12700).round().to_int64()}\">\{shape_fill_markup(stroke.to_upper())}</a:ln>"
+    let ink = shape.preset == "polyline"
+    let markup = "<a:ln xmlns:a=\"\{picture_drawing_uri}\" w=\"\{(line_width * 12700).round().to_int64()}\"\{if ink { " cap='rnd'" } else { "" }}>\{shape_fill_markup(stroke.to_upper(),alpha=shape.strokeAlpha)}\{if ink { "<a:round/>" } else { "" }}</a:ln>"
     changes.push(tree.shape_property_change(properties, line, None, markup))
   }
   if changes.is_empty() {
