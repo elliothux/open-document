@@ -96,10 +96,15 @@ fn Object::local_connection_sites(self : Object) -> Array[(Double, Double)] {
         (w, center),
       ]
     }
-    "leftArrow" | "rightArrow" => {
+    "leftArrow" | "rightArrow" | "notchedRightArrow" => {
       let inset = (w.min(h) * self.adjustments.1).clamp(min=0, max=w)
       let x = if self.preset == "leftArrow" { inset } else { w - inset }
-      [(x, 0.0), (0.0, h / 2), (x, h), (w, h / 2)]
+      let notch = if self.preset == "notchedRightArrow" {
+        inset * self.adjustments.0.clamp(min=0, max=1)
+      } else {
+        0.0
+      }
+      [(x, 0.0), (notch, h / 2), (x, h), (w, h / 2)]
     }
     "upArrow" | "downArrow" => {
       let inset = (w.min(h) * self.adjustments.1).clamp(min=0, max=h)

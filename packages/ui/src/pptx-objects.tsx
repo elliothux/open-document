@@ -123,6 +123,7 @@ export function PptxObjects({
               <option value="line">{t.lineShape}</option>
               <option value="leftArrow">{t.leftArrow}</option>
               <option value="rightArrow">{t.rightArrow}</option>
+              <option value="notchedRightArrow">{t.notchedRightArrow}</option>
               <option value="upArrow">{t.upArrow}</option>
               <option value="downArrow">{t.downArrow}</option>
               <option value="leftRightArrow">{t.leftRightArrow}</option>

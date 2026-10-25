@@ -10,6 +10,7 @@ fn paginate_running(
   endnotes~ : Array[Note]? = None,
   flushFootnotes~ : Bool = true,
   resolveBodyFields~ : Bool = true,
+  continuation~ : SectionContinuation? = None,
 ) -> (Pagination, Array[Array[Line]], Int, Int, PaginationCache?, Array[String]) raise @failure.Failure {
   let (patterns, setups) = running_lines(
     probe,
@@ -47,6 +48,7 @@ fn paginate_running(
       setups,
       page_setups,
       pendingNotes~,
+      continuation~,
     )
     let notes = pagination.finish_notes(
       flow,
@@ -113,7 +115,12 @@ fn paginate_running(
       }
       running.push(pattern[0])
       actual.push(setup[0])
-      if setup[0].to_json() != pagination.sheet_setup(page).to_json() {
+      let actual_setup = if page == 0 && continuation is Some(state) {
+        { ..setup[0], top: state.y, bottom: state.page.bottom, }
+      } else {
+        setup[0]
+      }
+      if actual_setup.to_json() != pagination.sheet_setup(page).to_json() {
         stable = false
       }
     }

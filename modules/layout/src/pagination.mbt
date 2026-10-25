@@ -2,6 +2,7 @@
 priv struct Pagination {
   columns : Columns
   balance : (Int, Double)?
+  continuation : SectionContinuation?
   mut page : PageSetup
   anchorPage : PageSetup
   setups : Array[PageSetup]
@@ -36,12 +37,14 @@ fn Pagination::new(
   wrapping~ : Array[WrappingRect] = [],
   noteReferences~ : Map[(Int, Int), Array[(Line, Double)]] = Map([]),
   pendingNotes~ : Array[(Line, Double)] = [],
+  continuation~ : SectionContinuation? = None,
 ) -> Pagination {
   let anchor_page = anchorPage.unwrap_or(page)
   let page = pageSetups.get(0).unwrap_or(page)
   let result : Pagination = {
     columns,
     balance,
+    continuation,
     page,
     anchorPage: anchor_page,
     setups,
@@ -60,9 +63,9 @@ fn Pagination::new(
       },
     ],
     y: page.top,
-    count: 0,
-    after: 0,
-    gap: 0,
+    count: continuation.map(state => state.frame.lines.length()).unwrap_or(0),
+    after: continuation.map(state => state.after).unwrap_or(0),
+    gap: continuation.map(state => state.gap).unwrap_or(0),
     wrapping,
     placedWrapping: Map([]),
     noteReferences,
@@ -76,6 +79,9 @@ fn Pagination::new(
   }
   result.page = result.page_at(0)
   result.y = result.page.top
+  if continuation is Some(state) {
+    result.pages[0] = state.frame.copy_geometry()
+  }
   if !pendingNotes.is_empty() {
     result.noteContinuations.add(0)
   }
@@ -155,7 +161,7 @@ fn Pagination::page_at(self : Pagination, index : Int) -> PageSetup {
 
 ///|
 fn Pagination::sheet_setup(self : Pagination, physical : Int) -> PageSetup {
-  if self.pageSetups.get(physical) is Some(page) {
+  let page = if self.pageSetups.get(physical) is Some(page) {
     page
   } else if self.setups.is_empty() {
     self.page
@@ -167,6 +173,11 @@ fn Pagination::sheet_setup(self : Pagination, physical : Int) -> PageSetup {
     } else {
       2
     }]
+  }
+  if physical == 0 && self.continuation is Some(state) {
+    { ..page, top: state.y, bottom: state.page.bottom, }
+  } else {
+    page
   }
 }
 
@@ -197,7 +208,12 @@ fn Pagination::place(
     .find_first(prior => prior.paragraph == line.paragraph)
     .map(prior => prior.y)
     .unwrap_or(top)
-  let physical = self.anchorPage
+  let physical = if target / self.columns.count == 0 &&
+    self.continuation is Some(state) {
+    { ..self.anchorPage, top: state.page.top, bottom: state.page.bottom, }
+  } else {
+    self.anchorPage
+  }
   let frame = self.page_at(target)
   placed.lines.push({
     ..line,

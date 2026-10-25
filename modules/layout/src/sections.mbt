@@ -97,10 +97,10 @@ fn Flow::validate_sections(self : Flow) -> Unit raise @failure.Failure {
         "invalid-section", "Section boundary does not follow a body paragraph",
       )
     }
-    guard ["nextPage", "oddPage", "evenPage"].contains(section.kind) else {
-      @failure.reject(
-        "unsupported-layout", "This section break requires continuous section layout",
-      )
+    guard ["nextPage", "oddPage", "evenPage", "continuous"].contains(
+      section.kind,
+    ) else {
+      @failure.reject("unsupported-layout", "Unsupported section break type")
     }
     section.page.validate()
     section.pageBorders.validate()
@@ -139,7 +139,21 @@ fn paginate_sections(
     let mut numbering = flow.pageNumbering
     let mut lines = 0
     let mut pending : Array[(Line, Double)] = []
+    let mut continuation : SectionContinuation? = None
     for index in 0..<=flow.sectionBreaks.length() {
+      let shared = flow.sectionBreaks
+        .get(index - 1)
+        .bind(section => {
+          if section.kind == "continuous" {
+            continuation.filter(state => {
+              state.page.width == section.page.width &&
+              state.page.height == section.page.height
+            })
+          } else {
+            None
+          }
+        })
+      let next_number = numbering
       if flow.sectionBreaks.get(index - 1) is Some(section) {
         let parity = match section.kind {
           "oddPage" => 1L
@@ -171,13 +185,12 @@ fn paginate_sections(
           start: if section.restartNumbering {
             start + (if parity >= 0 && start % 2L != parity { 1L } else { 0L })
           } else {
-            numbering.start
+            numbering.start - (if shared is Some(_) { 1L } else { 0L })
           },
         }
       }
       numbering.validate()
-      section_numbering.push(numbering)
-      let part = body.section_body(index, numbering)
+      let mut part = body.section_body(index, numbering)
       let endnotes = if flow.endnotesAt == "docEnd" {
         if index == flow.sectionBreaks.length() {
           flow.notes.filter(n => n.kind == "endnote")
@@ -196,7 +209,7 @@ fn paginate_sections(
         profile,
         images,
       )
-      let (pagination, stories, _, _, _, problems) = paginate_running(
+      let (first, first_stories, _, _, _, first_problems) = paginate_running(
         probe,
         part,
         cache,
@@ -207,9 +220,68 @@ fn paginate_sections(
         endnotes=Some(endnotes),
         flushFootnotes=index == flow.sectionBreaks.length(),
         resolveBodyFields=false,
+        continuation=shared,
       )
+      let joined = shared
+        .map(state => {
+          first.pages[0].lines.length() > state.frame.lines.length() ||
+          first.pages[0].cellAreas.length() > state.frame.cellAreas.length() ||
+          first_stories[0].any(line => line.container == -3) ||
+          (part.paragraphs.is_empty() && part.tables.is_empty())
+        })
+        .unwrap_or(false)
+      let (pagination, stories, problems) = if shared is Some(_) && !joined {
+        let section = flow.sectionBreaks[index - 1]
+        numbering = {
+          ..numbering,
+          start: if section.restartNumbering {
+            section.pageNumbering.start
+          } else {
+            next_number.start
+          },
+        }
+        part = body.section_body(index, numbering)
+        let (pagination, stories, _, _, _, problems) = paginate_running(
+          probe,
+          part,
+          cache,
+          profile,
+          images,
+          documentTotal=Some(total),
+          pendingNotes=pending,
+          endnotes=Some(endnotes),
+          flushFootnotes=index == flow.sectionBreaks.length(),
+          resolveBodyFields=false,
+        )
+        (pagination, stories, problems)
+      } else {
+        (first, first_stories, first_problems)
+      }
+      section_numbering.push(numbering)
       pending = pagination.notePending[pagination.noteCursor:].to_owned()
+      continuation = if flow.sectionBreaks
+        .get(index)
+        .map(section => section.kind == "continuous") ==
+        Some(true) {
+        pagination.section_continuation()
+      } else {
+        None
+      }
       for page, frame in pagination.pages {
+        if page == 0 && joined {
+          let prior = combined.pages.last().unwrap()
+          lines += frame.lines.length() - prior.lines.length()
+          combined.pages[combined.pages.length() - 1] = frame
+          let notes = stories[page].filter(line => line.container == -3)
+          running[running.length() - 1].append(notes)
+          lines += notes.length()
+          guard lines <= 32768 else {
+            @failure.reject(
+              "limit-exceeded", "Section layout exceeds line budget",
+            )
+          }
+          continue
+        }
         lines += frame.lines.length() + stories[page].length()
         guard combined.pages.length() < 1024 && lines <= 32768 else {
           @failure.reject(
@@ -233,7 +305,7 @@ fn paginate_sections(
         contexts.push((numbering, page))
         page_sections.push(Some((index, page)))
       }
-      running.append(stories)
+      running.append(if joined { stories[1:].to_owned() } else { stories })
       diagnostics.append(problems)
       numbering = {
         ..numbering,

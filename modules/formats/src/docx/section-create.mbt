@@ -80,7 +80,7 @@ pub fn Session::insert_section_break(
   images~ : @layout.Images,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
-  guard ["nextPage", "oddPage", "evenPage"].contains(kind) else {
+  guard ["nextPage", "oddPage", "evenPage", "continuous"].contains(kind) else {
     @failure.reject("invalid-operation", "Unsupported section break type")
   }
   guard self.selection is Some(selection) else {
@@ -154,9 +154,10 @@ pub fn Session::insert_section_break(
         "protected-content", "Annotated section type is protected",
       )
     }
-    changes.push(
-      properties_change(current, candidate, section, "type", markup).unwrap(),
-    )
+    if properties_change(current, candidate, section, "type", markup)
+      is Some(change) {
+      changes.push(change)
+    }
   } else {
     let node = current.nodes[section]
     let previous = current.children[section]

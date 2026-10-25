@@ -97,11 +97,16 @@ export function DocxPage({
           onChange={(event) => {
             const value = event.currentTarget.value;
             setSectionBreak(
-              value === "oddPage" || value === "evenPage" ? value : "nextPage",
+              value === "oddPage" ||
+                value === "evenPage" ||
+                value === "continuous"
+                ? value
+                : "nextPage",
             );
           }}
         >
           <option value="nextPage">{t.sectionBreakNext}</option>
+          <option value="continuous">{t.sectionBreakContinuous}</option>
           <option value="oddPage">{t.sectionBreakOdd}</option>
           <option value="evenPage">{t.sectionBreakEven}</option>
         </select>

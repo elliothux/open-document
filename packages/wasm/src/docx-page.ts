@@ -35,11 +35,17 @@ export interface DocxCoverPage {
   title: string;
   subtitle: string;
 }
-export type DocxSectionBreak = "nextPage" | "oddPage" | "evenPage";
+export type DocxSectionBreak =
+  "nextPage" | "oddPage" | "evenPage" | "continuous";
 export function checkSectionBreak(
   value: unknown,
 ): asserts value is DocxSectionBreak {
-  if (value !== "nextPage" && value !== "oddPage" && value !== "evenPage")
+  if (
+    value !== "nextPage" &&
+    value !== "oddPage" &&
+    value !== "evenPage" &&
+    value !== "continuous"
+  )
     throw new Error("Invalid section break type");
 }
 const singleLineText = (value: unknown, max: number): value is string =>

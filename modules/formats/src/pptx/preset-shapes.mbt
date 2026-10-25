@@ -1,6 +1,8 @@
 ///|
 fn arrow_shape(preset : String) -> Bool {
-  ["rightArrow", "leftArrow", "upArrow", "downArrow"].contains(preset) ||
+  ["rightArrow", "leftArrow", "upArrow", "downArrow", "notchedRightArrow"].contains(
+    preset,
+  ) ||
   double_arrow_shape(preset) ||
   branched_arrow_shape(preset)
 }
@@ -237,15 +239,26 @@ fn arrow_points(
       (y1, head),
     ]
   }
-  [(0.0, y1), (x1, y1), (x1, 0.0), (w, h / 2), (x1, h), (x1, y2), (0.0, y2)].map(p => {
-      match preset {
-        "leftArrow" => (width - p.0, p.1)
-        "upArrow" => (p.1, height - p.0)
-        "downArrow" => (p.1, p.0)
-        _ => p
-      }
-    },
-  )
+  let points = [
+    (0.0, y1),
+    (x1, y1),
+    (x1, 0.0),
+    (w, h / 2),
+    (x1, h),
+    (x1, y2),
+    (0.0, y2),
+  ]
+  if preset == "notchedRightArrow" {
+    points.push((head * adjustments.0.clamp(min=0, max=1), h / 2))
+  }
+  points.map(p => {
+    match preset {
+      "leftArrow" => (width - p.0, p.1)
+      "upArrow" => (p.1, height - p.0)
+      "downArrow" => (p.1, p.0)
+      _ => p
+    }
+  })
 }
 
 ///|
@@ -284,7 +297,7 @@ fn Object::shape_body(self : Object, geometry : Geometry) -> Body {
       .min(if double_arrow_shape(self.preset) { length / 2 } else { length })
     let tip = head - side * head / (across / 2)
     match self.preset {
-      "leftRightArrow" => (tip, side, tip, side)
+      "leftRightArrow" | "notchedRightArrow" => (tip, side, tip, side)
       "upDownArrow" => (side, tip, side, tip)
       "leftArrow" => (tip, side, 0.0, side)
       "upArrow" => (side, tip, side, 0.0)

@@ -703,15 +703,19 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 ### 多节分页
 
-`FoundationSession/Client.insertSectionBreak(revision, kind, profile)` 与 `DocumentEditor.insertSectionBreak(kind)` 支持 `nextPage/oddPage/evenPage`。默认页面面板提供相同操作。命令把选择折叠到源起点，保留原选择文字；正文在该处拆段，表格在当前行前拆开，首行则在表格前插入边界段落。跨行合并沿原拆表规则保留上表内容与下表空续接单元格。光标位于新段落或下表首单元格，可继续原生输入。
+`FoundationSession/Client.insertSectionBreak(revision, kind, profile)` 与 `DocumentEditor.insertSectionBreak(kind)` 支持 `nextPage/oddPage/evenPage/continuous`。默认页面面板提供相同操作。命令把选择折叠到源起点，保留原选择文字；正文在该处拆段，表格在当前行前拆开，首行则在表格前插入边界段落。跨行合并沿原拆表规则保留上表内容与下表空续接单元格。光标位于新段落或下表首单元格，可继续原生输入。
 
 前节保留完整原生节配置，后节采用指定起始类型、继续编号并继承前节页眉页脚。源修改先通过完整布局和输出检查，再提交一项有界历史；缺字体、保护、旧 revision、节数及输出预算失败保持原文档与历史。实现归[分节创建](../../modules/formats/src/docx/section-create.mbt)，依据 [ONLYOFFICE AddSectionBreak](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L14569-L14661)，未复制上游执行代码。
 
 导入读取正文段落 `pPr/sectPr` 与正文末尾 `sectPr`，分别保留各节纸型、边距、页边框、分栏和页眉页脚距离。`Flow` 的页面字段描述首节；必需的 `sectionBreaks` 按正文段落及表格计数保存后续节配置。节边界会终止段落保留链；每节复用现有分栏、表格和页眉页脚分页，Canvas、PNG 和 PDF 使用逐页尺寸。
 
-当前读取 `nextPage/oddPage/evenPage`。奇偶分节按续接或重启的页号补空白页；首节起号按原生类型修正奇偶。页号继续或按 `pgNumType@start` 重启，格式由本节决定。缺少页眉页脚引用时按变体继承，显式空部件清除继承内容；不同部件的段落身份独立。首页与奇偶变体按当前节选择，`NUMPAGES`、`SEQ` 和跨节 `PAGEREF/REF` 按全文求值，最多八轮重排。
+当前读取 `nextPage/oddPage/evenPage/continuous`。奇偶分节按续接或重启的页号补空白页；首节起号按原生类型修正奇偶。页号继续或按 `pgNumType@start` 重启，格式由本节决定。缺少页眉页脚引用时按变体继承，显式空部件清除继承内容；不同部件的段落身份独立。首页与奇偶变体按当前节选择，`NUMPAGES`、`SEQ` 和跨节 `PAGEREF/REF` 按全文求值，最多八轮重排。
 
-多节正文和普通单元格已接通原有原生输入、命中、方向键、范围替换、字符/段落格式及组合输入。Enter 或粘贴 LF 拆段时，原节属性移到最后的新段落，其余新段落保留原段落格式。Backspace/Delete 合段和跨段范围替换时，合并结果保留末段的节属性，删除范围内其他节边界；被合并内容采用下一节纸型、栏和编号。普通表格创建、网格与属性编辑复用[表格事务](#表格创建)，按所属节及实际起始栏计算宽高限制。连续分节及其余节功能继续实施。
+连续分节 `continuous` 在纸型相同、前节末页无脚注且首项能放入余下区域时接续同一物理页。前节先完成末页栏平衡，后节采用自身横向边距和栏设置，从已用区域下方继续。共享页保留原页眉页脚、页边框、水印和纵向边距；后续新页采用后节完整配置。续号只计算一次共享页，全文字段继续按实际物理页求值。纸型变化、前页脚注、段前分页或首项放不下时换页；空尾节不额外生成空白页。正文及表格可连续多次插入，重复的原生类型属性按无修改处理；分节本身仍产生一项完整源历史。
+
+分页接续归 [section-continuation.mbt](../../modules/layout/src/section-continuation.mbt)、[节分页](../../modules/layout/src/sections.mbt)及原分页/分栏/页边区域调用者。规则依据 [ONLYOFFICE 连续节与栏平衡](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L4155-L4205)及[连续节首页判定](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L14679-L14710)。多栏脚注等原有限制保持，不据此标记整个节编辑完成。
+
+多节正文和普通单元格已接通原有原生输入、命中、方向键、范围替换、字符/段落格式及组合输入。Enter 或粘贴 LF 拆段时，原节属性移到最后的新段落，其余新段落保留原段落格式。Backspace/Delete 合段和跨段范围替换时，合并结果保留末段的节属性，删除范围内其他节边界；被合并内容采用下一节纸型、栏和编号。普通表格创建、网格与属性编辑复用[表格事务](#表格创建)，按所属节及实际起始栏计算宽高限制。其余节功能继续实施。
 
 删除节边界后，若紧随的保留节没有任何显式页眉/页脚引用，则继承被删节的显式引用；若该节已有引用，则保留其原生配置。连续删除多个边界沿相同规则传递，缺少末节属性时按需创建。页边部件和资源保留，格式修改保留 `sectPr` 及其原始子内容。组合预览使用候选节目录和布局，取消保留原包与历史；提交、节迁移、引用传递及原有书签/批注恢复共用一项有界历史。现有保护、未知源、过期命令和预算失败保持原子拒绝。实现归[节输入事务](../../modules/formats/src/docx/section-input.mbt)与[结构范围编辑](../../modules/formats/src/docx/range.mbt)；语义依据 [ONLYOFFICE 拆段](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L13861-L13868)、[合段](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L14075-L14083)及[删除节时保留页边引用](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/sections/document-sections.js#L293-L326)。
 
@@ -729,7 +733,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 不等宽栏中的表格改为按实际起始栏解析百分比与适配宽度，续栏保持同一列网格。创建、尺寸命令及布局后的属性查询已接入实际位置；未提供布局的原生查询仍返回最窄栏上限。默认编辑器在布局后刷新表格查询，使尺寸面板使用实际栏的上限。分页缓存记录表格起始栏拟合后的列宽，复用时保持同一网格；自动表格的内容变化会使相关宽度失效。创建、调宽、适配、插删列、拆格、历史、保存重开及 PDF 已做定向检查。普通行、合并格与重复表头按目标栏重新取横坐标，文字、边框、底色、命中、光标和选区共用几何。固定网格超出目的栏时拒绝候选，不自动改写网格。更广跨宽度表格兼容继续实施。
 
-修改保留其他节、正文、选择、待输入格式、页码/页边属性及其他 OPC 部件，使用一项有界源历史。同值不新增历史，撤销/重做和保存重开恢复源与绘制结果。候选使用目标节的物理宽度校验，并预检全文分页、表格及字段；重置仍按原生分栏符重新分页。非法参数、旧 revision、保护、未知属性/子节点、不透明目标源、布局或输出预算失败原子拒绝，并保留待重做项。分栏符沿上文范围编辑；连续分节及其余节属性编辑继续实施。
+修改保留其他节、正文、选择、待输入格式、页码/页边属性及其他 OPC 部件，使用一项有界源历史。同值不新增历史，撤销/重做和保存重开恢复源与绘制结果。候选使用目标节的物理宽度校验，并预检全文分页、表格及字段；重置仍按原生分栏符重新分页。非法参数、旧 revision、保护、未知属性/子节点、不透明目标源、布局或输出预算失败原子拒绝，并保留待重做项。分栏符沿上文范围编辑；其余节属性编辑继续实施。
 
 实现归 [`page-columns.mbt`](../../modules/formats/src/docx/page-columns.mbt) 和 [`columns.mbt`](../../modules/layout/src/columns.mbt)。等宽计算参考 [ONLYOFFICE SectionColumns](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/sections/section-columns.js#L200-L216)，栏位置和平衡参考 [DocumentPageSection](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/document/document-page-section.js#L78-L100)，分隔线参考 [Document.draw](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L5384-L5390)。未复制上游执行代码。
 
@@ -771,7 +775,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 核心 `Flow.pageBorders` 为必需结构，无边框时使用空 sides。边框不改变正文分页；缓存复用后派生当前边框，不把装饰写进缓存原页。背面边框位于页面背景之后、正文与表格之前，正面边框通过 `PageFrame.pageBorders` 在正文之后绘制。四边先竖后横，横边覆盖交角；纸张基准的距离量到外缘，正文基准向外留空。Canvas 与 PDF 使用相同填充矩形。几何和顺序依据 [ONLYOFFICE DrawPageBorders](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L5519-L5635)，未复制上游源码；实现归 [`page-borders.mbt`](../../modules/formats/src/docx/page-borders.mbt)、[公共边框布局](../../modules/layout/src/page-borders.mbt)及 [`docx-page-borders.tsx`](../../packages/ui/src/docx-page-borders.tsx)。
 
-导入支持实线、显式 none/nil、RGB 及按黑色解释的 auto，保留未改源。未知线型、主题色、艺术边框、阴影/框效果、重复节点、未知属性/子节点及目标注释保持保护和布局诊断。镜像/装订线、文档保护及预算沿页面设置保护；连续分节及其余边框样式继续实施。
+导入支持实线、显式 none/nil、RGB 及按黑色解释的 auto，保留未改源。未知线型、主题色、艺术边框、阴影/框效果、重复节点、未知属性/子节点及目标注释保持保护和布局诊断。镜像/装订线、文档保护及预算沿页面设置保护；其余边框样式继续实施。
 
 ### 页码格式与起点
 
@@ -1625,7 +1629,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 含受支持透视表、切片器和时间线时，整行插删及不改变源字段数的整列插删维护源范围和完整报表位置。操作可位于报表前后；切开或删除整个报表时原子拒绝。普通、共享、独立日期及已声明未使用缓存的 `worksheetSource@ref` 同步，变化的来源标记 `invalid=1`，缓存记录保留到显式刷新。源范围至少保留标题和一行数据。固定、随格移动与随区域缩放的控件锚点沿原绘图规则维护，连接身份和日期选区保持。候选分析资源图通过校验后，与单元格及绘图选择合为一次精确历史；移动后的报表继续受结果保护。保存重开后可继续筛选与协调刷新。在源范围前插列、删除源前的列或在源后操作，可整体平移来源并保留字段序号。源内插列及未用源列删除见下文；删除仍被使用的字段继续保护。局部单元格结构、完整报表删除和未知分析资源继续保护。实现归 [`analysis-axis.mbt`](../../modules/formats/src/xlsx/analysis-axis.mbt)，依据 [ONLYOFFICE 来源引用变换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L14729-L14771)及[透视结果整体移动与局部保护](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L11680-L11726)。
 
-整列插入可在受支持的透视源内增加空字段。核心为原生缓存生成不重名的占位字段和空成员，并在每条已有记录中插入索引 0；源单元格保持空白。既有报表、值基准及日历派生字段同步映射，控件、缓存结果和待刷新值保留。用户填写新标题后，普通、共享及连接控件的刷新可更新未被任何报表或控件引用的字段名；仍被引用的字段必须保持原位置身份。空标题继续拒绝实时刷新。源宽度最多 64 列，原生字段最多 80 个，记录最多 65536 格，并沿用包、输出及历史预算。核心检查覆盖多列插入、两套日期系统、分组、新字段创建切片器、精确历史与失败回滚；本轮未新增插列浏览器检查。
+整列插入可在受支持的透视源内增加空字段。核心为原生缓存生成不重名的占位字段和空成员，并在每条已有记录中插入索引 0；源单元格保持空白。既有报表、值基准及日历派生字段同步映射，控件、缓存结果和待刷新值保留。用户填写新标题后，普通、共享及连接控件的刷新可更新未被任何报表或控件引用的字段名；仍被引用的字段必须保持原位置身份。空标题继续拒绝实时刷新。源宽度最多 64 列，原生字段最多 80 个，记录最多 65536 格，并沿用包、输出及历史预算。核心检查覆盖多列插入、两套日期系统、分组、新字段创建切片器、精确历史与失败回滚；默认插列及原生标题输入已通过 Chromium，包含缓存筛选、显式刷新、独立 XML、精确历史和保存重开。
 
 整列删除可移除未被报表、值基准、分组或分析控件引用的源字段。核心从已有缓存投影字段和记录列，保留其余成员索引及待刷新源值；普通结果缓存、独立日期缓存和已声明未用缓存同步处理。报表的行列、页筛选、值/基准字段以及日历派生字段的 base/par 同步映射。控件名称、连接、视图和现有结果保持，来源缩短并标记失效；随后可继续缓存筛选、显式刷新和保存重开。原生删列按钮复用同一事务，完整精确历史包含单元格、公式引用及所有缓存部件。
 
@@ -3071,7 +3075,7 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 隐藏页仍可在编辑器中查看和编辑，允许全部页隐藏。全稿静态 PDF 默认跳过隐藏页，显式 `hidden: true` 包含它们；仅导出当前页时可以输出当前隐藏页。没有待输出页时返回 `unsupported-pdf`，不返回空 PDF。保存重开按新页序打开首张页面，保留隐藏状态。更广复制资源仍归 [P12](../p12-pptx-core.md)。
 
-`PptxObjectEdit` 从 `wasm/pptx` 和 `web/pptx` 导出。`PresentationEditor.editObjects(change)` 使用同一队列与命令。插入参数为 `{ action: "insert", kind: "text" | "rect" | "roundRect" | "ellipse" | "triangle" | "rtTriangle" | "diamond" | "parallelogram" | "trapezoid" | "pentagon" | "hexagon" | "octagon" | "plus" | "star5" | "chevron" | "homePlate" | "line" | "leftArrow" | "rightArrow" | "upArrow" | "downArrow" | "leftRightArrow" | "upDownArrow" | "quadArrow" | "leftRightUpArrow", x, y, width, height, text }`；坐标和尺寸为 point，绝对值不超过 14400。非线对象宽高至少 0.1；线可有一个零尺寸轴，总尺寸至少 0.1。文本框透明无描边，矩形、圆角矩形、椭圆和箭头白底黑色 1 pt 线，直线黑色 1 pt；文字为 Arial 18 pt 黑色，支持 `\n` 与 `U+2028`，线不接收文字。核心校验文字、字体和固定框容量，失败保留文档和历史。
+`PptxObjectEdit` 从 `wasm/pptx` 和 `web/pptx` 导出。`PresentationEditor.editObjects(change)` 使用同一队列与命令。插入参数为 `{ action: "insert", kind: "text" | "rect" | "roundRect" | "ellipse" | "triangle" | "rtTriangle" | "diamond" | "parallelogram" | "trapezoid" | "pentagon" | "hexagon" | "octagon" | "plus" | "star5" | "chevron" | "homePlate" | "line" | "leftArrow" | "rightArrow" | "notchedRightArrow" | "upArrow" | "downArrow" | "leftRightArrow" | "upDownArrow" | "quadArrow" | "leftRightUpArrow", x, y, width, height, text }`；坐标和尺寸为 point，绝对值不超过 14400。非线对象宽高至少 0.1；线可有一个零尺寸轴，总尺寸至少 0.1。文本框透明无描边，矩形、圆角矩形、椭圆和箭头白底黑色 1 pt 线，直线黑色 1 pt；文字为 Arial 18 pt 黑色，支持 `\n` 与 `U+2028`，线不接收文字。核心校验文字、字体和固定框容量，失败保留文档和历史。
 
 图片插入为 `{ action: "insertImage", bytes: Uint8Array, x, y, width, height }`，沿相同 `editObjects` 入口。坐标为 point，绝对值不超过 14400，宽高至少 0.1。接收本地 PNG/JPEG 原字节，单图最多 4 MiB，尺寸每轴不超过 4096，像素总数不超过 4194304，文稿最多 256 个不同图片资源；最终包与单项 4 MiB 历史预算仍可拒绝操作。核心检查文件头、声明尺寸和几何；浏览器客户端提交前验证实际解码与声明尺寸一致，坏图保留当前源和历史。同步 Wasm 入口不承担宿主解码，导入图片仍沿原有解码合同。核心分配对象与资源身份，事务新增图片、内部关系和内容类型；撤销移除本次新资源，重做恢复原字节及 ZIP 顺序。对象/页复制共用图片，删除对象/页保留资源，不清理整个包。默认 UI 选择图片文件，并采用插入面板中的 X/Y/宽高。创建矩形图片并 stretch 到给定几何的规则参考 [ONLYOFFICE fillImage](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L114-L142)。高级图片效果继续归 [P12](../p12-pptx-core.md)及后续兼容扩展。
 
@@ -3142,6 +3146,8 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 `editObjects({ action: "shapeAdjustment", name, value })` 修改所选本地预设形状的一个调节值，包含组成员。圆角 `adj` 为短边的 0–0.5 倍；单向/双向实心箭头的 `adj1` 为箭身占横向宽度的 0–1 倍，`adj2` 为箭头长度占短边的倍数，单向箭头的上限是方向边长除以短边，双向箭头再除以 2。数值按十万分之一保存，沿现有公式整数范围限制在 0–21474.83647。null 只移除该调节值，恢复预设默认值；其他调节值和源内容保留。规则依据 [ONLYOFFICE 预设几何](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/common/Drawings/Format/CreateGeometry.js#L6947-L6981)，实现归 [`shape-adjustment.mbt`](../../modules/formats/src/pptx/shape-adjustment.mbt)。
 
 对象查询的 `shapeAdjustments` 返回 `preset`、`reason` 和 `values`；各值包含 `name/value/maximum`，使用与命令相同的比例。默认面板显示百分比，支持分别应用、恢复预设值及相同调节项的多选混合查询。任一对象锁定 `noAdjustHandles`、未知调节源、所选形状不支持该项或数值越过几何上限时，整项拒绝。无变化不新增历史。修改与派生的字体缩小或形状自动尺寸合为一项历史，保留文字、身份、选择及非目标部件；保存重开后可继续修改。继承对象和任意自定义几何编辑继续实施。
+
+缺口右箭头使用 `notchedRightArrow`，复用单向箭头的 `adj1/adj2`：默认均为 0.5，箭杆比例范围 0–1，箭头长度上限为宽度/短边。缺口横坐标为有效箭杆比例乘以有效箭头长度，原生轮廓共 8 个顶点；文字左右同时避开该长度，四个连接点依次位于上肩、缺口尖端、下肩和右尖端。箭杆手柄位于右边框，箭头长度手柄位于上肩。导入、默认插入、类型修改、数值与手柄编辑、命中、复制及 Canvas/PDF 共用现有事务与几何；越界编辑拒绝，未知公式继续保留源并诊断。规则依据 [ONLYOFFICE 缺口右箭头](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L6316-L6350)，实现归 [preset-shapes.mbt](../../modules/formats/src/pptx/preset-shapes.mbt)、[connection-sites.mbt](../../modules/formats/src/pptx/connection-sites.mbt)及[adjustment-gesture.mbt](../../modules/formats/src/pptx/adjustment-gesture.mbt)。
 
 单选可调本地形状时，`selectionPptx` 的 `adjustmentHandles` 返回最多三个 `{ name, x, y }` 页面坐标，顺序与 `shapeAdjustments.values` 一致。圆角矩形、单向/双向、三向及四向实心箭头、三角形、平行四边形、梯形、六边形、八边形、十字、五角星、燕尾形和五边形箭头使用标准 XY 调节位置；旋转、翻转及父容器缩放沿对象矩阵。受保护、多选、文字选择及无调节项时返回空数组。既有 `handles` 继续表示尺寸或连接线端点。
 

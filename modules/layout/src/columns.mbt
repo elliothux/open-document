@@ -167,6 +167,7 @@ fn column_body(
   setups : Array[PageSetup],
   page_setups : Array[PageSetup],
   pendingNotes~ : Array[(Line, Double)] = [],
+  continuation~ : SectionContinuation? = None,
 ) -> (Pagination, Int, Int, PaginationCache?) raise @failure.Failure {
   let columns = flow.columns
   guard pendingNotes.is_empty() || columns.count == 1 else {
@@ -180,18 +181,25 @@ fn column_body(
     ignore(columns.width(setup))
   }
   let run = fn(balance : (Int, Double)?) raise @failure.Failure {
-    let wraps = flow.paragraphs.any(p => {
-      p.spans.any(span => {
-        span.drawing
-        .bind(image => image.anchor)
-        .map(anchor => anchor.wrapping != "none")
-        .unwrap_or(false)
+    let wraps = continuation
+      .map(state => !wrapping_rects([state.frame], 1).is_empty())
+      .unwrap_or(false) ||
+      flow.paragraphs.any(p => {
+        p.spans.any(span => {
+          span.drawing
+          .bind(image => image.anchor)
+          .map(anchor => anchor.wrapping != "none")
+          .unwrap_or(false)
+        })
       })
-    })
     let mut wrapping = if wraps {
       probe.pagination
       .map(old => wrapping_rects(old.pages, columns.count))
-      .unwrap_or([])
+      .unwrap_or_else(() => {
+        continuation
+        .map(state => wrapping_rects([state.frame], 1))
+        .unwrap_or([])
+      })
     } else {
       []
     }
@@ -206,6 +214,7 @@ fn column_body(
         wrapping=wrapping.copy(),
         noteReferences=note_references,
         pendingNotes~,
+        continuation~,
       )
       let (reflowed, reused, next) = pagination.body(
         probe,

@@ -36,6 +36,7 @@ export const pptxInsertKinds = [
   "line",
   "leftArrow",
   "rightArrow",
+  "notchedRightArrow",
   "upArrow",
   "downArrow",
   "leftRightArrow",
