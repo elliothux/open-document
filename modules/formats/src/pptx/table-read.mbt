@@ -27,8 +27,9 @@ priv struct DrawingCell {
   body : Body
   fill : String
   alpha : Double
-  borders : Array[(String, Double, String)]
+  borders : Array[(String, Double, String, Double)]
   border_priorities : Array[Int]
+  border_sources : Array[(Ref, Ref?)?]
 }
 
 ///|
@@ -275,7 +276,7 @@ fn read_drawing_table(
       } else {
         table_style_fill(theme, layers).unwrap_or(("", 1))
       }
-      let (borders, border_priorities) = table_style_borders(
+      let (borders, border_priorities, border_sources) = table_style_borders(
         theme,
         layers,
         row_index,
@@ -304,12 +305,13 @@ fn read_drawing_table(
         let (color, opacity) = if paint_fill(edge) is Some(_) {
           fill_rgba(theme, [edge])
         } else {
-          (inherited.0, 1.0)
+          (inherited.0, inherited.3)
         }
-        table_profile(
-          opacity == 1,
-          "Transparent table cell borders require conflict resolution",
-        )
+        if paint_fill(edge) is Some(_) {
+          border_sources[side] = solid_fill_source([edge]).map(fill => {
+            (fill, None)
+          })
+        }
         borders[side] = (
           color,
           edge.node
@@ -321,6 +323,7 @@ fn read_drawing_table(
           } else {
             inherited.2
           },
+          opacity,
         )
         border_priorities[side] = 100
       }
@@ -332,6 +335,7 @@ fn read_drawing_table(
         alpha,
         borders,
         border_priorities,
+        border_sources,
         row_span,
         column_span,
         h_merge,

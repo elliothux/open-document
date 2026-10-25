@@ -5,7 +5,7 @@ export const reviewEn = {
   revisionRecordingStart: "Start recording changes",
   revisionRecordingStop: "Stop recording changes",
   revisionScope:
-    "Review ordinary text and character or paragraph formatting changes. Other revision structures remain protected.",
+    "Review ordinary text, paragraph breaks and character or paragraph formatting changes. Other revision structures remain protected.",
   revisionAuthor: "Revision author",
   revisionAllAuthors: "All authors",
   revisionAnonymous: "Unknown author",
@@ -204,7 +204,8 @@ export const reviewZh: Record<keyof typeof reviewEn, string> = {
   revisionRecordingAuthor: "修订记录作者",
   revisionRecordingStart: "开始记录修订",
   revisionRecordingStop: "停止记录修订",
-  revisionScope: "可审阅普通文字及字符、段落格式修订。其他结构保持保护。",
+  revisionScope:
+    "可审阅普通文字、段落拆合及字符、段落格式修订。其他结构保持保护。",
   revisionAuthor: "修订作者",
   revisionAllAuthors: "全部作者",
   revisionAnonymous: "未知作者",

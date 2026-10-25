@@ -1,10 +1,10 @@
 ///|
-fn DrawingTable::edge(
+fn DrawingTable::edge_paint(
   self : DrawingTable,
   row : Int,
   column : Int,
   vertical : Bool,
-) -> (String, Double, String) {
+) -> ((String, Double, String, Double), (Ref, Ref?)?) {
   let before = if vertical {
     if column > 0 {
       Some(self.owners[row][column - 1])
@@ -28,10 +28,11 @@ fn DrawingTable::edge(
     None
   }
   if before == after {
-    return ("", 0, "solid")
+    return (("", 0, "solid", 1), None)
   }
-  let mut result = ("", 0.0, "solid")
+  let mut result = ("", 0.0, "solid", 1.0)
   let mut priority = -1
+  let mut source : (Ref, Ref?)? = None
   for
     (owner, side) in [
       (before, if vertical { 2 } else { 3 }),
@@ -48,11 +49,22 @@ fn DrawingTable::edge(
           (rank == priority && value.1 >= result.1)
         ) {
         result = value
+        source = cell.border_sources[side]
         priority = rank
       }
     }
   }
-  result
+  (result, source)
+}
+
+///|
+fn DrawingTable::edge(
+  self : DrawingTable,
+  row : Int,
+  column : Int,
+  vertical : Bool,
+) -> (String, Double, String, Double) {
+  self.edge_paint(row, column, vertical).0
 }
 
 ///|
@@ -60,9 +72,9 @@ fn DrawingTable::cell_borders(
   self : DrawingTable,
   row : Int,
   column : Int,
-) -> Array[(String, Double, String)] {
+) -> Array[(String, Double, String, Double)] {
   let cell = self.rows[row].cells[column]
-  let edges : Array[(String, Double, String)] = []
+  let edges : Array[(String, Double, String, Double)] = []
   for r in row..<(row + cell.row_span) {
     edges.push(self.edge(r, column, true))
     edges.push(self.edge(r, column + cell.column_span, true))
@@ -88,7 +100,7 @@ fn DrawingTable::paint_edges(
           (!vertical && column == self.widths.length()) {
           continue
         }
-        let (color, width, dash) = self.edge(row, column, vertical)
+        let (color, width, dash, alpha) = self.edge(row, column, vertical)
         if color.is_empty() {
           continue
         }
@@ -100,7 +112,7 @@ fn DrawingTable::paint_edges(
         output.push(
           Path([Move(x, y), Line(end_x, end_y)], "", color, width, {
             fillAlpha: 1,
-            strokeAlpha: 1,
+            strokeAlpha: alpha,
             dash: dash_pattern(dash).map(value => value * width),
             cap: 0,
             join: 0,

@@ -487,7 +487,11 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 `DocumentEditor.tracking()` 查询 `{ revision, enabled, author, reason }`，`setTracking(author: string | null)` 启用指定作者的记录或关闭。同步 `FoundationSession` 与 Worker `FoundationClient` 使用相同方法并显式携带 revision。默认审阅面板提供作者输入和开始/停止按钮。模式属于当前会话，切换不修改源或历史；保存保留原生修订，重开默认关闭记录。宿主明确提供作者，平台为各记录事务提供 UTC 时间。
 
-记录范围为同一普通正文或单元格段落内的文字替换、连续输入、删除及组合输入。新增文字保存为 `w:ins`，删除原文保存为 `w:del/w:delText`；连续输入复用本作者插入身份，删除本作者新增文字直接收缩该插入。已有删除文字保留，删除键跳过它；记录中删除其他作者的插入保持保护。关闭记录后可继续普通文字编辑，已有修订保留。源运行格式、Tab、软换行、其他部件和精确历史沿原事务保持，组合取消不提交。
+记录范围包含普通正文及同一普通单元格内的文字替换、连续输入、删除、组合输入、跨段替换和段落拆合。新增文字保存为 `w:ins`，删除原文保存为 `w:del/w:delText`；连续输入复用本作者插入身份，删除本作者新增文字直接收缩该插入。已有删除文字保留，删除键跳过它；记录中删除其他作者的插入保持保护。关闭记录后可继续普通文字编辑，已有修订保留。源运行格式、Tab、软换行、其他部件和精确历史沿原事务保持，组合取消不提交。
+
+段落标记保存为 `pPr/rPr/ins` 或 `pPr/rPr/del`，目录沿用插入/删除类型并预览为 `¶`。原生 Enter 将新增标记留在左段，原有段末属性移到右段。删除本作者新增标记直接合段；删除原有边界保留可见段落，Backspace 与 Delete 分别移到保留标记两侧。多段替换保留原删除文字，新文字在保留内容之后插入。接受新增标记或拒绝删除标记保留边界；相反操作合段，保留左段普通格式及右段文字格式和段末属性。字符、段落和文字修订处理后，从后向前处理标记，合为一项精确历史。段末定位继续使用 1.5 pt 审阅线。
+
+正文与同格最多处理 512 个连续普通段落，单次输入最多创建 511 个边界。跨单元格、表格或分节的边界保持保护。合段前须处理会被丢弃的右段普通格式修订和左段标记格式修订；批次内可一并处理。实现归 [tracking-paragraph.mbt](../../modules/formats/src/docx/tracking-paragraph.mbt)与 [revision-paragraph.mbt](../../modules/formats/src/docx/revision-paragraph.mbt)。原生标记位置及拆段行为参考 [ONLYOFFICE DocumentContent.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/DocumentContent.js#L2946-L2960)、[Paragraph.Split](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L13842-L13875)及 [RunProperty.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Logic/RunProperty.cpp#L560-L566)。未复制上游执行代码。
 
 字符和段落格式沿原有 `setCharacterFormat/setParagraphFormat/applyFormat` 记录原生 `rPrChange/pPrChange`，默认格式控件使用同一入口。支持部分运行、多个正文段落、矩形单元格及完整表格；正文范围可包含完整普通表格。首次修改保存旧直接属性，连续修改保留这份快照和修订身份，并写入当前作者及 UTC 时间；无变化不新增历史。拒绝恢复旧属性，接受保留当前属性。段落标记格式保留在段落快照之外，并单独记录；本作者的插入文字直接更新插入内容中的格式，已有删除文字保持。光标处字符格式用于后续插入，不单独创建空修订。
 
@@ -495,7 +499,7 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 格式快照与文字插入/删除可以共存。批量处理先处理字符属性，再处理段落属性，最后展开或移除文字包装，仍合为一次原子源历史。关闭记录及保存重开后，已知属性修订保留，附近文字可继续输入；格式刷和各格式组共用既有校验、输出预算和精确历史。实现归 [tracking-format.mbt](../../modules/formats/src/docx/tracking-format.mbt)。初次属性快照、范围拆分及后续元数据更新参考 [ONLYOFFICE Run.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js#L8180-L8196)、[属性修订更新](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js#L11125-L11138)及 [Paragraph.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L15866-L15883)，未复制上游执行代码。
 
-单次文字最多 65536 个 UTF-16 单元，并沿字素边界校验。跨段文字替换、段落拆合、表格属性及其他结构修改的记录继续实施；不支持的修改由核心拒绝，避免无记录写入。记录中修改其他作者的插入格式保持保护。字段、图形、书签/批注标记、嵌套文字修订或未知源的混合段落继续保护。核心实现归 [tracking.mbt](../../modules/formats/src/docx/tracking.mbt)和 [tracking-text.mbt](../../modules/formats/src/docx/tracking-text.mbt)，默认控件归 [docx-tracking.tsx](../../packages/ui/src/docx-tracking.tsx)。
+单次文字最多 65536 个 UTF-16 单元，并沿字素边界校验。表格属性及其余结构修改的记录继续实施；不支持的修改由核心拒绝，避免无记录写入。记录中修改其他作者的插入格式保持保护。字段、图形、书签/批注标记、嵌套文字修订或未知源的混合段落继续保护。核心实现归 [tracking.mbt](../../modules/formats/src/docx/tracking.mbt)和 [tracking-text.mbt](../../modules/formats/src/docx/tracking-text.mbt)，默认控件归 [docx-tracking.tsx](../../packages/ui/src/docx-tracking.tsx)。
 
 `DocumentEditor.showRevision(catalog, id)` 定位目录中的普通文字或属性修订。它复用现有队列，请求当前布局的核心区域，显示首个区域所在页并滚动、高亮；跨页范围返回各页区域，定位时高亮首段所在页。定位不改变正文编辑选区、revision、历史、源或修改状态。高亮是临时覆盖层，其他编辑或页面操作会清除，也不进入导出。同步会话和 `FoundationClient` 提供 `revisionGeometry(revision, layoutId, id)`，返回既有 `{ layoutId, revision, rects }` 结构；底层 `docxRevisionGeometry` 命令使用 `revisionId` 字段，避免与 Worker 消息序号混用。
 
@@ -503,7 +507,7 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 当前处理正文直属段落及普通正文表格单元格内、直接包裹普通 run 的 `w:ins/w:del`，以及普通 run 的 `rPr/rPrChange` 和段落的 `pPr/pPrChange`；已知文字包装中的普通 run 也可含属性修订。属性修订必须含一份匹配的旧属性，当前与旧属性均沿已有结构属性校验；字符属性预览该 run 的文字，段落属性预览该段文字。接受移除修订记录并保留当前属性，拒绝恢复旧属性及其命名空间；拒绝段落属性保留当前段落标记的 `rPr`，不把标记格式当作旧段落属性覆盖。空旧属性恢复继承。属性和文字修订可在一个显式批次内处理，共用历史与预算。
 
-字段、图片、嵌套文字修订、移动、段落结构修订、未知内容或元数据保持保护并给出条目原因。当前或旧属性中的未知项、重复属性、旧段落属性包含标记格式或节结构、属性源中的注释/处理指令，以及未知段落标记修订继续保护。启用的文档保护由核心拒绝接受/拒绝事务，保留保护标记；只读定位不移除保护。未支持内容继续给出布局诊断，不声明完整显示。更广格式与结构修改记录、作者颜色及显示模式兼容继续实施。
+字段、图片、嵌套文字修订、移动、跨区域结构修订、未知内容或元数据保持保护并给出条目原因。当前或旧属性中的未知项、重复属性、旧段落属性包含标记格式或节结构、属性源中的注释/处理指令，以及未知段落标记修订继续保护。启用的文档保护由核心拒绝接受/拒绝事务，保留保护标记；只读定位不移除保护。未支持内容继续给出布局诊断，不声明完整显示。更广格式与结构修改记录、作者颜色及显示模式兼容继续实施。
 
 目录最多 4096 项，每项预览最多 32767 UTF-16 单元，总预览最多 1 Mi 单元；作者最多 255，日期及源编号最多 128。提交接受现有 XML、包输出和历史预算，空批次、重复或缺失身份、活动候选及任意受保护项使整批失败。保留选区位于未受影响段落时的原位置；受影响时移至首个可编辑的处理段落，否则清除选区。
 
@@ -2269,9 +2273,11 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 结构化/外部/三维引用、数组、动态数组、易变函数及迭代计算未支持。依赖无法确定、函数参数语义未核实或存在原有循环时，整个工作簿只读。公式不访问网络、宏或宿主脚本。
 
-DEVSQ 已真实求值，接入名称、共享公式、跨表、稀疏引用及普通重算、缓存和历史事务。原 DEVSQ 专用未计算链及其隔离检查已移除。核心只把实际求值结果放入 `calculated`，缓存不参与新的公式、条件格式、验证或筛选计算。每格 `calculationReason` 在已计算/普通值时为空，未知公式只读时说明工作簿保护原因。默认公式栏显示原因；有缓存时显示缓存，缺缓存显示未计算。选区含未计算公式时，计数仍可读，四项汇总均为 null 并给出原因。
+DEVSQ 已真实求值，接入名称、共享公式、跨表、稀疏引用及普通重算、缓存和历史事务。原 DEVSQ 专用未计算链及其隔离检查已移除。核心只把实际求值结果放入 `calculated`，缓存不参与新的公式、条件格式、验证或筛选计算。每格 `calculationReason` 在已计算/普通值时为空，未计算格返回自身或依赖原因，整本保护时返回工作簿原因。默认公式栏显示原因；有缓存时显示缓存，缺缓存显示未计算。选区含未计算公式时，计数仍可读，四项汇总均为 null 并给出原因。
 
-新增未支持公式及 CSV/TSV 中的未支持公式转换在提交前拒绝。导入含未知函数、INDIRECT/OFFSET、CELL 等环境/格式查询、自定义函数及其嵌套时继续整本只读，保留原始源码和缓存。
+导入的 `ACOS/ACOSH/ASIN/ASINH/ATAN/ATANH/COS/COSH/SIN/SINH/TAN/TANH/EXP/LN/LOG/LOG10` 尚未求值，但其静态显式参数可沿既有依赖图解析。核心标记这些公式及下游为未计算，保护完整上下游公式及其声明输入范围；不把导入缓存放入 `calculated`。无关联的普通输入及受支持公式可继续编辑和重算；纯格式及不影响结果的行显隐可提交。链中包含 SUBTOTAL 时，影响结果的隐藏来源变化原子拒绝。名称、共享公式及跨表引用沿现有解析，源公式和导入缓存保留，撤销重做恢复完整字节。隔离最多 4096 个范围，并沿用公式工作预算；结构、身份或引用变化及关联图表等资源仍遵守既有保护。实现归 [`calculation-protection.mbt`](../../modules/formats/src/xlsx/calculation-protection.mbt)。
+
+新增未支持公式及 CSV/TSV 中的未支持公式转换在提交前拒绝。导入含其他未核实函数、INDIRECT/OFFSET、CELL 等环境/格式查询、自定义函数及其嵌套时继续整本只读，保留原始源码和缓存。
 
 未计算公式即使有缓存也不能作为计算结果打印；只含已计算内容的独立打印区域可输出。XLSX 原格式保存保留未计算公式及缓存，CSV 值导出沿既有有缓存才可导出的合同，不赋予缓存已计算状态。
 
@@ -3756,15 +3762,17 @@ Wasm/Worker 的 `openPptx`、`createPptx` 接受可选 `dateTime`。平台缺省
 
 插入数量等于选中的行或列数。向前插入使用首行/列，向后插入使用末行/列，复制行高或列宽及各格框属性、首段字符/段落格式，文字置空。旧单元格及其他部件保持原源。网格与外框一起扩展或缩小，提交前按既有排版检查行高；插入后选中新格块，删除后光标定位相邻保留格。删除全部行或列时移除整表，并检查整表删除锁和外部对象引用。每次操作合为一项精确历史。模板中的身份扩展或资源链接、锁定、多对象选择和超限修改受保护；动画引用表格内部范围时，修改需先实现引用重映射，当前受保护。失败保留源和选择。行为依据 [ONLYOFFICE 表格命令](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L6659-L6716)、[行插入](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L9997-L10146)和[列插入](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L10512-L10620)。实现归 [`table-selection.mbt`](../../modules/formats/src/pptx/table-selection.mbt)和 [`table-structure.mbt`](../../modules/formats/src/pptx/table-structure.mbt)。
 
-本地普通 DrawingML 表格（含支持的组成员）沿现有对象查询返回 `kind: "table"`，单元格文字使用现有文字选择和编辑接口。核心读取固定列宽和行高、纯色或无填充、普通不透明实线/预设虚线边框、四边内边距及上/中/下垂直对齐。每格独立裁剪，文字、光标、命中和 PDF 复用公共文字布局。默认内边距沿 [ONLYOFFICE 表格设置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/ChartSpacePrototype.js#L640-L665)；网格和图形框对应关系参考 [Create_TableGraphicFrame](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L4122-L4176)。
+本地普通 DrawingML 表格（含支持的组成员）沿现有对象查询返回 `kind: "table"`，单元格文字使用现有文字选择和编辑接口。核心读取固定列宽和行高、纯色或无填充、普通纯色实线/预设虚线边框及不透明度、四边内边距及上/中/下垂直对齐。每格独立裁剪，文字、光标、命中和 PDF 复用公共文字布局。默认内边距沿 [ONLYOFFICE 表格设置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/ChartSpacePrototype.js#L640-L665)；网格和图形框对应关系参考 [Create_TableGraphicFrame](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L4122-L4176)。
 
 单格输入、换段、组合输入及取消共用现有源事务。水平文字需要更多高度时，核心增长对应行及外框，连同文字写入一项历史。撤销、重做及保存保留其他单元格和未改部件。查询按行连接单元格段落，以 LF 分隔。多格范围的复制返回完整格文本，列间使用 Tab、行间使用 LF，格内段落及软换行保留为 LF。范围输入把文字写入左上格并清空其他选中格；删除或剪切仅清空内容，保留网格和格式。范围高亮、空白区域命中和可访问描述均使用核心返回的矩形。组合输入候选使用预览选择，取消恢复完整原选区；提交合为一项历史。折叠光标在单元格边界的删除仍受保护，避免把相邻格段落合并或误清空范围。实现归 [`table-input.mbt`](../../modules/formats/src/pptx/table-input.mbt)和 [`table-hit.mbt`](../../modules/formats/src/pptx/table-hit.mbt)。
 
-单选可编辑表格时，既有 `fill`、`stroke`、`strokeDash`、`textInsets`、`textAnchor` 和 `textDirection` 命令修改单元格属性。对象模式作用于整表的主格，文字模式作用于当前主格或闭合后的矩形范围；延续格保留原属性。填充接受六位 RGB 或 `null` 无填充，保留已有不透明度。边框接受同样的颜色和 0.1–1000 点宽度，设置所选主格的四条不透明边并保留有效预设线型；`null` 移除。相邻格的对应共享边同步修改，避免另一侧覆盖显示。若共享边只覆盖相邻合并格的一部分，核心原子拒绝，不改到范围外。内边距以点为单位，四边接受 0–14400，左右合计须留下正文字宽度；垂直锚定接受 `t/ctr/b`。字号、段落、非目标属性和部件保持，变化与行高增长合为一项精确历史；重复应用相同直接格式不新增历史。目标填充或边框中的未知注释及处理指令保持受保护。
+单选可编辑表格时，既有 `fill`、`stroke`、`strokeDash`、`strokeOpacity`、`textInsets`、`textAnchor` 和 `textDirection` 命令修改单元格属性。对象模式作用于整表的主格，文字模式作用于当前主格或闭合后的矩形范围；延续格保留原属性。填充接受六位 RGB 或 `null` 无填充，保留已有不透明度。边框接受同样的颜色和 0.1–1000 点宽度，设置所选主格的四条边并保留各边不透明度与有效预设线型；`null` 移除。相邻格的对应共享边同步修改，避免另一侧覆盖显示。若共享边只覆盖相邻合并格的一部分，核心原子拒绝，不改到范围外。内边距以点为单位，四边接受 0–14400，左右合计须留下正文字宽度；垂直锚定接受 `t/ctr/b`。字号、段落、非目标属性和部件保持，变化与行高增长合为一项精确历史；重复应用相同直接格式不新增历史。目标填充或边框中的未知注释及处理指令保持受保护。
 
 `strokeDash` 复用形状的 11 种 `PptxDash` 预设和 `null` 恢复继承，范围与 `stroke` 相同。只改各目标边的 `prstDash`，保留源颜色和线宽；空的局部边继续继承原生样式和来源优先级。`borderDash` 返回有效共同值，混合时为 `null`。默认表格面板复用形状线型控件；共享边与部分相邻合并格保护不变。实线、虚线及点线共用原区域优先级，选中的整条边携带自己的线型，按有效线宽换算为点值数组。跨文稿复制冻结直接边和原生样式中的线型，重复粘贴后的表格可分别修改。规则沿 [ONLYOFFICE DashPatternPresets](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Metafile.js#L1767-L1820)，实现复用 [`line-dash.mbt`](../../modules/formats/src/pptx/line-dash.mbt)及原生表格边框事务。自定义虚线、复合线及透明边框继续保护。
 
-`table.format` 返回 `{ fill, borderColor, borderWidth, borderDash, left, top, right, bottom, anchor, direction, reason, borderReason }`。混合值为 `null`，无颜色为 `""`，无边框宽度为 0；其他长度单位为点。`reason` 和 `borderReason` 为空表示相应编辑可用，后者单独说明共享边保护。默认面板显示整表或范围、混合值及保护原因，使用同一命令和既有原生输入。读取及写回归 [`table-cell-format.mbt`](../../modules/formats/src/pptx/table-cell-format.mbt)，共享边归 [`table-cell-borders.mbt`](../../modules/formats/src/pptx/table-cell-borders.mbt)。行为参考 [ONLYOFFICE 单元格共享边](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L1641-L1868)、[底色与垂直对齐](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L2028-L2115)。
+`strokeOpacity` 修改同一目标的纯色边框不透明度，接受 0–1，按 1/100000 步长写入原生 `alpha`。零不透明度保留颜色身份，之后仍可恢复；无填充的边保持无填充，整组没有纯色边框时拒绝此操作。覆盖采用修改前的实际胜出边，保留有效颜色、线宽、线型，以及原生主题色和 tint 等颜色变换，颜色/线宽和虚线操作也保留既有不透明度。`borderOpacity` 返回有效共同值或混合值 `null`；无边框时为 1，默认百分比控件禁用。区域与直接边框按原优先级、线宽及右/下侧规则选出完整胜出边，透明度不参与重新排名。单条原生合并边若含不同颜色、线宽或线型的胜出分段，透明度修改保持保护，避免把分段外观压成一条边；每段共享边只绘制一次，避免重复混色。直接格式和样式随跨文稿复制保留透明度。实现归 [table-cell-opacity.mbt](../../modules/formats/src/pptx/table-cell-opacity.mbt)，复用 [shape-opacity.mbt](../../modules/formats/src/pptx/shape-opacity.mbt) 的颜色片段；原生描边来源参考 [ONLYOFFICE SetBorder](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TextDrawer.js#L1751-L1758)。
+
+`table.format` 返回 `{ fill, borderColor, borderWidth, borderDash, borderOpacity, left, top, right, bottom, anchor, direction, reason, borderReason }`。混合值为 `null`，无颜色为 `""`，无边框宽度为 0；其他长度单位为点。`reason` 和 `borderReason` 为空表示相应编辑可用，后者单独说明共享边保护。默认面板显示整表或范围、混合值及保护原因，使用同一命令和既有原生输入。读取及写回归 [`table-cell-format.mbt`](../../modules/formats/src/pptx/table-cell-format.mbt)，共享边归 [`table-cell-borders.mbt`](../../modules/formats/src/pptx/table-cell-borders.mbt)。行为参考 [ONLYOFFICE 单元格共享边](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L1641-L1868)、[底色与垂直对齐](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L2028-L2115)。
 
 `editObjects({ action: "textDirection", direction })` 对单格、矩形范围或整表写入原生 `tcPr@vert`。direction 接受 `horz/vert/vert270`；默认单元格面板显示三种方向，`table.format.direction` 返回共同值或混合值 `null`。文字整体旋转，四边物理边距及垂直锚定沿交换后的文字平面求值。切换为旋转方向时，将不足 20 mm 的目标主格所在行提高到该值，并同步原生外框；重新应用相同方向不改源。行高、框高和方向共用一项精确历史。
 
@@ -3792,7 +3800,7 @@ Wasm/Worker 的 `openPptx`、`createPptx` 接受可选 `dateTime`。平台缺省
 
 `editObjects({ action: "tableStyle", style })` 为单选表格应用完整设置；对象模式、单格光标和跨格选择均作用于整表。默认表单提供目录、六个选项和显式应用按钮。应用清除全部物理格的直接填充、边框和 `tcPr` 边距，保留垂直锚定、文字/段落格式、内容、跨度、网格及选择；同样式可重新应用以清除覆盖。缺少的内置定义写入原生目录；目录、关系和内容类型缺失时一起创建，并用中性默认定义保持其他无样式表格的外观。未知源内嵌标记保护被清除的格式。资源和必要行高适配共用一次精确历史，无源变化不增加历史，字体、锁定、候选及输出失败不提交。
 
-目录最多 256 个源定义，名称最多 1024 个 UTF-16 单元，当前查询连同内置项最多 270 项。未知样式、渐变/效果、条件区域的内部横竖边、自定义虚线、透明边框及未解析字体配置继续诊断并保护原源。未使用的未知定义保留，不影响已支持表格。预设和优先级参考 [ONLYOFFICE 原生预设](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L18011-L18200)、[区域合成](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableCell.js#L300-L443)及[应用后清除直接格式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L8673-L8743)。实现归 [`table-style-read.mbt`](../../modules/formats/src/pptx/table-style-read.mbt)、[`table-style-edit.mbt`](../../modules/formats/src/pptx/table-style-edit.mbt)和 [`table-edges.mbt`](../../modules/formats/src/pptx/table-edges.mbt)；更多预设、边线类型及样式定义编辑继续实施。
+目录最多 256 个源定义，名称最多 1024 个 UTF-16 单元，当前查询连同内置项最多 270 项。未知样式、渐变/效果、条件区域的内部横竖边、自定义虚线及未解析字体配置继续诊断并保护原源。未使用的未知定义保留，不影响已支持表格。预设和优先级参考 [ONLYOFFICE 原生预设](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L18011-L18200)、[区域合成](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableCell.js#L300-L443)及[应用后清除直接格式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L8673-L8743)。实现归 [`table-style-read.mbt`](../../modules/formats/src/pptx/table-style-read.mbt)、[`table-style-edit.mbt`](../../modules/formats/src/pptx/table-style-edit.mbt)和 [`table-edges.mbt`](../../modules/formats/src/pptx/table-edges.mbt)；更多预设、边线类型及样式定义编辑继续实施。
 
 ### 演讲备注
 

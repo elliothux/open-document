@@ -36,10 +36,10 @@ fn table_style_fill(
 }
 
 ///|
-fn table_style_border(
+fn table_style_line(
   theme : Theme,
   container : Ref,
-) -> (String, Double, String) raise @failure.Failure {
+) -> (Ref, Ref?)? raise @failure.Failure {
   container.table_children(["ln", "lnRef"])
   table_profile(
     container.node.attributes.is_empty() &&
@@ -54,7 +54,18 @@ fn table_style_border(
     is Some((line, reference)) {
     (line, Some(reference))
   } else {
-    return ("", 0, "solid")
+    return None
+  }
+  Some((line, placeholder))
+}
+
+///|
+fn table_style_border(
+  theme : Theme,
+  container : Ref,
+) -> (String, Double, String, Double) raise @failure.Failure {
+  guard table_style_line(theme, container) is Some((line, placeholder)) else {
+    return ("", 0, "solid", 1)
   }
   line.table_children([
     "noFill", "solidFill", "prstDash", "round", "bevel", "miter",
@@ -73,10 +84,6 @@ fn table_style_border(
   )
   let dash = line_dash([line])
   let (color, alpha) = fill_rgba(theme, [line], placeholder~)
-  table_profile(
-    alpha == 1,
-    "Transparent table style borders require conflict resolution",
-  )
   (
     color,
     if color.is_empty() {
@@ -85,6 +92,7 @@ fn table_style_border(
       number(line.node.attribute("w").unwrap_or("12700"), 1, 12700000) / 12700
     },
     dash,
+    alpha,
   )
 }
 
@@ -98,9 +106,10 @@ fn table_style_borders(
   columns : Int,
   row_span : Int,
   column_span : Int,
-) -> (Array[(String, Double, String)], Array[Int]) raise @failure.Failure {
-  let borders : Array[(String, Double, String)] = []
+) -> (Array[(String, Double, String, Double)], Array[Int], Array[(Ref, Ref?)?]) raise @failure.Failure {
+  let borders : Array[(String, Double, String, Double)] = []
   let priorities : Array[Int] = []
+  let sources : Array[(Ref, Ref?)?] = []
   for
     (side, inside, boundary) in [
       ("left", "insideV", column == 0),
@@ -126,15 +135,21 @@ fn table_style_borders(
           (
             table_style_border(theme, edge),
             table_style_regions.search(layer.source.node.name).unwrap_or(0) + 1,
+            table_style_line(theme, edge).bind(pair => {
+              solid_fill_source([pair.0]).map(fill => (fill, pair.1))
+            }),
           ),
         )
       }
     } nobreak {
       None
     }
-    let (value, priority) = found.unwrap_or((("", 0, "solid"), 0))
+    let (value, priority, source) = found.unwrap_or(
+      (("", 0, "solid", 1), 0, None),
+    )
     borders.push(value)
     priorities.push(priority)
+    sources.push(source)
   }
-  (borders, priorities)
+  (borders, priorities, sources)
 }

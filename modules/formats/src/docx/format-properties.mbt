@@ -135,7 +135,7 @@ fn format_property_order(kind : String) -> Array[String] {
   if kind == "rPr" {
     [
       "rStyle", "rFonts", "b", "bCs", "i", "iCs", "strike", "color", "spacing", "sz",
-      "szCs", "highlight", "u", "vertAlign", "rtl", "cs", "lang", "rPrChange",
+      "szCs", "highlight", "u", "vertAlign", "rtl", "cs", "lang", "ins", "del", "rPrChange",
     ]
   } else {
     [

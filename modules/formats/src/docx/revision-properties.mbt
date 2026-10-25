@@ -127,6 +127,7 @@ fn WordTree::check_current_review_properties(
       "protected-content", "Opaque current property source is protected",
     )
   }
+  let excluded = excluded + self.paragraph_revision_properties(id)
   // Validate current properties with independently checked revision metadata removed.
   let opening = StringBuilder()
   opening.write_string("<" + properties.qualified)
@@ -186,6 +187,23 @@ fn property_revision_change(
       "</" +
       previous.qualified +
       ">"
+  }
+  if properties.name == "rPr" && parent.name == "pPr" {
+    let retained = tree
+      .paragraph_revision_properties(properties.id)
+      .map(id => tree.standalone_markup(document, id))
+      .join("")
+    if !retained.is_empty() {
+      let tail = if previous.empty {
+        2
+      } else {
+        previous.end - previous.closing_start
+      }
+      markup = markup[:markup.length() - tail].to_owned() +
+        (if previous.empty { ">" } else { "" }) +
+        retained +
+        "</\{previous.qualified}>"
+    }
   }
   {
     node: parent.id,

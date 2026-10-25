@@ -29,9 +29,11 @@ fn table_format_reason(object : Object) -> String {
 ///|
 fn table_cell_values(
   cell : DrawingCell,
-  borders : Array[(String, Double, String)],
+  borders : Array[(String, Double, String, Double)],
 ) -> Array[Json] {
-  let (color, width, dash) = borders[0]
+  let (color, width, dash, _) = borders[0]
+  let visible = borders.filter(edge => !edge.0.is_empty())
+  let opacity = visible.get(0).map(edge => edge.3).unwrap_or(1)
   [
     Json(cell.fill),
     if borders.all(edge => edge.0 == color) {
@@ -55,6 +57,11 @@ fn table_cell_values(
     Json(cell.body.direction),
     if borders.all(edge => edge.2 == dash) {
       Json(dash)
+    } else {
+      Json::null()
+    },
+    if visible.all(edge => edge.3 == opacity) {
+      Json(opacity)
     } else {
       Json::null()
     },
@@ -84,7 +91,7 @@ fn table_format_query(
   for
     i, name in [
       "fill", "borderColor", "borderWidth", "left", "top", "right", "bottom", "anchor",
-      "direction", "borderDash",
+      "direction", "borderDash", "borderOpacity",
     ] {
     result[name] = if values.all(row => row[i] == values[0][i]) {
       values[0][i]
@@ -131,6 +138,14 @@ fn Session::format_table_cells(
       }
       (None, None)
     }
+    StrokeOpacity(value) => {
+      guard value >= 0 && value <= 1 && !value.is_nan() && !value.is_inf() else {
+        @failure.reject(
+          "invalid-operation", "Border opacity must be between zero and one",
+        )
+      }
+      (None, None)
+    }
     TextInsets(left, top, right, bottom) => {
       for
         (key, value) in [
@@ -171,12 +186,32 @@ fn Session::format_table_cells(
       )
     }
   }
-  let targets = if width is Some(_) || change is StrokeDash(_) {
+  let targets = if width is Some(_) ||
+    change is StrokeDash(_) ||
+    change is StrokeOpacity(_) {
     table.border_targets(range)
   } else {
     []
   }
   let changes : Array[@xml.SourceChange] = []
+  if change is StrokeOpacity(_) {
+    guard table.rows
+      .mapi((r, row) => {
+        row.cells
+        .mapi((c, cell) => {
+          cell.owner() &&
+          targets[r][c]
+          .mapi((side, selected) => selected && !cell.borders[side].0.is_empty())
+          .any(value => value)
+        })
+        .any(value => value)
+      })
+      .any(value => value) else {
+      @failure.reject(
+        "protected-content", "Opacity editing requires a visible table border",
+      )
+    }
+  }
   let grow_rows : Map[Int, Bool] = Map([])
   for r, row in table.rows {
     for c, cell in row.cells {
@@ -185,6 +220,10 @@ fn Session::format_table_cells(
       }
       if change is StrokeDash(value) {
         changes.append(table_dash_changes(cell, targets[r][c], value))
+        continue
+      }
+      if change is StrokeOpacity(value) {
+        changes.append(table.table_opacity_changes(r, c, targets[r][c], value))
         continue
       }
       if width is Some(width) {

@@ -80,6 +80,7 @@ pub fn Session::enter(
     self.commit_edit(
       { ..prepared.edit, xml: edits, bytes: prepared.edit.bytes + bytes, },
       document,
+      tracking_edit=true,
     )
     self.typing_text = prepared.typing_text
     return self.edit_result(prepared.edit.paragraphs)

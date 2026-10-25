@@ -34,6 +34,9 @@ priv struct Calculation {
   values : Map[(Int, String), Value]
   hyperlinks : Map[(Int, String), String?]
   order : Array[(Int, String)]
+  uncomputed : Map[(Int, String), String]
+  guarded_ranges : Map[Int, Array[Range]]
+  mut protected_visibility : Bool
 }
 
 ///|
@@ -60,6 +63,7 @@ fn Expression::dependencies(
   output : Array[Dependency],
   depth : Int,
   hyperlink~ : Ref[Bool]? = None,
+  uncomputed~ : Ref[String?]? = None,
 ) -> Unit raise @failure.Failure {
   work.spend()
   guard depth <= 64 && output.length() < 4096 else {
@@ -71,7 +75,15 @@ fn Expression::dependencies(
     Named(_, _) | Structured(_, _) =>
       self
       .resolve_names(sheets, current, work.origin, work)
-      .dependencies(sheets, current, work, output, depth + 1, hyperlink~)
+      .dependencies(
+        sheets,
+        current,
+        work,
+        output,
+        depth + 1,
+        hyperlink~,
+        uncomputed~,
+      )
     Constant(_) => ()
     Reference(name, first, last) => {
       let last = last.unwrap_or(first)
@@ -81,10 +93,34 @@ fn Expression::dependencies(
       })
     }
     Unary(_, value) =>
-      value.dependencies(sheets, current, work, output, depth + 1, hyperlink~)
+      value.dependencies(
+        sheets,
+        current,
+        work,
+        output,
+        depth + 1,
+        hyperlink~,
+        uncomputed~,
+      )
     Binary(_, left, right) => {
-      left.dependencies(sheets, current, work, output, depth + 1, hyperlink~)
-      right.dependencies(sheets, current, work, output, depth + 1, hyperlink~)
+      left.dependencies(
+        sheets,
+        current,
+        work,
+        output,
+        depth + 1,
+        hyperlink~,
+        uncomputed~,
+      )
+      right.dependencies(
+        sheets,
+        current,
+        work,
+        output,
+        depth + 1,
+        hyperlink~,
+        uncomputed~,
+      )
     }
     Function(name, args) => {
       if name == "HYPERLINK" && hyperlink is Some(hyperlink) {
@@ -103,7 +139,13 @@ fn Expression::dependencies(
           "VARP", "VAR.P", "STDEV", "STDEV.S", "STDEVP", "STDEV.P", "MODE", "MODE.SNGL",
           "LARGE", "SMALL", "SUMPRODUCT", "HYPERLINK",
         ].contains(name) {
-        @failure.reject("unsupported-formula", "Unsupported function: " + name)
+        guard uncomputed is Some(reason) && isolated_math_function(name) else {
+          @failure.reject(
+            "unsupported-formula",
+            "Unsupported function: " + name,
+          )
+        }
+        reason.val = Some("Unsupported function: " + name)
       }
       for index, arg in args {
         if ["ROW", "COLUMN", "ROWS", "COLUMNS"].contains(name) &&
@@ -125,7 +167,15 @@ fn Expression::dependencies(
           output.push({ sheet: target.sheet, range: target.bounds, })
           continue
         }
-        arg.dependencies(sheets, current, work, output, depth + 1, hyperlink~)
+        arg.dependencies(
+          sheets,
+          current,
+          work,
+          output,
+          depth + 1,
+          hyperlink~,
+          uncomputed~,
+        )
       }
     }
   }
@@ -158,6 +208,9 @@ fn Calculation::visit(
       work.spend()
       if dependency.range.contains(Address::parse(candidate.1)) {
         self.visit(candidate, formulas, marks, work, depth + 1)
+        if self.uncomputed.contains(candidate) && !self.uncomputed.contains(key) {
+          self.uncomputed[key] = "Uncalculated dependency: " + candidate.1
+        }
       }
     }
   }
@@ -201,6 +254,9 @@ fn Calculation::build(
     values: Map([]),
     hyperlinks: Map([]),
     order: [],
+    uncomputed: Map([]),
+    guarded_ranges: Map([]),
+    protected_visibility: false,
   }
   let work = FormulaWork::{
     remaining: 1048576,
@@ -233,6 +289,7 @@ fn Calculation::build(
         }
         let dependencies : Array[Dependency] = []
         let hyperlink = Ref(false)
+        let uncomputed : Ref[String?] = Ref(None)
         expression.dependencies(
           sheets,
           index,
@@ -240,7 +297,11 @@ fn Calculation::build(
           dependencies,
           0,
           hyperlink=Some(hyperlink),
+          uncomputed=Some(uncomputed),
         )
+        if uncomputed.val is Some(reason) {
+          calculation.uncomputed[key] = reason
+        }
         if hyperlink.val {
           calculation.hyperlinks[key] = None
         }
@@ -265,6 +326,7 @@ fn Calculation::build(
   for key in calculation.sources.keys() {
     calculation.visit(key, formulas, marks, work, 0)
   }
+  calculation.protect_dependencies(formulas, work)
   let invalid = changed.copy()
   let mut link_units = 0
   for key in calculation.order {
@@ -280,6 +342,16 @@ fn Calculation::build(
         item.0 == key.0 && item.1.contains(Address::parse(key.1))
       })
     let hyperlink : Ref[String?] = Ref(None)
+    if calculation.uncomputed.get(key) is Some(reason) {
+      guard !affected &&
+        (
+          previous is None ||
+          previous.bind(p => p.sources.get(key)) == calculation.sources.get(key)
+        ) else {
+        @failure.reject("unsupported-formula", reason)
+      }
+      continue
+    }
     let value = if previous is Some(previous) &&
       !affected &&
       previous.sources.get(key) == calculation.sources.get(key) &&

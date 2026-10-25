@@ -74,6 +74,7 @@ export interface PptxTable {
     borderColor: string | null;
     borderWidth: number | null;
     borderDash: PptxDash | null;
+    borderOpacity: number | null;
     left: number | null;
     top: number | null;
     right: number | null;
@@ -121,6 +122,7 @@ export function checkPptxTable(
   for (const key of ["left", "top", "right", "bottom", "borderWidth"])
     if (format[key] !== null)
       number(format[key], 0, key === "borderWidth" ? 1000 : 14400);
+  if (format.borderOpacity !== null) number(format.borderOpacity, 0, 1);
   if (
     ![null, "t", "ctr", "b"].some((value) => value === format.anchor) ||
     ![null, "horz", "vert", "vert270"].some(

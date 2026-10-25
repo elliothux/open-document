@@ -24,6 +24,11 @@ fn WordTree::check_text_revision(
   self : WordTree,
   id : Int,
 ) -> Int raise @failure.Failure {
+  if self.is_paragraph_revision(id) {
+    let paragraph = self.check_paragraph_revision(id)
+    ignore(self.review_text_parts(paragraph))
+    return paragraph
+  }
   let node = self.nodes[id]
   guard ["ins", "del"].contains(node.name) &&
     node.uri == word_uri &&
@@ -167,7 +172,11 @@ fn WordTree::revision_entries(
       },
       author,
       date,
-      text: text.to_string(),
+      text: if self.is_paragraph_revision(id) {
+        "¶"
+      } else {
+        text.to_string()
+      },
       paragraph,
       reason,
     })
@@ -315,6 +324,10 @@ pub fn Session::resolve_revisions(
     @failure.reject("invalid-operation", "Revision entry no longer exists")
   }
   let affected : Array[Int] = []
+  let paragraph_marks = entries.filter(entry => {
+    tree.is_paragraph_revision(entry.node)
+  })
+  let mark_ids = Set::from_array(paragraph_marks.map(entry => entry.node))
   let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
   let mut units = 0
   for entry in entries {
@@ -333,6 +346,9 @@ pub fn Session::resolve_revisions(
     let tree = WordTree::new(candidate)
     let changes : Array[@xml.SourceChange] = []
     for entry in entries {
+      if mark_ids.contains(entry.node) {
+        continue
+      }
       let properties = ["characterFormat", "paragraphFormat"].contains(
         entry.kind,
       )
@@ -373,6 +389,44 @@ pub fn Session::resolve_revisions(
       candidate = updated
       steps.push(step)
     }
+  }
+  // Resolve paragraph marks from the end so each earlier paragraph identity survives.
+  for entry in paragraph_marks.rev() {
+    let tree = WordTree::new(candidate)
+    let paragraph = entry.paragraph.unwrap()
+    guard tree.paragraph_revision(paragraph) is Some(mark) &&
+      tree.nodes[mark].attribute("id", uri=word_uri) == Some(entry.source_id) else {
+      @failure.reject(
+        "protected-content", "Paragraph revision changed during review",
+      )
+    }
+    let keep_boundary = (entry.kind == "insert") == accept
+    let (updated, step) = if keep_boundary {
+      let node = tree.nodes[mark]
+      candidate.edit_source([
+        {
+          node: node.parent,
+          offset: node.start - tree.nodes[node.parent].start,
+          length: node.end - node.start,
+          xml: "",
+        },
+      ])
+    } else {
+      let (updated, step, removed) = self.merge_review_paragraphs(
+        candidate, paragraph,
+      )
+      if !affected.contains(removed) {
+        affected.push(removed)
+      }
+      (updated, step)
+    }
+    let size = edit_bytes(step)
+    guard size <= history_byte_limit - bytes else {
+      @failure.reject("limit-exceeded", "Revision history exceeds budget")
+    }
+    bytes += size
+    candidate = updated
+    steps.push(step)
   }
   let next = WordTree::new(candidate)
   let after = if self.selection is Some(selection) &&

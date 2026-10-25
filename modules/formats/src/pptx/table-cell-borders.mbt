@@ -66,7 +66,7 @@ fn table_border_changes(
     let name = names[index]
     let edge = properties.bind(p => p.child(name))
     if edge is Some(edge) &&
-      same_paint(edge, color) &&
+      same_paint(edge, color, opacity=cell.borders[side].3) &&
       (color is None || cell.borders[side].1 == width) {
       continue
     }
@@ -80,7 +80,7 @@ fn table_border_changes(
       ignore(paint_fill(edge))
     }
     let dash = cell.borders[side].2
-    let xml = "<a:\{name} xmlns:a=\"\{drawing_uri}\" w=\"\{(width * 12700).round().to_int64()}\">\{paint_markup(color)}<a:prstDash val=\"\{dash}\"/></a:\{name}>"
+    let xml = "<a:\{name} xmlns:a=\"\{drawing_uri}\" w=\"\{(width * 12700).round().to_int64()}\">\{paint_markup(color, opacity=cell.borders[side].3)}<a:prstDash val=\"\{dash}\"/></a:\{name}>"
     if properties is Some(properties) && !properties.node.empty {
       changes.push(
         paint_child_change(

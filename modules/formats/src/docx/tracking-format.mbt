@@ -13,8 +13,10 @@ fn WordTree::check_review_properties(
   } else if mark is Some(change) {
     ignore(self.check_property_revision(change))
     self.check_current_review_properties(id, [change])
-  } else {
+  } else if self.paragraph_revision_properties(id).is_empty() {
     self.check_structure_properties(id)
+  } else {
+    self.check_current_review_properties(id, [])
   }
 }
 
@@ -128,7 +130,12 @@ fn Session::review_format_properties(
         tree.children[id]
         .filter(
           // Paragraph-mark properties are outside the paragraph property snapshot.
-          child => kind != "pPr" || tree.nodes[child].name != "rPr",
+          child => {
+            (kind != "pPr" || tree.nodes[child].name != "rPr") &&
+            !(kind == "rPr" &&
+            tree.nodes[parent].name == "pPr" &&
+            ["ins", "del"].contains(tree.nodes[child].name))
+          },
         )
         .map(child => tree.standalone_markup(document, child))
         .join("")

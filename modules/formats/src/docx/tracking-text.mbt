@@ -195,7 +195,11 @@ fn WordTree::review_run_markup(
       parent,
       "rPr",
       patch.unwrap_or(CharacterFormat::new()).properties(),
-      nested=if run is None { { "rPrChange": "" } } else { Map([]) },
+      nested=if run is None {
+        { "rPrChange": "", "ins": "", "del": "" }
+      } else {
+        Map([])
+      },
     )
   } else if patch is Some(patch) {
     "<od:rPr xmlns:od=\"\{word_uri}\">" +
@@ -592,7 +596,7 @@ fn Session::prepare_review_text(
 }
 
 ///|
-/// Replaces a single body or ordinary cell range with native text revisions.
+/// Replaces a body or ordinary cell range with native text and paragraph revisions.
 /// Existing deletions remain visible; deleting the author's own insertion removes it.
 pub fn Session::replace_tracked_text(
   self : Session,
@@ -603,7 +607,7 @@ pub fn Session::replace_tracked_text(
   date : String,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
-  let prepared = self.prepare_review_text(selection, text, author, date)
+  let prepared = self.prepare_review_range(selection, text, author, date)
   if prepared is Some(prepared) {
     if prepared.edit.bytes == 0 {
       self.selection = prepared.edit.after

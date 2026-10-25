@@ -44,7 +44,7 @@
 | [`bridge/xlsx.mbt`](../modules/bridge/src/xlsx.mbt)、[`wasm/xlsx.ts`](../packages/wasm/src/xlsx.ts)、[`web/xlsx.ts`](../packages/web/src/xlsx.ts) | 扩展现有类型化命令与查询；不增加第二套计算服务 |
 | [`spreadsheet-editor.ts`](../packages/web/src/spreadsheet-editor.ts)、[`spreadsheet-input.ts`](../packages/web/src/spreadsheet-input.ts)、[`spreadsheet-formula.ts`](../packages/web/src/spreadsheet-formula.ts)、[`ui/xlsx-formula.tsx`](../packages/ui/src/xlsx-formula.tsx) | 已接通共享原生输入的公式栏和范围定位，复用队列、Canvas 与 P9 状态；继续扩展数据面板 |
 
-DEVSQ、MODE/MODE.SNGL、LARGE/SMALL、SUMSQ、SUMPRODUCT、VAR/VAR.S/VARP/VAR.P 及 STDEV/STDEV.S/STDEVP/STDEV.P 已接通实际求值，与 SQRT/POWER/PRODUCT/MEDIAN/EXACT/REPT 共用普通重算事务。未知函数、动态或无法解析的依赖仍使整本只读，范围见第 4.2 节。当前打印可按工作簿顺序合并可见表，各表保留多个矩形区域、页面设置、重复标题、纯文字页眉页脚和缩放。P11 必须继续修改这些能力所在层，不能只放开按钮或在 JS 中补算结果。
+DEVSQ、MODE/MODE.SNGL、LARGE/SMALL、SUMSQ、SUMPRODUCT、VAR/VAR.S/VARP/VAR.P 及 STDEV/STDEV.S/STDEVP/STDEV.P 已接通实际求值，与 SQRT/POWER/PRODUCT/MEDIAN/EXACT/REPT 共用普通重算事务。部分静态数学函数已接通未计算链隔离；动态及未核实依赖仍使整本只读，范围见第 4.2 节。当前打印可按工作簿顺序合并可见表，各表保留多个矩形区域、页面设置、重复标题、纯文字页眉页脚和缩放。P11 必须继续修改这些能力所在层，不能只放开按钮或在 JS 中补算结果。
 
 普通透视工作表复制已接通原生独立报表、共享缓存和原数据源保持；副本字段可独立修改，显式刷新协调各报表。9 项定向核心和 Chromium 的独立 XML/PDF 已检查默认复制、原生输入、精确历史和重开，范围归[工作表复制](references/formats.md#工作表顺序名称与可见性)。带控件的整表复制见下文。
 
@@ -159,6 +159,8 @@ MINIFS/MAXIFS 已接通多条件极值、隐藏行与稀疏整列、名称和跨
 已有名称的计算已接通工作簿/工作表作用域、常量、矩形范围与已支持表达式。复用依赖、规则、缓存、历史、原生输入和 PDF，支持局部优先、显式表限定、Unicode、相对定义和循环保护。绝对、相对及混合定义已随行列/单元格结构和表操作更新，保留行列标记、名称源码和精确历史；求值按实际调用格偏移，名称作用域不代替引用的工作表限定。名称目录、增改删、作用域改名与矩形名称定位已接通核心、API 和默认面板，复用原生草稿屏障和精确历史；当前语义及边界归[名称引用](references/formats.md#名称引用)。整行/整列公式与名称已接通，复用有界区域、稀疏聚合和实际单元格查询；查找跳过空白区间，空白计数保留逻辑面积，不展开整个表。复制、结构编辑、依赖、缓存、历史、重开和原生输入沿现有路径；边界归[显示与计算](references/formats.md#显示与计算)。已接通含原生表工作簿的名称增改删、改名和结构化范围定位，同步计算列/总计元数据及绑定依赖，保留局部优先、列标题和文字常量。外部工作簿、INDIRECT/OFFSET 等动态依赖、数组/溢出、易变和迭代计算在 P14 扩展，保留原公式与诊断。
 
 ### 4.2 未知公式的安全编辑范围
+
+静态数学函数的未计算链隔离已接通现有依赖图。核心保留公式和导入缓存，保护其完整上下游及相关输入；无关联格可输入和重算，纯格式可编辑。名称、共享及跨表引用沿同一解析路径，SUBTOTAL 的可见性变化继续保护。3 项新增及 7 项既有核心、1 条 Chromium 已检查原生输入、默认格式、精确历史、重开及独立 XML/PDF。当前仅开放合同列出的 16 项静态函数，关联图表等资源仍遵守原有已计算来源要求；其余 P11 继续实施。
 
 DEVSQ、MODE/MODE.SNGL、LARGE/SMALL、STDEV/STDEV.S/STDEVP/STDEV.P、VAR/VAR.S/VARP/VAR.P、SUMSQ、SUMPRODUCT、SQRT、POWER、PRODUCT、MEDIAN 及 EXACT/REPT 已真实求值，进入普通依赖重算和缓存事务。DEVSQ 支持名称、共享公式、跨表和稀疏引用；与方差和标准差共用平移后的稳定平方偏差累计。DEVSQ 专用未计算链保护已移除。动态引用、自定义函数及其他未核实函数继续整本保护；查询 `calculationReason` 和默认公式栏说明原因，汇总和完整打印不冒用缓存。当前合同归[显示与计算](references/formats.md#显示与计算)。
 

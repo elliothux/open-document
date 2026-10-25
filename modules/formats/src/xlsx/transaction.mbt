@@ -80,6 +80,7 @@ fn Session::commit(
   guard payload <= 4194304 else {
     @failure.reject("limit-exceeded", "Edit exceeds history payload budget")
   }
+  self.check_partial_calculation(sheets, calculation)
   self.validate(sheets, workbook~, parts~, removed=removed_parts, media~)
   for item in self.redo {
     self.history_bytes -= item.bytes

@@ -67,5 +67,9 @@ fn Session::cell_edit_reason(
       return "Worksheet cell is locked"
     }
   }
+  if self.calculation is Some(calculation) &&
+    calculation.protects(self.sheet_index(sheet.id), address) {
+    return "Cell affects an uncalculated formula"
+  }
   sheet.cells.get(address.name()).map(cell => cell.read_only).unwrap_or("")
 }

@@ -364,7 +364,7 @@ fn Session::paint_cells(
           self.cell_edit_reason(sheet, address),
           calculated,
           hide_formula=style.formula_hidden,
-          calculation_reason=self.read_only,
+          calculation_reason=self.cell_calculation_reason(index, key),
         ),
         "display": text,
         "rect": rect,

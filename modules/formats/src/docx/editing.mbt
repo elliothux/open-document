@@ -320,7 +320,7 @@ fn Session::prepare_range(
         )
       }
     }
-    return self.prepare_review_text(
+    return self.prepare_review_range(
       selection,
       text,
       context.0,

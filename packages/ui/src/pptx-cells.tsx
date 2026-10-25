@@ -233,6 +233,9 @@ export function PptxCells({
   const [fill, setFill] = useState(format.fill || "ffffff");
   const [border, setBorder] = useState(format.borderColor || "000000");
   const [width, setWidth] = useState(String(format.borderWidth || 1));
+  const [opacity, setOpacity] = useState(
+    String((format.borderOpacity ?? 1) * 100),
+  );
   const [margins, setMargins] = useState({
     left: String(format.left ?? ""),
     top: String(format.top ?? ""),
@@ -336,6 +339,35 @@ export function PptxCells({
           editor={editor}
           value={format.borderDash}
         />
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            controller.run(() =>
+              editor.editObjects({
+                action: "strokeOpacity",
+                opacity: Number(opacity) / 100,
+              }),
+            );
+          }}
+        >
+          <label>
+            {t.strokeOpacity}
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step="any"
+              required
+              disabled={format.borderColor === ""}
+              value={opacity}
+              placeholder={format.borderOpacity === null ? t.mixed : undefined}
+              onChange={(event) => setOpacity(event.currentTarget.value)}
+            />
+          </label>
+          <button type="submit" disabled={format.borderColor === ""}>
+            {t.apply} {t.strokeOpacity}
+          </button>
+        </form>
         {format.borderReason && <p>{format.borderReason}</p>}
       </fieldset>
       <form

@@ -57,7 +57,8 @@ pub fn Session::revision_rects(
     }
     offset += span.text.length()
   }
-  let start = if entry.kind == "characterFormat" && target.name == "pPr" {
+  let start = if tree.is_paragraph_revision(entry.node) ||
+    (entry.kind == "characterFormat" && target.name == "pPr") {
     offset
   } else {
     start.unwrap_or(insertion)
