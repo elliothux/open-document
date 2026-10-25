@@ -250,12 +250,12 @@ fn Expression::evaluate(
     Function(name, args) if [
         "ABS", "INT", "MOD", "ROUND", "ROUNDUP", "ROUNDDOWN", "SQRT", "POWER", "PI",
         "SIN", "COS", "TAN", "ACOS", "ASIN", "ATAN", "ATAN2", "EXP", "LN", "LOG",
-        "LOG10", "RADIANS", "DEGREES", "SINH", "COSH", "TANH",
+        "LOG10", "RADIANS", "DEGREES", "SINH", "COSH", "TANH", "ACOSH", "ASINH",
       ].contains(name) =>
       numeric_function(name, args, sheets, sheet, values, work, depth)
     Function(name, args) if [
         "LEN", "LEFT", "RIGHT", "MID", "TRIM", "UPPER", "LOWER", "CONCAT", "CONCATENATE",
-        "TEXTJOIN", "FIND", "SEARCH", "SUBSTITUTE", "EXACT", "REPT",
+        "TEXTJOIN", "FIND", "SEARCH", "SUBSTITUTE", "EXACT", "REPT", "TEXT",
       ].contains(name) =>
       text_function(name, args, sheets, sheet, values, work, depth)
     Function(name, args) if ["ROW", "COLUMN", "ROWS", "COLUMNS"].contains(name) =>

@@ -27,7 +27,7 @@ function endpoint(value: unknown): void {
     typeof point.site !== "number" ||
     !Number.isInteger(point.site) ||
     point.site < 0 ||
-    point.site > 7 ||
+    point.site > 11 ||
     (!point.target && point.site !== 0)
   )
     throw new Error("Invalid connector endpoint");
@@ -53,7 +53,7 @@ export function checkPptxConnectorQuery(
   value: unknown,
   siteCount: unknown,
 ): void {
-  if (!integer(siteCount, 0, 8))
+  if (!integer(siteCount, 0, 12))
     throw new Error("Invalid connection site count");
   if (value === null) return;
   const connector = record(value);

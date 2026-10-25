@@ -175,8 +175,8 @@ fn HtmlInput::table(
       columns = columns.max(column)
     }
   }
-  let widths = self.table_columns(id, depth)
-  columns = columns.max(widths.length())
+  let declared = self.table_columns(id, depth)
+  columns = columns.max(declared.length())
   guard columns > 0 && rows.length().to_int64() * columns.to_int64() <= 4096L else {
     @failure.reject("limit-exceeded", "HTML table exceeds cell budget")
   }
@@ -185,7 +185,48 @@ fn HtmlInput::table(
     html_table_width(self.document, id) +
     "<od:tblLayout od:type=\"fixed\"/></od:tblPr><od:tblGrid>",
   )
-  let widths = Array::makei(columns, i => widths.get(i).unwrap_or(1440))
+  let widths = if declared.any(width => width is Some((true, _))) {
+    let (percent, width) = html_table_measure(
+      html_table_style(self.document, id, "width").unwrap_or("100%"),
+    )
+    let total = if percent {
+      let area = self.output.area.unwrap_or_else(() => {
+        let area = (self.output.available)()
+        self.output.area = Some(area)
+        area
+      })
+      (area.0 * 20 * width.to_double() / 5000).round().to_int().max(1)
+    } else {
+      width
+    }
+    let widths = Array::makei(columns, i => {
+      match declared.get(i).bind(value => value) {
+        Some((true, width)) =>
+          (total.to_double() * width.to_double() / 5000).round().to_int().max(1)
+        Some((false, width)) => width
+        None => 0
+      }
+    })
+    let automatic = widths.filter(width => width == 0).length()
+    if automatic > 0 {
+      let remaining = (total - widths.fold(init=0, (sum, width) => sum + width)).max(
+        automatic,
+      )
+      let mut index = 0
+      for i in 0..<widths.length() {
+        if widths[i] == 0 {
+          widths[i] = remaining / automatic +
+            (if index < remaining % automatic { 1 } else { 0 })
+          index += 1
+        }
+      }
+    }
+    widths
+  } else {
+    Array::makei(columns, i => {
+      declared.get(i).bind(value => value).map(width => width.1).unwrap_or(1440)
+    })
+  }
   guard widths.fold(init=0, (sum, width) => sum + width) <= 288000 else {
     @failure.reject("limit-exceeded", "HTML table grid exceeds width budget")
   }
@@ -307,11 +348,11 @@ fn HtmlInput::table_columns(
   self : HtmlInput,
   id : Int,
   depth : Int,
-) -> Array[Int] raise @failure.Failure {
+) -> Array[(Bool, Int)?] raise @failure.Failure {
   guard self.document.get_node(id) is Some(ElementNode(table)) else {
     @failure.reject("unsupported-input", "Missing HTML table")
   }
-  let widths : Array[Int] = []
+  let widths : Array[(Bool, Int)?] = []
   for child in table.children {
     if self.document.get_tag_name(child) != Some("colgroup") {
       continue
@@ -339,12 +380,7 @@ fn HtmlInput::table_columns(
       } else {
         html_table_style(self.document, child, "width")
       }
-      let (percent, width) = html_table_measure(source.unwrap_or("72pt"))
-      guard !percent else {
-        @failure.reject(
-          "unsupported-input", "HTML column widths require points or pixels",
-        )
-      }
+      let width = source.map(html_table_measure)
       let span = html_table_span(self.document, col, "span", 63)
       guard widths.length() + span <= 63 else {
         @failure.reject("limit-exceeded", "HTML table exceeds column budget")

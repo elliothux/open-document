@@ -3,7 +3,8 @@ fn supported_format(format : String) -> Bool {
   [
     "General", "@", "0", "0.00", "#,##0", "#,##0.00", "0%", "0.00%", "yyyy-mm-dd",
     "mm-dd-yy", "d-mmm-yy", "d-mmm", "mmm-yy", "h:mm AM/PM", "h:mm:ss AM/PM", "h:mm",
-    "hh:mm:ss", "m/d/yy h:mm",
+    "hh:mm:ss", "m/d/yy h:mm", "0.0", "0.000", "0.0000", "#,##0.0", "#,##0.000",
+    "#,##0.0000", "0.0%", "0.000%", "0.0000%", "$0.00", "$#,##0.00", "¥0.00", "¥#,##0.00",
   ].contains(format)
 }
 
@@ -14,14 +15,29 @@ fn padded(value : Int, length : Int) -> String {
 }
 
 ///|
-fn decimal(value : Double, places : Int, grouped : Bool) -> String {
-  if value.is_inf() {
+fn decimal(
+  value : Double,
+  places : Int,
+  grouped : Bool,
+  percent~ : Bool = false,
+) -> String {
+  if value.is_inf() || (percent && (value * 100).is_inf()) {
     return "########"
   }
-  let factor = if places == 2 { 100.0 } else { 1.0 }
-  let scaled = (value.abs() * factor).round()
+  let factor = @math.pow(10, places.to_double())
+  // Round the source decimal before percentage scaling so 0.10005 becomes 10.01%.
+  let rounded = match
+    rounded_decimal(
+      value,
+      (places + (if percent { 2 } else { 0 })).to_double(),
+      "ROUND",
+    ) {
+    Number(value) => value
+    _ => return "########"
+  }
+  let scaled = (rounded.abs() * factor * (if percent { 100 } else { 1 })).round()
   if scaled > 9007199254740991.0 {
-    return value.to_string()
+    return (value * (if percent { 100 } else { 1 })).to_string()
   }
   let integer = (scaled / factor).floor().to_int64().to_string()
   let whole = StringBuilder()
@@ -31,9 +47,13 @@ fn decimal(value : Double, places : Int, grouped : Bool) -> String {
     }
     whole.write_char(integer.get_char(i).unwrap())
   }
-  (if value < 0 && scaled != 0 { "-" } else { "" }) +
+  (if rounded < 0 && scaled != 0 { "-" } else { "" }) +
   whole.to_string() +
-  (if places == 2 { "." + padded((scaled % 100).to_int(), 2) } else { "" })
+  (if places > 0 {
+    "." + padded((scaled % factor).to_int(), places)
+  } else {
+    ""
+  })
 }
 
 ///|
@@ -44,10 +64,27 @@ fn formatted(value : Value, format : String, date1904 : Bool) -> String {
   match format {
     "General" => general_number(value)
     "@" => Number(value).display()
-    "0" | "#,##0" => decimal(value, 0, format == "#,##0")
-    "0.00" | "#,##0.00" => decimal(value, 2, format == "#,##0.00")
-    "0%" | "0.00%" =>
-      decimal(value * 100, if format == "0%" { 0 } else { 2 }, false) + "%"
+    code if ["0", "#", "$", "¥"].any(prefix => code.has_prefix(prefix)) => {
+      let percent = code.has_suffix("%")
+      let places = code
+        .split_once(".")
+        .map(pair => pair.1.length() - (if percent { 1 } else { 0 }))
+        .unwrap_or(0)
+      let number = decimal(value, places, code.contains(","), percent~)
+      let currency = if code.has_prefix("$") {
+        "$"
+      } else if code.has_prefix("¥") {
+        "¥"
+      } else {
+        ""
+      }
+      (if number.has_prefix("-") {
+        "-" + currency + number[1:].to_owned()
+      } else {
+        currency + number
+      }) +
+      (if percent { "%" } else { "" })
+    }
     _ => {
       if value < 0 || value >= (if date1904 { 2957004 } else { 2958466 }) {
         return "########"

@@ -19,7 +19,7 @@ fn Object::adjustment_values(self : Object) -> Array[(String, Double, Double)] {
   }
   if [
       "triangle", "parallelogram", "trapezoid", "hexagon", "octagon", "plus", "star5",
-      "star4", "star6", "star8", "chevron", "homePlate",
+      "star4", "star6", "star8", "star10", "star12", "chevron", "homePlate",
     ].contains(self.preset) &&
     self.geometry is Some(geometry) {
     let maximum = polygon_adjustment_max(

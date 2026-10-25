@@ -34,6 +34,8 @@ export const pptxInsertKinds = [
   "star5",
   "star6",
   "star8",
+  "star10",
+  "star12",
   "chevron",
   "homePlate",
   "line",

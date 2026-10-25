@@ -411,6 +411,7 @@ fn FormulaParser::atom(
           | "POWER"
           | "ATAN2"
           | "REPT"
+          | "TEXT"
           | "LARGE"
           | "SMALL" => args.length() == 2
           "NOT" | "ISBLANK" | "ISNUMBER" | "ISTEXT" | "ABS" | "INT" | "SQRT" =>
@@ -421,6 +422,8 @@ fn FormulaParser::atom(
           | "SINH"
           | "COSH"
           | "TANH"
+          | "ACOSH"
+          | "ASINH"
           | "ACOS"
           | "ASIN"
           | "ATAN"

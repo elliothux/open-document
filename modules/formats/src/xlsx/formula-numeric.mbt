@@ -87,6 +87,8 @@ fn numeric_function(
     "SINH" => finite_result(@math.sinh(numbers[0]))
     "COSH" => finite_result(@math.cosh(numbers[0]))
     "TANH" => finite_result(@math.tanh(numbers[0]))
+    "ACOSH" => finite_result(@math.acosh(numbers[0]))
+    "ASINH" => finite_result(@math.asinh(numbers[0]))
     "ACOS" => finite_result(@math.acos(numbers[0]))
     "ASIN" => finite_result(@math.asin(numbers[0]))
     "ATAN" => finite_result(@math.atan(numbers[0]))

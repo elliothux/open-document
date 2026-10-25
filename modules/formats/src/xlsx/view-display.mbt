@@ -12,7 +12,7 @@ fn ViewSettings::display(
     return if hidden { "" } else { "=" + source }
   }
   guard value is Number(number) else { return value.display() }
-  if format == "0%" || format == "0.00%" {
+  if supported_format(format) && format.has_suffix("%") {
     let percent = number * 100
     return if percent.is_inf() {
       "########"
@@ -21,7 +21,8 @@ fn ViewSettings::display(
     }
   }
   guard supported_format(format) &&
-    !["General", "@", "0", "0.00", "#,##0", "#,##0.00"].contains(format) else {
+    !["General", "@"].contains(format) &&
+    !["0", "#", "$", "¥"].any(prefix => format.has_prefix(prefix)) else {
     return value.display()
   }
   // The SDK uses fixed ISO dates and 24-hour times instead of a host locale.

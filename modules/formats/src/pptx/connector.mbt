@@ -100,7 +100,7 @@ fn Object::connector_ends(
           "protected-content", "Retained connector endpoint markup is protected",
         )
       }
-      let index = number(connection.node.attribute("idx").unwrap_or(""), 0, 7)
+      let index = number(connection.node.attribute("idx").unwrap_or(""), 0, 11)
       guard index == index.floor() else {
         @failure.reject(
           "protected-content", "Connection site must be an integer",
@@ -127,7 +127,7 @@ fn ConnectorEnd::resolved(
 ) -> ConnectorEnd raise @failure.Failure {
   guard [self.x, self.y].all(v => !v.is_nan() && !v.is_inf() && v.abs() <= 14400) &&
     self.site >= 0 &&
-    self.site <= 7 &&
+    self.site <= 11 &&
     self.target.length() <= 1024 else {
     @failure.reject("invalid-operation", "Invalid connector endpoint")
   }

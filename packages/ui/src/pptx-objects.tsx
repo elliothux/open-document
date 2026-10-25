@@ -121,6 +121,8 @@ export function PptxObjects({
               <option value="star5">{t.star5}</option>
               <option value="star6">{t.star6}</option>
               <option value="star8">{t.star8}</option>
+              <option value="star10">{t.star10}</option>
+              <option value="star12">{t.star12}</option>
               <option value="chevron">{t.chevron}</option>
               <option value="homePlate">{t.homePlate}</option>
               <option value="line">{t.lineShape}</option>

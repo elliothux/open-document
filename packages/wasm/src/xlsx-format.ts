@@ -170,6 +170,19 @@ export const xlsxNumberFormats = [
   "h:mm",
   "hh:mm:ss",
   "m/d/yy h:mm",
+  "0.0",
+  "0.000",
+  "0.0000",
+  "#,##0.0",
+  "#,##0.000",
+  "#,##0.0000",
+  "0.0%",
+  "0.000%",
+  "0.0000%",
+  "$0.00",
+  "$#,##0.00",
+  "¥0.00",
+  "¥#,##0.00",
 ] as const;
 
 export function checkXlsxCellFormat(value: unknown): void {

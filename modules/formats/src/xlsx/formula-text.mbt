@@ -56,6 +56,34 @@ fn text_function(
   }
   let text = values[0].display()
   match name {
+    "TEXT" => {
+      let format = values[1].display()
+      work.spend(amount=text.length() + format.length())
+      let format = match format.to_lower() {
+        "general" => "General"
+        "h:mm am/pm" => "h:mm AM/PM"
+        "h:mm:ss am/pm" => "h:mm:ss AM/PM"
+        lower => lower
+      }
+      guard format.is_empty() || supported_format(format) else {
+        @failure.reject("unsupported-formula", "Unsupported TEXT number format")
+      }
+      let value = match values[0] {
+        Boolean(_) => values[0]
+        original =>
+          match numeric_value(original) {
+            Number(_) as number => number
+            _ => original
+          }
+      }
+      let result = if format.is_empty() && value is Number(_) {
+        ""
+      } else {
+        formatted(value, format, work.date1904)
+      }
+      work.spend(amount=result.length())
+      Text(result)
+    }
     "EXACT" => {
       let other = values[1].display()
       work.spend(amount=text.length() + other.length())

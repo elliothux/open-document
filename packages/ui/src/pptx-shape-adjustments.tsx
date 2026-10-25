@@ -57,9 +57,14 @@ export function PptxShapeAdjustments({
                       ? t.shapeCornerCut
                       : first.preset === "plus"
                         ? t.shapeArmInset
-                        : ["star4", "star5", "star6", "star8"].includes(
-                              first.preset,
-                            )
+                        : [
+                              "star4",
+                              "star5",
+                              "star6",
+                              "star8",
+                              "star10",
+                              "star12",
+                            ].includes(first.preset)
                           ? t.shapeInnerRadius
                           : t.shapeSlant
             : guide.name === "adj1"
