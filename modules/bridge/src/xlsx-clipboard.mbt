@@ -153,7 +153,7 @@ fn xlsx_copied_cells(value : Json) -> @xlsx.CopiedCells raise @failure.Failure {
     }),
     notes: match notes {
       Null => None
-      Object(fields) if fields.length() == 2 => {
+      Object(fields) if fields.length() == 4 => {
         guard fields.get("vml") is Some(vml) else {
           @failure.reject("invalid-operation", "Missing copied note VML")
         }
@@ -165,10 +165,27 @@ fn xlsx_copied_cells(value : Json) -> @xlsx.CopiedCells raise @failure.Failure {
         Some(@xlsx.CopiedNotes::{
           comments: field_string(notes, "comments"),
           vml,
+          threads: copied_thread_xml(fields, "threads"),
+          people: copied_thread_xml(fields, "people"),
         })
       }
       _ => @failure.reject("invalid-operation", "Invalid copied note fields")
     },
+  }
+}
+
+///|
+fn copied_thread_xml(
+  fields : Map[String, Json],
+  name : String,
+) -> String? raise @failure.Failure {
+  match fields.get(name) {
+    Some(Null) => None
+    Some(String(text)) => Some(text)
+    _ =>
+      @failure.reject(
+        "invalid-operation", "Invalid copied native thread fields",
+      )
   }
 }
 

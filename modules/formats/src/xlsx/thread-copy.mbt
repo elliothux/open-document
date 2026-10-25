@@ -3,9 +3,16 @@ fn Session::copied_thread_ids(
   self : Session,
   threads : SheetThreads,
   notes : SheetNotes?,
+  new_people~ : Array[String] = [],
 ) -> Map[String, String] raise @failure.Failure {
   let originals = threads.messages.map(m => m.id)
   let seen : Set[String] = Set::from_array(originals)
+  for id in new_people {
+    if !seen.contains(id) {
+      originals.push(id)
+      seen.add(id)
+    }
+  }
   let uids : Set[String] = Set([])
   for note in notes.map(n => n.entries).unwrap_or([]) {
     if note.node.attribute(
@@ -27,6 +34,12 @@ fn Session::copied_thread_ids(
     }
   }
   let used = self.thread_ids()
+  for id in originals {
+    used.add(id)
+  }
+  for person in threads.people {
+    used.add(person.id)
+  }
   for link in self.relationships() {
     if !link.external && link.kind == relationship_uri + "comments" {
       for node in self.part_xml(link.target).nodes() {

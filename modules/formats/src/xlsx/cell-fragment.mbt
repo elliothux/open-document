@@ -89,6 +89,8 @@ pub impl ToJson for CopiedCells with fn to_json(self) {
       let value : Json = {
         "comments": notes.comments,
         "vml": notes.vml.map(Json::string).unwrap_or(Json::null()),
+        "threads": notes.threads.map(Json::string).unwrap_or(Json::null()),
+        "people": notes.people.map(Json::string).unwrap_or(Json::null()),
       }
       value
     })
@@ -180,6 +182,7 @@ pub fn Session::capture_cells(
     hyperlinks=true,
     rules=true,
     sparklines=true,
+    threads=true,
   )
   check_merge_markup(Tree::new(sheet.document))
   let calculation = self.calculation.unwrap()
@@ -273,6 +276,7 @@ pub fn Session::paste_cells(
     hyperlinks=true,
     rules=true,
     sparklines=true,
+    threads=true,
   )
   let format = mode == "all" || mode == "format"
   let merges = if format {

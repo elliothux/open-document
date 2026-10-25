@@ -97,7 +97,8 @@ fn Session::merge_reason(
         }
       }
     }
-    ignore(self.read_sheet_notes(sheet))
+    ignore(self.read_sheet_notes(sheet, allow_threads=true))
+    self.check_thread_fallbacks(sheet, self.read_sheet_threads(sheet))
     ""
   } catch {
     @failure.Failure(message~, ..) => message
@@ -126,7 +127,7 @@ fn Session::merging(
   range : Range,
 ) -> Json raise @failure.Failure {
   let target = sheet.merge_target(range)
-  let notes = self.read_sheet_notes(sheet) catch {
+  let notes = self.read_sheet_notes(sheet, allow_threads=true) catch {
     @failure.Failure(..) => None
   }
   {

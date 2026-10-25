@@ -1,6 +1,10 @@
 ///|
 fn Session::check_move_resources(self : Session) -> Unit raise @failure.Failure {
-  let reason = self.sheet_rename_reason(structure=false, sparklines=true)
+  let reason = self.sheet_rename_reason(
+    structure=false,
+    sparklines=true,
+    threads=true,
+  )
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let mut units = self.workbook.source().length().to_int64()
   for sheet in self.sheets {

@@ -15,6 +15,14 @@ fn Session::check_thread_fallbacks(
   threads : SheetThreads,
 ) -> Unit raise @failure.Failure {
   let notes = self.read_sheet_notes(sheet, allow_threads=true)
+  check_thread_notes(notes, threads)
+}
+
+///|
+fn check_thread_notes(
+  notes : SheetNotes?,
+  threads : SheetThreads,
+) -> Unit raise @failure.Failure {
   let roots : Map[String, String] = Map([])
   for message in threads.messages {
     if message.parent is None {

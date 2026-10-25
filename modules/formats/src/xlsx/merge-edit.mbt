@@ -23,7 +23,11 @@ fn Session::merge_cells(
   guard unmerge || current.merges.length() - removed.length() < 1024 else {
     @failure.reject("limit-exceeded", "Merged range count exceeds budget")
   }
-  let notes = if unmerge { None } else { self.read_sheet_notes(current) }
+  let notes = if unmerge {
+    None
+  } else {
+    self.read_sheet_notes(current, allow_threads=true)
+  }
   guard unmerge ||
     discard ||
     (
@@ -31,7 +35,7 @@ fn Session::merge_cells(
       notes.map(n => n.merge_discarded(target)).unwrap_or(0) == 0
     ) else {
     @failure.reject(
-      "merge-data-loss", "Merging keeps the upper-left cell and one note; discarding other values, formulas or notes requires explicit discard",
+      "merge-data-loss", "Merging keeps the upper-left cell and one note or thread; discarding other values, formulas, notes or complete threads requires explicit discard",
     )
   }
   let plan = if unmerge { None } else { self.merge_formats(current, target) }
@@ -103,7 +107,13 @@ fn Session::merge_cells(
         }
       }
     }
-    update_note_addresses(notes, addresses, parts, edits)
+    update_note_addresses(notes, addresses, parts, edits, threaded=true)
+    update_thread_addresses(
+      self.read_sheet_threads(current),
+      addresses,
+      parts,
+      edits,
+    )
   }
   let tree = Tree::new(document)
   let root = tree.root("worksheet")
@@ -215,6 +225,13 @@ fn Session::merge_cells(
   if !changed.is_empty() {
     edits.append(
       self.cache_edits(sheets, calculation, style_count=styles.length()),
+    )
+  }
+  if !unmerge {
+    let candidate = { ..self, sheets, parts, }
+    candidate.check_thread_fallbacks(
+      sheets[index],
+      candidate.read_sheet_threads(sheets[index]),
     )
   }
   self.commit(

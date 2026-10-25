@@ -2,6 +2,8 @@
 pub(all) struct CopiedNotes {
   comments : String
   vml : String?
+  threads : String?
+  people : String?
 }
 
 ///|
@@ -10,7 +12,9 @@ fn CopiedNotes::read(
   budget~ : @archive.Budget = @archive.Budget::default(),
 ) -> SheetNotes raise @failure.Failure {
   guard self.comments.length().to_int64() +
-    self.vml.map(text => text.length().to_int64()).unwrap_or(0L) <=
+    self.vml.map(text => text.length().to_int64()).unwrap_or(0L) +
+    self.threads.map(text => text.length().to_int64()).unwrap_or(0L) +
+    self.people.map(text => text.length().to_int64()).unwrap_or(0L) <=
     2097152L else {
     @failure.reject("limit-exceeded", "Copied note source exceeds budget")
   }
@@ -22,7 +26,7 @@ fn CopiedNotes::read(
       budget.entry_bytes,
     ),
   )
-  let (authors, entries) = read_cell_notes(tree)
+  let (authors, entries) = read_cell_notes(tree, threaded=true)
   guard !entries.is_empty() &&
     entries.all(note => note.node.attribute("guid") is None) else {
     @failure.reject(
@@ -53,7 +57,9 @@ fn CopiedNotes::read(
       "protected-content", "Copied note shape identities require VML",
     )
   }
-  { part: "copied-notes", tree, authors, entries, vml, }
+  let notes = { part: "copied-notes", tree, authors, entries, vml, }
+  check_thread_notes(Some(notes), self.read_threads(budget~))
+  notes
 }
 
 ///|
@@ -81,7 +87,11 @@ fn Session::capture_notes(
   sheet : Sheet,
   range : Range,
 ) -> CopiedNotes? raise @failure.Failure {
-  guard self.read_sheet_notes(sheet) is Some(notes) else { return None }
+  guard self.read_sheet_notes(sheet, allow_threads=true) is Some(notes) else {
+    return None
+  }
+  let native = self.read_sheet_threads(sheet)
+  check_thread_notes(Some(notes), native)
   let selected = notes.entries.filter(note => range.contains(note.address))
   if selected.is_empty() {
     return None
@@ -103,8 +113,17 @@ fn Session::capture_notes(
       .attribute("shapeId")
       .map(id => " shapeId=\"\{escaped_attribute(id)}\"")
       .unwrap_or("")
+    let revision = note.node
+      .attribute(
+        "uid",
+        uri="http://schemas.microsoft.com/office/spreadsheetml/2014/revision",
+      )
+      .map(id => {
+        " xmlns:xr=\"http://schemas.microsoft.com/office/spreadsheetml/2014/revision\" xr:uid=\"\{escaped_attribute(id)}\""
+      })
+      .unwrap_or("")
     // Source GUIDs identify the original note; copied legacy notes use their new part/shape identity.
-    let markup = "<od:comment ref=\"\{note.address.name()}\" authorId=\"\{author}\"\{shape_id}>\{style_markup(notes.tree, note.body)}</od:comment>"
+    let markup = "<od:comment ref=\"\{note.address.name()}\" authorId=\"\{author}\"\{shape_id}\{revision}>\{style_markup(notes.tree, note.body)}</od:comment>"
     units += markup.length().to_int64()
     guard units <= 2097152L else {
       @failure.reject("limit-exceeded", "Copied note source exceeds budget")
@@ -148,7 +167,8 @@ fn Session::capture_notes(
     }
     "<xml>\{definitions.to_string()}\{shapes.to_string()}</xml>"
   })
-  Some(CopiedNotes::{ comments, vml, })
+  let (threads, people) = copied_thread_source(native, range, units~)
+  Some(CopiedNotes::{ comments, vml, threads, people, })
 }
 
 ///|
@@ -161,18 +181,39 @@ fn Session::prepare_copied_notes(
   transpose : Bool,
 ) -> Unit raise @failure.Failure {
   let sheet = plan.sheets[index]
-  let candidate = { ..self, parts: plan.parts, }
-  if candidate.read_sheet_notes(sheet) is Some(notes) {
+  let candidate = { ..self, parts: plan.parts.copy(), }
+  let previous = candidate.read_sheet_threads(sheet)
+  if candidate.read_sheet_notes(sheet, allow_threads=true) is Some(notes) {
     let removed : Map[String, Address?] = Map([])
     for note in notes.entries {
       if target.contains(note.address) {
         removed[note.address.name()] = None
       }
     }
-    update_note_addresses(notes, removed, plan.parts, plan.edits)
+    update_note_addresses(notes, removed, plan.parts, plan.edits, threaded=true)
+    update_thread_addresses(previous, removed, plan.parts, plan.edits)
   }
   if copied.notes is Some(notes) {
     let incoming = notes.read(budget=self.budget)
+    let native = notes.read_threads(budget=self.budget)
+    let people = matching_thread_people(native, previous)
+    let ids = self.copied_thread_ids(
+      native,
+      Some(incoming),
+      new_people=native.people
+        .filter(p => !people.contains(p.id))
+        .map(p => p.id),
+    )
+    self.prepare_thread_people(
+      native,
+      previous,
+      people,
+      ids,
+      plan.parts,
+      plan.created_parts,
+      plan.edits,
+    )
+    let incoming = remap_copied_notes(incoming, ids)
     let destinations = Map::from_array(
       incoming.entries.map(note => {
         let point = copied.rule_range(
@@ -196,6 +237,7 @@ fn Session::prepare_copied_notes(
       plan.parts,
       plan.edits,
       plan.created_parts,
+      threaded=true,
     )
     plan.sheets[index] = Sheet::read(
       sheet.id,
@@ -205,5 +247,20 @@ fn Session::prepare_copied_notes(
       self.strings,
       plan.styles.length(),
     )
+    let candidate = { ..self, parts: plan.parts.copy(), }
+    let roster = candidate.read_sheet_threads(plan.sheets[index])
+    self.insert_thread_fragments(
+      plan.sheets[index],
+      remap_copied_threads(native, ids, people, roster),
+      destinations,
+      plan.parts,
+      plan.edits,
+      plan.created_parts,
+    )
   }
+  let complete = { ..self, parts: plan.parts, }
+  complete.check_thread_fallbacks(
+    plan.sheets[index],
+    complete.read_sheet_threads(plan.sheets[index]),
+  )
 }

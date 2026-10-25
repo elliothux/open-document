@@ -61,6 +61,7 @@ fn Session::move_cells(
       hyperlinks=true,
       rules=true,
       sparklines=true,
+      threads=true,
     )
     ignore(self.hyperlink_at(sheet, range))
     check_merge_markup(Tree::new(sheet.document))
@@ -227,6 +228,10 @@ fn Session::move_cells(
   let calculation = self.calculate(sheets, None, [], workbook, parts~)
   self.validate_inputs(sheets, calculation, targets, false)
   edits.append(self.cache_edits(sheets, calculation))
+  let comments = { ..self, sheets, parts, }
+  for sheet in sheets {
+    comments.check_thread_fallbacks(sheet, comments.read_sheet_threads(sheet))
+  }
   self.commit(
     sheets,
     workbook,

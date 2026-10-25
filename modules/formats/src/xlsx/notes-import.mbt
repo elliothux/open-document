@@ -8,6 +8,7 @@ fn Session::insert_note_fragments(
   parts : Map[String, @xml.Document],
   edits : Array[(String, @xml.Edit)],
   created : Map[String, @xml.Document],
+  threaded~ : Bool = false,
 ) -> @xml.Document raise @failure.Failure {
   let moved = incoming.entries.filter(note => {
     destinations.contains(note.address.name())
@@ -16,7 +17,7 @@ fn Session::insert_note_fragments(
     return document
   }
   let candidate = { ..self, parts, }
-  let previous = candidate.read_sheet_notes(target)
+  let previous = candidate.read_sheet_notes(target, allow_threads=threaded)
   let entries = previous.map(notes => notes.entries).unwrap_or([])
   guard entries.length() + moved.length() <= 4096 &&
     entries.fold(init=0L, (sum, note) => sum + note.text.length().to_int64()) +
@@ -144,7 +145,7 @@ fn Session::insert_note_fragments(
     )
   }
   let (next, edit) = tree.document.edit_source(join_insertions(changes))
-  ignore(read_cell_notes(Tree::new(next)))
+  ignore(read_cell_notes(Tree::new(next), threaded~))
   parts[part] = next
   edits.push((part, edit))
   let (next, edit) = vml.document.edit_source([
@@ -154,6 +155,11 @@ fn Session::insert_note_fragments(
   parts[vml_part] = next
   edits.push((vml_part, edit))
   let candidate = { ..self, parts, }
-  ignore(candidate.read_sheet_notes({ ..target, document: sheet_document, }))
+  ignore(
+    candidate.read_sheet_notes(
+      { ..target, document: sheet_document, },
+      allow_threads=threaded,
+    ),
+  )
   sheet_document
 }

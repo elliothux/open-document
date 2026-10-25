@@ -280,35 +280,13 @@ fn Session::copied_sheet_parts(
         @failure.reject("limit-exceeded", "Comment identity budget exceeded")
       }
     }
-    let changes : Array[@xml.SourceChange] = []
+    let changes = copied_note_id_changes(original, ids)
     let text = original.source()
     for node in original.nodes() {
-      if node.name == "author" {
-        if thread_placeholder_id(decode_text(node.text)) is Some(id) &&
-          ids.get(id) is Some(next) {
-          changes.push({
-            node: node.id,
-            offset: node.opening_end - node.start,
-            length: node.closing_start - node.opening_end,
-            xml: encode_text("tc=" + next),
-          })
-        }
-      }
       if node.name != "comment" {
         continue
       }
       for attribute in node.attributes {
-        if attribute.uri ==
-          "http://schemas.microsoft.com/office/spreadsheetml/2014/revision" &&
-          attribute.name == "uid" {
-          changes.push({
-            node: node.id,
-            offset: attribute.start - node.start,
-            length: attribute.end - attribute.start,
-            xml: ids[thread_guid(attribute.value)],
-          })
-          continue
-        }
         if !attribute.uri.is_empty() ||
           !["guid", "shapeId"].contains(attribute.name) {
           continue

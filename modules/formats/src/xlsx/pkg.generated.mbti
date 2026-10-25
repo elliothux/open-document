@@ -165,6 +165,8 @@ pub(all) struct CopiedHyperlink {
 pub(all) struct CopiedNotes {
   comments : String
   vml : String?
+  threads : String?
+  people : String?
 }
 
 pub(all) struct CopiedSparkline {

@@ -158,6 +158,18 @@ fn Session::read_sheet_threads(
 ) -> SheetThreads raise @failure.Failure {
   let people_part = self.thread_part(self.main, "person")
   let people_tree = people_part.map(part => Tree::new(self.part_xml(part)))
+  let part = self.thread_part(sheet.id, "threadedComment")
+  let tree = part.map(part => Tree::new(self.part_xml(part)))
+  read_thread_parts(part, tree, people_part, people_tree)
+}
+
+///|
+fn read_thread_parts(
+  part : String?,
+  tree : Tree?,
+  people_part : String?,
+  people_tree : Tree?,
+) -> SheetThreads raise @failure.Failure {
   let people : Array[ThreadPerson] = []
   let seen : Set[String] = Set([])
   if people_tree is Some(tree) {
@@ -183,8 +195,6 @@ fn Session::read_sheet_threads(
       people.push({ id, name, })
     }
   }
-  let part = self.thread_part(sheet.id, "threadedComment")
-  let tree = part.map(part => Tree::new(self.part_xml(part)))
   let messages : Array[ThreadMessage] = []
   if tree is Some(tree) {
     let root = thread_root(tree, "ThreadedComments", ["threadedComment"])

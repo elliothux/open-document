@@ -174,7 +174,7 @@ export const reviewEn = {
   localCommentAuthorRequired:
     "Provide commentAuthor in the host options to create comments.",
   discardMergedNotes:
-    "Keep the upper-left cell and one note; discard other values, formulas, and notes",
+    "Keep the upper-left cell and one note or thread; discard other values, formulas, notes, and complete threads",
   cellNote: "Cell note",
   cellComments: "Cell comments",
   noteApply: "Apply note",
@@ -370,7 +370,8 @@ export const reviewZh: Record<keyof typeof reviewEn, string> = {
   commentResolved: "已解决的批注线程",
   commentClosed: "已关闭的批注线程",
   localCommentAuthorRequired: "宿主需提供批注作者，才能创建批注。",
-  discardMergedNotes: "保留左上角单元格和一条便笺，丢弃其余值、公式及便笺",
+  discardMergedNotes:
+    "保留左上角单元格和一条便笺或批注线程，丢弃其余值、公式、便笺及完整线程",
   cellNote: "单元格便笺",
   cellComments: "单元格批注",
   noteApply: "应用便笺",

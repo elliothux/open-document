@@ -37,6 +37,8 @@ export interface CopiedSparkline {
 export interface CopiedNotes {
   comments: string;
   vml: string | null;
+  threads: string | null;
+  people: string | null;
 }
 export interface CopiedHyperlink {
   range: CellRange;
@@ -239,7 +241,7 @@ export function copiedCells(value: unknown): CopiedCells {
   if (fragment.notes !== null) {
     const notes = record(fragment.notes);
     if (
-      Object.keys(notes).length !== 2 ||
+      Object.keys(notes).length !== 4 ||
       typeof notes.comments !== "string" ||
       !notes.comments ||
       !notes.comments.isWellFormed() ||
@@ -249,8 +251,19 @@ export function copiedCells(value: unknown): CopiedCells {
           !!notes.vml &&
           notes.vml.isWellFormed())
       ) ||
+      !(
+        (notes.threads === null && notes.people === null) ||
+        (typeof notes.threads === "string" &&
+          !!notes.threads &&
+          notes.threads.isWellFormed() &&
+          typeof notes.people === "string" &&
+          !!notes.people &&
+          notes.people.isWellFormed())
+      ) ||
       notes.comments.length +
-        (typeof notes.vml === "string" ? notes.vml.length : 0) >
+        (typeof notes.vml === "string" ? notes.vml.length : 0) +
+        (typeof notes.threads === "string" ? notes.threads.length : 0) +
+        (typeof notes.people === "string" ? notes.people.length : 0) >
         2097152
     )
       throw new Error("Invalid copied cell notes");
