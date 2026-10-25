@@ -2,7 +2,8 @@
 fn polygon_shape(preset : String) -> Bool {
   [
     "triangle", "rtTriangle", "diamond", "parallelogram", "trapezoid", "pentagon",
-    "hexagon", "octagon", "plus", "star5", "chevron", "homePlate",
+    "hexagon", "octagon", "plus", "star4", "star5", "star6", "star8", "chevron",
+    "homePlate",
   ].contains(preset)
 }
 
@@ -11,7 +12,7 @@ fn polygon_adjustment_max(preset : String, w : Double, h : Double) -> Double {
   if preset == "triangle" {
     return 1
   }
-  if ["octagon", "plus", "star5"].contains(preset) {
+  if ["octagon", "plus", "star4", "star5", "star6", "star8"].contains(preset) {
     return 0.5
   }
   if w <= 0 || h <= 0 {
@@ -103,6 +104,65 @@ fn polygon_points(
         (inset, h - inset),
         (0.0, h - inset),
       ]
+    "star4" => {
+      let x = w * a * @math.cos(@math.PI / 4)
+      let y = h * a * @math.sin(@math.PI / 4)
+      [
+        (0.0, h / 2),
+        (w / 2 - x, h / 2 - y),
+        (w / 2, 0.0),
+        (w / 2 + x, h / 2 - y),
+        (w, h / 2),
+        (w / 2 + x, h / 2 + y),
+        (w / 2, h),
+        (w / 2 - x, h / 2 + y),
+      ]
+    }
+    "star8" => {
+      let x = w / 2 * @math.cos(@math.PI / 4)
+      let y = h / 2 * @math.sin(@math.PI / 4)
+      let x1 = w * a * 0.92388
+      let x2 = w * a * 0.38268
+      let y1 = h * a * 0.92388
+      let y2 = h * a * 0.38268
+      [
+        (0.0, h / 2),
+        (w / 2 - x1, h / 2 - y2),
+        (w / 2 - x, h / 2 - y),
+        (w / 2 - x2, h / 2 - y1),
+        (w / 2, 0.0),
+        (w / 2 + x2, h / 2 - y1),
+        (w / 2 + x, h / 2 - y),
+        (w / 2 + x1, h / 2 - y2),
+        (w, h / 2),
+        (w / 2 + x1, h / 2 + y2),
+        (w / 2 + x, h / 2 + y),
+        (w / 2 + x2, h / 2 + y1),
+        (w / 2, h),
+        (w / 2 - x2, h / 2 + y1),
+        (w / 2 - x, h / 2 + y),
+        (w / 2 - x1, h / 2 + y2),
+      ]
+    }
+    "star6" => {
+      let dx = w / 2 * 1.1547 * @math.cos(@math.PI / 6)
+      let inner_x = w * 1.1547 * a
+      let inner_y = h * a * @math.sin(@math.PI / 3)
+      [
+        (w / 2 - dx, h / 4),
+        (w / 2 - inner_x / 2, h / 2 - inner_y),
+        (w / 2, 0.0),
+        (w / 2 + inner_x / 2, h / 2 - inner_y),
+        (w / 2 + dx, h / 4),
+        (w / 2 + inner_x, h / 2),
+        (w / 2 + dx, h * 3 / 4),
+        (w / 2 + inner_x / 2, h / 2 + inner_y),
+        (w / 2, h),
+        (w / 2 - inner_x / 2, h / 2 + inner_y),
+        (w / 2 - dx, h * 3 / 4),
+        (w / 2 - inner_x, h / 2),
+      ]
+    }
     "star5" => {
       let outer = pentagon_points(w, h)
       let rx = w * 1.05146 * a
@@ -185,6 +245,21 @@ fn polygon_insets(
       } else {
         (cut, 0.0, cut, 0.0)
       }
+    }
+    "star4" | "star8" => {
+      let factor = if preset == "star4" {
+        @math.cos(@math.PI / 4)
+      } else {
+        0.92388
+      }
+      let x = w / 2 - w * a * factor
+      let y = h / 2 - h * a * factor
+      (x, y, x, y)
+    }
+    "star6" => {
+      let x = w / 2 - w * 1.1547 * a
+      let y = h / 2 - h * a * @math.sin(@math.PI / 3)
+      (x, y, x, y)
     }
     "star5" => {
       let points = polygon_points(preset, w, h, a)

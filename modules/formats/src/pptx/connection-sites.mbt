@@ -69,6 +69,14 @@ fn Object::local_connection_sites(self : Object) -> Array[(Double, Double)] {
         (w, h / 2),
       ]
     }
+    "star6" => {
+      let p = polygon_points(self.preset, w, h, self.adjustments.0)
+      [p[4], p[6], p[8], p[10], p[0], p[2]]
+    }
+    "star8" => {
+      let p = polygon_points(self.preset, w, h, self.adjustments.0)
+      [p[8], p[10], p[12], p[14], p[0], p[2], p[4], p[6]]
+    }
     "pentagon" | "star5" => {
       let p = pentagon_points(w, h)
       if self.preset == "pentagon" {

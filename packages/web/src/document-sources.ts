@@ -22,12 +22,11 @@ export abstract class DocumentSourcesEditor extends DocumentReview {
       const current = this.review.snapshot();
       if (
         source.documentId !== current.documentId ||
-        source.revision !== current.revision ||
-        source.sources.some((item) => item.reason || item.authorReason)
+        source.revision !== current.revision
       )
         throw new DocumentError(
           "stale-sources",
-          "Select a current catalog with supported sources and authors",
+          "Select a current source catalog",
           "",
           -1,
         );
@@ -52,14 +51,11 @@ export abstract class DocumentSourcesEditor extends DocumentReview {
         source.documentId !== current.documentId ||
         source.revision !== current.revision ||
         !item ||
-        item.reason ||
-        (change.action === "update" &&
-          source.sources.some((source) => source.reason || source.authorReason))
+        item.reason
       )
         throw new DocumentError(
           "stale-sources",
-          item?.reason ||
-            "Bibliography catalog is stale or contains unsupported sources",
+          item?.reason || "Bibliography catalog is stale",
           "",
           -1,
         );

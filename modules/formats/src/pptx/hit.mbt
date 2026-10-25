@@ -45,7 +45,8 @@ fn object_hit(
   } else {
     margin
   }
-  if x < -bounds || y < -bounds || x > width + bounds || y > height + bounds {
+  if !polygon_shape(object.preset) &&
+    (x < -bounds || y < -bounds || x > width + bounds || y > height + bounds) {
     return false
   }
   if !object.diagnostic.is_empty() ||

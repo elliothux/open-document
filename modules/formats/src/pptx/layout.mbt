@@ -191,7 +191,11 @@ fn fit_text(
     scale = low
     measured = measure_text(object, geometry, probe, profile, scale)
   }
-  let diagnostic = if measured.1 > geometry.height + 0.01 ||
+  // An empty unbulleted paragraph reserves a caret without visible document text.
+  let blank = object.paragraphs.length() == 1 &&
+    object.paragraphs[0].bullet.is_empty() &&
+    object.text().is_empty()
+  let diagnostic = if (!blank && measured.1 > geometry.height + 0.01) ||
     measured.0.any(line => line.width > line.areaWidth + 0.01) {
     "Text exceeds the fixed frame"
   } else {

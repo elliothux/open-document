@@ -400,7 +400,7 @@ fn FormulaParser::atom(
         }
         guard (match name {
           "IF" => args.length() == 2 || args.length() == 3
-          "HYPERLINK" => args.length() == 1 || args.length() == 2
+          "HYPERLINK" | "LOG" => args.length() == 1 || args.length() == 2
           "IFERROR"
           | "IFNA"
           | "MOD"
@@ -418,9 +418,15 @@ fn FormulaParser::atom(
           "SIN"
           | "COS"
           | "TAN"
+          | "SINH"
+          | "COSH"
+          | "TANH"
           | "ACOS"
           | "ASIN"
           | "ATAN"
+          | "EXP"
+          | "LN"
+          | "LOG10"
           | "RADIANS"
           | "DEGREES" => args.length() == 1
           "PI" => args.is_empty()

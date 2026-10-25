@@ -84,9 +84,25 @@ fn numeric_function(
     "SIN" => finite_result(@math.sin(numbers[0]))
     "COS" => finite_result(@math.cos(numbers[0]))
     "TAN" => finite_result(@math.tan(numbers[0]))
+    "SINH" => finite_result(@math.sinh(numbers[0]))
+    "COSH" => finite_result(@math.cosh(numbers[0]))
+    "TANH" => finite_result(@math.tanh(numbers[0]))
     "ACOS" => finite_result(@math.acos(numbers[0]))
     "ASIN" => finite_result(@math.asin(numbers[0]))
     "ATAN" => finite_result(@math.atan(numbers[0]))
+    "EXP" => finite_result(@math.exp(numbers[0]))
+    "LN" => finite_result(@math.ln(numbers[0]))
+    "LOG10" => finite_result(@math.log10(numbers[0]))
+    "LOG" => {
+      let base = numbers.get(1).unwrap_or(10)
+      if numbers[0] <= 0 || base <= 0 {
+        Error("#NUM!")
+      } else if base == 1 {
+        Error("#DIV/0!")
+      } else {
+        finite_result(@math.ln(numbers[0]) / @math.ln(base))
+      }
+    }
     "ATAN2" =>
       if numbers[0] == 0 && numbers[1] == 0 {
         Error("#DIV/0!")

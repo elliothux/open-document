@@ -3,7 +3,7 @@ export const sourcesEn = {
   bibliography: "Bibliography",
   bibliographyTitle: "Bibliography heading",
   bibliographyHelp:
-    "Lists all document sources in their stored order using basic author, year and title text. Update after changing sources.",
+    "Lists cited document sources in their stored order using basic author, year and title text. Update after changing citations or sources.",
   insertBibliography: "Insert bibliography",
   updateBibliography: "Update bibliography",
   deleteBibliography: "Delete bibliography",
@@ -34,7 +34,7 @@ export const sourcesZh = {
   bibliography: "参考文献",
   bibliographyTitle: "书目标题",
   bibliographyHelp:
-    "按存储顺序列出文档全部来源，使用基础作者、年份和标题文字。修改来源后，显式更新书目。",
+    "按存储顺序列出文档引用的来源，使用基础作者、年份和标题文字。修改引文或来源后，显式更新书目。",
   insertBibliography: "插入书目",
   updateBibliography: "更新书目",
   deleteBibliography: "删除书目",

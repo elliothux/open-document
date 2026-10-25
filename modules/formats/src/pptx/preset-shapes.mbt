@@ -44,13 +44,16 @@ fn read_shape_adjustments(
 ) -> (Double, Double, Double) raise @failure.Failure {
   let single = [
     "roundRect", "triangle", "parallelogram", "trapezoid", "hexagon", "octagon",
-    "plus", "star5", "chevron", "homePlate",
+    "plus", "star4", "star5", "star6", "star8", "chevron", "homePlate",
   ].contains(preset)
   let mut first = match preset {
     "roundRect" => 0.16667
     "parallelogram" | "trapezoid" | "hexagon" | "plus" => 0.25
     "octagon" => 0.29289
     "star5" => 0.19098
+    "star4" => 0.125
+    "star6" => 0.28868
+    "star8" => 0.375
     "quadArrow" => 0.225
     "leftRightUpArrow" => 0.25
     _ => 0.5
@@ -80,6 +83,7 @@ fn read_shape_adjustments(
       let formula = node.attribute("fmla").unwrap_or("")
       let factor = match (preset, name) {
         ("pentagon" | "star5", "hf") => Some(1.05146)
+        ("star6", "hf") => Some(1.1547)
         ("pentagon" | "star5", "vf") => Some(1.10557)
         ("hexagon", "vf") => Some(1.1547)
         _ => None

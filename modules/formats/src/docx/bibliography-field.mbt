@@ -37,9 +37,19 @@ fn Session::bibliography_rows(
     .bibliography_part()
     .map(pair => read_bibliography_sources(WordTree::new(pair.1)))
     .unwrap_or([])
+  let references = self.source_references()
+  guard !references.contains("") &&
+    references.iter().all(tag => records.any(record => record.value.tag == tag)) else {
+    @failure.reject(
+      "protected-content", "Bibliography requires complete citation source references",
+    )
+  }
   let entries : Array[TocEntry] = []
   let mut units = 0
   for record in records {
+    if !references.contains(record.value.tag) {
+      continue
+    }
     guard record.reason.is_empty() && record.author_reason.is_empty() else {
       @failure.reject(
         "protected-content", "Bibliography requires supported source and author data",

@@ -20,9 +20,6 @@ export function DocxBibliography({
   t: ReturnType<typeof messages>;
 }) {
   const [title, setTitle] = useState(t.bibliography);
-  const unsupported = source?.sources.some(
-    (item) => item.reason || item.authorReason,
-  );
   return (
     <section aria-label={t.bibliography}>
       <h4>{t.bibliography}</h4>
@@ -35,12 +32,7 @@ export function DocxBibliography({
         }}
       >
         <fieldset
-          disabled={
-            disabled ||
-            !source ||
-            !!unsupported ||
-            !editor.getSnapshot().selection
-          }
+          disabled={disabled || !source || !editor.getSnapshot().selection}
         >
           <label>
             {t.bibliographyTitle}
@@ -61,7 +53,7 @@ export function DocxBibliography({
         >
           <button
             type="button"
-            disabled={disabled || !!item.reason || !!unsupported}
+            disabled={disabled || !!item.reason}
             onClick={() =>
               controller.run(() =>
                 editor.editBibliography(source, {
