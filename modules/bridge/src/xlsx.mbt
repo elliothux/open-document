@@ -58,6 +58,8 @@ fn Foundation::xlsx_operation(
     @failure.reject("session-required", "Open an XLSX workbook first")
   }
   match operation {
+    "threadsXlsx" | "editThreadXlsx" =>
+      xlsx_comments_operation(session, operation, request)
     "pivotsXlsx" | "slicersXlsx" | "timelinesXlsx" | "pivotPreviewXlsx" =>
       xlsx_analysis_query(session, operation, request)
     "duplicatesXlsx" | "textColumnsXlsx" =>

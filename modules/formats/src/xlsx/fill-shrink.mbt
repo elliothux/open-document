@@ -55,6 +55,7 @@ fn Session::shrink_fill(
     hyperlinks=true,
     rules=true,
     sparklines=true,
+    threads=true,
   )
   ignore(self.hyperlink_at(current, source))
   let updates : Map[String, CellContent] = Map([])

@@ -147,6 +147,7 @@ fn Session::sort_resources(
       continue
     }
     guard (tables && link.kind == relationship_uri + "table") ||
+      link.kind == thread_relationship_uri + "threadedComment" ||
       ["hyperlink", "printerSettings", "comments", "vmlDrawing"].any(kind => {
         link.kind == relationship_uri + kind
       }) else {
@@ -184,7 +185,7 @@ fn Session::check_reorder_cells(
       "protected-content", "Merged cells require sorting geometry support",
     )
   }
-  ignore(self.read_sheet_notes(current))
+  self.check_thread_fallbacks(current, self.read_sheet_threads(current))
   self.sort_resources(current, filter~, tables~, sparklines~)
   for cell in current.cells.values() {
     if target.contains(cell.address) {

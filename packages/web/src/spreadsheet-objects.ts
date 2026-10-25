@@ -8,6 +8,7 @@ import type {
   XlsxSlicerSettings,
   XlsxDrawingFrame,
   XlsxTimelineSettings,
+  XlsxThreadEdit,
 } from "./xlsx.js";
 import type { XlsxQuery, XlsxSheetEdit } from "@open-document/wasm/xlsx";
 import type { SpreadsheetCanvas } from "./spreadsheet-canvas.js";
@@ -20,6 +21,24 @@ export abstract class SpreadsheetObjects {
   protected abstract read<T>(action: () => Promise<T>): Promise<T>;
   protected abstract change(action: () => Promise<XlsxQuery>): Promise<void>;
   abstract get currentState(): XlsxQuery;
+  threads(cell?: string) {
+    return this.read(() =>
+      this.client.threads(
+        this.currentState.revision,
+        this.currentState.sheet,
+        cell ?? this.currentState.selection.address.split(":")[0]!,
+      ),
+    );
+  }
+  editThread(change: XlsxThreadEdit): Promise<void> {
+    return this.change(() =>
+      this.client.editThread(
+        this.currentState.revision,
+        this.currentState.sheet,
+        change,
+      ),
+    );
+  }
   timelines() {
     return this.read(() =>
       this.client.timelines(

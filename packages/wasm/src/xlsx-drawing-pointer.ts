@@ -1,6 +1,7 @@
 import { record, integer } from "./validation.js";
 import { xlsxRect } from "./xlsx-geometry.js";
-import { xlsxViewport, type XlsxViewport, type XlsxQuery } from "./xlsx.js";
+import { xlsxViewport, type XlsxViewport } from "./xlsx-grid.js";
+import type { XlsxQuery } from "./xlsx-query.js";
 import { xlsxQuery } from "./xlsx-query.js";
 import type { DrawRect } from "./drawing.js";
 

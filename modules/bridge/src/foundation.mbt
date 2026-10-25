@@ -135,6 +135,8 @@ fn Foundation::dispatch(
     | "captureXlsxFormat"
     | "applyXlsxFormat"
     | "queryXlsx"
+    | "threadsXlsx"
+    | "editThreadXlsx"
     | "pivotsXlsx"
     | "slicersXlsx"
     | "timelinesXlsx"

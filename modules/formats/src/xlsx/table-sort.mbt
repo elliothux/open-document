@@ -20,7 +20,7 @@ fn Session::sorting_table(
   guard table.range.bottom - table.totals >= table.range.top + table.headers else {
     @failure.reject("invalid-operation", "Table sorting requires data rows")
   }
-  Some(self.table_for_edit(sheet, table.id, sparklines~))
+  Some(self.table_for_edit(sheet, table.id, sparklines~, threads=true))
 }
 
 ///|

@@ -13,7 +13,10 @@ fn Session::print_sheet(
   let mut hyperlinks : Array[(Range, String)] = []
   try {
     let tree = Tree::new(current.document)
-    ignore(self.read_sheet_notes(current))
+    ignore(self.read_sheet_notes(current, allow_threads=true))
+    if self.thread_part(sheet, "threadedComment") is Some(_) {
+      self.check_thread_fallbacks(current, self.read_sheet_threads(current))
+    }
     let nodes = hyperlink_nodes(tree)
     if !nodes.is_empty() {
       let links = self.hyperlink_relations(sheet)

@@ -124,13 +124,39 @@ pub fn Session::viewport(
     }
   }
   let notes : Map[String, CellNote] = Map([])
-  let source_notes = self.read_sheet_notes(current) catch {
+  let source_notes = self.read_sheet_notes(current, allow_threads=true) catch {
     @failure.Failure(..) => None
   }
   let mut used = drawing_used(current.used(), objects, dimensions)
+  let thread_notes : Map[String, (String, String, String)] = Map([])
+  try {
+    let threads = self.read_sheet_threads(current)
+    let people : Map[String, String] = Map([])
+    for person in threads.people {
+      people[person.id] = person.name
+    }
+    for message in threads.messages {
+      if message.parent is None {
+        thread_notes[message.id] = (
+          people[message.person],
+          message.text,
+          message.address.name(),
+        )
+      }
+    }
+  } catch {
+    @failure.Failure(..) => ()
+  }
   if source_notes is Some(source_notes) {
     for note in source_notes.entries {
-      notes[note.address.name()] = note
+      if thread_placeholder_id(note.author) is Some(id) {
+        if thread_notes.get(id) is Some((author, text, address)) &&
+          address == note.address.name() {
+          notes[address] = { ..note, author, text, }
+        }
+      } else {
+        notes[note.address.name()] = note
+      }
       used = {
         ..used,
         bottom: used.bottom.max(note.address.row),

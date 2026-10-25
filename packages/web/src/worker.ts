@@ -11,6 +11,10 @@ import { errorResponse, type Request, type Response } from "./protocol";
 import { mathOperation } from "./worker-math.js";
 import { inkOperation } from "./worker-docx-ink.js";
 import { reviewOperation } from "./worker-docx-review.js";
+import {
+  isXlsxCommentsRequest,
+  commentsOperation,
+} from "./worker-xlsx-comments.js";
 let text: TextSession | undefined;
 let foundation: FoundationSession | undefined;
 let workbook: XlsxSession | undefined;
@@ -48,6 +52,8 @@ async function dispatch(request: Request): Promise<unknown> {
     return null;
   }
   if (isXlsxDrawingRequest(request)) return drawingOperation(workbook, request);
+  if (isXlsxCommentsRequest(request))
+    return commentsOperation(workbook, request);
   if (pdf) {
     if (request.operation === "font") {
       pdf.addFont(request.bytes, request.identity);

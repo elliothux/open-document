@@ -22,8 +22,34 @@ fn note_markup(
   node : @xml.Node,
   attributes : Array[String],
   children : Array[String],
+  threaded~ : Bool = false,
 ) -> Unit raise @failure.Failure {
-  guard node.attributes.all(a => a.uri.is_empty() && attributes.contains(a.name)) &&
+  guard node.attributes.all(a => {
+      (a.uri.is_empty() && attributes.contains(a.name)) ||
+      (
+        threaded &&
+        node.name == "comment" &&
+        a.uri ==
+        "http://schemas.microsoft.com/office/spreadsheetml/2014/revision" &&
+        a.name == "uid"
+      ) ||
+      (
+        threaded &&
+        node.name == "comments" &&
+        a.uri == "http://schemas.openxmlformats.org/markup-compatibility/2006" &&
+        a.name == "Ignorable" &&
+        !a.value.trim().is_empty() &&
+        a.value
+        .split(" ")
+        .all(prefix => {
+          node.namespaces.any(binding => {
+            binding.0 == prefix.to_owned() &&
+            binding.1 ==
+            "http://schemas.microsoft.com/office/spreadsheetml/2014/revision"
+          })
+        })
+      )
+    }) &&
     node.text.trim().is_empty() &&
     tree.children
     .get(node.id)
@@ -38,9 +64,10 @@ fn note_markup(
 ///|
 fn read_cell_notes(
   tree : Tree,
+  threaded~ : Bool = false,
 ) -> (Array[String], Array[CellNote]) raise @failure.Failure {
   let root = tree.root("comments")
-  note_markup(tree, root, [], ["authors", "commentList"])
+  note_markup(tree, root, [], ["authors", "commentList"], threaded~)
   let authors = tree
     .one(root.id, "authors")
     .unwrap_or_else(() => {
@@ -78,7 +105,21 @@ fn read_cell_notes(
   let seen : Map[String, Bool] = Map([])
   let mut units = 0
   let entries = nodes.map(node => {
-    note_markup(tree, node, ["ref", "authorId", "guid", "shapeId"], ["text"])
+    note_markup(
+      tree,
+      node,
+      ["ref", "authorId", "guid", "shapeId"],
+      ["text"],
+      threaded~,
+    )
+    if threaded &&
+      node.attribute(
+        "uid",
+        uri="http://schemas.microsoft.com/office/spreadsheetml/2014/revision",
+      )
+      is Some(id) {
+      ignore(thread_guid(id))
+    }
     let address = Address::parse(node.attribute("ref").unwrap_or(""))
     guard !seen.contains(address.name()) else {
       @failure.reject("protected-content", "Duplicate cell note address")
@@ -160,12 +201,14 @@ fn read_cell_notes(
 fn Session::read_sheet_notes(
   self : Session,
   sheet : Sheet,
+  allow_threads~ : Bool = false,
 ) -> SheetNotes? raise @failure.Failure {
   let links = self.relationships()
   guard !links.any(l => {
     l.owner == sheet.id &&
     l.kind.to_lower().contains("comment") &&
-    l.kind != relationship_uri + "comments"
+    l.kind != relationship_uri + "comments" &&
+    !(allow_threads && l.kind == thread_relationship_uri + "threadedComment")
   }) else {
     @failure.reject(
       "protected-content", "Threaded or unknown cell comments require editing support",
@@ -195,7 +238,7 @@ fn Session::read_sheet_notes(
     )
   }
   let tree = Tree::new(self.part_xml(link.target))
-  let (authors, entries) = read_cell_notes(tree)
+  let (authors, entries) = read_cell_notes(tree, threaded=allow_threads)
   if vml is Some((_, _, shapes)) {
     guard shapes.length() == entries.length() &&
       entries.all(e => shapes.contains(e.address.name())) else {
@@ -214,7 +257,7 @@ fn Session::note_query(
   requested : Range,
 ) -> Json {
   try {
-    let notes = self.read_sheet_notes(sheet)
+    let notes = self.read_sheet_notes(sheet, allow_threads=true)
     let range = sheet.merge_target(requested)
     let reason = self.dimension_reason(sheet)
     let one = (range.top == range.bottom && range.left == range.right) ||
@@ -227,15 +270,26 @@ fn Session::note_query(
       })
     })
     let address : Address = { row: range.top, column: range.left, }
+    let threaded = note.bind(n => thread_placeholder_id(n.author)) is Some(_)
     {
       "address": address.name(),
-      "text": note.map(n => n.text).unwrap_or(""),
-      "author": note.map(n => n.author).unwrap_or(""),
-      "exists": note is Some(_),
+      "text": if threaded {
+        ""
+      } else {
+        note.map(n => n.text).unwrap_or("")
+      },
+      "author": if threaded {
+        ""
+      } else {
+        note.map(n => n.author).unwrap_or("")
+      },
+      "exists": note is Some(_) && !threaded,
       "reason": if !reason.is_empty() {
         reason
       } else if !one {
         "Select one cell or merged cell for a note"
+      } else if threaded {
+        "Use thread controls to edit this comment"
       } else {
         ""
       },

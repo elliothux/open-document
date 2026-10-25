@@ -215,6 +215,7 @@ fn Session::fill_series(
     hyperlinks=true,
     rules=true,
     sparklines=true,
+    threads=true,
   )
   ignore(self.hyperlink_at(current, selected))
   let merges = current.fill_merges(source, selected, direction)

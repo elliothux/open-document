@@ -276,7 +276,7 @@ fn Session::from_package(
   for sheet in session.sheets {
     let source = Tree::new(sheet.document)
     if source.one(source.root("worksheet").id, "legacyDrawing") is Some(legacy) {
-      ignore(session.read_sheet_notes(sheet)) catch {
+      ignore(session.read_sheet_notes(sheet, allow_threads=true)) catch {
         @failure.Failure(..) =>
           session.diagnostics.push(
             "unrendered:" + sheet.id + ":" + legacy.qualified,
@@ -461,6 +461,7 @@ pub fn Session::query(
     pictures=true,
     charts=true,
     analysis=true,
+    threads=true,
   )
   let copy_reason = if reference_reason.is_empty() {
     ""
@@ -472,6 +473,7 @@ pub fn Session::query(
       pictures=true,
       charts=true,
       analysis=true,
+      threads=true,
     )
   }
   {

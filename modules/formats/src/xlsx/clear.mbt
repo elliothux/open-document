@@ -84,14 +84,19 @@ pub fn Session::clear(
     edits.push((id, edit))
   }
   let parts = self.parts.copy()
-  if all && self.read_sheet_notes(current) is Some(notes) {
-    let addresses : Map[String, Address?] = Map([])
-    for note in notes.entries {
-      if target.contains(note.address) {
-        addresses[note.address.name()] = None
+  if all {
+    let threads = self.read_sheet_threads(current)
+    self.check_thread_fallbacks(current, threads)
+    if self.read_sheet_notes(current, allow_threads=true) is Some(notes) {
+      let addresses : Map[String, Address?] = Map([])
+      for note in notes.entries {
+        if target.contains(note.address) {
+          addresses[note.address.name()] = None
+        }
       }
+      update_note_addresses(notes, addresses, parts, edits, threaded=true)
+      update_thread_addresses(threads, addresses, parts, edits)
     }
-    update_note_addresses(notes, addresses, parts, edits)
   }
   if edits.is_empty() {
     return self.query()
@@ -117,6 +122,13 @@ pub fn Session::clear(
   if !changed.is_empty() {
     edits.append(
       self.cache_edits(sheets, calculation, style_count=styles.length()),
+    )
+  }
+  if all {
+    let comments = { ..self, sheets, parts, }
+    comments.check_thread_fallbacks(
+      sheets[index],
+      comments.read_sheet_threads(sheets[index]),
     )
   }
   self.commit(sheets, self.workbook, calculation, edits, (id, target), parts~)

@@ -20,7 +20,8 @@ fn Session::reorder_cells(
   } else {
     Map([])
   }
-  let notes = self.read_sheet_notes(current)
+  let notes = self.read_sheet_notes(current, allow_threads=true)
+  let threads = self.read_sheet_threads(current)
   let (low, high) = if rows {
     (target.left, target.right)
   } else {
@@ -124,7 +125,8 @@ fn Session::reorder_cells(
         }
       }
     }
-    update_note_addresses(notes, addresses, parts, edits)
+    update_note_addresses(notes, addresses, parts, edits, threaded=true)
+    update_thread_addresses(threads, addresses, parts, edits)
   }
   let tree = Tree::new(document)
   let links : Array[@xml.SourceChange] = []
@@ -305,6 +307,11 @@ fn Session::reorder_cells(
     false,
   )
   edits.append(self.cache_edits(sheets, calculation))
+  let comments = { ..self, sheets, parts, }
+  comments.check_thread_fallbacks(
+    sheets[index],
+    comments.read_sheet_threads(sheets[index]),
+  )
   self.commit(
     sheets,
     self.workbook,

@@ -4,11 +4,13 @@ fn Session::table_for_edit(
   sheet : String,
   id : Int,
   sparklines~ : Bool = false,
+  threads~ : Bool = false,
 ) -> StructuredTable raise @failure.Failure {
   let reason = self.sheet_rename_reason(
     structure=false,
     tables=true,
     sparklines~,
+    threads~,
   )
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   guard self

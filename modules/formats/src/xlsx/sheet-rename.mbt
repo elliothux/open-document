@@ -126,6 +126,7 @@ fn Session::sheet_rename_reason(
   pictures~ : Bool = false,
   charts~ : Bool = false,
   analysis~ : Bool = false,
+  threads~ : Bool = false,
 ) -> String {
   try {
     let reason = self.sheet_edit_reason(structure~, analysis~)
@@ -158,6 +159,7 @@ fn Session::sheet_rename_reason(
         continue
       }
       if rel.owner == self.main &&
+        !(threads && rel.kind == thread_relationship_uri + "person") &&
         !(pivots && rel.kind == relationship_uri + "pivotCacheDefinition") &&
         !["worksheet", "styles", "sharedStrings", "theme", "calcChain"].any(kind => {
           rel.kind == relationship_uri + kind
@@ -165,6 +167,7 @@ fn Session::sheet_rename_reason(
         return "Workbook resource references require renaming support"
       }
       if self.sheets.any(sheet => sheet.id == rel.owner) &&
+        !(threads && rel.kind == thread_relationship_uri + "threadedComment") &&
         !(pivots && rel.kind == relationship_uri + "pivotTable") &&
         !(tables && rel.kind == relationship_uri + "table") &&
         !(pictures && rel.kind == relationship_uri + "drawing") &&
@@ -175,7 +178,10 @@ fn Session::sheet_rename_reason(
       }
     }
     for sheet in self.sheets {
-      ignore(self.read_sheet_notes(sheet))
+      ignore(self.read_sheet_notes(sheet, allow_threads=threads))
+      if threads {
+        self.check_thread_fallbacks(sheet, self.read_sheet_threads(sheet))
+      }
       let tree = Tree::new(sheet.document)
       let root = tree.root("worksheet")
       if pictures && tree.one(root.id, "drawing") is Some(_) {
@@ -373,6 +379,7 @@ fn Session::rename_sheet(
     pictures=true,
     charts=true,
     analysis=true,
+    threads=true,
   )
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let tables = self.sheet_tables()

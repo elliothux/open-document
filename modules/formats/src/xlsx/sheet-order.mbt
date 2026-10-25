@@ -286,6 +286,7 @@ fn Session::edit_sheet_current(
       pictures=true,
       charts=true,
       analysis=true,
+      threads=true,
     )
     guard reason.is_empty() else {
       @failure.reject("protected-content", reason)
@@ -429,6 +430,7 @@ fn Session::edit_sheet_current(
           pictures=true,
           charts=true,
           analysis=true,
+          threads=true,
         )
         guard reason.is_empty() else {
           @failure.reject("protected-content", reason)
@@ -729,6 +731,13 @@ fn Session::edit_sheet_current(
   )
   if deleted is Some(_) || change is Copy {
     edits.append(self.cache_edits(sheets, calculation))
+  }
+  let comments = { ..self, sheets, workbook, parts, removed: removed_parts, }
+  for current in sheets {
+    comments.check_thread_fallbacks(
+      current,
+      comments.read_sheet_threads(current),
+    )
   }
   self.commit(
     sheets,

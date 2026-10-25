@@ -1,4 +1,5 @@
-import { XlsxDrawingClient } from "./xlsx-drawings.js";
+import { XlsxCommentsClient } from "./xlsx-comments.js";
+export * from "./xlsx-comments.js";
 import { xlsxTimelines } from "@open-document/wasm/xlsx";
 export {
   xlsxTimelines,
@@ -261,7 +262,7 @@ export type {
 } from "@open-document/wasm/xlsx";
 
 /** Browser workbook transport; one Worker owns the complete core session. */
-export class XlsxClient extends XlsxDrawingClient {
+export class XlsxClient extends XlsxCommentsClient {
   async selectDrawing(
     revision: number,
     layout: number,

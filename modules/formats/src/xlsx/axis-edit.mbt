@@ -21,10 +21,12 @@ fn Session::edit_axes(
     pictures=true,
     charts=true,
     analysis=change.band is None,
+    threads=true,
   )
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let target = self.sheets[index]
-  let notes = self.read_sheet_notes(target)
+  let notes = self.read_sheet_notes(target, allow_threads=true)
+  let threads = self.read_sheet_threads(target)
   guard !target.locked && target.frozen.edit_reason.is_empty() else {
     @failure.reject(
       "protected-content", "Protected worksheet or view prevents structural editing",
@@ -35,6 +37,7 @@ fn Session::edit_axes(
       !["hyperlink", "comments", "vmlDrawing", "table", "drawing"].any(kind => {
         relation.kind == relationship_uri + kind
       }) &&
+      relation.kind != thread_relationship_uri + "threadedComment" &&
       !(change.band is None &&
       [
         relationship_uri + "pivotTable",
@@ -81,7 +84,8 @@ fn Session::edit_axes(
       }
       addresses[note.address.name()] = next
     }
-    update_note_addresses(notes, addresses, parts, edits)
+    update_note_addresses(notes, addresses, parts, edits, threaded=true)
+    update_thread_addresses(threads, addresses, parts, edits)
   }
   let rule_work : RuleShiftWork = {
     cells: 0,
@@ -347,6 +351,11 @@ fn Session::edit_axes(
     ignore({ ..self, sheets, workbook, parts, }.analysis_parts())
   }
   edits.append(self.cache_edits(sheets, calculation))
+  let comments = { ..self, sheets, workbook, parts, }
+  comments.check_thread_fallbacks(
+    sheets[index],
+    comments.read_sheet_threads(sheets[index]),
+  )
   self.commit(
     sheets,
     workbook,

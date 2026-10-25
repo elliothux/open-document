@@ -73,7 +73,21 @@ fn Session::prepare_sheet_delete(
       names.push(path)
     }
   }
-  if self.read_sheet_notes(deleted) is Some(notes) {
+  let threads = self.read_sheet_threads(deleted)
+  self.check_thread_fallbacks(deleted, threads)
+  if threads.part is Some(part) {
+    guard !links.any(link => link.owner == part) else {
+      @failure.reject(
+        "protected-content", "Thread resources require deletion ownership support",
+      )
+    }
+    names.push(part)
+    let path = workbook_relations(part)
+    if self.parts.contains(path) || self.opc.names.contains(path.to_lower()) {
+      names.push(path)
+    }
+  }
+  if self.read_sheet_notes(deleted, allow_threads=true) is Some(notes) {
     names.push(notes.part)
     if notes.vml is Some((part, _, _)) {
       names.push(part)

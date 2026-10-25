@@ -6,6 +6,7 @@ fn Session::check_fill_resources(
   hyperlinks~ : Bool = false,
   rules~ : Bool = false,
   sparklines~ : Bool = false,
+  threads~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   let tree = Tree::new(sheet.document)
   let root = tree.root("worksheet")
@@ -63,8 +64,11 @@ fn Session::check_fill_resources(
       }
     }
   }
-  // Autofill changes values and styles; existing cell notes stay at their cells.
-  ignore(self.read_sheet_notes(sheet))
+  // Autofill changes values and styles; existing comments stay at their cells.
+  ignore(self.read_sheet_notes(sheet, allow_threads=threads))
+  if threads {
+    self.check_thread_fallbacks(sheet, self.read_sheet_threads(sheet))
+  }
 }
 
 ///|

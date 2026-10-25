@@ -8,6 +8,12 @@ import type {
 } from "@open-document/wasm/xlsx";
 
 export type XlsxAnalysisRequest =
+  | {
+      operation: "getXlsxChart";
+      revision: number;
+      sheet: string;
+      profile: Record<string, string>;
+    }
   | ({
       operation: "slicerGestureXlsx";
       revision: number;

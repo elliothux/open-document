@@ -3,6 +3,7 @@ import type { DocxInkRequest } from "./protocol-docx-ink.js";
 import type { DocxTrackingRequest } from "./protocol-docx-tracking.js";
 import type { DocxPageCommand } from "./protocol-docx-page.js";
 import type { XlsxAnalysisRequest } from "./protocol-xlsx-analysis.js";
+import type { XlsxCommentsRequest } from "./protocol-xlsx-comments.js";
 import type {
   DocxChartEdit,
   DocxFractionEdit,
@@ -70,12 +71,7 @@ export type Operation =
   | DocxInkRequest
   | DocxNoteRequest
   | XlsxAnalysisRequest
-  | {
-      operation: "getXlsxChart";
-      revision: number;
-      sheet: string;
-      profile: Record<string, string>;
-    }
+  | XlsxCommentsRequest
   | {
       operation: "insertXlsxChart";
       revision: number;

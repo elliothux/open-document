@@ -1,5 +1,7 @@
 import { xlsxQuery, type XlsxQuery } from "./xlsx-query.js";
+import { record } from "./validation.js";
 import { XlsxDrawingSession } from "./xlsx-drawings.js";
+export * from "./xlsx-comments.js";
 export * from "./xlsx-shapes.js";
 export * from "./xlsx-charts.js";
 export * from "./xlsx-pictures.js";
@@ -50,11 +52,7 @@ export {
   type XlsxNote,
   xlsxNote,
 } from "./xlsx-sheet.js";
-import {
-  xlsxRect,
-  xlsxSelection,
-  type XlsxSelectionGeometry,
-} from "./xlsx-geometry.js";
+import { xlsxSelection, type XlsxSelectionGeometry } from "./xlsx-geometry.js";
 export { xlsxSelection, type XlsxSelectionGeometry } from "./xlsx-geometry.js";
 import {
   checkXlsxFillTarget,
@@ -156,7 +154,6 @@ import {
 } from "./xlsx-search.js";
 export { xlsxFindOptions, xlsxSearchResult } from "./xlsx-search.js";
 export type { XlsxFindOptions, XlsxSearchResult } from "./xlsx-search.js";
-import { record, arrayOf, integer } from "./validation.js";
 import { checkPrintOptions, type PrintOptions } from "./xlsx-print.js";
 export { checkXlsxPrintSetup, checkPrintOptions } from "./xlsx-print.js";
 export type {
@@ -165,10 +162,10 @@ export type {
   XlsxPrintRange,
   XlsxHeaderFooter,
 } from "./xlsx-print.js";
-import { drawingBatch, type DrawingBatch } from "./drawing.js";
 import {
-  xlsxGridNotes,
-  xlsxGridObjects,
+  xlsxPrintLayout,
+  xlsxViewport,
+  type XlsxPrintLayout,
   type XlsxViewport,
 } from "./xlsx-grid.js";
 import {
@@ -189,8 +186,8 @@ export type {
   XlsxDrawingPreview,
   XlsxAnalysisPreview,
 } from "./xlsx-drawing-pointer.js";
-import { xlsxCell } from "./xlsx-grid.js";
-export type { XlsxViewport } from "./xlsx-grid.js";
+export { xlsxPrintLayout, xlsxViewport } from "./xlsx-grid.js";
+export type { XlsxViewport, XlsxPrintLayout } from "./xlsx-grid.js";
 import {
   checkXlsxCellFormat,
   copiedCellFormat,
@@ -223,12 +220,6 @@ export interface GridViewport {
   slicerHover?: { object: string; index: number };
 }
 
-export interface XlsxPrintLayout extends DrawingBatch {
-  id: number;
-  revision: number;
-  sheet: string;
-}
-
 export type CellValue =
   | { kind: "blank"; value: null }
   | { kind: "text" | "error"; value: string }
@@ -259,111 +250,6 @@ export interface XlsxCell {
 }
 
 export type XlsxClearMode = "contents" | "formats" | "all";
-
-export function xlsxPrintLayout(value: unknown): XlsxPrintLayout {
-  drawingBatch(value);
-  const layout = record(value);
-  if (
-    !integer(layout.id, 1, 2147483647) ||
-    !integer(layout.revision, 0, 2147483647) ||
-    typeof layout.sheet !== "string"
-  )
-    throw new Error("Invalid XLSX layout identity");
-  return value as XlsxPrintLayout;
-}
-
-export function xlsxViewport(value: unknown): XlsxViewport {
-  const layout = xlsxPrintLayout(value);
-  const grid = record(value);
-  if (typeof grid.rtl !== "boolean") throw new Error("Invalid grid direction");
-  if (!(
-    (grid.headerWidth === 36 && grid.headerHeight === 18) ||
-    (grid.headerWidth === 0 && grid.headerHeight === 0)
-  ))
-    throw new Error("Invalid grid header size");
-  for (const name of ["scrollX", "scrollY", "extentWidth", "extentHeight"])
-    if (
-      typeof grid[name] !== "number" ||
-      !Number.isFinite(grid[name]) ||
-      grid[name] < 0
-    )
-      throw new Error("Invalid grid extent");
-  if (
-    layout.regions.length !== 1 ||
-    !Array.isArray(grid.cells) ||
-    grid.cells.length > 4096 ||
-    !arrayOf(grid.diagnostics, (item) => typeof item === "string")
-  )
-    throw new Error("Invalid grid viewport");
-  xlsxGridNotes(grid.notes, {
-    x: grid.rtl ? 0 : Number(grid.headerWidth),
-    y: Number(grid.headerHeight),
-    width: layout.regions[0]!.width - Number(grid.headerWidth),
-    height: layout.regions[0]!.height - Number(grid.headerHeight),
-  });
-  xlsxGridObjects(grid.objects);
-  const addresses = new Set<string>();
-  for (const value of grid.cells) {
-    const item = record(value),
-      cell = xlsxCell(item.cell),
-      rect = record(item.rect),
-      clip = xlsxRect(item.clip),
-      range = record(item.range);
-    if (
-      addresses.has(cell.address) ||
-      typeof item.display !== "string" ||
-      (item.accessibleText !== undefined &&
-        typeof item.accessibleText !== "string") ||
-      typeof item.diagnostic !== "string" ||
-      !integer(range.top, 1, 1048576) ||
-      !integer(range.bottom, Number(range.top), 1048576) ||
-      !integer(range.left, 1, 16384) ||
-      !integer(range.right, Number(range.left), 16384)
-    )
-      throw new Error("Invalid visible cell");
-    for (const key of ["x", "y", "width", "height"])
-      if (
-        typeof rect[key] !== "number" ||
-        !Number.isFinite(rect[key]) ||
-        ((key === "width" || key === "height") && rect[key] < 0)
-      )
-        throw new Error("Invalid visible cell rectangle");
-    addresses.add(cell.address);
-    if (
-      clip.x < (grid.rtl ? 0 : Number(grid.headerWidth)) ||
-      clip.y < Number(grid.headerHeight) ||
-      clip.x + clip.width >
-        layout.regions[0]!.width -
-          (grid.rtl ? Number(grid.headerWidth) : 0) +
-          0.000001 ||
-      clip.y + clip.height > layout.regions[0]!.height + 0.000001
-    )
-      throw new Error("Invalid visible cell clip");
-  }
-  for (const [key, max] of [
-    ["rows", 1048576],
-    ["columns", 16384],
-  ] as const) {
-    const axis = grid[key];
-    if (!Array.isArray(axis) || axis.length > 4096)
-      throw new Error("Invalid grid axis");
-    let previous = 0;
-    for (const value of axis) {
-      const item = record(value);
-      if (
-        !integer(item.index, previous + 1, max) ||
-        typeof item.position !== "number" ||
-        !Number.isFinite(item.position) ||
-        typeof item.size !== "number" ||
-        !Number.isFinite(item.size) ||
-        item.size <= 0
-      )
-        throw new Error("Invalid grid axis item");
-      previous = Number(item.index);
-    }
-  }
-  return value as XlsxViewport;
-}
 
 /** One workbook owner; values, XML transactions and history stay in MoonBit. */
 export class XlsxSession extends XlsxDrawingSession {

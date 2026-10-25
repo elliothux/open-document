@@ -17,6 +17,7 @@ import { XlsxSparkline } from "./xlsx-sparkline.js";
 import { XlsxPictures } from "./xlsx-pictures.js";
 import { XlsxShapes } from "./xlsx-shapes.js";
 import { XlsxCharts } from "./xlsx-charts.js";
+import { XlsxComments } from "./xlsx-comments.js";
 
 type Props = {
   controller: EditorController;
@@ -75,6 +76,13 @@ export function XlsxFormat({ controller, state, editor, disabled }: Props) {
       />
       <XlsxCharts
         key={`charts:${state.document?.documentId}`}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
+      <XlsxComments
+        key={`comments:${state.document?.documentId}`}
         controller={controller}
         state={state}
         editor={editor}

@@ -159,7 +159,7 @@ export const reviewEn = {
   duplicateKept: "Retained data rows",
   duplicateRemoved: "Duplicate rows to remove",
   duplicateNotice:
-    "Keeps the first matching formatted values, including hidden rows. Removes duplicate contents, cell formats, hyperlinks and notes inside this range. Case and spaces matter. Preview shows the first ten retained rows.",
+    "Keeps the first matching formatted values, including hidden rows. Removes duplicate contents, cell formats, hyperlinks, notes and complete comment threads inside this range. Case and spaces matter. Preview shows the first ten retained rows.",
   duplicateLimit: "Choose a range containing at most 4096 cells.",
   docxComments: "Document comments",
   commentItem: "Comment",
@@ -176,6 +176,7 @@ export const reviewEn = {
   discardMergedNotes:
     "Keep the upper-left cell and one note; discard other values, formulas, and notes",
   cellNote: "Cell note",
+  cellComments: "Cell comments",
   noteApply: "Apply note",
   noteRemove: "Remove note",
   noteAuthorRequired:
@@ -356,7 +357,7 @@ export const reviewZh: Record<keyof typeof reviewEn, string> = {
   duplicateKept: "保留的数据行",
   duplicateRemoved: "将删除的重复行",
   duplicateNotice:
-    "按格式化值保留首次记录，包含隐藏行。删除范围内重复记录的内容、单元格格式、链接和便笺。区分大小写及空格。预览显示前十条保留记录。",
+    "按格式化值保留首次记录，包含隐藏行。删除范围内重复记录的内容、单元格格式、链接、便笺及完整批注线程。区分大小写及空格。预览显示前十条保留记录。",
   duplicateLimit: "请选择不超过 4096 个单元格的区域。",
   docxComments: "文档批注",
   commentItem: "批注",
@@ -371,6 +372,7 @@ export const reviewZh: Record<keyof typeof reviewEn, string> = {
   localCommentAuthorRequired: "宿主需提供批注作者，才能创建批注。",
   discardMergedNotes: "保留左上角单元格和一条便笺，丢弃其余值、公式及便笺",
   cellNote: "单元格便笺",
+  cellComments: "单元格批注",
   noteApply: "应用便笺",
   noteRemove: "删除便笺",
   noteAuthorRequired: "宿主需提供批注作者，才能创建单元格便笺。",

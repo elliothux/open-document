@@ -30,6 +30,7 @@ fn update_note_addresses(
   addresses : Map[String, Address?],
   parts : Map[String, @xml.Document],
   edits : Array[(String, @xml.Edit)],
+  threaded~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   let comments : Array[@xml.SourceChange] = []
   let shapes : Array[@xml.SourceChange] = []
@@ -64,7 +65,7 @@ fn update_note_addresses(
   }
   if !comments.is_empty() {
     let (document, edit) = notes.tree.document.edit_source(comments)
-    ignore(read_cell_notes(Tree::new(document)))
+    ignore(read_cell_notes(Tree::new(document), threaded~))
     parts[notes.part] = document
     edits.push((notes.part, edit))
   }

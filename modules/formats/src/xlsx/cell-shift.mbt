@@ -95,6 +95,7 @@ fn Sheet::shift_cells(
   }
   let edits : Array[@xml.SourceChange] = []
   let data = tree.nodes[self.data]
+  let empty_content = StringBuilder()
   let numbers = self.rows.keys().to_array()
   numbers.sort()
   let updated = changed.keys().to_array()
@@ -162,22 +163,23 @@ fn Sheet::shift_cells(
         cells.map(c => c.1).join("") +
         "</od:row>"
       let next = numbers.iter().find_first(n => n > number)
-      edits.push(
-        if data.empty {
-          insertion(data, xml)
-        } else {
-          {
-            node: self.data,
-            offset: next
-            .map(n => tree.nodes[self.rows[n]].start)
-            .unwrap_or(data.closing_start) -
-            data.start,
-            length: 0,
-            xml,
-          }
-        },
-      )
+      if data.empty {
+        empty_content.write_string(xml)
+      } else {
+        edits.push({
+          node: self.data,
+          offset: next
+          .map(n => tree.nodes[self.rows[n]].start)
+          .unwrap_or(data.closing_start) -
+          data.start,
+          length: 0,
+          xml,
+        })
+      }
     }
+  }
+  if !empty_content.is_empty() {
+    edits.push(insertion(data, empty_content.to_string()))
   }
   join_insertions(edits)
 }

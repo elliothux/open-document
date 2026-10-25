@@ -444,6 +444,7 @@ pub fn Session::drawing_fragment_image(Self, Int, String) -> Json raise @failure
 pub fn Session::drawing_gesture(Self, Int, Int, Int, Double, Double, Bool, @layout.TextProbe, Map[String, String], images~ : @layout.Images, viewport? : DrawingViewport?) -> Json raise @failure.Failure
 pub fn Session::duplicates(Self, Int, String, DuplicateSettings) -> Json raise @failure.Failure
 pub fn Session::edit_sheet(Self, Int, String, SheetEdit, date? : String?) -> Json raise @failure.Failure
+pub fn Session::edit_thread(Self, Int, String, ThreadEdit) -> Json raise @failure.Failure
 pub fn Session::export_csv(Self, Int, selection? : Bool) -> Bytes raise @failure.Failure
 pub fn Session::fill_preview(Self, Int, FillTarget, ctrl? : Bool) -> Json raise @failure.Failure
 pub fn Session::filter_slicer(Self, Int, String, String, Array[Int]) -> Json raise @failure.Failure
@@ -495,6 +496,7 @@ pub fn Session::shapes(Self, Int, String, @layout.TextProbe, Map[String, String]
 pub fn Session::slicer_gesture(Self, Int, Int, String, Int, Int, Double, Double, Bool, Bool, @layout.TextProbe, Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::slicers(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::text_columns(Self, Int, String, TextColumnSettings) -> Json raise @failure.Failure
+pub fn Session::threads(Self, Int, String, String) -> Json raise @failure.Failure
 pub fn Session::timeline_gesture(Self, Int, Int, String, Int, Int, Int, Double, Double, Bool, @layout.TextProbe, Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::timelines(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::undo(Self, Int, redo? : Bool) -> Json raise @failure.Failure
@@ -662,6 +664,14 @@ pub(all) struct TextColumnSettings {
 pub(all) enum TextColumnSplit {
   Delimited(String)
   Fixed(Array[Int])
+}
+
+pub(all) enum ThreadEdit {
+  CreateThread(String, String, String, String)
+  ReplyThread(String, String, String, String)
+  UpdateThread(String, String)
+  ResolveThread(String, Bool)
+  DeleteThread(String)
 }
 
 pub(all) struct TimelineSettings {

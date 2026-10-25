@@ -1,4 +1,5 @@
-import { WasmSession, encodeBytes } from "./session.js";
+import { encodeBytes } from "./session.js";
+import { XlsxCommentsSession } from "./xlsx-comments.js";
 import {
   checkDrawingFragment,
   drawingClipboard,
@@ -40,7 +41,7 @@ import {
   type XlsxPictureSettings,
 } from "./xlsx-pictures.js";
 
-export class XlsxDrawingSession extends WasmSession {
+export class XlsxDrawingSession extends XlsxCommentsSession {
   slicerGesture(
     revision: number,
     layout: number,

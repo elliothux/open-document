@@ -22,6 +22,10 @@ fn Session::create_sheet_resource(
     "tables"
   } else if kind == "comments" {
     "comments"
+  } else if kind == "threadedComment" {
+    "threadedComments"
+  } else if kind == "person" {
+    "persons"
   } else if kind == "slicer" {
     "slicers"
   } else if kind == "slicerCache" {
@@ -33,7 +37,11 @@ fn Session::create_sheet_resource(
   } else {
     "drawings"
   }
-  let stem = if kind.has_prefix("pivot") ||
+  let stem = if kind == "threadedComment" {
+    "odThread"
+  } else if kind == "person" {
+    "odPerson"
+  } else if kind.has_prefix("pivot") ||
     kind.has_prefix("slicer") ||
     kind.has_prefix("Timeline") {
     "od" + kind
@@ -67,7 +75,11 @@ fn Session::create_sheet_resource(
   )
   parts[part] = document
   created[part] = document
-  let content_type = if kind.has_prefix("slicer") || kind.has_prefix("Timeline") {
+  let content_type = if kind == "threadedComment" {
+    "application/vnd.ms-excel.threadedcomments+xml"
+  } else if kind == "person" {
+    "application/vnd.ms-excel.person+xml"
+  } else if kind.has_prefix("slicer") || kind.has_prefix("Timeline") {
     "application/vnd.ms-excel.\{kind}+xml"
   } else if kind.has_prefix("pivot") {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.\{kind}+xml"
@@ -131,7 +143,9 @@ fn Session::attach_sheet_resource(
       "limit-exceeded", "Worksheet resource relationship identities exhausted",
     )
   }
-  let uri = if kind.has_prefix("Timeline") {
+  let uri = if ["threadedComment", "person"].contains(kind) {
+    thread_relationship_uri
+  } else if kind.has_prefix("Timeline") {
     timeline_relationship_uri
   } else if kind.has_prefix("slicer") {
     slicer_relationship_uri
