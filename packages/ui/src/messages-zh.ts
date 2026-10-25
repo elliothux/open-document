@@ -1,3 +1,4 @@
+import { docxBordersZh } from "./messages-docx-borders.js";
 import { docxPicturesZh } from "./messages-docx-pictures.js";
 import { importZh } from "./messages-pptx-import.js";
 import { mathZh } from "./messages-docx-math.js";
@@ -40,6 +41,7 @@ export const zh: Messages = {
   ...outlineZh,
   ...reviewZh,
   ...pageZh,
+  ...docxBordersZh,
   ...filterZh,
   ...imageZh,
   ...footerZh,
@@ -327,18 +329,6 @@ export const zh: Messages = {
   cellIndent: "单元格缩进",
   cellNumberFormat: "数字格式",
   cellBorderStyle: "边框线型",
-  leftCellBorder: "左边框",
-  rightCellBorder: "右边框",
-  topCellBorder: "上边框",
-  bottomCellBorder: "下边框",
-  tableBorders: "表格边框",
-  cellBorders: "单元格边框",
-  borderTarget: "边框目标",
-  borderSide: "边框位置",
-  allBorders: "全部边框",
-  insideHorizontalBorder: "内部横边框",
-  insideVerticalBorder: "内部竖边框",
-  noTableBorder: "移除边框",
   wrap: "单元格文字换行",
   shrinkToFit: "缩小字体适应单元格",
   fontSize: "字号（pt）",

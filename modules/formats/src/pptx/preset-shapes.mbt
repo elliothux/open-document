@@ -32,10 +32,18 @@ fn line_shape(preset : String) -> Bool {
 
 ///|
 fn supported_shape(preset : String) -> Bool {
-  ["rect", "ellipse", "roundRect"].contains(preset) ||
+  ["rect", "ellipse"].contains(preset) ||
+  rounded_shape(preset) ||
   line_shape(preset) ||
   arrow_shape(preset) ||
   polygon_shape(preset)
+}
+
+///|
+fn paired_corner_shape(preset : String) -> Bool {
+  [
+    "snip2SameRect", "snip2DiagRect", "round2SameRect", "round2DiagRect", "snipRoundRect",
+  ].contains(preset)
 }
 
 ///|
@@ -46,10 +54,16 @@ fn read_shape_adjustments(
   let single = [
     "roundRect", "triangle", "parallelogram", "trapezoid", "hexagon", "octagon",
     "plus", "star4", "star5", "star6", "star7", "star8", "star10", "star12", "star16",
-    "star24", "star32", "chevron", "homePlate", "snip1Rect",
+    "star24", "star32", "chevron", "homePlate", "snip1Rect", "round1Rect",
   ].contains(preset)
   let mut first = match preset {
-    "roundRect" | "snip1Rect" | "snip2SameRect" => 0.16667
+    "roundRect"
+    | "snip1Rect"
+    | "snip2SameRect"
+    | "round1Rect"
+    | "round2SameRect"
+    | "round2DiagRect"
+    | "snipRoundRect" => 0.16667
     "snip2DiagRect" => 0.0
     "parallelogram" | "trapezoid" | "hexagon" | "plus" => 0.25
     "octagon" => 0.29289
@@ -64,8 +78,8 @@ fn read_shape_adjustments(
     _ => 0.5
   }
   let mut second = match preset {
-    "snip2SameRect" => 0.0
-    "snip2DiagRect" => 0.16667
+    "snip2SameRect" | "round2SameRect" | "round2DiagRect" => 0.0
+    "snip2DiagRect" | "snipRoundRect" => 0.16667
     _ => if branched_arrow_shape(preset) { first } else { 0.5 }
   }
   let mut third = if ["bentConnector5", "curvedConnector5"].contains(preset) {
@@ -87,7 +101,7 @@ fn read_shape_adjustments(
   }
   if !single &&
     !arrow_shape(preset) &&
-    !["snip2SameRect", "snip2DiagRect"].contains(preset) &&
+    !paired_corner_shape(preset) &&
     !["pentagon", "heptagon", "decagon", "dodecagon"].contains(preset) &&
     ![
       "bentConnector3", "bentConnector4", "bentConnector5", "curvedConnector3", "curvedConnector4",
@@ -118,10 +132,7 @@ fn read_shape_adjustments(
             name == "adj"
           } else {
             (
-              (
-                arrow_shape(preset) ||
-                ["snip2SameRect", "snip2DiagRect"].contains(preset)
-              ) &&
+              (arrow_shape(preset) || paired_corner_shape(preset)) &&
               ["adj1", "adj2"].contains(name)
             ) ||
             (branched_arrow_shape(preset) && name == "adj3") ||
@@ -326,9 +337,8 @@ fn Object::shape_body(self : Object, geometry : Geometry) -> Body {
   let w = geometry.width
   let h = geometry.height
   // ONLYOFFICE CreateGeometry text rectangles precede DrawingML body insets.
-  let (left, top, right, bottom) = if self.preset == "roundRect" {
-    let inset = w.min(h) * self.adjustments.0.max(0).min(0.5) * 0.29289
-    (inset, inset, inset, inset)
+  let (left, top, right, bottom) = if rounded_shape(self.preset) {
+    rounded_insets(self.preset, w, h, self.adjustments)
   } else if branched_arrow_shape(self.preset) {
     let (shaft, head_width, head_length) = branched_arrow_adjustments(
       self.adjustments,
@@ -395,15 +405,8 @@ fn Object::preset_hit(
   if width <= 0 || height <= 0 {
     return false
   }
-  if self.preset == "roundRect" {
-    let radius = width.min(height) * self.adjustments.0.max(0).min(0.5)
-    let qx = (x - width / 2).abs() - (width / 2 - radius)
-    let qy = (y - height / 2).abs() - (height / 2 - radius)
-    let distance = (qx.max(0) * qx.max(0) + qy.max(0) * qy.max(0)).sqrt() +
-      qx.max(qy).min(0) -
-      radius
-    return (self.has_fill() && distance <= 0) ||
-      (!self.stroke.is_empty() && distance.abs() <= margin)
+  if rounded_shape(self.preset) {
+    return self.rounded_hit(width, height, x, y, margin)
   }
   let points = if polygon_shape(self.preset) {
     polygon_points(

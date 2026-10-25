@@ -41,19 +41,41 @@ fn PageFrame::paint_table_border(
   }
   let vertical = rect.width == 0
   let length = if vertical { rect.height } else { rect.width }
-  // Match the existing page-border patterns, scaled by the declared line width.
-  let dash = edge.width * (if edge.style == "dashed" { 16.0 } else { 1.0 })
-  let period = dash +
-    edge.width * (if edge.style == "dashed" { 5.0 } else { 2.0 })
-  let count = (length / period).ceil().to_int()
-  guard count <= 8192 && count <= 65536 - self.borders.length() else {
+  // LibreOffice GetLineDashing supplies line/gap ratios; retain the native width scale.
+  let pattern : Array[Double] = match edge.style {
+    "dashed" => [16, 5]
+    "dotted" => [1, 2]
+    "dashSmallGap" => [6, 2]
+    "dotDash" => [16, 5, 5, 5]
+    "dotDotDash" => [16, 5, 5, 5, 5, 5]
+    _ =>
+      @failure.reject("unsupported-layout", "Unsupported table border pattern")
+  }
+  let period = pattern.fold(init=0.0, (sum, value) => sum + value) * edge.width
+  let cycles = (length / period).ceil().to_int()
+  guard cycles <= 8192 else {
     @failure.reject(
       "limit-exceeded", "Table border pattern exceeds the segment budget",
     )
   }
-  for index in 0..<count {
-    let offset = index.to_double() * period
-    let size = dash.min(length - offset)
+  let spans : Array[(Double, Double)] = []
+  for cycle in 0..<cycles {
+    let mut offset = cycle.to_double() * period
+    for index = 0
+        index < pattern.length() && offset < length
+        index = index + 2 {
+      guard spans.length() < 8192 &&
+        spans.length() < 65536 - self.borders.length() else {
+        @failure.reject(
+          "limit-exceeded", "Table border pattern exceeds the segment budget",
+        )
+      }
+      let size = pattern[index] * edge.width
+      spans.push((offset, size.min(length - offset)))
+      offset += size + pattern[index + 1] * edge.width
+    }
+  }
+  for (offset, size) in spans {
     self.borders.push({
       rect: {
         x: rect.x + (if vertical { 0.0 } else { offset }),

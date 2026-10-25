@@ -11,13 +11,13 @@ fn Object::adjustment_values(self : Object) -> Array[(String, Double, Double)] {
       ("adj3", length, ((0.5 - width) * 100000).round() / 100000),
     ]
   }
-  if ["snip2SameRect", "snip2DiagRect"].contains(self.preset) {
+  if paired_corner_shape(self.preset) {
     return [
       ("adj1", self.adjustments.0.clamp(min=0, max=0.5), 0.5),
       ("adj2", self.adjustments.1.clamp(min=0, max=0.5), 0.5),
     ]
   }
-  if self.preset == "roundRect" || self.preset == "snip1Rect" {
+  if ["roundRect", "round1Rect", "snip1Rect"].contains(self.preset) {
     return [("adj", self.adjustments.0.max(0).min(0.5), 0.5)]
   }
   if ["bentConnector3", "curvedConnector3"].contains(self.preset) {

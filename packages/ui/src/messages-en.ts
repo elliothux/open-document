@@ -1,3 +1,4 @@
+import { docxBordersEn } from "./messages-docx-borders.js";
 import { docxPicturesEn } from "./messages-docx-pictures.js";
 import { importEn } from "./messages-pptx-import.js";
 import { mathEn } from "./messages-docx-math.js";
@@ -38,6 +39,7 @@ export const en = {
   ...outlineEn,
   ...reviewEn,
   ...pageEn,
+  ...docxBordersEn,
   ...filterEn,
   ...imageEn,
   ...footerEn,
@@ -328,18 +330,6 @@ export const en = {
   cellIndent: "Cell indent",
   cellNumberFormat: "Number format",
   cellBorderStyle: "Border style",
-  leftCellBorder: "Left border",
-  rightCellBorder: "Right border",
-  topCellBorder: "Top border",
-  bottomCellBorder: "Bottom border",
-  tableBorders: "Table borders",
-  cellBorders: "Cell borders",
-  borderTarget: "Border target",
-  borderSide: "Border side",
-  allBorders: "All borders",
-  insideHorizontalBorder: "Inside horizontal borders",
-  insideVerticalBorder: "Inside vertical borders",
-  noTableBorder: "Remove borders",
   wrap: "Wrap cell text",
   shrinkToFit: "Shrink to fit cell",
   fontSize: "Font size (pt)",

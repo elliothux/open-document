@@ -81,7 +81,14 @@ export function docxTableClipboard(value: unknown): DocxTableClipboard {
 }
 
 export interface DocxBorderStyle {
-  style: "single" | "double" | "dashed" | "dotted";
+  style:
+    | "single"
+    | "double"
+    | "dashed"
+    | "dotted"
+    | "dashSmallGap"
+    | "dotDash"
+    | "dotDotDash";
   width: number;
   color: string;
 }
@@ -117,9 +124,15 @@ export function checkDocxBorders(value: unknown, wholeTable: boolean): void {
       width = edge.width;
     if (
       Object.keys(edge).length !== 3 ||
-      !["single", "double", "dashed", "dotted"].some(
-        (style) => style === edge.style,
-      ) ||
+      ![
+        "single",
+        "double",
+        "dashed",
+        "dotted",
+        "dashSmallGap",
+        "dotDash",
+        "dotDotDash",
+      ].some((style) => style === edge.style) ||
       typeof width !== "number" ||
       !Number.isFinite(width) ||
       (width !== 0 && width < 0.25) ||

@@ -45,9 +45,10 @@ fn WordTree::read_borders(
         @failure.reject("unsupported-layout", "Unsupported border markup")
       }
       let kind = node.attribute("val", uri=word_uri).unwrap_or("none")
-      guard ["single", "double", "dashed", "dotted", "nil", "none"].contains(
-        kind,
-      ) else {
+      guard [
+        "single", "double", "dashed", "dotted", "dashSmallGap", "dotDash", "dotDotDash",
+        "nil", "none",
+      ].contains(kind) else {
         @failure.reject(
           "unsupported-layout", "Unsupported table border line style",
         )

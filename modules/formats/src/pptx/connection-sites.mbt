@@ -11,8 +11,12 @@ fn Object::local_connection_sites(self : Object) -> Array[(Double, Double)] {
   let h = g.height
   let sides = [(w / 2, 0.0), (0.0, h / 2), (w / 2, h), (w, h / 2)]
   match self.preset {
-    "snip1Rect" | "snip2SameRect" | "snip2DiagRect" =>
-      [(w, h / 2), (w / 2, h), (0.0, h / 2), (w / 2, 0.0)]
+    "snip1Rect"
+    | "snip2SameRect"
+    | "snip2DiagRect"
+    | "round2SameRect"
+    | "round2DiagRect"
+    | "snipRoundRect" => [(w, h / 2), (w / 2, h), (0.0, h / 2), (w / 2, 0.0)]
     "ellipse" => {
       let dx = w * 0.3535533905932738
       let dy = h * 0.3535533905932738

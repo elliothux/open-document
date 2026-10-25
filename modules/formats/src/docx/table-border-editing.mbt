@@ -16,7 +16,9 @@ fn Session::set_table_borders(
       @failure.reject("invalid-operation", "Unknown border side")
     }
     if border is Some(border) {
-      guard ["single", "double", "dashed", "dotted"].contains(border.style) &&
+      guard [
+          "single", "double", "dashed", "dotted", "dashSmallGap", "dotDash", "dotDotDash",
+        ].contains(border.style) &&
         (border.width == 0 || border.width >= 0.25) &&
         border.width <= 12 &&
         border.width * 8 == (border.width * 8).round() &&

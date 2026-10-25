@@ -65,7 +65,11 @@ fn numeric_function(
 ) -> Value raise @failure.Failure {
   let numbers : Array[Double] = []
   for arg in args {
-    let value = arg.evaluate(sheets, sheet, values, work, depth + 1)
+    let value = if name == "FACT" || name == "FACTDOUBLE" {
+      arg.scalar_argument(sheets, sheet, values, work, depth + 1)
+    } else {
+      arg.evaluate(sheets, sheet, values, work, depth + 1)
+    }
     if value is Text(text) {
       work.spend(amount=text.length())
     }
@@ -80,6 +84,20 @@ fn numeric_function(
     }
   }
   match name {
+    "FACT" | "FACTDOUBLE" => {
+      let number = numbers[0]
+      let maximum = if name == "FACT" { 170 } else { 300 }
+      if number < 0 || number.floor() > maximum.to_double() {
+        return Error("#NUM!")
+      }
+      let step = if name == "FACT" { 1 } else { 2 }
+      let mut result = 1.0
+      for factor = number.floor().to_int(); factor > 0; factor = factor - step {
+        work.spend()
+        result *= factor.to_double()
+      }
+      finite_result(result)
+    }
     "PI" => Number(@math.PI)
     "SIN" => finite_result(@math.sin(numbers[0]))
     "COS" => finite_result(@math.cos(numbers[0]))

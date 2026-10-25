@@ -253,7 +253,7 @@ fn Expression::evaluate(
         "SIN", "COS", "TAN", "ACOS", "ASIN", "ATAN", "ATAN2", "EXP", "LN", "LOG",
         "LOG10", "RADIANS", "DEGREES", "SINH", "COSH", "TANH", "ACOSH", "ASINH",
         "ATANH", "SIGN", "CEILING.MATH", "FLOOR.MATH", "CEILING.PRECISE", "FLOOR.PRECISE",
-        "CEILING", "FLOOR", "TRUNC",
+        "CEILING", "FLOOR", "TRUNC", "FACT", "FACTDOUBLE",
       ].contains(name) =>
       numeric_function(name, args, sheets, sheet, values, work, depth)
     Function(name, args) if [
@@ -288,6 +288,8 @@ fn Expression::evaluate(
         "VAR", "VAR.S", "VARP", "VAR.P", "STDEV", "STDEV.S", "STDEVP", "STDEV.P",
       ].contains(name) =>
       statistical_function(name, args, sheets, sheet, values, work, depth)
+    Function(name, args) if name == "GCD" || name == "LCM" =>
+      factor_function(name, args, sheets, sheet, values, work, depth)
     Function(name, args) if ["PRODUCT", "MEDIAN", "MODE", "MODE.SNGL"].contains(
         name,
       ) =>

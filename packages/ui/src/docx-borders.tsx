@@ -26,6 +26,15 @@ export function DocxBorders({
   disabled: boolean;
 }) {
   const t = messages(state.locale);
+  const styles = [
+    ["single", t.pageBorderSingle],
+    ["double", t.pageBorderDouble],
+    ["dashed", t.dashRegular],
+    ["dotted", t.dashDotted],
+    ["dashSmallGap", t.tableBorderSmallDash],
+    ["dotDash", t.dashDot],
+    ["dotDotDash", t.tableBorderDotDotDash],
+  ] as const;
   const [scope, setScope] = useState<"cellBorders" | "tableBorders">(
       "cellBorders",
     ),
@@ -113,7 +122,7 @@ export function DocxBorders({
         {selected
           .map((side) => {
             const value = values[side];
-            return `${labels[side]}: ${value ? `${value.style === "double" ? t.pageBorderDouble : value.style === "dashed" ? t.dashRegular : value.style === "dotted" ? t.dashDotted : t.pageBorderSingle} ${value.width} pt #${value.color}` : t.mixed}`;
+            return `${labels[side]}: ${value ? `${styles.find(([style]) => style === value.style)![1]} ${value.width} pt #${value.color}` : t.mixed}`;
           })
           .join("; ")}
       </p>
@@ -129,20 +138,17 @@ export function DocxBorders({
             aria-label={t.pageBorderStyle}
             value={style}
             onChange={(event) => {
-              const value = event.currentTarget.value;
-              if (
-                value === "single" ||
-                value === "double" ||
-                value === "dashed" ||
-                value === "dotted"
-              )
-                setStyle(value);
+              const next = styles.find(
+                ([value]) => value === event.currentTarget.value,
+              );
+              if (next) setStyle(next[0]);
             }}
           >
-            <option value="single">{t.pageBorderSingle}</option>
-            <option value="double">{t.pageBorderDouble}</option>
-            <option value="dashed">{t.dashRegular}</option>
-            <option value="dotted">{t.dashDotted}</option>
+            {styles.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
           </select>
         </label>
         <label>

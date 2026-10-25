@@ -57,10 +57,19 @@ fn Object::adjustment_handles(self : Object) -> Array[AdjustmentHandle] {
         (w / 2, side * branch_head, -side / 2, 0.0)
       ("quadArrow" | "leftRightUpArrow", "adj2") => (w / 2, 0.0, -side, 0.0)
       ("quadArrow" | "leftRightUpArrow", "adj3") => (w, 0.0, 0.0, side)
-      ("snip1Rect" | "snip2SameRect", "adj" | "adj1") => (w, 0.0, -side, 0.0)
-      ("snip2DiagRect", "adj1") => (0.0, 0.0, side, 0.0)
-      ("snip2DiagRect", "adj2") => (w, 0.0, -side, 0.0)
-      ("snip2SameRect", "adj2") => (0.0, h, side, 0.0)
+      (
+        "snip1Rect"
+        | "snip2SameRect"
+        | "round1Rect"
+        | "round2SameRect",
+        "adj"
+        | "adj1",
+      ) => (w, 0.0, -side, 0.0)
+      ("snip2DiagRect" | "round2DiagRect" | "snipRoundRect", "adj1") =>
+        (0.0, 0.0, side, 0.0)
+      ("snip2DiagRect" | "round2DiagRect" | "snipRoundRect", "adj2") =>
+        (w, 0.0, -side, 0.0)
+      ("snip2SameRect" | "round2SameRect", "adj2") => (0.0, h, side, 0.0)
       ("triangle", _) => (0.0, 0.0, w, 0.0)
       ("chevron" | "homePlate", _) => (w, 0.0, -side, 0.0)
       ("star5", _) => (w / 2, h / 2 * 1.10557, 0.0, -h * 1.10557)

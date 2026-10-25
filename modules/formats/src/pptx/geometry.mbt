@@ -164,21 +164,8 @@ fn shape_path(
   if ["rect", "line", "ellipse"].contains(preset) {
     return @layout.basic_shape_path(preset, width, height)
   }
-  if preset == "roundRect" {
-    let r = width.min(height) * adjustments.0.max(0).min(0.5)
-    let k = 0.5522847498307936 * r
-    return [
-      Move(r, 0),
-      Line(width - r, 0),
-      Cubic(width - r + k, 0, width, r - k, width, r),
-      Line(width, height - r),
-      Cubic(width, height - r + k, width - r + k, height, width - r, height),
-      Line(r, height),
-      Cubic(r - k, height, 0, height - r + k, 0, height - r),
-      Line(0, r),
-      Cubic(0, r - k, r - k, 0, r, 0),
-      Close,
-    ]
+  if rounded_shape(preset) {
+    return rounded_path(preset, width, height, adjustments)
   }
   if arrow_shape(preset) || polygon_shape(preset) {
     let path : Array[@layout.PathSegment] = []

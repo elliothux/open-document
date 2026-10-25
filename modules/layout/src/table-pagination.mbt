@@ -20,7 +20,9 @@ fn Table::check_grid(self : Table) -> Unit raise @failure.Failure {
     self.borders.vertical.length() == count &&
     self.borders.vertical.all(row => row.length() == self.widths.length() + 1) &&
     [..self.borders.horizontal.flatten(), ..self.borders.vertical.flatten()].all(edge => {
-        ["single", "double", "dashed", "dotted"].contains(edge.style) &&
+        [
+          "single", "double", "dashed", "dotted", "dashSmallGap", "dotDash", "dotDotDash",
+        ].contains(edge.style) &&
         edge.width >= 0 &&
         edge.width <= 12 &&
         edge.width * 8 == (edge.width * 8).round() &&
