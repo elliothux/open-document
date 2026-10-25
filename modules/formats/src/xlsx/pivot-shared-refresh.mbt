@@ -47,7 +47,7 @@ fn Session::refresh_shared_pivot(
   let fields = old
     .all(old.one(0, "cacheFields").unwrap().id, "cacheField")
     .map(node => decode_text(node.attribute("name").unwrap_or("")))
-  let source = contexts[0].0.validate()
+  let source = self.pivot_source(contexts[0].0).0
   let previous_fields = fields[:source.right - source.left + 1].to_owned()
   let headers = self.pivot_source_headers(
     replacement.unwrap_or(contexts[0].0),
@@ -57,7 +57,7 @@ fn Session::refresh_shared_pivot(
     ignore(pivot_source_field(headers, cache.source))
   }
   if replacement is Some(next) {
-    ignore(next.validate())
+    ignore(self.pivot_source(next).0)
     let index = pivots.search_by(pivot => pivot.part == part).unwrap()
     let previous = contexts[index].0
     guard Json(next.numberGroups) ==

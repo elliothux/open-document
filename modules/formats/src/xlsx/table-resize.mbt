@@ -5,7 +5,14 @@ fn Session::resize_table(
   id : Int,
   range : String,
 ) -> Json raise @failure.Failure {
-  let reason = self.sheet_rename_reason(structure=false, tables=true)
+  let reason = self.sheet_rename_reason(
+    structure=false,
+    tables=true,
+    pivots=true,
+    analysis=true,
+    pictures=true,
+    charts=true,
+  )
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let tables = self.table_definitions(self.sheets, self.workbook, self.parts)
   guard tables
@@ -30,6 +37,9 @@ fn Session::resize_table(
   }
   let filter_plan = self.resize_filter_plan(table, range)
   guard range.top == table.range.top &&
+    !self
+    .pivot_locations()
+    .any(pivot => pivot.sheet == sheet && pivot.range.intersects(range)) &&
     range.intersects(table.range) &&
     range.bottom - range.top + 1 > table.headers + table.totals &&
     !current.merges.any(merge => merge.intersects(range)) &&

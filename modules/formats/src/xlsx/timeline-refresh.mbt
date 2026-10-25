@@ -221,7 +221,7 @@ fn Session::timeline_refresh_group(
       source_sheet=replacement.map(pair => pair.1.sourceSheet),
     )
   })
-  let original_range = contexts[0].0.validate()
+  let original_range = self.pivot_source(contexts[0].0).0
   let source_width = original_range.right - original_range.left + 1
   let tree = Tree::new(self.part_xml(pivots[0].cache))
   let previous_headers = tree
@@ -244,7 +244,7 @@ fn Session::timeline_refresh_group(
     )
   }
   if replacement is Some((part, next)) {
-    ignore(next.validate())
+    ignore(self.pivot_source(next).0)
     for index, context in contexts {
       // The edited table supplies new ordinals; peers retain their named field identities.
       let previous = if pivots[index].part == part {

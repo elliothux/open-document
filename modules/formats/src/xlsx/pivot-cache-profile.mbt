@@ -29,7 +29,7 @@ fn pivot_cache_profile(
     if node.id != 0 {
       let attributes = match node.name {
         "cacheSource" => ["type"]
-        "worksheetSource" => ["ref", "sheet"]
+        "worksheetSource" => ["ref", "sheet", "name"]
         "cacheFields" => ["count"]
         "cacheField" => ["name", "databaseField"]
         "fieldGroup" => ["base", "par"]

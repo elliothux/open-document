@@ -35,19 +35,9 @@ export interface DocxCoverPage {
   title: string;
   subtitle: string;
 }
-export type DocxSectionBreak =
-  "nextPage" | "oddPage" | "evenPage" | "continuous";
-export function checkSectionBreak(
-  value: unknown,
-): asserts value is DocxSectionBreak {
-  if (
-    value !== "nextPage" &&
-    value !== "oddPage" &&
-    value !== "evenPage" &&
-    value !== "continuous"
-  )
-    throw new Error("Invalid section break type");
-}
+export type DocxSectionBreak = NonNullable<DocxPageSetup["startType"]>;
+import { checkSectionBreak } from "./docx-sections.js";
+export { checkSectionBreak } from "./docx-sections.js";
 const singleLineText = (value: unknown, max: number): value is string =>
   typeof value === "string" &&
   value.length <= max &&

@@ -39,7 +39,14 @@ fn Session::commit(
   }
   let context = { ..self, removed: removed_parts, }
   self.maintain_pivots(
-    sheets, calculation, parts, edits, pivot_edits, pivot_moves,
+    sheets,
+    workbook,
+    calculation,
+    parts,
+    edits,
+    pivot_edits,
+    pivot_moves,
+    removed=context.removed,
   )
   context.maintain_charts(sheets, workbook, calculation, parts, edits, media)
   self.protect_table_cells(sheets, calculation.names.tables, edited=table_edits)

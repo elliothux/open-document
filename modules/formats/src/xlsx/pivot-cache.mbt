@@ -45,6 +45,7 @@ pub extend PivotSettings with ToJson::{to_json}
 
 ///|
 priv struct PivotCache {
+  source_table : String?
   source_filters : Array[(Int, Map[Int, Bool])]
   headers : Array[String]
   items : Array[Array[Value]]
@@ -66,8 +67,9 @@ let pivot_aggregates : ReadOnlyArray[String] = [
 ///|
 fn PivotSettings::validate(
   self : PivotSettings,
+  source~ : Range? = None,
 ) -> Range raise @failure.Failure {
-  let source = Range::parse(self.source)
+  let source = source.unwrap_or_else(() => Range::parse(self.source))
   let width = source.right - source.left + 1
   guard source.bottom > source.top &&
     width <= 64 &&
@@ -220,7 +222,7 @@ fn Session::pivot_cache(
   settings : PivotSettings,
   peers~ : Array[PivotSettings] = [],
 ) -> PivotCache raise @failure.Failure {
-  let range = settings.validate()
+  let (range, source_table) = self.pivot_source(settings)
   let index = self.sheet_index(settings.sourceSheet)
   let sheet = self.sheets[index]
   guard self.read_only.is_empty() && !sheet.merges.any(r => r.intersects(range)) else {
@@ -412,6 +414,7 @@ fn Session::pivot_cache(
     )
   }
   let cache = PivotCache::{
+    source_table,
     source_filters: [],
     headers,
     items,

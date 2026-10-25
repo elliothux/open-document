@@ -47,7 +47,7 @@ pub fn Session::insert_timeline(
       @failure.reject("invalid-operation", "Timeline pivot is unavailable")
     })
   let (definition, records) = self.pivot_settings(pivot, shared=true)
-  let range = definition.validate()
+  let range = self.pivot_source(definition).0
   guard settings.field >= 0 && settings.field <= range.right - range.left else {
     @failure.reject(
       "invalid-operation", "Timeline field is outside its pivot source",

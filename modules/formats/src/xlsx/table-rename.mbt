@@ -111,7 +111,14 @@ fn Session::rename_table(
   name : String,
   column~ : Int? = None,
 ) -> Json raise @failure.Failure {
-  let reason = self.sheet_rename_reason(structure=false, tables=true)
+  let reason = self.sheet_rename_reason(
+    structure=false,
+    tables=true,
+    pivots=true,
+    analysis=true,
+    pictures=true,
+    charts=true,
+  )
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let tables = self.table_definitions(self.sheets, self.workbook, self.parts)
   guard tables

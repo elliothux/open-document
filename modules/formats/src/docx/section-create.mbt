@@ -145,43 +145,8 @@ pub fn Session::insert_section_break(
       properties_change(current, candidate, section, "pgNumType", markup).unwrap(),
     )
   }
-  let markup = "<od:type xmlns:od='\{word_uri}' od:val='\{kind}'/>"
-  if current.child(section, "type") is Some(id) {
-    let node = current.nodes[id]
-    let source = candidate.source()[node.start:node.end]
-    guard !source.contains("<!--") && !source.contains("<?") else {
-      @failure.reject(
-        "protected-content", "Annotated section type is protected",
-      )
-    }
-    if properties_change(current, candidate, section, "type", markup)
-      is Some(change) {
-      changes.push(change)
-    }
-  } else {
-    let node = current.nodes[section]
-    let previous = current.children[section]
-      .filter(id => {
-        ["headerReference", "footerReference", "footnotePr", "endnotePr"].contains(
-          current.nodes[id].name,
-        )
-      })
-      .last()
-    changes.push(
-      if node.empty {
-        section_insertion(current, section, markup)
-      } else {
-        @xml.SourceChange::{
-          node: section,
-          offset: previous
-          .map(id => current.nodes[id].end)
-          .unwrap_or(node.opening_end) -
-          node.start,
-          length: 0,
-          xml: markup,
-        }
-      },
-    )
+  if current.section_start_change(candidate, section, kind) is Some(change) {
+    changes.push(change)
   }
   let (candidate, edit) = candidate.edit_source(changes)
   let view = { ..self, document: Some(candidate), }

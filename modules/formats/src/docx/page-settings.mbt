@@ -201,6 +201,7 @@ pub fn Session::page_setup(
       "sectionCount": section_count,
       "page": {
         "section": index,
+        "startType": tree.section_start_type(section),
         "width": page.width,
         "height": page.height,
         "top": page.top,
@@ -231,15 +232,21 @@ pub fn Session::page_setup(
 }
 
 ///|
-/// Changes one section's page geometry, in points, as one source transaction.
+/// Changes one section's page geometry and optional start type in one source transaction.
 pub fn Session::set_page_setup(
   self : Session,
   revision : Int,
   sectionIndex : Int,
   page : @layout.PageSetup,
   orientation~ : String? = None,
+  startType~ : String? = None,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
+  if startType is Some(kind) {
+    guard ["nextPage", "oddPage", "evenPage", "continuous"].contains(kind) else {
+      @failure.reject("invalid-operation", "Unsupported section start type")
+    }
+  }
   let page = match orientation {
     None => page
     Some(value) => {
@@ -279,12 +286,16 @@ pub fn Session::set_page_setup(
     None => default_page_setup()
   }
   ignore(tree.page_columns(section).width(page))
-  if current.width == page.width &&
+  let page_changed = !(current.width == page.width &&
     current.height == page.height &&
     current.top == page.top &&
     current.right == page.right &&
     current.bottom == page.bottom &&
-    current.left == page.left {
+    current.left == page.left)
+  let start_changed = startType
+    .map(kind => kind != tree.section_start_type(section))
+    .unwrap_or(false)
+  if !page_changed && !start_changed {
     return self.edit_state()
   }
   let (initial, edits, section) = page_section(original, tree, section)
@@ -319,6 +330,9 @@ pub fn Session::set_page_setup(
         ]),
       ),
     ] {
+    if !page_changed {
+      continue
+    }
     let tree = WordTree::new(candidate)
     let markup = property_markup(
       tree,
@@ -350,6 +364,14 @@ pub fn Session::set_page_setup(
       properties_change(tree, candidate, section, name, markup)
     }
     if change is Some(change) {
+      let (updated, edit) = candidate.edit_source([change])
+      candidate = updated
+      edits.push(edit)
+    }
+  }
+  if start_changed && startType is Some(kind) {
+    let tree = WordTree::new(candidate)
+    if tree.section_start_change(candidate, section, kind) is Some(change) {
       let (updated, edit) = candidate.edit_source([change])
       candidate = updated
       edits.push(edit)

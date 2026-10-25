@@ -44,9 +44,14 @@ fn PivotCache::definition(
   range : String,
   records : String,
 ) -> String raise @failure.Failure {
+  let source = match self.source_table {
+    Some(name) => "<worksheetSource name=\"\{escaped_attribute(name)}\"/>"
+    None =>
+      "<worksheetSource ref=\"\{range}\" sheet=\"\{escaped_attribute(sheet)}\"/>"
+  }
   let out = StringBuilder()
   out <+
-    "<pivotCacheDefinition xmlns=\"\{spreadsheet_uri}\" xmlns:r=\"\{relationship_uri[:relationship_uri.length() - 1]}\" r:id=\"\{records}\" recordCount=\"\{self.records.length()}\" saveData=\"1\" refreshOnLoad=\"0\" enableRefresh=\"1\" invalid=\"0\" createdVersion=\"6\" refreshedVersion=\"6\" minRefreshableVersion=\"3\"><cacheSource type=\"worksheet\"><worksheetSource ref=\"\{range}\" sheet=\"\{escaped_attribute(sheet)}\"/></cacheSource><cacheFields count=\"\{self.headers.length()}\">"
+    "<pivotCacheDefinition xmlns=\"\{spreadsheet_uri}\" xmlns:r=\"\{relationship_uri[:relationship_uri.length() - 1]}\" r:id=\"\{records}\" recordCount=\"\{self.records.length()}\" saveData=\"1\" refreshOnLoad=\"0\" enableRefresh=\"1\" invalid=\"0\" createdVersion=\"6\" refreshedVersion=\"6\" minRefreshableVersion=\"3\"><cacheSource type=\"worksheet\">\{source}</cacheSource><cacheFields count=\"\{self.headers.length()}\">"
   for index, name in self.headers {
     if index >= self.source_width {
       out <+

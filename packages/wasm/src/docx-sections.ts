@@ -1,8 +1,24 @@
 import type { DocxFlow } from "./preview.js";
 import { record } from "./validation.js";
 
+type SectionStart = "nextPage" | "oddPage" | "evenPage" | "continuous";
+
+export function checkSectionBreak(
+  value: unknown,
+): asserts value is SectionStart {
+  if (
+    value !== "nextPage" &&
+    value !== "oddPage" &&
+    value !== "evenPage" &&
+    value !== "continuous"
+  )
+    throw new Error("Invalid section break type");
+}
+
 export interface DocxPageSetup {
   section: number;
+  /** Omission retains the native section start type; queries always include it. */
+  startType?: SectionStart;
   width: number;
   height: number;
   top: number;
@@ -26,11 +42,15 @@ export function checkPageSection(value: unknown): asserts value is number {
 export function checkPageSetup(value: unknown): void {
   const page = record(value);
   checkPageSection(page.section);
+  if ("startType" in page) checkSectionBreak(page.startType);
   const fields = ["width", "height", "top", "right", "bottom", "left"];
   if (
     !Object.keys(page).every(
       (key) =>
-        fields.includes(key) || key === "orientation" || key === "section",
+        fields.includes(key) ||
+        key === "orientation" ||
+        key === "section" ||
+        key === "startType",
     ) ||
     (page.orientation !== undefined &&
       page.orientation !== "portrait" &&

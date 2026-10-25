@@ -22,7 +22,10 @@ fn Session::show_table_totals(
   }
   let target : Range = { ..range, top: range.bottom, }
   if visible {
-    guard !current.merges.any(merge => merge.intersects(target)) &&
+    guard !self
+      .pivot_locations()
+      .any(pivot => pivot.sheet == sheet && pivot.range.intersects(target)) &&
+      !current.merges.any(merge => merge.intersects(target)) &&
       !self
       .table_definitions(self.sheets, self.workbook, self.parts)
       .any(other => {

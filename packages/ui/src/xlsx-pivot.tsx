@@ -164,7 +164,8 @@ export function XlsxPivotsPanel({
         {t.pivotSource}
         <input
           value={source}
-          maxLength={64}
+          maxLength={257}
+          placeholder={t.pivotSourceExample}
           onChange={(event) =>
             setSource(event.currentTarget.value.toUpperCase())
           }

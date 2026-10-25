@@ -89,6 +89,7 @@ fn numeric_function(
     "TANH" => finite_result(@math.tanh(numbers[0]))
     "ACOSH" => finite_result(@math.acosh(numbers[0]))
     "ASINH" => finite_result(@math.asinh(numbers[0]))
+    "ATANH" => finite_result(@math.atanh(numbers[0]))
     "ACOS" => finite_result(@math.acos(numbers[0]))
     "ASIN" => finite_result(@math.asin(numbers[0]))
     "ATAN" => finite_result(@math.atan(numbers[0]))

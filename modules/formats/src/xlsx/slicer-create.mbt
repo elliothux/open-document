@@ -48,7 +48,7 @@ pub fn Session::insert_slicer(
       @failure.reject("invalid-operation", "Slicer pivot is unavailable")
     })
   let (definition, records) = self.pivot_settings(pivot, shared=true)
-  let range = definition.validate()
+  let range = self.pivot_source(definition).0
   guard settings.field >= 0 && settings.field <= range.right - range.left else {
     @failure.reject(
       "invalid-operation", "Slicer field is outside its pivot source",

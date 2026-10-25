@@ -7,7 +7,7 @@ fn Session::pivot_source_headers(
   guard self.read_only.is_empty() else {
     @failure.reject("protected-content", self.read_only)
   }
-  let range = settings.validate()
+  let range = self.pivot_source(settings).0
   let index = self.sheet_index(settings.sourceSheet)
   let sheet = self.sheets[index]
   let calculation = self.calculation.unwrap()
@@ -129,7 +129,7 @@ fn Session::pivot_headers_match(
   previous : Array[String],
   headers : Array[String],
 ) -> Bool raise @failure.Failure {
-  let range = settings[0].validate()
+  let range = self.pivot_source(settings[0]).0
   let width = range.right - range.left + 1
   if previous.length() < width || headers.length() < width {
     return false

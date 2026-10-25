@@ -569,6 +569,30 @@ export function DocxPage({
         >
           <fieldset disabled={disabled || stale || draft.section !== section}>
             <label>
+              {t.sectionStartType}
+              <select
+                aria-label={t.sectionStartType}
+                value={draft.startType}
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+                  setDraft({
+                    ...draft,
+                    startType:
+                      value === "continuous" ||
+                      value === "oddPage" ||
+                      value === "evenPage"
+                        ? value
+                        : "nextPage",
+                  });
+                }}
+              >
+                <option value="nextPage">{t.sectionBreakNext}</option>
+                <option value="continuous">{t.sectionBreakContinuous}</option>
+                <option value="oddPage">{t.sectionBreakOdd}</option>
+                <option value="evenPage">{t.sectionBreakEven}</option>
+              </select>
+            </label>
+            <label>
               {t.pageOrientation}
               <select
                 aria-label={t.pageOrientation}

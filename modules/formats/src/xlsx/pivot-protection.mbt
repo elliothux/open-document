@@ -2,17 +2,25 @@
 fn Session::maintain_pivots(
   self : Session,
   sheets : Array[Sheet],
+  workbook : @xml.Document,
   calculation : Calculation,
   parts : Map[String, @xml.Document],
   edits : Array[(String, @xml.Edit)],
   edited : Array[String],
   moved : Map[String, Range],
+  removed~ : Array[String],
 ) -> Unit raise @failure.Failure {
   let pivots = self.pivot_locations()
   if pivots.is_empty() {
     return
   }
   let mut work = 0
+  let maintained : Set[String] = Set([])
+  let tables = if pivots.any(pivot => pivot.sourceTable is Some(_)) {
+    self.table_definitions(sheets, workbook, parts, removed~)
+  } else {
+    []
+  }
   for pivot in pivots {
     if edited.contains(pivot.part) {
       continue
@@ -76,6 +84,12 @@ fn Session::maintain_pivots(
       }
     }
     let mut changed = false
+    if pivot.sourceTable is Some(name) && !maintained.contains(name.to_upper()) {
+      maintained.add(name.to_upper())
+      changed = self.maintain_pivot_table_source(
+        pivot, sheets, tables, parts, edits,
+      )
+    }
     if pivot.sourceSheet is Some(source) && pivot.source is Some(range) {
       let old_index = self.sheet_index(source)
       guard sheets.search_by(sheet => sheet.id == source) is Some(next_index) else {

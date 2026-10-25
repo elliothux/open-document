@@ -139,7 +139,7 @@ fn Session::pivot_settings(
   }
   let settings : PivotSettings = {
     sourceSheet: source_sheet,
-    source: source.name(),
+    source: pivot.sourceTable.unwrap_or(source.name()),
     rows,
     columns,
     filters,
@@ -148,7 +148,7 @@ fn Session::pivot_settings(
     dateGroups: date_groups,
     values,
   }
-  ignore(settings.validate())
+  ignore(settings.validate(source=Some(source)))
   let timelines = self.affected_timeline_caches(
     self.pivot_locations().filter(peer => peer.cache == pivot.cache),
   )
@@ -559,8 +559,8 @@ fn Session::prepare_pivot(
   let range = layout.bounds({ row: pivot.range.top, column: pivot.range.left, })
   guard !(settings.sourceSheet == sheet &&
     (
-      settings.validate().intersects(range) ||
-      settings.validate().intersects(pivot.range)
+      self.pivot_source(settings).0.intersects(range) ||
+      self.pivot_source(settings).0.intersects(pivot.range)
     )) &&
     !current.merges.any(merge => merge.intersects(range)) &&
     !pivots.any(other => {
@@ -659,7 +659,7 @@ fn Session::prepare_pivot(
         pivot.cache,
         cache.definition(
           self.sheets[self.sheet_index(settings.sourceSheet)].name,
-          settings.validate().name(),
+          self.pivot_source(settings).0.name(),
           record_link,
         ),
       ),

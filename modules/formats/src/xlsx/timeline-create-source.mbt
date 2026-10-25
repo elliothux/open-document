@@ -142,7 +142,7 @@ fn Session::timeline_date_members(
       )
     }
     let source = self.sheets[self.sheet_index(settings.sourceSheet)]
-    let range = settings.validate()
+    let range = self.pivot_source(settings).0
     let mut formatted = false
     for row in (range.top + 1)..<=range.bottom {
       let address : Address = { row, column: range.left + field, }

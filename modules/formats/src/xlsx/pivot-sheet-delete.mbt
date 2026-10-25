@@ -37,16 +37,23 @@ fn Session::prepare_pivot_sheet_delete(
         .get(link.target)
         .unwrap_or_else(() => self.part_xml(link.target))
       let tree = Tree::new(original)
-      if !tree
+      let source = tree
         .one(0, "cacheSource")
         .bind(node => tree.one(node.id, "worksheetSource"))
-        .map(node => node.attribute("sheet") == Some(deleted))
-        .unwrap_or(false) {
+      guard source is Some(source) else { continue }
+      let (source_sheet, range, table) = self.worksheet_pivot_source(source)
+      if source_sheet != Some(sheet) {
         continue
       }
       let changes = metadata_changes(original.nodes()[0], [("invalid", "1")])
+      if table is Some(_) && range is Some(range) {
+        changes.append(table_attribute_removals(original, source, ["name"]))
+        changes.append(
+          metadata_changes(source, [("sheet", deleted), ("ref", range.name())]),
+        )
+      }
       if !changes.is_empty() {
-        let (document, edit) = original.edit_source(changes)
+        let (document, edit) = original.edit_source(join_insertions(changes))
         parts[link.target] = document
         edits.push((link.target, edit))
       }

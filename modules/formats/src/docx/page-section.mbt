@@ -85,3 +85,76 @@ fn page_section(
   let (candidate, edit) = document.edit_source([change])
   (candidate, [edit], WordTree::new(candidate).child(body, "sectPr").unwrap())
 }
+
+///|
+fn WordTree::section_start_type(
+  self : WordTree,
+  section : Int?,
+) -> String raise @failure.Failure {
+  let kinds = section
+    .map(id => {
+      self.children[id].filter(child => {
+        self.nodes[child].uri == word_uri && self.nodes[child].name == "type"
+      })
+    })
+    .unwrap_or([])
+  guard kinds.length() <= 1 else {
+    @failure.reject("protected-content", "Duplicate section start type")
+  }
+  let kind = kinds
+    .get(0)
+    .bind(id => self.nodes[id].attribute("val", uri=word_uri))
+    .unwrap_or("nextPage")
+  guard ["nextPage", "oddPage", "evenPage", "continuous"].contains(kind) else {
+    @failure.reject("protected-content", "Unsupported section start type")
+  }
+  kind
+}
+
+///|
+fn WordTree::section_start_change(
+  self : WordTree,
+  document : @xml.Document,
+  section : Int,
+  kind : String,
+) -> @xml.SourceChange? raise @failure.Failure {
+  ignore(self.section_start_type(Some(section)))
+  let markup = "<od:type xmlns:od='\{word_uri}' od:val='\{kind}'/>"
+  if self.child(section, "type") is Some(id) {
+    let node = self.nodes[id]
+    let source = document.source()[node.start:node.end]
+    guard !source.contains("<!--") &&
+      !source.contains("<?") &&
+      self.children[id].is_empty() &&
+      node.text.trim().is_empty() &&
+      node.attributes.all(a => a.uri == word_uri && a.name == "val") else {
+      @failure.reject(
+        "protected-content", "Extended section start type is protected",
+      )
+    }
+    return properties_change(self, document, section, "type", markup)
+  }
+  let node = self.nodes[section]
+  let previous = self.children[section]
+    .filter(id => {
+      ["headerReference", "footerReference", "footnotePr", "endnotePr"].contains(
+        self.nodes[id].name,
+      )
+    })
+    .last()
+  Some(
+    if node.empty {
+      section_insertion(self, section, markup)
+    } else {
+      {
+        node: section,
+        offset: previous
+        .map(id => self.nodes[id].end)
+        .unwrap_or(node.opening_end) -
+        node.start,
+        length: 0,
+        xml: markup,
+      }
+    },
+  )
+}

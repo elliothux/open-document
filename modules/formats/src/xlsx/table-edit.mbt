@@ -9,6 +9,10 @@ fn Session::table_for_edit(
   let reason = self.sheet_rename_reason(
     structure=false,
     tables=true,
+    pivots=true,
+    analysis=true,
+    pictures=true,
+    charts=true,
     sparklines~,
     threads~,
   )

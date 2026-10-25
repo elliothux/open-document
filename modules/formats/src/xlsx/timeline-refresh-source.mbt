@@ -40,7 +40,13 @@ fn Session::refresh_timeline_data(
   let (plain, _) = original.edit_source([sheet_node_removal(tree, list)])
   pivot_cache_profile(plain, records.id)
   let fields = tree.all(tree.one(0, "cacheFields").unwrap().id, "cacheField")
-  let old_range = Range::parse(timeline_origin(original)[1])
+  let source = tree
+    .one(0, "cacheSource")
+    .bind(node => tree.one(node.id, "worksheetSource"))
+    .unwrap()
+  let old_range = self.worksheet_pivot_source(source).1.unwrap_or_else(() => {
+    @failure.reject("protected-content", "Timeline source is unavailable")
+  })
   let old_width = old_range.right - old_range.left + 1
   ignore(
     pivot_read_groups(

@@ -27,7 +27,11 @@ fn Session::cached_pivot(
   settings : PivotSettings,
   records : String,
 ) -> PivotCache raise @failure.Failure {
-  let range = settings.validate()
+  let (range, source_table) = if settings.sourceSheet.is_empty() {
+    (settings.validate(), None)
+  } else {
+    self.pivot_source(settings)
+  }
   let width = range.right - range.left + 1
   let tree = Tree::new(self.part_xml(pivot.cache))
   let fields = tree.all(tree.one(0, "cacheFields").unwrap().id, "cacheField")
@@ -146,6 +150,7 @@ fn Session::cached_pivot(
     }
   }
   let cache : PivotCache = {
+    source_table,
     source_filters: [],
     headers,
     items,

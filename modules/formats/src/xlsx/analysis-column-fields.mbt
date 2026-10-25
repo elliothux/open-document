@@ -252,13 +252,17 @@ fn Session::project_analysis_columns(
       .unwrap()
     guard peer.nodes[0].name == "pivotCacheDefinition" &&
       origin is Some(origin) &&
-      origin.attribute("sheet").map(name => name.to_lower()) ==
-      current.attribute("sheet").map(name => name.to_lower()) else {
+      self.worksheet_pivot_source(origin).0 ==
+      self.worksheet_pivot_source(current).0 else {
       @failure.reject(
         "protected-content", "Shared analysis records require coordinated source columns",
       )
     }
-    let range = Range::parse(origin.attribute("ref").unwrap_or(""))
+    let range = self.worksheet_pivot_source(origin).1.unwrap_or_else(() => {
+      @failure.reject(
+        "protected-content", "Shared analysis source is unavailable",
+      )
+    })
     guard range.right - range.left + 1 == width &&
       analysis_column_mapping(range, width, change) ==
       mapping[:width].to_owned() else {
@@ -298,7 +302,11 @@ fn Session::project_analysis_columns(
     .one(0, "cacheSource")
     .bind(node => Tree::new(document).one(node.id, "worksheetSource"))
     .unwrap()
-  let changes = metadata_changes(source_node, [("ref", next.name())])
+  let changes = if source_node.attribute("name") is None {
+    metadata_changes(source_node, [("ref", next.name())])
+  } else {
+    []
+  }
   changes.append(metadata_changes(document.nodes()[0], [("invalid", "1")]))
   let (document, edit) = document.edit_source(changes)
   parts[path] = document

@@ -36,7 +36,11 @@ export function copiedFormat(value: unknown): CopiedFormat {
   return value as CopiedFormat;
 }
 
-import { checkPageSetup, type DocxPageSetup } from "./docx-sections.js";
+import {
+  checkPageSetup,
+  checkSectionBreak,
+  type DocxPageSetup,
+} from "./docx-sections.js";
 export {
   checkPageSection,
   checkPageSetup,
@@ -170,8 +174,11 @@ export function docxPageSettings(value: unknown): DocxPageSettings {
     };
   }
   const page = record(result.page);
+  const startType = page.startType;
+  checkSectionBreak(startType);
   const setup: DocxPageSetup = {
     section: Number(page.section),
+    startType,
     width: Number(page.width),
     height: Number(page.height),
     top: Number(page.top),
@@ -180,9 +187,11 @@ export function docxPageSettings(value: unknown): DocxPageSettings {
     left: Number(page.left),
   };
   if (
-    Object.keys(page).length !== 7 ||
+    Object.keys(page).length !== 8 ||
     setup.section >= Number(result.sectionCount) ||
-    !Object.values(page).every((value) => typeof value === "number") ||
+    !Object.entries(page).every(
+      ([key, value]) => key === "startType" || typeof value === "number",
+    ) ||
     result.reason
   )
     throw new Error("Invalid DOCX page settings");

@@ -62,6 +62,7 @@ export interface XlsxPivotValue {
 }
 export interface XlsxPivotSettings {
   sourceSheet: string;
+  /** Header/data rectangle, or a structured table name on sourceSheet. */
   source: string;
   /** Ordered zero-based source columns. */
   rows: number[];
@@ -197,9 +198,35 @@ function filterValue(value: unknown): string {
     value: item.kind === "text" ? String(item.value).toLowerCase() : item.value,
   });
 }
+function pivotBounds(source: unknown, sourceWidth = 64, limit = 65600) {
+  try {
+    return xlsxBounds(source, limit);
+  } catch (error) {
+    if (
+      !text(source, 257) ||
+      !/^(?:[_\\A-Za-z]|\P{ASCII})(?:[_\\.A-Za-z0-9]|\P{ASCII})*(?:\[\])?$/u.test(
+        source,
+      )
+    )
+      throw error;
+    if (!integer(sourceWidth, 1, 64))
+      throw new Error("Invalid pivot source width");
+    return {
+      top: 1,
+      bottom: Math.floor(65536 / sourceWidth) + 1,
+      left: 1,
+      right: sourceWidth,
+    };
+  }
+}
+
 export function checkXlsxPivotSettings(value: unknown): void {
+  checkPivotSettings(value);
+}
+
+function checkPivotSettings(value: unknown, sourceWidth?: number): void {
   const settings = record(value),
-    bounds = xlsxBounds(settings.source, 65600),
+    bounds = pivotBounds(settings.source, sourceWidth),
     width = bounds.right - bounds.left + 1;
   if (
     !fields(settings, [
@@ -419,8 +446,15 @@ export function xlsxPivotPreview(value: unknown): XlsxPivotPreview {
     filters = settings.filters as XlsxPivotFilter[],
     subtotals = settings.subtotals as number[],
     values = settings.values as XlsxPivotValue[],
-    bounds = xlsxBounds(settings.source, 65600);
+    bounds = pivotBounds(
+      settings.source,
+      Array.isArray(result.fields)
+        ? result.fields.length -
+            dates.reduce((sum, group) => sum + group.units.length - 1, 0)
+        : 0,
+    );
   const width = bounds.right - bounds.left + 1;
+  checkPivotSettings(result.settings, width);
   const fieldCount =
     width + dates.reduce((sum, group) => sum + group.units.length - 1, 0);
   const subtotalAxes = [new Set<number>(), new Set<number>()];
@@ -598,7 +632,7 @@ export function xlsxPivots(value: unknown): XlsxPivots {
       throw new Error("Invalid pivot protection reason");
     if (pivot.settings === null ? !pivot.reason : !!pivot.reason)
       throw new Error("Pivot settings and protection reason disagree");
-    if (pivot.source !== null) xlsxBounds(pivot.source, 17179869184);
+    if (pivot.source !== null) pivotBounds(pivot.source, 64, 17179869184);
     if (pivot.settings !== null) {
       checkXlsxPivotSettings(pivot.settings);
       const settings = record(pivot.settings);

@@ -5,7 +5,14 @@ fn Session::create_table(
   range : String,
   name : String,
 ) -> Json raise @failure.Failure {
-  let reason = self.sheet_rename_reason(structure=false, tables=true)
+  let reason = self.sheet_rename_reason(
+    structure=false,
+    tables=true,
+    pivots=true,
+    analysis=true,
+    pictures=true,
+    charts=true,
+  )
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   validate_defined_name(name)
   let index = self.sheet_index(sheet)
@@ -18,6 +25,9 @@ fn Session::create_table(
     )
   }
   guard range.bottom > range.top &&
+    !self
+    .pivot_locations()
+    .any(pivot => pivot.sheet == sheet && pivot.range.intersects(range)) &&
     !current.merges.any(merge => merge.intersects(range)) &&
     !tables.any(table => table.sheet == sheet && table.range.intersects(range)) &&
     !read_filter(current)

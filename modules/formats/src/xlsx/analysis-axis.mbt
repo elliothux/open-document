@@ -55,14 +55,13 @@ fn Session::axis_analysis(
     let source = tree
       .one(0, "cacheSource")
       .bind(node => tree.one(node.id, "worksheetSource"))
-    guard source is Some(source) &&
-      source
-      .attribute("sheet")
-      .map(name => name.to_lower() == sheet.name.to_lower())
-      .unwrap_or(false) else {
+    guard source is Some(source) else { continue }
+    let (source_sheet, original, source_table) = self.worksheet_pivot_source(
+      source,
+    )
+    guard source_sheet == Some(sheet.id) && original is Some(original) else {
       continue
     }
-    let original = Range::parse(source.attribute("ref").unwrap_or(""))
     guard change.range(original) is Some(next) && next.bottom > next.top else {
       @failure.reject(
         "protected-content", "Axis editing must retain a pivot source header and data range",
@@ -77,7 +76,11 @@ fn Session::axis_analysis(
     if original == next {
       continue
     }
-    let changes = metadata_changes(source, [("ref", next.name())])
+    let changes = if source_table is None {
+      metadata_changes(source, [("ref", next.name())])
+    } else {
+      []
+    }
     changes.append(metadata_changes(tree.nodes[0], [("invalid", "1")]))
     let (document, edit) = document.edit_source(changes)
     parts[path] = document

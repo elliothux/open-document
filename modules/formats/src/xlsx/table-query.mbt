@@ -9,7 +9,14 @@ fn Session::table_query(
   if tables.is_empty() {
     return []
   }
-  let reason = self.sheet_rename_reason(structure=false, tables=true)
+  let reason = self.sheet_rename_reason(
+    structure=false,
+    tables=true,
+    pivots=true,
+    analysis=true,
+    pictures=true,
+    charts=true,
+  )
   let work : FormulaWork = {
     remaining: 1048576,
     date1904: self.date1904,

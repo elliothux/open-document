@@ -7,6 +7,7 @@ priv struct PivotLocation {
   cache : String
   sourceSheet : String?
   source : Range?
+  sourceTable : String?
 }
 
 ///|
@@ -95,14 +96,9 @@ fn Session::pivot_locations(
       let worksheet = source
         .one(source.root("pivotCacheDefinition").id, "cacheSource")
         .bind(node => source.one(node.id, "worksheetSource"))
-      let name = worksheet.bind(node => node.attribute("sheet"))
-      let source_sheet = self.sheets
-        .iter()
-        .find_first(sheet => name == Some(sheet.name))
-        .map(sheet => sheet.id)
-      let bounds = worksheet
-        .bind(node => node.attribute("ref"))
-        .map(Range::parse)
+      let (source_sheet, bounds, source_table) = worksheet
+        .map(node => self.worksheet_pivot_source(node))
+        .unwrap_or((None, None, None))
       result.push({
         sheet: sheet.id,
         part: rel.target,
@@ -111,6 +107,7 @@ fn Session::pivot_locations(
         cache: cache.target,
         sourceSheet: source_sheet,
         source: bounds,
+        sourceTable: source_table,
       })
     }
   }
@@ -144,7 +141,7 @@ pub fn Session::pivots(
         .map(value => Json(value))
         .unwrap_or(Json::null()),
         "source": pivot.source
-        .map(range => Json(range.name()))
+        .map(range => Json(pivot.sourceTable.unwrap_or(range.name())))
         .unwrap_or(Json::null()),
         "stale": flag(self.part_xml(pivot.cache).nodes()[0], "invalid"),
         "settings": settings.map(value => Json(value)).unwrap_or(Json::null()),
@@ -209,7 +206,7 @@ pub fn Session::create_pivot(
   let cache = self.pivot_cache(settings)
   let layout = cache.layout(settings)
   let range = layout.bounds(Address::parse(destination))
-  let source = settings.validate()
+  let source = self.pivot_source(settings).0
   guard !(settings.sourceSheet == sheet && source.intersects(range)) &&
     !current.merges.any(merge => merge.intersects(range)) &&
     !self

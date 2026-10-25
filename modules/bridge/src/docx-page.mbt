@@ -3,12 +3,14 @@ fn page_setup_format(
   request : Json,
 ) -> @layout.PageSetup raise @failure.Failure {
   guard request is { "page": Object(fields), .. } &&
-    (fields.length() == 7 || fields.length() == 8) &&
+    fields.length() >= 7 &&
+    fields.length() <= 9 &&
     fields
     .keys()
     .all(key => {
       [
         "section", "width", "height", "top", "right", "bottom", "left", "orientation",
+        "startType",
       ].contains(key)
     }) else {
     @failure.reject("invalid-operation", "Invalid page setup fields")
@@ -699,6 +701,11 @@ fn Foundation::docx_page(
         },
         page_setup_format(request),
         orientation=page_orientation(request),
+        startType=match request {
+          { "page": Object(fields) as page, .. } if fields.contains("startType") =>
+            Some(field_string(page, "startType"))
+          _ => None
+        },
       )
     "setPageBackground" =>
       session.set_page_background(revision, page_background_color(request))
