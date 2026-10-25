@@ -233,7 +233,7 @@ pub fn Session::edit_table_of_contents(Self, Int, TocEdit, probe~ : @layout.Text
 pub fn Session::edit_text_box(Self, Int, Int, @layout.DrawingTextBoxProperties, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::enter(Self, Int) -> Json raise @failure.Failure
 pub fn Session::erase_ink(Self, Int, @layout.Layout, Int, Double, Double) -> Json raise @failure.Failure
-pub fn Session::export_markup(Self, Int, String, Int) -> Bytes raise @failure.Failure
+pub fn Session::export_markup(Self, Int, String, Int, layout? : @layout.Layout) -> Bytes raise @failure.Failure
 pub fn Session::find(Self, Int, String, FindOptions) -> Json raise @failure.Failure
 pub fn Session::finish_drawing_gesture(Self, Int, Int, Double, Double, page? : Int) -> Json raise @failure.Failure
 pub fn Session::flow(Self) -> @layout.Flow raise @failure.Failure

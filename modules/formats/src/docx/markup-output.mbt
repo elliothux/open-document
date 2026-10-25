@@ -10,6 +10,10 @@ priv struct MarkupOutput {
   links : Map[String, @opc.Relationship]
   bookmarks : Map[String, Bool]
   bookmark_names : Map[String, String]
+  fields : Map[Int, String]
+  charts : Map[Int, @layout.PlacedDrawingFrame]
+  outlines : Map[String, String]
+  mut chart_index : Int
   lists : Map[Int, MarkupList]
   background : String
 }
@@ -187,8 +191,7 @@ fn Session::markup_paragraph(
   html~ : Bool = false,
   listed~ : Bool = false,
 ) -> Unit raise @failure.Failure {
-  guard paragraph.readOnlyReason.is_empty() &&
-    paragraph.spans.all(span => span.field.is_empty()) else {
+  guard paragraph.readOnlyReason.is_empty() else {
     @failure.reject(
       "unsupported-output", "Markup export requires supported ordinary paragraphs",
     )
@@ -279,6 +282,14 @@ fn Session::markup_paragraph(
     }
     if spans.get(id) is Some(items) {
       for span in items {
+        let span = if span.field.is_empty() {
+          span
+        } else {
+          guard output.fields.get(span.node) is Some(text) else {
+            @failure.reject("unsupported-output", "Field result is unavailable")
+          }
+          { ..span, text, }
+        }
         if span.text.is_empty() {
           continue
         }
@@ -288,7 +299,15 @@ fn Session::markup_paragraph(
           markup_span(span, markdown)
         }
         let run = tree.nodes[id].parent
-        if tree.nodes[id].name != "p" && tree.run_hyperlink(run) is Some(link) {
+        let field_link = body_field_link(span.field).filter(target => {
+          output.bookmarks.contains(target[1:].to_owned().to_lower())
+        })
+        if field_link is Some(target) {
+          output.add(
+            "<a href=\"\{property_attribute(output.link_target(target))}\">\{content}</a>",
+          )
+        } else if tree.nodes[id].name != "p" &&
+          tree.run_hyperlink(run) is Some(link) {
           tree.check_hyperlink(link)
           let target = hyperlink_target(
             tree,
@@ -329,7 +348,10 @@ fn Session::markup_paragraph(
       }
     }
   }
-  if !markdown && paragraph.spans.all(span => span.text.is_empty()) {
+  if !markdown &&
+    paragraph.spans.all(span => {
+      output.fields.get(span.node).unwrap_or(span.text).is_empty()
+    }) {
     output.add("<br />")
   }
   output.add(if markdown { "\n\n" } else { "</" + tag + ">\n" })
@@ -429,6 +451,7 @@ pub fn Session::export_markup(
   revision : Int,
   format : String,
   output_bytes : Int,
+  layout? : @layout.Layout,
 ) -> Bytes raise @failure.Failure {
   self.check_revision(revision)
   guard ["html", "markdown"].contains(format) &&
@@ -456,6 +479,7 @@ pub fn Session::export_markup(
   let bookmarks = tree
     .bookmarks()
     .filter(bookmark => bookmark.reason.is_empty())
+  let (charts, outlines) = self.markup_charts(tree, flow, layout)
   let output : MarkupOutput = {
     builder: StringBuilder(),
     limit: output_bytes.min(self.opc.budget.output_bytes),
@@ -471,6 +495,10 @@ pub fn Session::export_markup(
     bookmark_names: Map::from_array(
       bookmarks.map(bookmark => (bookmark.name.to_lower(), bookmark.name)),
     ),
+    fields: self.markup_fields(tree, layout),
+    charts,
+    outlines,
+    chart_index: 0,
     lists: self.markup_lists(tree, styles, flow),
     background: flow.background,
   }

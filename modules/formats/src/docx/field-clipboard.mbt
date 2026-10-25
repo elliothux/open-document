@@ -10,16 +10,14 @@ fn Session::field_values(
     return values
   }
   guard fields.length() <= 4096 else {
-    @failure.reject("limit-exceeded", "Clipboard fields exceed limits")
+    @failure.reject("limit-exceeded", "Field results exceed limits")
   }
   guard layout is Some(layout) && layout.revision == self.revision else {
-    @failure.reject(
-      "stale-layout", "Field clipboard text requires the current layout",
-    )
+    @failure.reject("stale-layout", "Field text requires the current layout")
   }
   guard layout.diagnostics.is_empty() else {
     @failure.reject(
-      "unsupported-layout", "Field clipboard text requires a complete layout",
+      "unsupported-layout", "Field text requires a complete layout",
     )
   }
   let sources : Map[(Int, Int), Int] = Map([])
@@ -39,9 +37,7 @@ fn Session::field_values(
               .get(id)
               .map(previous => previous == run.text)
               .unwrap_or(true) else {
-              @failure.reject(
-                "unsupported-layout", "Field clipboard result is ambiguous",
-              )
+              @failure.reject("unsupported-layout", "Field result is ambiguous")
             }
             values[id] = run.text
           }
@@ -50,9 +46,7 @@ fn Session::field_values(
     }
   }
   guard values.length() == sources.length() else {
-    @failure.reject(
-      "unsupported-layout", "Field clipboard position is unavailable",
-    )
+    @failure.reject("unsupported-layout", "Field position is unavailable")
   }
   values
 }

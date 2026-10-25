@@ -115,27 +115,10 @@ pub fn Session::page_links(
       } else {
         None
       }
-      let destination = if span.field.has_prefix("PAGEREF:") {
-        let reference = @layout.PageReference::parse(span.field)
-        if reference.hyperlink {
-          Some("#" + reference.bookmark)
-        } else {
-          None
-        }
-      } else if span.field.has_prefix("NOTEREF:") {
-        let reference = @layout.NoteReference::parse(span.field)
-        if reference.hyperlink {
-          Some("#" + reference.bookmark)
-        } else {
-          None
-        }
-      } else if span.field.has_prefix("REF:") {
-        let reference = @layout.TextReference::parse(span.field)
-        if reference.hyperlink {
-          Some("#" + reference.bookmark)
-        } else {
-          None
-        }
+      let destination = if span.field.has_prefix("PAGEREF:") ||
+        span.field.has_prefix("NOTEREF:") ||
+        span.field.has_prefix("REF:") {
+        body_field_link(span.field)
       } else if paragraph.id < 0 {
         running.get(key)
       } else if drawing_target is Some(_) {
@@ -283,4 +266,25 @@ pub fn Session::page_links(
     }
   }
   links
+}
+
+///|
+fn body_field_link(code : String) -> String? raise @failure.Failure {
+  let (bookmark, hyperlink) = if code.has_prefix("PAGEREF:") {
+    let reference = @layout.PageReference::parse(code)
+    (reference.bookmark, reference.hyperlink)
+  } else if code.has_prefix("NOTEREF:") {
+    let reference = @layout.NoteReference::parse(code)
+    (reference.bookmark, reference.hyperlink)
+  } else if code.has_prefix("REF:") {
+    let reference = @layout.TextReference::parse(code)
+    (reference.bookmark, reference.hyperlink)
+  } else {
+    return None
+  }
+  if hyperlink {
+    Some("#" + bookmark)
+  } else {
+    None
+  }
 }

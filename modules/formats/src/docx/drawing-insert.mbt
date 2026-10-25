@@ -57,7 +57,13 @@ fn Session::prepare_drawing_insertion(
   let original = self.document()
   let tree = WordTree::new(original)
   self.check_picture_context(tree)
-  let range = self.paragraph_range(tree, selection, structural=true)
+  let range = self.paragraph_range(
+    tree,
+    selection,
+    structural=true,
+    fields=true,
+    math=true,
+  )
   guard tree.order
     .filter(id => {
       tree.nodes[id].uri == word_uri && tree.nodes[id].name == "drawing"
@@ -97,7 +103,12 @@ fn Session::prepare_drawing_insertion(
     .map(item => (item.id, inline_text(tree.nodes[item.id]).length()))
   }
   let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
-  let change : @xml.SourceChange = if target is Some((id, offset)) {
+  let change : @xml.SourceChange = if target is Some((id, _)) &&
+    ["fldSimple", "oMath", "oMathPara"].contains(tree.nodes[id].name) {
+    self.paragraph_inline_source(document, position, properties => {
+      "<od:r xmlns:od=\"\{word_uri}\">\{properties}\{drawing}</od:r>"
+    })
+  } else if target is Some((id, offset)) {
     let node = tree.nodes[id]
     guard tree.nodes[node.parent].parent == position.paragraph else {
       @failure.reject(

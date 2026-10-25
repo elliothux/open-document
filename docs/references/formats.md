@@ -661,6 +661,8 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 ### 行内图片尺寸与裁剪
 
+共用行内绘图插入已支持普通正文/单元格中已知简单域及数学对象的两侧，可插入 PNG/JPEG、基础图形和普通图表。字段、数学对象和新绘图各占一个逻辑位置；绘图写在完整对象之前或之后，不拆入字段或 OMML 内部。新 run 复用相邻对象的字符属性，原字段/公式 XML 与未改资源保持；插入后可继续原生输入及修改对象，整体沿既有精确历史保存重开。未改字段中的已导入 XML 注释按原文保留；需要重写其结果的缓存刷新仍检查不透明源。未知/锁定字段、未支持数学、审阅及超限沿既有保护，失败不留下图表/图片关系或部件。实现归 [drawing-insert.mbt](../../modules/formats/src/docx/drawing-insert.mbt)，复用 [paragraph_inline_source](../../modules/formats/src/docx/body-field-insert.mbt) 的完整对象边界写入；行为对照 [ONLYOFFICE AddInlineImage](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/DocumentContent.js#L3106-L3157) 的选区替换与段落插入，未复制执行代码。
+
 `editPicture(revision, { action: "insert", width, height, bytes })` 在核心当前文字选区插入正文行内 PNG/JPEG 图片；跨段范围复用既有删除与合段规则，单个普通表格单元格也可作为容器。`width/height` 为 0.1–14400 pt，舍入到整数 EMU；字节与像素预算同下方替换操作。空段、空 run 或段内位置都生成真正的绘图元素，保留周围文字、run 格式和范围外源。核心为新图片分配未用身份，避开主文档及页眉/页脚中的已有绘图；同时创建图片、关系和内容类型，合为一项有界历史。默认面板提供尺寸和文件选择，并读取新图片属性。选区替换与插入行为参考 [ONLYOFFICE controller_AddInlineImage](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/word/Editor/Document.js#L19412-L19451)。
 
 插入后把文字光标放到新图片之后，默认面板仍读取新图片属性，可以立即继续输入。受支持的正文及普通单元格段落中，图片与布局一致占一个 `U+FFFC`、一个 UTF-16 单元；`query().texts` 也包含该绘图片段。文字位置、范围、查找、格式与组合输入共用这个计数。纯文字中的 `U+FFFC` 仍是文字；核心用独立的保留位置区分原图片与输入字符，不把字符自动变成图片。图片两侧可输入、回车拆段及退格合段，保留图片原 XML、尺寸、裁剪及资源。范围替换和 Backspace/Delete 可以删除图片，并复用 `noDelete`、引用与修订保护；删除保留包内共享资源。行内绘图作为内容位置参考 [ONLYOFFICE Run 的绘图边界](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/word/Editor/Run.js#L1448-L1467)。
@@ -1418,7 +1420,9 @@ Web 宿主 `DocumentEditor.exportPng(scale = 1, outputBytes = 67108864)` 返回�
 
 ### DOCX HTML 与 Markdown
 
-核心 `Session.export_markup(revision, format, output_bytes)` 与同步/异步 `FoundationSession/Client.exportMarkup(revision, format, outputBytes = 67108864)` 返回 UTF-8 字节。`format` 为 `html` 或 `markdown`。Web `DocumentEditor.exportHtml/exportMarkdown(outputBytes = 67108864)` 沿既有输出屏障返回 `EditorOutput`，绑定文档身份与修订。默认文件菜单输出原基名的 `.html`/`.md`，复用 `onSave` 或浏览器下载；导出不改变源、选择、历史和 DOCX 保存基线。
+核心 `Session.export_markup(revision, format, output_bytes, layout?)` 与同步/异步 `FoundationSession/Client.exportMarkup(revision, format, outputBytes = 67108864)` 返回 UTF-8 字节。`format` 为 `html` 或 `markdown`。Web `DocumentEditor.exportHtml/exportMarkdown(outputBytes = 67108864)` 沿既有输出屏障返回 `EditorOutput`，绑定文档身份与修订。默认文件菜单输出原基名的 `.html`/`.md`，复用 `onSave` 或浏览器下载；导出不改变源、选择、历史和 DOCX 保存基线。
+
+正文及普通/合并格中的已支持简单域沿当前原生布局输出静态结果，保留首个结果的字符格式及字面文字转义。PAGE、NUMPAGES 使用实际分页和节页码设置，SEQ 保留隐藏计数，REF/PAGEREF 保留当前引用值及有效书签链接；目标忽略大小写匹配，输出实际书签名称，缺失目标沿核心错误文字输出且不生成链接。空缓存不额外增加空段落换行，多个旧结果 run 只输出已计算的首个结果。含字段或图表时，核心调用须传入当前完整 `layout`；其余内容可以省略。Wasm/Worker 使用已有最近布局，默认编辑宿主沿输出屏障提供它；缺失或陈旧布局、诊断和不可用字段位置均拒绝。导出不刷新原生缓存、清除未保存状态或修改历史。页码是原 DOCX 布局的静态值，读取器重新换行后不会重算。实现归 [markup-fields.mbt](../../modules/formats/src/docx/markup-fields.mbt)，复用现有字段布局与 PDF 引用链接，结果展开参考 [ONLYOFFICE 字段内容复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L689-L691)。
 
 正文及普通/合并格中已支持的公式输出原生 MathML。横向组合、分数、单/双脚标、平方根及带次数根、可伸展分隔符、多参数分隔、求和/积分、矩阵和多行对齐组保留结构；单式独立段落使用 block，其余使用 inline。上下堆叠极限仅在独立显示且源指定 `undOvr` 时使用，行内及缩小参数保留右侧上下限。矩阵保留列对齐和空格占位，基线设置转为 CSS 垂直对齐；多行公式使用零列间距的成对左右对齐，单独末项跨两列居中。单元格输出标准 `text-align` 后，追加 [Chromium MathML 默认样式所用的 `-webkit-` 值](https://github.com/chromium/chromium/blob/main/third_party/blink/renderer/core/css/mathml.css#L89-L95)，使匿名数学行实际对齐。统一字体、字号、颜色及线性无障碍标签沿现有模型输出，内部排列为 LTR，不随周围 RTL 段落镜像。
 
@@ -1430,9 +1434,11 @@ Markdown 中含公式的段落或整个列表使用 HTML 块，避免数学文�
 
 正文和普通/合并格中的无文字矩形、椭圆及线形输出内嵌 SVG，保留核心共用轮廓、填充、描边和无障碍名称。画布使用原框局部坐标，并在四周增加半个描边宽度，避免裁掉边线；零轴线形保留可见描边。无描边的零轴视口最小为 0.1 pt。整体链接与图片共用地址、提示和目标窗口规则。浮动对象按源顺序内联输出，保留形状与尺寸；页面位置、层次及文字环绕不转移。Markdown 读取器还须允许 SVG。未知图形继续拒绝，原包与历史保持。轮廓复用 [`basic-shape.mbt`](../../modules/layout/src/basic-shape.mbt)，与 Canvas/PDF 使用同一几何。
 
+正文及普通/合并格中的普通图表输出独立 SVG，复用当前布局的图表图元及实际字形轮廓。现有 14 种配置的柱/条、堆叠/百分比、线、面积、饼、圆环、散点和雷达保留尺寸、配色、坐标、图例、路径、裁剪与变换顺序；标题及完整数据提供无障碍标签，标签分别转义，不产生脚本或外部请求。字形与裁剪使用每个插图独立的引用身份，按导出顺序编号，重开后保持相同输出。字形以轮廓保存，不请求或嵌入字体文件。Markdown 中含图表的段落或整个列表使用 HTML 块，保留字面标签；读取器须支持 SVG 及内部 `use`/裁剪引用。图表是静态插图，不携带可编辑工作簿或实时绑定；浮动位置按源顺序内联，沿其他绘图的降级。当前布局、图表内容/尺寸、位置、字形和绘图状态不完整时明确拒绝；序列化逐段检查剩余输出预算，失败保留原包、历史和重做。实现归 [markup-charts.mbt](../../modules/formats/src/docx/markup-charts.mbt)，复用 [共享图表布局](../../modules/layout/src/chart-legend.mbt)，静态绘图转换依据 [ONLYOFFICE 绘图复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L534-L551)的渲染结果及尺寸语义；未复制上游执行代码。
+
 普通文本框输出具名分组、可选择的 HTML 文字及装饰 SVG。段落和标题保留语义、解析后的格式、空段落及链接。文本区域复用核心 `DrawingFrame.text_box_rect`，包含预置图形文本区与四边距；CSS 表达顶部/居中/底部、换行及溢出裁剪。整体链接覆盖背景及未另设链接的文字片段；显式文字链接保留自己的目标，不生成嵌套链接。文字可选择，背景 SVG 不占用文字的无障碍语义。Markdown 中含文本框的段落或列表整体输出 HTML 块，保留框内字面符号；读取器须允许这些 HTML、CSS 和 SVG。浮动文本框同样按源顺序内联，字体与断行由读取器决定。复制锁、未知文本/图形元数据及不支持的容器沿原保护，导出保留源、选择和历史。几何归 [`drawing-text-box.mbt`](../../modules/layout/src/drawing-text-box.mbt)，框内文字复用现有段落序列化。
 
-含页眉页脚、批注、待处理修订、字段或布局不支持内容时明确拒绝。合并格边线不统一时也拒绝。未知资源、非法链接、活动候选、旧 revision 及超限保留原包。文字、属性和 CSS 字符串分别转义；链接沿既有 HTTP/HTTPS/mailto/书签白名单，不输出脚本、事件、外链图片或外部样式。默认上限 64 MiB，并取原会话输出预算的较小值；UTF-16 中间结果和最终 UTF-8 字节分别检查，图片编码前预检剩余预算。Web 输出失败后可继续原生编辑。
+含页眉页脚、脚注尾注、批注、待处理修订、复杂字段或布局不支持内容时明确拒绝。合并格边线不统一时也拒绝。未知资源、非法链接、活动候选、旧 revision 及超限保留原包。文字、属性和 CSS 字符串分别转义；链接沿既有 HTTP/HTTPS/mailto/书签白名单，不输出脚本、事件、外链图片或外部样式。默认上限 64 MiB，并取原会话输出预算的较小值；UTF-16 中间结果和最终 UTF-8 字节分别检查，图片编码前预检剩余预算。Web 输出失败后可继续原生编辑。
 
 实现归 [`markup-output.mbt`](../../modules/formats/src/docx/markup-output.mbt)、[`markup-drawings.mbt`](../../modules/formats/src/docx/markup-drawings.mbt)、[`markup-text-box.mbt`](../../modules/formats/src/docx/markup-text-box.mbt)及 [`markup-lists.mbt`](../../modules/formats/src/docx/markup-lists.mbt)。列表嵌套与续号参考 [ONLYOFFICE 列表栈](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L858-L951)，实际数值沿本项目共享的 `NumberCounter.advance`。链接属性与避免嵌套规则参考 [ONLYOFFICE CopyRunContent](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L661-L677)。标题和普通段落转换参考 [ONLYOFFICE CopyParagraph](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L728-L858)，合并格参考 [CopyCell](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L1035-L1066)。未复制上游执行代码。更广区域和 HTML/Markdown 导入继续实施。
 

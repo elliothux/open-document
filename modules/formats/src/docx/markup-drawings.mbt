@@ -1,12 +1,7 @@
 ///|
-fn shape_markup_svg(
-  frame : @layout.DrawingFrame,
-  shape : @layout.BasicShape,
-  label : String,
-  decoration~ : Bool = false,
-) -> String raise @failure.Failure {
+fn markup_svg_path(segments : Array[@layout.PathSegment]) -> String {
   let path = StringBuilder()
-  for segment in shape.path(frame.width, frame.height) {
+  for segment in segments {
     match segment {
       @layout.Move(x, y) => path.write_string("M\{x} \{y} ")
       @layout.Line(x, y) => path.write_string("L\{x} \{y} ")
@@ -15,6 +10,17 @@ fn shape_markup_svg(
       @layout.Close => path.write_string("Z")
     }
   }
+  path.to_string()
+}
+
+///|
+fn shape_markup_svg(
+  frame : @layout.DrawingFrame,
+  shape : @layout.BasicShape,
+  label : String,
+  decoration~ : Bool = false,
+) -> String raise @failure.Failure {
+  let path = markup_svg_path(shape.path(frame.width, frame.height))
   let margin = if shape.stroke.is_empty() { 0.0 } else { shape.lineWidth / 2 }
   let width = (frame.width + 2 * margin).max(0.1)
   let height = (frame.height + 2 * margin).max(0.1)
@@ -37,7 +43,7 @@ fn shape_markup_svg(
     ""
   }) +
   "vertical-align:middle\"><path d=\"" +
-  path.to_string() +
+  path +
   "\" fill=\"\{fill}\" stroke=\"\{stroke}\" stroke-width=\"\{shape.lineWidth}\" stroke-opacity=\"\{shape.strokeAlpha}\"" +
   (if shape.preset == "polyline" {
     " stroke-linecap=\"round\" stroke-linejoin=\"round\""
@@ -59,7 +65,9 @@ fn Session::markup_drawing(
     return mathml_markup(formula)
   }
   let link = self.markup_drawing_link(tree, span.node, output)
-  let content = if tree.drawing_data(span.node).1.attribute("uri") ==
+  let content = if output.charts.get(span.node) is Some(frame) {
+    chart_markup_svg(frame, output)
+  } else if tree.drawing_data(span.node).1.attribute("uri") ==
     Some(word_shape_uri) {
     let frame = self.drawing_frame(tree, span.node)
     let identity = tree.nodes[tree.drawing_link_node(span.node).0]

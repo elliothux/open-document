@@ -339,6 +339,7 @@ fn Foundation::dispatch(
                 field_int(request, "revision"),
                 field_string(request, "format"),
                 field_int(request, "outputBytes"),
+                layout?=self.layout,
               ),
             ),
           }

@@ -266,7 +266,8 @@ fn Session::markup_paragraphs(
         !html &&
         paragraphs[index].spans.any(span => {
           span.drawing is Some({ content: @layout.TextBox(_, _), .. }) ||
-          span.drawing is Some({ content: Math(_), .. })
+          span.drawing is Some({ content: Math(_), .. }) ||
+          span.drawing is Some({ content: Chart(_), .. })
         })
       if block {
         output.add(
@@ -305,7 +306,8 @@ fn Session::markup_paragraphs(
         list.instance == first.instance &&
         !p.spans.any(span => {
           span.drawing is Some({ content: @layout.TextBox(_, _), .. }) ||
-          span.drawing is Some({ content: Math(_), .. })
+          span.drawing is Some({ content: Math(_), .. }) ||
+          span.drawing is Some({ content: Chart(_), .. })
         })
       })
     if markdown {
