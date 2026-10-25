@@ -81,61 +81,12 @@ export function checkPageNumbering(value: unknown): void {
     throw new Error("Invalid DOCX page numbering");
 }
 
-export interface DocxPageBorder {
-  side: "top" | "left" | "bottom" | "right";
-  style: "single" | "double";
-  color: string;
-  width: number;
-  space: number;
-}
-export interface DocxPageBorders {
-  offsetFrom: "page" | "text";
-  display: "allPages" | "firstPage" | "notFirstPage";
-  zOrder: "front" | "back";
-  sides: DocxPageBorder[];
-}
-export function checkPageBorders(value: unknown): void {
-  if (value === null) return;
-  const borders = record(value);
-  if (
-    typeof borders.offsetFrom !== "string" ||
-    !["page", "text"].includes(borders.offsetFrom) ||
-    typeof borders.display !== "string" ||
-    !["allPages", "firstPage", "notFirstPage"].includes(borders.display) ||
-    typeof borders.zOrder !== "string" ||
-    !["front", "back"].includes(borders.zOrder) ||
-    Object.keys(borders).some(
-      (key) => !["offsetFrom", "display", "zOrder", "sides"].includes(key),
-    ) ||
-    !Array.isArray(borders.sides) ||
-    borders.sides.length > 4
-  )
-    throw new Error("Invalid DOCX page borders");
-  const seen = new Set<string>();
-  for (const value of borders.sides) {
-    const side = record(value);
-    if (
-      typeof side.side !== "string" ||
-      !["top", "left", "bottom", "right"].includes(side.side) ||
-      (side.style !== "single" && side.style !== "double") ||
-      seen.has(side.side) ||
-      typeof side.color !== "string" ||
-      !/^[0-9a-f]{6}$/iu.test(side.color) ||
-      typeof side.width !== "number" ||
-      !(side.width >= 0.25 && side.width <= 12) ||
-      !Number.isInteger(side.width * 8) ||
-      typeof side.space !== "number" ||
-      !Number.isInteger(side.space) ||
-      side.space < 0 ||
-      side.space > 31 ||
-      Object.keys(side).some(
-        (key) => !["side", "style", "color", "width", "space"].includes(key),
-      )
-    )
-      throw new Error("Invalid DOCX page border side");
-    seen.add(side.side);
-  }
-}
+import { checkPageBorders, type DocxPageBorders } from "./docx-page-borders.js";
+export {
+  checkPageBorders,
+  type DocxPageBorder,
+  type DocxPageBorders,
+} from "./docx-page-borders.js";
 
 export function checkPageBackground(color: unknown): void {
   if (

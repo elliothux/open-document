@@ -803,7 +803,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 ### 页面边框
 
-`FoundationSession/Client.setPageBorders(revision, section, borders)` 与 `DocumentEditor.setPageBorders(section, borders)` 修改指定节的页面边框。`section` 使用上述零起始源序号。`borders` 使用导出的 `DocxPageBorders`：`{ offsetFrom, display, zOrder, sides }`。`offsetFrom` 为 `page/text`，分别从该节纸张边缘或正文边距外侧计算；`display` 为 `allPages/firstPage/notFirstPage`，首页指该节的首页；`zOrder` 为 `front/back`。`sides` 最多四个互异的 `DocxPageBorder { side, style, color, width, space }`，`side` 为 `top/left/bottom/right`，必填 `style` 为 `single/double`，`color` 为六位 RGB，`width` 为 0.25–12 pt 且须为 1/8 pt 的倍数，`space` 为 0–31 的整数 pt。空 sides 保留设置但不绘制边框；null 只移除该节 `pgBorders`。`pageSetup(section).borders` 返回原生值和保护原因。
+`FoundationSession/Client.setPageBorders(revision, section, borders)` 与 `DocumentEditor.setPageBorders(section, borders)` 修改指定节的页面边框。`section` 使用上述零起始源序号。`borders` 使用导出的 `DocxPageBorders`：`{ offsetFrom, display, zOrder, sides }`。`offsetFrom` 为 `page/text`，分别从该节纸张边缘或正文边距外侧计算；`display` 为 `allPages/firstPage/notFirstPage`，首页指该节的首页；`zOrder` 为 `front/back`。`sides` 最多四个互异的 `DocxPageBorder { side, style, color, themeColor, width, space }`，`side` 为 `top/left/bottom/right`，必填 `style` 为 `single/double`，`color` 为六位 RGB，必填 `themeColor` 为原生主题颜色名或 null，`width` 为 0.25–12 pt 且须为 1/8 pt 的倍数，`space` 为 0–31 的整数 pt。空 sides 保留设置但不绘制边框；null 只移除该节 `pgBorders`。`pageSetup(section).borders` 返回原生值和保护原因。
 
 默认页面面板共用节选择，提供四边独立启用、单线/双线样式、颜色、宽度和距离，以及基准、显示页面和前后层次。草稿绑定 revision 和已读取的节；同一修订内切节也重新加载，跨页导航不改变目标。原生输入先沿既有队列提交。核心按 OOXML 顺序写目标 `sectPr/pgBorders`，缺少末节属性时与边框一起创建；保留其他节、正文、选区、待输入格式和其他部件。重复设置不新增历史，移除、背景修改与边框共用精确混合历史和保存重开。页面尺寸变化及边框修改按各节实际纸型验证边框不交叉，失败不提交，并保留待重做项。
 
@@ -811,7 +811,13 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 双线保留原生 `w:sz` 的每条线宽度，两条等宽线之间留同宽间隙，总占宽为 `3*width`。纸张基准从外线外缘起算；正文基准按总占宽向外留距。内框在相邻双线侧内缩两个线宽，单线侧保留原边界；允许四边混用样式。单线/双线使用同一矩形图元与缓存派生，不改变正文。线型名称依据 [ONLYOFFICE BorderType](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles.js#L10287-L10300)。其页面绘制尚未区分双线，线宽换算与等分采用第二参考 [LibreOffice ConvertBorderWidthFromWord](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/editeng/source/items/borderline.cxx#L205-L238)及 [getWidthImpl](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/editeng/source/items/borderline.cxx#L328-L355)，未复制执行代码。
 
-导入支持单线、双线、显式 none/nil、RGB 及按黑色解释的 auto，保留未改源。未知线型、主题色、艺术边框、阴影/框效果、重复节点、未知属性/子节点及目标注释保持保护和布局诊断。镜像/装订线、文档保护及预算沿页面设置保护；其余边框样式继续实施。
+导入支持单线、双线、显式 none/nil、RGB、按黑色解释的 auto，以及原生 `themeColor/themeTint/themeShade`。主题色复用文字的槽映射和 HSL 明暗变换，查询返回当前 RGB；主题修改同步更新各节边框及 Canvas/PDF。修改宽度、距离、样式或其他边时，绑定未变的边保留原生缓存颜色、主题槽与明暗属性。完整无操作保留输入字节。
+
+`themeColor` 接受 `dark1/light1/dark2/light2`、`accent1`–`accent6`、`hyperlink/followedHyperlink` 和映射名 `text1/text2/background1/background2`。非空时，核心按当前主题解析颜色，传入 `color` 只需满足 RGB 格式；保持同一绑定时保留已有明暗变换，换到另一绑定时使用其基础色。设为 null 时使用传入 RGB，并解除该边原有的主题及明暗绑定；即使 RGB 与当前显示相同，也会解除绑定。默认四边均提供主题槽和固定 RGB 选择，直接修改颜色也解除绑定。无主题的可编辑文档首次绑定时，边框、默认主题、关系及内容类型合为一项预算内历史；撤销恢复缺主题状态。严格传输在查询中显式输出 `themeColor: null`。类型与校验归 [`docx-page-borders.ts`](../../packages/wasm/src/docx-page-borders.ts)，沿 `docx-format` 的原有导出提供。主题读取依据 [ONLYOFFICE Read_pgBorder](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Serialize2.js#L10086-L10123)，复用 [`theme.mbt`](../../modules/formats/src/docx/theme.mbt)，未复制执行代码。
+
+主题写出同时保留 RGB 缓存和原生颜色引用，依据 [ONLYOFFICE WritePgBorder](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Serialize2.js#L3067-L3097)，未复制执行代码。
+
+未知线型、已有源中缺失或未知的主题槽、非法明暗值、艺术边框、阴影/框效果、重复节点、未知属性/子节点及目标注释保持保护和布局诊断。镜像/装订线、文档保护及预算沿页面设置保护；其余边框样式继续实施。
 
 ### 页码格式与起点
 
@@ -2215,7 +2221,7 @@ General 显示按 [ONLYOFFICE 的 15 位有效数字拆分](https://github.com/O
 
 数字格式目录共有 31 项，覆盖 General、`@`、整数、0–4 位小数的普通/千分位/百分比、两位小数的美元与人民币、日期时间，以及内置 1–4、9–10、14–22、49。新增代码为 `0.0/0.000/0.0000`、`#,##0.0/#,##0.000/#,##0.0000`、`0.0%/0.000%/0.0000%`、`$0.00/$#,##0.00/¥0.00/¥#,##0.00`。核心、严格传输目录和默认控件使用同一支持范围。小数显示复用 ROUND 的十进制舍入，百分比先舍入源值再缩放，避免 `1.005` 和 `0.10005` 的二进制误差；分别显示 `1.01` 和 `10.01%`，不改变数值或公式缓存。单元格、TEXT、测量和 PDF 复用同一格式化；公式显示模式下，普通数值与货币显示原始数值，百分比显示未固定小数位的比例值，公式格保留公式源与受保护隐藏规则；负号放在货币符号之前，舍入为零时不保留负号。十进制处理对照 [ONLYOFFICE round10](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/NumFormat.js#L177-L186)，未复制执行代码。日期保留数值，核心解释 1900/1904 系统，1900 序号 60 显示虚构的 2 月 29 日，序号 0 显示 1900-01-00。不经过宿主时区。其他格式、颜色 tint、渐变/图案、非实线边框及额外字体装饰保留声明并诊断，不承诺显示等价。
 
-公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * / ^`、后缀百分比 `%`、文本连接 `&`、比较、A1 单格/矩形、整行/整列范围、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/SIGN/CEILING.MATH/FLOOR.MATH/CEILING.PRECISE/FLOOR.PRECISE/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/SQRT/POWER/SIN/COS/TAN/SINH/COSH/TANH/ACOSH/ASINH/ACOS/ASIN/ATAN/ATAN2/EXP/LN/LOG/LOG10/PI/RADIANS/DEGREES/PRODUCT/MEDIAN/MODE/MODE.SNGL/LARGE/SMALL/SUMSQ/SUMPRODUCT/DEVSQ/VAR/VAR.S/VARP/VAR.P/STDEV/STDEV.S/STDEVP/STDEV.P/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE/EXACT/REPT/TEXT/DATE/YEAR/MONTH/DAY/TIME/HOUR/MINUTE/SECOND/DAYS/COUNTA/COUNTBLANK/COUNTIF/COUNTIFS/SUMIF/SUMIFS/AVERAGEIF/AVERAGEIFS/MINIFS/MAXIFS/INDEX/MATCH/VLOOKUP/HLOOKUP/XLOOKUP/ROW/COLUMN/ROWS/COLUMNS/SUBTOTAL/HYPERLINK`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
+公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * / ^`、后缀百分比 `%`、文本连接 `&`、比较、A1 单格/矩形、整行/整列范围、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/SIGN/CEILING.MATH/FLOOR.MATH/CEILING.PRECISE/FLOOR.PRECISE/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/SQRT/POWER/SIN/COS/TAN/SINH/COSH/TANH/ACOSH/ASINH/ACOS/ASIN/ATAN/ATAN2/EXP/LN/LOG/LOG10/PI/RADIANS/DEGREES/PRODUCT/MEDIAN/MODE/MODE.SNGL/LARGE/SMALL/SUMSQ/SUMPRODUCT/DEVSQ/VAR/VAR.S/VARP/VAR.P/STDEV/STDEV.S/STDEVP/STDEV.P/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE/EXACT/REPT/TEXT/DATE/YEAR/MONTH/DAY/TIME/HOUR/MINUTE/SECOND/DAYS/WEEKDAY/WEEKNUM/ISOWEEKNUM/COUNTA/COUNTBLANK/COUNTIF/COUNTIFS/SUMIF/SUMIFS/AVERAGEIF/AVERAGEIFS/MINIFS/MAXIFS/INDEX/MATCH/VLOOKUP/HLOOKUP/XLOOKUP/ROW/COLUMN/ROWS/COLUMNS/SUBTOTAL/HYPERLINK`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
 
 `&` 将两个值按普通公式文字规则连接，布尔使用 TRUE/FALSE，空白使用空文字，公式错误按左侧优先传播。它低于加减、高于比较，同级从左到右；括号保留明确的计算顺序。一行/一列引用按公式位置取唯一值，其余非单值矩形返回 `#VALUE!`。它与 HYPERLINK 复用 [`formula-range.mbt`](../../modules/formats/src/xlsx/formula-range.mbt) 中的标量取值，与文本函数共用 32767 个 UTF-16 单位及 1048576 单位工作预算；超长结果为 `#VALUE!`，工作量超限拒绝整次编辑。共享公式、填充、工作表改名与重开沿普通 token/引用路径，字符串常量内的表名或 `&` 保持文字。规则参考 [ONLYOFFICE cConcatSTROperator](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L4793-L4832)。例如 `HYPERLINK(A1&"#details","查看")` 使用拼接后的地址，保留既有安全导航及 PDF 规则；实现复用 [`formula-parser.mbt`](../../modules/formats/src/xlsx/formula-parser.mbt) 和 [`formula-evaluate.mbt`](../../modules/formats/src/xlsx/formula-evaluate.mbt)，未复制上游执行代码。
 
@@ -2229,7 +2235,7 @@ General 显示按 [ONLYOFFICE 的 15 位有效数字拆分](https://github.com/O
 
 AND/OR 接受数值和布尔，忽略引用内的文本与空白；没有有效值时返回 `#VALUE!`。文字常量返回 `#VALUE!`，不沿用数学函数的数字转换。稀疏范围只访问已有单元格，不展开整张表；即使已有确定的布尔结果，范围和后续参数中的错误仍参与，范围内按行列顺序保留首个错误。NOT 接受布尔、数值、空白及 TRUE/FALSE 文字，其他文字返回 `#VALUE!`。三项类型判断不转换数字文字，区分空白格与空字符串；当前使用标量参数，多格范围返回 `#VALUE!`。公式结果引用空白格时计算为数值 0。
 
-IF、IFERROR、IFNA 只求值选中的结果分支，依赖仍包含全部声明引用。IFERROR 捕获公式错误值，IFNA 只捕获 `#N/A`；两者不吞未知函数、循环、引用解析失败或资源超限。新输入及生成的 IFNA、CONCAT、TEXTJOIN、DAYS、XLOOKUP、VAR.S、VAR.P、STDEV.S、STDEV.P、MODE.SNGL、MINIFS、MAXIFS、CEILING.MATH、FLOOR.MATH、CEILING.PRECISE、FLOOR.PRECISE 按 OOXML 写入对应 `_xlfn.` 函数前缀，读取也接受这些前缀；只替换函数 token，保留同名工作表和文字常量。查询继续返回实际公式源。
+IF、IFERROR、IFNA 只求值选中的结果分支，依赖仍包含全部声明引用。IFERROR 捕获公式错误值，IFNA 只捕获 `#N/A`；两者不吞未知函数、循环、引用解析失败或资源超限。新输入及生成的 IFNA、CONCAT、TEXTJOIN、DAYS、XLOOKUP、VAR.S、VAR.P、STDEV.S、STDEV.P、MODE.SNGL、MINIFS、MAXIFS、CEILING.MATH、FLOOR.MATH、CEILING.PRECISE、FLOOR.PRECISE、ISOWEEKNUM 按 OOXML 写入对应 `_xlfn.` 函数前缀，读取也接受这些前缀；只替换函数 token，保留同名工作表和文字常量。查询继续返回实际公式源。
 
 ABS 返回绝对值，INT 向负无穷取整；MOD 按 `n - d * floor(n / d)` 计算，零除数返回 `#DIV/0!`。三类舍入按有限 Double 的十进制表示处理，ROUND 的半值远离零，ROUNDUP 远离零，ROUNDDOWN 朝零；位数的小数部分朝零截断。正负位数、进位及 `ROUND(1.005,2)=1.01` 使用同一路径，不先乘十进制倍率。精度至少 324 时保持原值；截断后的精度小于 -308 时，非零 ROUNDUP 返回 `#NUM!`，其余返回 0。结果非有限也返回 `#NUM!`，不按任意精度分配字符串。
 
@@ -2270,6 +2276,12 @@ EXACT 把两个标量转换为既有逻辑文字后做区分大小写的精确�
 CONCAT 按行列顺序连接范围，CONCATENATE 当前只接受标量。TEXTJOIN 的 ignore_empty 为 false 时保留首尾与中间空项，为 true 时跳过空项；分隔符范围按顺序循环使用。普通连接和忽略空项的连接只访问已有稀疏单元格。保留空项的范围先按面积检查剩余预算，再遍历，不能展开超大空矩形。
 
 生成的文本最多 32767 个 UTF-16 单元，超过时返回 `#VALUE!`。复制、范围遍历及搜索共用既有 1048576 单位公式工作预算；耗尽返回 `limit-exceeded`，IFERROR 不吞此失败，候选源码、缓存和历史整体回滚。文本规则参考固定 [ONLYOFFICE 文本函数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/textanddataFunctions.js)。MID 的无效起点与 TEXTJOIN 首部空项沿 [MID 合同](https://support.microsoft.com/en-us/excel/functions/mid-function)及 [TEXTJOIN 合同](https://support.microsoft.com/en-us/excel/functions/textjoin-function)处理，未沿用旧版参考的这两处实现缺口。现代 Excel 字符兼容版本、动态数组与更广地区化规则留待 P14。
+
+WEEKDAY、WEEKNUM、ISOWEEKNUM 接受数值日期序号，小数时间向下取整，使用工作簿的 1900/1904 日期系统及同一末日上限。数值文字、布尔及空白按普通标量转换，不解释日期文字；参数错误按顺序传播。WEEKDAY 的负序号为 `#VALUE!`，两项周序号的负序号为 `#NUM!`，超出日历上限均为 `#NUM!`。
+
+WEEKDAY 接受 1–2 个参数。returnType 缺省为 1；1/17 表示周日=1，2/11 表示周一=1，3 表示周一=0，12–16 分别表示周二至周六=1，其余日期按七天循环。WEEKNUM 同样接受 1–2 个参数；缺省/1/17 从周日开始，2/11 从周一开始，12–16 从周二至周六开始，含 1 月 1 日的周是第一周。returnType=21 使用 ISO 周，与单参数 ISOWEEKNUM 相同：周一开始，至少四天落在新年的周为第一周，年初/年末可归相邻年。returnType 必须匹配上述整数值，小数不截断；显式空白按 0 处理并返回 `#NUM!`。
+
+按所选 ONLYOFFICE 行为，1900 系统的 `WEEKDAY(0)=7`、`WEEKDAY(1)=1`、`WEEKDAY(60)=4`；普通 `WEEKNUM(0)=0`，`ISOWEEKNUM(0/1)=52`。周序号将虚构闰日 60 归一化到 1900-03-01，与 61 同为 ISO 第 9 周。公历年份转换复用有界日历查找，星期沿已有工作日序列计算，均不依赖宿主 Date 或时区。普通输入、跨表重算、缓存、插行、精确历史和重开使用现有事务；新写或结构重写的 ISOWEEKNUM 使用 `_xlfn.ISOWEEKNUM`。依据固定 [ONLYOFFICE WEEKDAY/WEEKNUM](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/dateandtimeFunctions.js#L1967-L2148)、[ISOWEEKNUM](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/dateandtimeFunctions.js#L1330-L1365)与独立[日期用例](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/tests/cell/spreadsheet-calculation/formula-tests/dateTimeTests.js#L3910-L4023)，实现归 [`formula-date.mbt`](../../modules/formats/src/xlsx/formula-date.mbt)及 [`date.mbt`](../../modules/formats/src/xlsx/date.mbt)，未复制执行代码。
 
 DATE、YEAR、MONTH、DAY、DAYS 使用工作簿的 1900/1904 日期系统，返回数值。1900 系统保留序号 0 的 1900-01-00 和序号 60 的虚构闰日；1904 系统序号 0 为 1904-01-01。支持到 9999-12-31，当日的小数时间仍有效；负序号或超出末日返回 `#NUM!`。显示和计算复用核心日历转换，按有界查找确定年份，不按输入年份逐年循环。
 

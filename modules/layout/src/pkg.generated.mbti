@@ -537,10 +537,12 @@ pub(all) struct PageBorder {
   side : String
   style : String
   color : String
+  themeColor : String?
   width : Double
   space : Double
-} derive(ToJson)
+}
 pub fn PageBorder::to_json(Self) -> Json
+pub impl ToJson for PageBorder
 
 pub(all) struct PageBorders {
   offsetFrom : String

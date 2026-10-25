@@ -104,6 +104,19 @@ fn theme_color_name(name : String) -> String {
 }
 
 ///|
+fn word_theme_color_name(name : String) -> String {
+  match name {
+    "dk1" => "dark1"
+    "lt1" => "light1"
+    "dk2" => "dark2"
+    "lt2" => "light2"
+    "hlink" => "hyperlink"
+    "folHlink" => "followedHyperlink"
+    _ => name
+  }
+}
+
+///|
 fn Session::theme_values(
   self : Session,
 ) -> Map[String, String] raise @failure.Failure {
@@ -202,11 +215,24 @@ fn theme_text_color(
 ) -> String raise @failure.Failure {
   guard tree.child(parent, "color") is Some(id) else { return fallback }
   let node = tree.nodes[id]
+  theme_node_color(
+    node,
+    node.attribute("val", uri=word_uri).unwrap_or(fallback),
+    values,
+  )
+}
+
+///|
+fn theme_node_color(
+  node : @xml.Node,
+  fallback : String,
+  values : Map[String, String],
+) -> String raise @failure.Failure {
   let name = node.attribute("themeColor", uri=word_uri)
   let mut color = if name is Some(name) && name != "none" {
     guard theme_slots.contains(theme_color_name(name)) ||
       ["text1", "text2", "background1", "background2"].contains(name) else {
-      @failure.reject("invalid-style", "Invalid text theme color")
+      @failure.reject("invalid-style", "Invalid theme color")
     }
     values
     .get(theme_color_name(name))
@@ -217,11 +243,11 @@ fn theme_text_color(
       )
     })
   } else {
-    node.attribute("val", uri=word_uri).unwrap_or(fallback)
+    fallback
   }
   guard color == "auto" ||
     (color.length() == 6 && color.iter().all(c => c.is_ascii_hexdigit())) else {
-    @failure.reject("invalid-style", "Invalid text color")
+    @failure.reject("invalid-style", "Invalid color")
   }
   // ONLYOFFICE RtfColor applies shade then tint to HSL luminance.
   for field in ["themeShade", "themeTint"] {

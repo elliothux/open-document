@@ -9,7 +9,7 @@ fn stored_formula_names(formula : String) -> String raise @failure.Failure {
       [
         "IFNA", "CONCAT", "TEXTJOIN", "DAYS", "XLOOKUP", "VAR.S", "VAR.P", "STDEV.S",
         "STDEV.P", "MODE.SNGL", "MINIFS", "MAXIFS", "CEILING.MATH", "FLOOR.MATH",
-        "CEILING.PRECISE", "FLOOR.PRECISE",
+        "CEILING.PRECISE", "FLOOR.PRECISE", "ISOWEEKNUM",
       ].contains(name.to_upper()) &&
       tokens[index + 1] is Operator("(") {
       let (start, end) = spans[index]
@@ -127,7 +127,7 @@ fn Expression::source(
       (if [
           "IFNA", "CONCAT", "TEXTJOIN", "DAYS", "XLOOKUP", "VAR.S", "VAR.P", "STDEV.S",
           "STDEV.P", "MODE.SNGL", "MINIFS", "MAXIFS", "CEILING.MATH", "FLOOR.MATH",
-          "CEILING.PRECISE", "FLOOR.PRECISE",
+          "CEILING.PRECISE", "FLOOR.PRECISE", "ISOWEEKNUM",
         ].contains(name) {
         "_xlfn." + name
       } else {

@@ -68,13 +68,23 @@ fn page_border_format(
       guard side is Object(fields) &&
         fields
         .keys()
-        .all(k => ["side", "style", "color", "width", "space"].contains(k)) else {
+        .all(k => {
+          ["side", "style", "color", "themeColor", "width", "space"].contains(k)
+        }) else {
         @failure.reject("invalid-operation", "Unknown page border side field")
       }
       {
         side: field_string(side, "side"),
         style: field_string(side, "style"),
         color: field_string(side, "color"),
+        themeColor: match fields.get("themeColor") {
+          Some(Null) => None
+          Some(String(slot)) => Some(slot)
+          _ =>
+            @failure.reject(
+              "invalid-operation", "Invalid page border theme color",
+            )
+        },
         width: xlsx_number(side, "width"),
         space: xlsx_number(side, "space"),
       }

@@ -87,6 +87,11 @@ fn date_parts(serial : Int, date1904 : Bool) -> (Int, Int, Int) {
     calendar_ordinal(1899, 12, 31) -
     (if serial > 60 { 1 } else { 0 })
   }
+  calendar_parts(ordinal)
+}
+
+///|
+fn calendar_parts(ordinal : Int64) -> (Int, Int, Int) {
   let mut year = 1
   let mut end = 10001
   // Binary search bounds calendar conversion independently of the input year.

@@ -2,6 +2,7 @@
 fn WordTree::page_borders(
   self : WordTree,
   section : Int?,
+  themes : Map[String, String],
 ) -> @layout.PageBorders raise @failure.Failure {
   guard section is Some(section) else { return @layout.PageBorders::new() }
   let roots = self.children[section].filter(id => {
@@ -32,7 +33,10 @@ fn WordTree::page_borders(
       side.text.trim().is_empty() &&
       side.attributes.all(a => {
         a.uri == word_uri &&
-        ["val", "color", "sz", "space", "shadow", "frame"].contains(a.name)
+        [
+          "val", "color", "themeColor", "themeTint", "themeShade", "sz", "space",
+          "shadow", "frame",
+        ].contains(a.name)
       }) &&
       ["0", "false", "off"].contains(
         side.attribute("shadow", uri=word_uri).unwrap_or("0"),
@@ -52,13 +56,18 @@ fn WordTree::page_borders(
     if kind == "none" || kind == "nil" {
       continue
     }
-    let color = side
-      .attribute("color", uri=word_uri)
-      .unwrap_or("auto")
-      .to_lower()
+    let color = theme_node_color(
+      side,
+      side.attribute("color", uri=word_uri).unwrap_or("auto"),
+      themes,
+    ).to_lower()
     sides.push({
       side: side.name,
       style: kind,
+      themeColor: side
+      .attribute("themeColor", uri=word_uri)
+      .filter(name => name != "none")
+      .map(word_theme_color_name),
       color: if color == "auto" {
         "000000"
       } else {
@@ -90,7 +99,7 @@ fn Session::page_borders_query(
     guard reason.is_empty() else {
       @failure.reject("protected-content", reason)
     }
-    { "value": tree.page_borders(section), "reason": "" }
+    { "value": tree.page_borders(section, self.theme_values()), "reason": "" }
   } catch {
     @failure.Failure(message~, ..) =>
       { "value": @layout.PageBorders::new(), "reason": message }
@@ -124,7 +133,44 @@ pub fn Session::set_page_borders(
   let original = self.document()
   let tree = WordTree::new(original)
   let section = self.editable_page_section(tree, target=Some(sectionIndex))
-  let old = tree.page_borders(section)
+  let themes = self.theme_values()
+  let old = tree.page_borders(section, themes)
+  let parts = self.parts.copy()
+  let part_edits : Map[String, Array[@xml.Edit]] = Map([])
+  let created : Map[String, @xml.Document] = Map([])
+  if borders is Some(value) &&
+    value.sides.any(side => side.themeColor is Some(_)) &&
+    self.theme_part() is None {
+    ignore(self.new_word_part("theme", parts, part_edits, created))
+  }
+  let view = { ..self, parts, }
+  let themes = view.theme_values()
+  let borders = borders.map(value => {
+    ..value,
+    sides: value.sides.map(side => {
+      guard side.themeColor is Some(slot) else { return side }
+      let previous = old.sides
+        .iter()
+        .find_first(previous => {
+          previous.side == side.side && previous.themeColor == side.themeColor
+        })
+      {
+        ..side,
+        color: previous
+        .map(previous => previous.color)
+        .unwrap_or_else(() => {
+          themes
+          .get(theme_color_name(slot))
+          .unwrap_or_else(() => {
+            @failure.reject(
+              "protected-content",
+              "Missing or unsupported theme color: " + slot,
+            )
+          })
+        }),
+      }
+    }),
+  })
   if section is None && borders is None {
     return self.edit_state()
   }
@@ -145,8 +191,28 @@ pub fn Session::set_page_borders(
       "<w:pgBorders xmlns:w=\"\{word_uri}\" w:offsetFrom=\"\{value.offsetFrom}\" w:display=\"\{value.display}\" w:zOrder=\"\{value.zOrder}\">"
     for name in ["top", "left", "bottom", "right"] {
       if value.sides.iter().find_first(b => b.side == name) is Some(side) {
+        markup <+ "<w:\{name} w:val=\"\{side.style}\""
+        let original = target.bind(id => tree.child(id, name))
+        if original is Some(id) &&
+          old.sides.any(previous => {
+            previous.side == name &&
+            previous.color == side.color &&
+            previous.themeColor == side.themeColor
+          }) {
+          // Retain theme bindings when only geometry or another side changes.
+          for field in ["color", "themeColor", "themeTint", "themeShade"] {
+            if tree.nodes[id].attribute(field, uri=word_uri) is Some(value) {
+              markup <+ " w:\{field}=\"\{property_attribute(value)}\""
+            }
+          }
+        } else {
+          markup <+ " w:color=\"\{side.color}\""
+          if side.themeColor is Some(slot) {
+            markup <+ " w:themeColor=\"\{slot}\""
+          }
+        }
         markup <+
-          "<w:\{name} w:val=\"\{side.style}\" w:color=\"\{side.color.to_lower()}\" w:sz=\"\{(side.width * 8).to_int()}\" w:space=\"\{side.space.to_int()}\"/>"
+          " w:sz=\"\{(side.width * 8).to_int()}\" w:space=\"\{side.space.to_int()}\"/>"
       }
     }
     markup <+ "</w:pgBorders>"
@@ -177,24 +243,26 @@ pub fn Session::set_page_borders(
   guard change is Some(change) else { return self.edit_state() }
   let (candidate, edit) = candidate.edit_source([change])
   edits.push(edit)
-  ignore(WordTree::new(candidate).page_borders(Some(section)))
+  ignore(WordTree::new(candidate).page_borders(Some(section), themes))
   let paragraphs = tree.order.filter(id => {
     tree.nodes[id].uri == word_uri && tree.nodes[id].name == "p"
   })
   let pending = self.typing_format
-  self.validate_page_border_geometry(candidate)
+  view.validate_page_border_geometry(candidate)
   self.commit_edit(
     {
       xml: edits,
-      parts: Map([]),
-      created: Map([]),
+      parts: part_edits,
+      created,
       created_media: Map([]),
       before: self.selection,
       after: self.selection.map(s => s.without_visual_hints()),
       paragraphs,
-      bytes: edits.fold(init=0, (n, e) => n + edit_bytes(e)),
+      bytes: edits.fold(init=0, (n, e) => n + edit_bytes(e)) +
+      xml_part_edit_bytes(part_edits, created),
     },
     candidate,
+    parts~,
   )
   self.typing_format = pending
   self.edit_result(paragraphs)
@@ -206,7 +274,10 @@ fn Session::validate_page_border_geometry(
   document : @xml.Document,
 ) -> Unit raise @failure.Failure {
   let tree = WordTree::new(document)
-  let borders = tree.page_sections().map(section => tree.page_borders(section))
+  let themes = self.theme_values()
+  let borders = tree
+    .page_sections()
+    .map(section => tree.page_borders(section, themes))
   if borders.all(border => border.sides.is_empty()) {
     return
   }

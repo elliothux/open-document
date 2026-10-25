@@ -362,6 +362,7 @@ fn FormulaParser::atom(
         "_XLFN.CONCAT" => "CONCAT"
         "_XLFN.TEXTJOIN" => "TEXTJOIN"
         "_XLFN.DAYS" => "DAYS"
+        "_XLFN.ISOWEEKNUM" => "ISOWEEKNUM"
         "_XLFN.XLOOKUP" => "XLOOKUP"
         "_XLFN.VAR.S" => "VAR.S"
         "_XLFN.VAR.P" => "VAR.P"
@@ -404,7 +405,8 @@ fn FormulaParser::atom(
         }
         guard (match name {
           "IF" => args.length() == 2 || args.length() == 3
-          "HYPERLINK" | "LOG" => args.length() == 1 || args.length() == 2
+          "HYPERLINK" | "LOG" | "WEEKDAY" | "WEEKNUM" =>
+            args.length() == 1 || args.length() == 2
           "CEILING.MATH" | "FLOOR.MATH" =>
             args.length() >= 1 && args.length() <= 3
           "CEILING.PRECISE" | "FLOOR.PRECISE" =>
@@ -448,8 +450,13 @@ fn FormulaParser::atom(
           | "DEGREES" => args.length() == 1
           "PI" => args.is_empty()
           "LEN" | "LOWER" | "UPPER" | "TRIM" => args.length() == 1
-          "YEAR" | "MONTH" | "DAY" | "HOUR" | "MINUTE" | "SECOND" =>
-            args.length() == 1
+          "YEAR"
+          | "MONTH"
+          | "DAY"
+          | "HOUR"
+          | "MINUTE"
+          | "SECOND"
+          | "ISOWEEKNUM" => args.length() == 1
           "DATE" | "TIME" => args.length() == 3
           "DAYS" => args.length() == 2
           "ROW" | "COLUMN" => args.length() <= 1

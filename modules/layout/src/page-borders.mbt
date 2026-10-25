@@ -3,9 +3,22 @@ pub(all) struct PageBorder {
   side : String
   style : String
   color : String
+  themeColor : String?
   width : Double
   space : Double
-} derive(ToJson)
+}
+
+///|
+pub impl ToJson for PageBorder with fn to_json(self) {
+  {
+    "side": self.side,
+    "style": self.style,
+    "color": self.color,
+    "themeColor": self.themeColor.map(Json::string).unwrap_or(Json::null()),
+    "width": self.width,
+    "space": self.space,
+  }
+}
 
 ///|
 pub extend PageBorder with ToJson::{to_json}
@@ -41,6 +54,14 @@ pub fn PageBorders::validate(self : PageBorders) -> Unit raise @failure.Failure 
       !seen.contains(border.side) &&
       border.color.length() == 6 &&
       border.color.iter().all(c => c.is_ascii_hexdigit()) &&
+      (
+        border.themeColor is None ||
+        [
+          "dark1", "light1", "dark2", "light2", "accent1", "accent2", "accent3",
+          "accent4", "accent5", "accent6", "hyperlink", "followedHyperlink", "text1",
+          "text2", "background1", "background2",
+        ].contains(border.themeColor.unwrap())
+      ) &&
       border.width >= 0.25 &&
       border.width <= 12 &&
       border.width * 8 == (border.width * 8).round() &&

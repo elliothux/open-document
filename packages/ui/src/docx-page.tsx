@@ -172,7 +172,7 @@ export function DocxPage({
         {t.updateBodyPageFields}
       </button>
       <DocxRunning
-        key={section}
+        key={`running:${section}`}
         section={section}
         controller={controller}
         state={state}

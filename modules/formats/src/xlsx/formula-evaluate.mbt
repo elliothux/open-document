@@ -245,6 +245,7 @@ fn Expression::evaluate(
       )
     Function(name, args) if [
         "DATE", "YEAR", "MONTH", "DAY", "TIME", "HOUR", "MINUTE", "SECOND", "DAYS",
+        "WEEKDAY", "WEEKNUM", "ISOWEEKNUM",
       ].contains(name) =>
       date_function(name, args, sheets, sheet, values, work, depth)
     Function(name, args) if [

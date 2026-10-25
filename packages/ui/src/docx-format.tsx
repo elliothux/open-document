@@ -430,7 +430,7 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
         disabled={disabled}
       />
       <DocxPage
-        key={editor.getSnapshot().documentId}
+        key={`page:${editor.getSnapshot().documentId}`}
         controller={controller}
         state={state}
         editor={editor}
@@ -438,7 +438,7 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
       />
       <h2>{t.paragraph}</h2>
       <DocxTheme
-        key={editor.getSnapshot().documentId}
+        key={`theme:${editor.getSnapshot().documentId}`}
         controller={controller}
         state={state}
         editor={editor}
@@ -452,14 +452,14 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
         disabled={stylesDisabled}
       />
       <DocxPictures
-        key={editor.getSnapshot().documentId}
+        key={`pictures:${editor.getSnapshot().documentId}`}
         controller={controller}
         state={state}
         editor={editor}
         disabled={stylesDisabled}
       />
       <DocxShapes
-        key={editor.getSnapshot().documentId}
+        key={`shapes:${editor.getSnapshot().documentId}`}
         controller={controller}
         state={state}
         editor={editor}
@@ -474,7 +474,7 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
         insertDisabled={inputDisabled}
       />
       <DocxMath
-        key={editor.getSnapshot().documentId}
+        key={`math:${editor.getSnapshot().documentId}`}
         kind="expression"
         controller={controller}
         state={state}
