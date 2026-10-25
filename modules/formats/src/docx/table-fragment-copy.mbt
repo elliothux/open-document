@@ -359,13 +359,18 @@ fn Session::fragment_cell(
   let borders = cell_border_query(grid.model, row, column)
   for side in ["top", "left", "bottom", "right"] {
     guard borders[side]
-      is { "width": Number(width, ..), "color": String(color), .. } else {
+      is {
+        "style": String(style),
+        "width": Number(width, ..),
+        "color": String(color),
+        ..
+      } else {
       @failure.reject(
         "protected-content", "Rich cell fragments require uniform merged-cell edges",
       )
     }
     output.write_string(
-      "<od:\{side} od:val=\"\{if width==0 {"nil"}else{"single"}}\" od:sz=\"\{(width*8).round().to_int()}\" od:color=\"\{color}\"/>",
+      "<od:\{side} od:val=\"\{if width==0 {"nil"}else{style}}\" od:sz=\"\{(width*8).round().to_int()}\" od:color=\"\{color}\"/>",
     )
   }
   let fill = grid.model.fills[row][column]

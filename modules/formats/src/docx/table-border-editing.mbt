@@ -16,7 +16,8 @@ fn Session::set_table_borders(
       @failure.reject("invalid-operation", "Unknown border side")
     }
     if border is Some(border) {
-      guard (border.width == 0 || border.width >= 0.25) &&
+      guard ["single", "double", "dashed", "dotted"].contains(border.style) &&
+        (border.width == 0 || border.width >= 0.25) &&
         border.width <= 12 &&
         border.width * 8 == (border.width * 8).round() &&
         border.color.length() == 6 &&
@@ -68,7 +69,11 @@ fn WordTree::border_markup(
       match (current.get(side), value) {
         (None, None) => true
         (Some(a), Some(b)) =>
-          a.width == b.width && (a.width == 0 || a.color == b.color.to_lower())
+          a.width == b.width &&
+          (
+            a.width == 0 ||
+            (a.style == b.style && a.color == b.color.to_lower())
+          )
         _ => false
       }
     }) {
@@ -100,7 +105,7 @@ fn WordTree::border_markup(
           if value.width == 0 {
             "<od:\{side} od:val=\"nil\"/>"
           } else {
-            "<od:\{side} od:val=\"single\" od:sz=\"\{(value.width * 8).to_int()}\" od:color=\"\{value.color.to_lower()}\"/>"
+            "<od:\{side} od:val=\"\{value.style}\" od:sz=\"\{(value.width * 8).to_int()}\" od:color=\"\{value.color.to_lower()}\"/>"
           },
         )
       }

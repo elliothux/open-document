@@ -4,7 +4,7 @@ fn polygon_shape(preset : String) -> Bool {
     "triangle", "rtTriangle", "diamond", "parallelogram", "trapezoid", "pentagon",
     "hexagon", "octagon", "plus", "star4", "star5", "star6", "star8", "chevron",
     "homePlate", "star10", "star12", "star7", "star16", "star24", "star32", "heptagon",
-    "decagon", "dodecagon",
+    "decagon", "dodecagon", "snip1Rect", "snip2SameRect", "snip2DiagRect",
   ].contains(preset)
 }
 
@@ -15,7 +15,7 @@ fn polygon_adjustment_max(preset : String, w : Double, h : Double) -> Double {
   }
   if [
       "octagon", "plus", "star4", "star5", "star6", "star7", "star8", "star10", "star12",
-      "star16", "star24", "star32",
+      "star16", "star24", "star32", "snip1Rect", "snip2SameRect", "snip2DiagRect",
     ].contains(preset) {
     return 0.5
   }
@@ -80,11 +80,36 @@ fn polygon_points(
   w : Double,
   h : Double,
   adjustment : Double,
+  second~ : Double = 0,
 ) -> Array[(Double, Double)] {
   let a = adjustment.max(0).min(polygon_adjustment_max(preset, w, h))
   let inset = w.min(h) * a
+  let other = w.min(h) * second.clamp(min=0, max=0.5)
   // ONLYOFFICE CreateGeometry uses shortest-side offsets for slanted quadrilaterals.
   match preset {
+    "snip1Rect" => [(0.0, 0.0), (w - inset, 0.0), (w, inset), (w, h), (0.0, h)]
+    "snip2SameRect" =>
+      [
+        (inset, 0.0),
+        (w - inset, 0.0),
+        (w, inset),
+        (w, h - other),
+        (w - other, h),
+        (other, h),
+        (0.0, h - other),
+        (0.0, inset),
+      ]
+    "snip2DiagRect" =>
+      [
+        (inset, 0.0),
+        (w - other, 0.0),
+        (w, other),
+        (w, h - inset),
+        (w - inset, h),
+        (other, h),
+        (0.0, h - other),
+        (0.0, inset),
+      ]
     "triangle" => [(0.0, h), (w * a, 0.0), (w, h)]
     "rtTriangle" => [(0.0, h), (0.0, 0.0), (w, h)]
     "diamond" => [(0.0, h / 2), (w / 2, 0.0), (w, h / 2), (w / 2, h)]
@@ -405,10 +430,19 @@ fn polygon_insets(
   w : Double,
   h : Double,
   adjustment : Double,
+  second~ : Double = 0,
 ) -> (Double, Double, Double, Double) {
   let maximum = polygon_adjustment_max(preset, w, h)
   let a = adjustment.max(0).min(maximum)
+  let cut = w.min(h) * a / 2
+  let other = w.min(h) * second.clamp(min=0, max=0.5) / 2
   match preset {
+    "snip1Rect" => (0.0, cut, cut, 0.0)
+    "snip2SameRect" => (cut.max(other), cut, cut.max(other), other)
+    "snip2DiagRect" => {
+      let inset = cut.max(other)
+      (inset, inset, inset, inset)
+    }
     "triangle" => (w * a / 2, h / 2, w * (1 - a) / 2, 0.0)
     "rtTriangle" => (w / 12, h * 7 / 12, w * 5 / 12, h / 12)
     "diamond" => (w / 4, h / 4, w / 4, h / 4)

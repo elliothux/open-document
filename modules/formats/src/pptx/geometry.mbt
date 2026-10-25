@@ -183,7 +183,7 @@ fn shape_path(
   if arrow_shape(preset) || polygon_shape(preset) {
     let path : Array[@layout.PathSegment] = []
     let points = if polygon_shape(preset) {
-      polygon_points(preset, width, height, adjustments.0)
+      polygon_points(preset, width, height, adjustments.0, second=adjustments.1)
     } else {
       arrow_points(preset, width, height, adjustments)
     }

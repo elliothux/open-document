@@ -131,7 +131,7 @@ fn Pagination::continue_table_group(
   additive : Bool,
 ) -> Unit raise @failure.Failure {
   let bottom = table.borders.horizontal.fold(init=0.0, (value, edges) => {
-    edges.fold(init=value, (value, edge) => value.max(edge.width))
+    edges.fold(init=value, (value, edge) => value.max(edge.extent()))
   })
   let full = self.page.height - self.page.top - self.page.bottom - bottom
   let mut required = 0.05
@@ -394,7 +394,7 @@ fn Table::merged_page_edge(
   x : Double,
   y : Double,
   bottom : Bool,
-) -> Unit {
+) -> Unit raise @failure.Failure {
   let start = self.columnSpans[row][:cell].fold(init=0, (value, span) => {
     value + span
   })
@@ -403,11 +403,10 @@ fn Table::merged_page_edge(
   for column in start..<(start + self.columnSpans[row][cell]) {
     let edge = self.borders.horizontal[boundary][column]
     if edge.width > 0 {
-      page.borders.push({
-        rect: { x: left, y, width: self.widths[column], height: 0, },
-        color: edge.color,
-        width: edge.width,
-      })
+      page.paint_table_border(
+        { x: left, y, width: self.widths[column], height: 0, },
+        edge,
+      )
     }
     left += self.widths[column]
   }

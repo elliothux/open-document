@@ -115,6 +115,9 @@ export function PptxObjects({
               <option value="trapezoid">{t.trapezoid}</option>
               <option value="pentagon">{t.pentagon}</option>
               <option value="hexagon">{t.hexagon}</option>
+              <option value="snip1Rect">{t.snip1Rect}</option>
+              <option value="snip2SameRect">{t.snip2SameRect}</option>
+              <option value="snip2DiagRect">{t.snip2DiagRect}</option>
               <option value="heptagon">{t.heptagon}</option>
               <option value="octagon">{t.octagon}</option>
               <option value="decagon">{t.decagon}</option>

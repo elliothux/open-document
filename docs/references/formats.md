@@ -1285,13 +1285,17 @@ HTML 输入支持 `table`、`caption`、`thead/tbody/tfoot` 行组、`tr`、`td/
 
 ### 表格边框
 
-`editTable({ action: "tableBorders" | "cellBorders", value })` 修改整表默认边框或当前逻辑格的直接边框。`value` 为非空部分属性集：四边使用 `top/right/bottom/left`，整表另支持 `insideH/insideV`。每边 `{ width, color }` 设置实线，`width: 0` 显式关闭，null 删除该边直接属性并恢复继承；省略的边保持。非零线宽为 0.25–12 pt，须为 1/8 pt 的整数倍；color 为六位 RGB。默认 UI 提供表格/当前格、各边/全部、线宽、颜色、移除及恢复继承。纵向合并起始与延续节点共同修改，内部合并边不绘制。
+`editTable({ action: "tableBorders" | "cellBorders", value })` 修改整表默认边框或当前逻辑格的直接边框。`value` 为非空部分属性集：四边使用 `top/right/bottom/left`，整表另支持 `insideH/insideV`。每边 `{ style, width, color }` 设置线型，必填 style 为 `single/double/dashed/dotted`，`width: 0` 显式关闭，null 删除该边直接属性并恢复继承；省略的边保持。非零线宽为 0.25–12 pt，须为 1/8 pt 的整数倍；color 为六位 RGB。默认 UI 提供表格/当前格、各边/全部、实线/双线/虚线/点线、线宽、颜色、移除及恢复继承。纵向合并起始与延续节点共同修改，内部合并边不绘制。
 
-核心沿表格样式链与直接属性求有效值。单元格声明优先于表格默认；相邻单元格先取非空边，再取较宽实线，同宽按 RGB 亮度规则求值。规则依据 [ONLYOFFICE 边框冲突](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L15267-L15342)。当前读取 `single/nil/none`、RGB/auto 和左右的 start/end 别名；auto 为黑色。主题边框、虚线、双线、阴影、非零间隔和未知属性继续保护，不覆盖不理解的源内容。
+核心沿表格样式链与直接属性求有效值。单元格声明优先于表格默认；相邻单元格先取非空边，再取总占宽较大的边框；总占宽相同时，单条描边优先于双线，其余按 RGB 亮度规则求值。规则依据 [ONLYOFFICE 边框冲突](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L15267-L15342)。当前读取 `single/double/dashed/dotted/nil/none`、RGB/auto 和左右的 start/end 别名；auto 为黑色。主题边框、阴影、非零间隔和未知属性继续保护，不覆盖不理解的源内容。
 
 `queryFormatting(...).table.tableBorders` 返回六边的默认值，`cellBorders` 返回当前格四边的实际冲突结果；合并格某边包含不同线段时该边为 null，表示混合。`DocxFlow.tables[].borders` 为核心生成的 horizontal/vertical 网格，替代旧布尔值。边宽参与行高与分页预留，左右边界至少预留半个描边宽度。分页缓存、重复表头、Canvas 和 PDF 消费相同线段及颜色，Web 不重算边框。
 
 属性沿现有单项源历史保存，保留文字、网格、选区、待输入格式和其他部件。无变化保留源片段及 revision；无文字宽度、未知目标、旧 revision、输出或历史预算失败原子拒绝。合并仍沿当前[结构规则](#表格创建)保留每行首格属性，取消合并复制相应格属性；跨格属性修改归[跨单元格属性选择](#跨单元格属性选择)，复杂边框仍归 P10/P14。实现归 [`table-borders.mbt`](../../modules/formats/src/docx/table-borders.mbt)、[`table-border-editing.mbt`](../../modules/formats/src/docx/table-border-editing.mbt)及[公共边框绘制](../../modules/layout/src/table-borders.mbt)。
+
+虚线和点线沿现有边缘分段绘制，分别使用按线宽缩放的 16:5 与 1:2 线段/间隙比，末段裁剪到该边界。单条边缘最多 8192 段，单页表格描边最多 65536 段；排版超限返回 `limit-exceeded`。普通行、重复表头和纵向合并续排使用同一有界绘制，Canvas/PDF 沿相同普通描边输出。富文本单元格片段保留有效线型，粘贴后独立编辑。每段边缘重新起算节奏；其余复合线继续实施。分段依据第二参考 [LibreOffice GetDashing/GetLineDashing](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/svtools/source/control/ctrlbox.cxx#L247-L306)，未复制执行代码。
+
+双线 `double` 保留原生每条线的 width，两线和等宽间隙总占 `3*width`。两条描边以原边缘为中心，分别偏移一个 width。行高、分页、左右最小留白和纵向合并续排使用总占宽；查询仍返回原生单线宽度。两条线共同检查描边预算。同页相邻行的共用边只绘制一次，换页后保留外边界；无操作、继承、富文本片段及精确历史沿原路径。ONLYOFFICE 尚未绘制复合边框，总宽和等分依据第二参考 [LibreOffice Word 双线换算](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/editeng/source/items/borderline.cxx#L205-L238)及[双线分配](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/editeng/source/items/borderline.cxx#L349-L357)，相同总宽的冲突参考 [HasPriority](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/editeng/source/items/borderline.cxx#L688-L707)。未复制执行代码。
 
 ### 表格底色
 
@@ -3195,7 +3199,7 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 隐藏页仍可在编辑器中查看和编辑，允许全部页隐藏。全稿静态 PDF 默认跳过隐藏页，显式 `hidden: true` 包含它们；仅导出当前页时可以输出当前隐藏页。没有待输出页时返回 `unsupported-pdf`，不返回空 PDF。保存重开按新页序打开首张页面，保留隐藏状态。更广复制资源仍归 [P12](../p12-pptx-core.md)。
 
-`PptxObjectEdit` 从 `wasm/pptx` 和 `web/pptx` 导出。`PresentationEditor.editObjects(change)` 使用同一队列与命令。插入参数为 `{ action: "insert", kind: "text" | "rect" | "roundRect" | "ellipse" | "triangle" | "rtTriangle" | "diamond" | "parallelogram" | "trapezoid" | "pentagon" | "hexagon" | "heptagon" | "octagon" | "decagon" | "dodecagon" | "plus" | "star4" | "star5" | "star6" | "star7" | "star8" | "star10" | "star12" | "star16" | "star24" | "star32" | "chevron" | "homePlate" | "line" | "leftArrow" | "rightArrow" | "notchedRightArrow" | "upArrow" | "downArrow" | "leftRightArrow" | "upDownArrow" | "quadArrow" | "leftRightUpArrow", x, y, width, height, text }`；坐标和尺寸为 point，绝对值不超过 14400。非线对象宽高至少 0.1；线可有一个零尺寸轴，总尺寸至少 0.1。文本框透明无描边，矩形、圆角矩形、椭圆和箭头白底黑色 1 pt 线，直线黑色 1 pt；文字为 Arial 18 pt 黑色，支持 `\n` 与 `U+2028`，线不接收文字。核心校验文字、字体和固定框容量，失败保留文档和历史。
+`PptxObjectEdit` 从 `wasm/pptx` 和 `web/pptx` 导出。`PresentationEditor.editObjects(change)` 使用同一队列与命令。插入参数为 `{ action: "insert", kind: "text" | "rect" | "roundRect" | "snip1Rect" | "snip2SameRect" | "snip2DiagRect" | "ellipse" | "triangle" | "rtTriangle" | "diamond" | "parallelogram" | "trapezoid" | "pentagon" | "hexagon" | "heptagon" | "octagon" | "decagon" | "dodecagon" | "plus" | "star4" | "star5" | "star6" | "star7" | "star8" | "star10" | "star12" | "star16" | "star24" | "star32" | "chevron" | "homePlate" | "line" | "leftArrow" | "rightArrow" | "notchedRightArrow" | "upArrow" | "downArrow" | "leftRightArrow" | "upDownArrow" | "quadArrow" | "leftRightUpArrow", x, y, width, height, text }`；坐标和尺寸为 point，绝对值不超过 14400。非线对象宽高至少 0.1；线可有一个零尺寸轴，总尺寸至少 0.1。文本框透明无描边，矩形、圆角矩形、椭圆和箭头白底黑色 1 pt 线，直线黑色 1 pt；文字为 Arial 18 pt 黑色，支持 `\n` 与 `U+2028`，线不接收文字。核心校验文字、字体和固定框容量，失败保留文档和历史。
 
 图片插入为 `{ action: "insertImage", bytes: Uint8Array, x, y, width, height }`，沿相同 `editObjects` 入口。坐标为 point，绝对值不超过 14400，宽高至少 0.1。接收本地 PNG/JPEG 原字节，单图最多 4 MiB，尺寸每轴不超过 4096，像素总数不超过 4194304，文稿最多 256 个不同图片资源；最终包与单项 4 MiB 历史预算仍可拒绝操作。核心检查文件头、声明尺寸和几何；浏览器客户端提交前验证实际解码与声明尺寸一致，坏图保留当前源和历史。同步 Wasm 入口不承担宿主解码，导入图片仍沿原有解码合同。核心分配对象与资源身份，事务新增图片、内部关系和内容类型；撤销移除本次新资源，重做恢复原字节及 ZIP 顺序。对象/页复制共用图片，删除对象/页保留资源，不清理整个包。默认 UI 选择图片文件，并采用插入面板中的 X/Y/宽高。创建矩形图片并 stretch 到给定几何的规则参考 [ONLYOFFICE fillImage](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L114-L142)。高级图片效果继续归 [P12](../p12-pptx-core.md)及后续兼容扩展。
 
@@ -3242,6 +3246,8 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 片段最多 1 Mi UTF-16、256 段及 256 个不同链接目标；链接地址和单项元数据各不超过 2048 UTF-16。粘贴后的整个对象文字最多 32767 UTF-16。跨格复制保留既有 TSV；字段、公式、具体幻灯片目标、文字透明度和不支持的文字源返回 `fragment: null` 及原因，保留普通文字复制。具体幻灯片链接须先具备目标页转移，避免误指向另一文稿的同名路径。跨格富文本和更广文字格式继续实施。实现归 [`text-clipboard.mbt`](../../modules/formats/src/pptx/text-clipboard.mbt)、[`text-fragment-paste.mbt`](../../modules/formats/src/pptx/text-fragment-paste.mbt)及 [`clipboard-input.ts`](../../packages/web/src/clipboard-input.ts)。解析后冻结源字体/主题色参考 [ONLYOFFICE 源格式捕获](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L7837-L7846)；未复制上游执行代码。
 
 ### 更改形状类型
+
+单剪角 `snip1Rect`、同侧剪角 `snip2SameRect` 和对角剪角 `snip2DiagRect` 已接通插入、类型修改、文字、命中、复制及默认控件。单剪角使用 `adj`，默认 0.16667；同侧剪角的 `adj1/adj2` 默认 0.16667/0，分别控制上下两组角；对角剪角默认 0/0.16667，分别控制左上/右下与右上/左下。剪角长度按短边计算，比例限制为 0–0.5；两个导引独立修改和恢复。文字区域按原生剪角避让，再叠加框内边距。水平 XY 手柄和连接点依次按原生定义定位，连接点顺序为右、下、左、上。未知、重复或非数值公式导引继续保护；旋转/翻转、精确历史、保存重开和 Canvas/PDF 复用既有几何。依据 [ONLYOFFICE 剪角矩形](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L7290-L7383)，实现归 [`polygon-shapes.mbt`](../../modules/formats/src/pptx/polygon-shapes.mbt)及既有调节事务，未复制执行代码。
 
 `editObjects({ action: "shapeType", preset })` 修改对象模式中所选本地闭合形状的原生 `prstGeom`，支持单选、多选及同组成员。目标采用已有插入目录的闭合预设，排除 `text` 和 `line`；两者分别是插入文本框的命令名称和开放路径。文本框的矩形源也可改为闭合形状，保留既有非可视属性。`PptxObject.shapeTypeReason` 返回修改保护原因。默认面板复用“对象类型”选择器，并提供“更改所选形状”按钮；Wasm/Web 的 `pptxInsertKinds` 共用同一目录。
 

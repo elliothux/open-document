@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { DocumentEditor } from "@open-document/web/editor";
 import type {
   DocxBorderSide,
+  DocxBorderStyle,
   DocxBorderPatch,
   DocxCellBorders,
   DocxTableBorders,
@@ -29,6 +30,7 @@ export function DocxBorders({
       "cellBorders",
     ),
     [side, setSide] = useState<DocxBorderSide | "all">("all"),
+    [style, setStyle] = useState<DocxBorderStyle["style"]>("single"),
     [width, setWidth] = useState("0.5"),
     [color, setColor] = useState("#000000");
   const values: DocxBorderPatch =
@@ -49,6 +51,7 @@ export function DocxBorders({
         kind === "inherit"
           ? null
           : {
+              style: kind === "clear" ? "single" : style,
               width: kind === "clear" ? 0 : Number(width),
               color: color.slice(1),
             };
@@ -110,7 +113,7 @@ export function DocxBorders({
         {selected
           .map((side) => {
             const value = values[side];
-            return `${labels[side]}: ${value ? `${value.width} pt #${value.color}` : t.mixed}`;
+            return `${labels[side]}: ${value ? `${value.style === "double" ? t.pageBorderDouble : value.style === "dashed" ? t.dashRegular : value.style === "dotted" ? t.dashDotted : t.pageBorderSingle} ${value.width} pt #${value.color}` : t.mixed}`;
           })
           .join("; ")}
       </p>
@@ -120,6 +123,28 @@ export function DocxBorders({
           apply("set");
         }}
       >
+        <label>
+          {t.pageBorderStyle}
+          <select
+            aria-label={t.pageBorderStyle}
+            value={style}
+            onChange={(event) => {
+              const value = event.currentTarget.value;
+              if (
+                value === "single" ||
+                value === "double" ||
+                value === "dashed" ||
+                value === "dotted"
+              )
+                setStyle(value);
+            }}
+          >
+            <option value="single">{t.pageBorderSingle}</option>
+            <option value="double">{t.pageBorderDouble}</option>
+            <option value="dashed">{t.dashRegular}</option>
+            <option value="dotted">{t.dashDotted}</option>
+          </select>
+        </label>
         <label>
           {t.shapeLineWidth}
           <input

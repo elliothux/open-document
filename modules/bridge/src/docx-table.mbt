@@ -31,8 +31,12 @@ fn Foundation::docx_table(
         for side, value in values {
           patch[side] = match value {
             Null => None
-            { "width": Number(width, ..), "color": String(color), .. } =>
-              Some({ width, color, })
+            {
+              "style": String(style),
+              "width": Number(width, ..),
+              "color": String(color),
+              ..
+            } => Some({ style, width, color, })
             _ => @failure.reject("invalid-operation", "Invalid border patch")
           }
         }

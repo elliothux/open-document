@@ -56,10 +56,12 @@ pub(all) struct Border {
 pub fn Border::to_json(Self) -> Json
 
 pub(all) struct BorderStyle {
+  style : String
   width : Double
   color : String
 } derive(Eq, ToJson, @debug.Debug)
 pub fn BorderStyle::equal(Self, Self) -> Bool
+pub fn BorderStyle::extent(Self) -> Double
 pub fn BorderStyle::not_equal(Self, Self) -> Bool
 pub fn BorderStyle::to_json(Self) -> Json
 pub fn BorderStyle::to_repr(Self) -> @debug.Repr

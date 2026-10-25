@@ -1,6 +1,6 @@
 ///|
 fn empty_border() -> @layout.BorderStyle {
-  { width: 0, color: "000000", }
+  { style: "single", width: 0, color: "000000", }
 }
 
 ///|
@@ -45,12 +45,14 @@ fn WordTree::read_borders(
         @failure.reject("unsupported-layout", "Unsupported border markup")
       }
       let kind = node.attribute("val", uri=word_uri).unwrap_or("none")
-      guard ["single", "nil", "none"].contains(kind) else {
+      guard ["single", "double", "dashed", "dotted", "nil", "none"].contains(
+        kind,
+      ) else {
         @failure.reject(
           "unsupported-layout", "Unsupported table border line style",
         )
       }
-      let width = if kind == "single" {
+      let width = if !["nil", "none"].contains(kind) {
         self.number(source, node.name, "sz").unwrap_or(4) / 8
       } else {
         0.0
@@ -60,14 +62,22 @@ fn WordTree::read_borders(
         .unwrap_or("auto")
         .to_lower()
       let color = if color == "auto" { "000000" } else { color }
-      guard width >= (if kind == "single" { 0.25 } else { 0.0 }) &&
+      guard width >= (if !["nil", "none"].contains(kind) { 0.25 } else { 0.0 }) &&
         width <= 12 &&
         width * 8 == (width * 8).round() &&
         color.length() == 6 &&
         color.iter().all(c => c.is_ascii_hexdigit()) else {
         @failure.reject("invalid-table", "Invalid table border width or color")
       }
-      result[key] = { width, color, }
+      result[key] = {
+        style: if width == 0 {
+          "single"
+        } else {
+          kind
+        },
+        width,
+        color,
+      }
     }
   }
   result
@@ -117,8 +127,11 @@ fn border_conflict(
 ) -> @layout.BorderStyle? {
   guard a is Some(a) else { return b }
   guard b is Some(b) else { return Some(a) }
-  if a.width != b.width {
-    return Some(if a.width > b.width { a } else { b })
+  if a.extent() != b.extent() {
+    return Some(if a.extent() > b.extent() { a } else { b })
+  }
+  if (a.style == "double") != (b.style == "double") {
+    return Some(if a.style == "double" { b } else { a })
   }
   fn channels(value : String) -> (Int, Int, Int) {
     fn digit(value : UInt16) -> Int {
@@ -134,7 +147,7 @@ fn border_conflict(
     let b = digit(value[4]) * 16 + digit(value[5])
     (r + b + 2 * g, b + 2 * g, g)
   }
-  // ONLYOFFICE: wider wins; equal single lines choose the darker RGB tuple.
+  // Equal-width single strokes precede doubles; retain ONLYOFFICE's RGB tie break.
   Some(if channels(a.color) <= channels(b.color) { a } else { b })
 }
 

@@ -378,6 +378,7 @@ pub extend CellMargins with Eq::{not_equal, equal}
 
 ///|
 pub(all) struct BorderStyle {
+  style : String
   width : Double
   color : String
 } derive(ToJson, Eq, Debug)

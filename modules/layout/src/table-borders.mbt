@@ -1,7 +1,84 @@
 ///|
+/// Returns the total line-and-gap width, in points.
+pub fn BorderStyle::extent(self : BorderStyle) -> Double {
+  self.width * (if self.style == "double" { 3.0 } else { 1.0 })
+}
+
+///|
+fn PageFrame::paint_table_border(
+  self : PageFrame,
+  rect : Border,
+  edge : BorderStyle,
+) -> Unit raise @failure.Failure {
+  if edge.width <= 0 {
+    return
+  }
+  guard self.borders.length() < 65536 else {
+    @failure.reject("limit-exceeded", "Table borders exceed65536 page segments")
+  }
+  if edge.style == "double" {
+    guard self.borders.length() <= 65534 else {
+      @failure.reject(
+        "limit-exceeded", "Double table borders exceed65536 page segments",
+      )
+    }
+    for offset in [-edge.width, edge.width] {
+      self.borders.push({
+        rect: {
+          ..rect,
+          x: rect.x + (if rect.width == 0 { offset } else { 0.0 }),
+          y: rect.y + (if rect.width == 0 { 0.0 } else { offset }),
+        },
+        color: edge.color,
+        width: edge.width,
+      })
+    }
+    return
+  }
+  if edge.style == "single" {
+    self.borders.push({ rect, color: edge.color, width: edge.width, })
+    return
+  }
+  let vertical = rect.width == 0
+  let length = if vertical { rect.height } else { rect.width }
+  // Match the existing page-border patterns, scaled by the declared line width.
+  let dash = edge.width * (if edge.style == "dashed" { 16.0 } else { 1.0 })
+  let period = dash +
+    edge.width * (if edge.style == "dashed" { 5.0 } else { 2.0 })
+  let count = (length / period).ceil().to_int()
+  guard count <= 8192 && count <= 65536 - self.borders.length() else {
+    @failure.reject(
+      "limit-exceeded", "Table border pattern exceeds the segment budget",
+    )
+  }
+  for index in 0..<count {
+    let offset = index.to_double() * period
+    let size = dash.min(length - offset)
+    self.borders.push({
+      rect: {
+        x: rect.x + (if vertical { 0.0 } else { offset }),
+        y: rect.y + (if vertical { offset } else { 0.0 }),
+        width: if vertical {
+          0.0
+        } else {
+          size
+        },
+        height: if vertical {
+          size
+        } else {
+          0.0
+        },
+      },
+      color: edge.color,
+      width: edge.width,
+    })
+  }
+}
+
+///|
 pub fn Table::border_width(self : Table, row : Int) -> Double {
   self.borders.horizontal[row].fold(init=0.0, (width, edge) => {
-    width.max(edge.width)
+    width.max(edge.extent())
   })
 }
 
@@ -13,10 +90,10 @@ pub fn Table::cell_insets(self : Table, row : Int, cell : Int) -> CellMargins {
   let end = start + self.columnSpans[row][cell]
   let last = row + self.rowSpans[row][cell].max(1)
   let left = self.borders.vertical[row:last].fold(init=0.0, (width, edges) => {
-    width.max(edges[start].width / 2)
+    width.max(edges[start].extent() / 2)
   })
   let right = self.borders.vertical[row:last].fold(init=0.0, (width, edges) => {
-    width.max(edges[end].width / 2)
+    width.max(edges[end].extent() / 2)
   })
   {
     ..self.margins[row][cell],
@@ -47,18 +124,23 @@ fn Table::paint_borders(
   x : Double,
   y : Double,
   heights : Array[Double],
-) -> Unit {
+) -> Unit raise @failure.Failure {
+  let previous = if first > 0 {
+    self.rows[first - 1].flatten().map(paragraph => paragraph.id)
+  } else {
+    []
+  }
+  let shared_top = page.cellAreas.any(area => {
+    (area.y + area.height - y).abs() < 0.000001 &&
+    area.paragraphs.any(id => previous.contains(id))
+  })
   let mut top = y
   for row in first..<=(last + 1) {
     let mut left = x
     for column, width in self.widths {
       let edge = self.borders.horizontal[row][column]
-      if edge.width > 0 {
-        page.borders.push({
-          rect: { x: left, y: top, width, height: 0, },
-          color: edge.color,
-          width: edge.width,
-        })
+      if edge.width > 0 && (row != first || !shared_top) {
+        page.paint_table_border({ x: left, y: top, width, height: 0, }, edge)
       }
       left += width
     }
@@ -72,11 +154,10 @@ fn Table::paint_borders(
     for column in 0..<=self.widths.length() {
       let edge = self.borders.vertical[row][column]
       if edge.width > 0 {
-        page.borders.push({
-          rect: { x: left, y: top, width: 0, height: heights[row - first], },
-          color: edge.color,
-          width: edge.width,
-        })
+        page.paint_table_border(
+          { x: left, y: top, width: 0, height: heights[row - first], },
+          edge,
+        )
       }
       if column < self.widths.length() {
         left += self.widths[column]

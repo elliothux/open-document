@@ -46,10 +46,11 @@ fn read_shape_adjustments(
   let single = [
     "roundRect", "triangle", "parallelogram", "trapezoid", "hexagon", "octagon",
     "plus", "star4", "star5", "star6", "star7", "star8", "star10", "star12", "star16",
-    "star24", "star32", "chevron", "homePlate",
+    "star24", "star32", "chevron", "homePlate", "snip1Rect",
   ].contains(preset)
   let mut first = match preset {
-    "roundRect" => 0.16667
+    "roundRect" | "snip1Rect" | "snip2SameRect" => 0.16667
+    "snip2DiagRect" => 0.0
     "parallelogram" | "trapezoid" | "hexagon" | "plus" => 0.25
     "octagon" => 0.29289
     "star5" => 0.19098
@@ -62,7 +63,11 @@ fn read_shape_adjustments(
     "leftRightUpArrow" => 0.25
     _ => 0.5
   }
-  let mut second = if branched_arrow_shape(preset) { first } else { 0.5 }
+  let mut second = match preset {
+    "snip2SameRect" => 0.0
+    "snip2DiagRect" => 0.16667
+    _ => if branched_arrow_shape(preset) { first } else { 0.5 }
+  }
   let mut third = if ["bentConnector5", "curvedConnector5"].contains(preset) {
     0.5
   } else if branched_arrow_shape(preset) {
@@ -82,6 +87,7 @@ fn read_shape_adjustments(
   }
   if !single &&
     !arrow_shape(preset) &&
+    !["snip2SameRect", "snip2DiagRect"].contains(preset) &&
     !["pentagon", "heptagon", "decagon", "dodecagon"].contains(preset) &&
     ![
       "bentConnector3", "bentConnector4", "bentConnector5", "curvedConnector3", "curvedConnector4",
@@ -111,7 +117,13 @@ fn read_shape_adjustments(
           (if single {
             name == "adj"
           } else {
-            (arrow_shape(preset) && ["adj1", "adj2"].contains(name)) ||
+            (
+              (
+                arrow_shape(preset) ||
+                ["snip2SameRect", "snip2DiagRect"].contains(preset)
+              ) &&
+              ["adj1", "adj2"].contains(name)
+            ) ||
             (branched_arrow_shape(preset) && name == "adj3") ||
             (
               [
@@ -334,7 +346,13 @@ fn Object::shape_body(self : Object, geometry : Geometry) -> Body {
     }
     (inset, center - side * shaft / 2, inset, h - center - side * shaft / 2)
   } else if polygon_shape(self.preset) {
-    polygon_insets(self.preset, w, h, self.adjustments.0)
+    polygon_insets(
+      self.preset,
+      w,
+      h,
+      self.adjustments.0,
+      second=self.adjustments.1,
+    )
   } else if arrow_shape(self.preset) && w > 0 && h > 0 {
     let vertical = vertical_arrow_shape(self.preset)
     let length = if vertical { h } else { w }
@@ -388,7 +406,13 @@ fn Object::preset_hit(
       (!self.stroke.is_empty() && distance.abs() <= margin)
   }
   let points = if polygon_shape(self.preset) {
-    polygon_points(self.preset, width, height, self.adjustments.0)
+    polygon_points(
+      self.preset,
+      width,
+      height,
+      self.adjustments.0,
+      second=self.adjustments.1,
+    )
   } else {
     arrow_points(self.preset, width, height, self.adjustments)
   }
