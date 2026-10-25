@@ -4,7 +4,7 @@ fn DrawingTable::edge(
   row : Int,
   column : Int,
   vertical : Bool,
-) -> (String, Double) {
+) -> (String, Double, String) {
   let before = if vertical {
     if column > 0 {
       Some(self.owners[row][column - 1])
@@ -28,9 +28,9 @@ fn DrawingTable::edge(
     None
   }
   if before == after {
-    return ("", 0)
+    return ("", 0, "solid")
   }
-  let mut result = ("", 0.0)
+  let mut result = ("", 0.0, "solid")
   let mut priority = -1
   for
     (owner, side) in [
@@ -60,9 +60,9 @@ fn DrawingTable::cell_borders(
   self : DrawingTable,
   row : Int,
   column : Int,
-) -> Array[(String, Double)] {
+) -> Array[(String, Double, String)] {
   let cell = self.rows[row].cells[column]
-  let edges : Array[(String, Double)] = []
+  let edges : Array[(String, Double, String)] = []
   for r in row..<(row + cell.row_span) {
     edges.push(self.edge(r, column, true))
     edges.push(self.edge(r, column + cell.column_span, true))
@@ -77,7 +77,7 @@ fn DrawingTable::cell_borders(
 ///|
 fn DrawingTable::paint_edges(
   self : DrawingTable,
-) -> Array[@layout.PositionedPrimitive] {
+) -> Array[@layout.PositionedPrimitive] raise @failure.Failure {
   let output : Array[@layout.PositionedPrimitive] = []
   let mut y = 0.0
   for row in 0..<=self.rows.length() {
@@ -88,7 +88,7 @@ fn DrawingTable::paint_edges(
           (!vertical && column == self.widths.length()) {
           continue
         }
-        let (color, width) = self.edge(row, column, vertical)
+        let (color, width, dash) = self.edge(row, column, vertical)
         if color.is_empty() {
           continue
         }
@@ -101,7 +101,7 @@ fn DrawingTable::paint_edges(
           Path([Move(x, y), Line(end_x, end_y)], "", color, width, {
             fillAlpha: 1,
             strokeAlpha: 1,
-            dash: [],
+            dash: dash_pattern(dash).map(value => value * width),
             cap: 0,
             join: 0,
             miter: 8,

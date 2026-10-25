@@ -29,9 +29,9 @@ fn table_format_reason(object : Object) -> String {
 ///|
 fn table_cell_values(
   cell : DrawingCell,
-  borders : Array[(String, Double)],
+  borders : Array[(String, Double, String)],
 ) -> Array[Json] {
-  let (color, width) = borders[0]
+  let (color, width, dash) = borders[0]
   [
     Json(cell.fill),
     if borders.all(edge => edge.0 == color) {
@@ -53,6 +53,11 @@ fn table_cell_values(
     Json(cell.body.bottom),
     Json(cell.body.anchor),
     Json(cell.body.direction),
+    if borders.all(edge => edge.2 == dash) {
+      Json(dash)
+    } else {
+      Json::null()
+    },
   ]
 }
 
@@ -79,7 +84,7 @@ fn table_format_query(
   for
     i, name in [
       "fill", "borderColor", "borderWidth", "left", "top", "right", "bottom", "anchor",
-      "direction",
+      "direction", "borderDash",
     ] {
     result[name] = if values.all(row => row[i] == values[0][i]) {
       values[0][i]
@@ -116,6 +121,15 @@ fn Session::format_table_cells(
         )
       }
       (color, Some((width * 12700).round() / 12700))
+    }
+    StrokeDash(value) => {
+      if value is Some(value) {
+        ignore(dash_pattern(value)) catch {
+          @failure.Failure(..) =>
+            @failure.reject("invalid-operation", "Unknown border dash")
+        }
+      }
+      (None, None)
     }
     TextInsets(left, top, right, bottom) => {
       for
@@ -157,12 +171,20 @@ fn Session::format_table_cells(
       )
     }
   }
-  let targets = if width is Some(_) { table.border_targets(range) } else { [] }
+  let targets = if width is Some(_) || change is StrokeDash(_) {
+    table.border_targets(range)
+  } else {
+    []
+  }
   let changes : Array[@xml.SourceChange] = []
   let grow_rows : Map[Int, Bool] = Map([])
   for r, row in table.rows {
     for c, cell in row.cells {
       if !cell.owner() {
+        continue
+      }
+      if change is StrokeDash(value) {
+        changes.append(table_dash_changes(cell, targets[r][c], value))
         continue
       }
       if width is Some(width) {

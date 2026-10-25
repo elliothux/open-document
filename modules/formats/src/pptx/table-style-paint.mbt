@@ -39,7 +39,7 @@ fn table_style_fill(
 fn table_style_border(
   theme : Theme,
   container : Ref,
-) -> (String, Double) raise @failure.Failure {
+) -> (String, Double, String) raise @failure.Failure {
   container.table_children(["ln", "lnRef"])
   table_profile(
     container.node.attributes.is_empty() &&
@@ -54,7 +54,7 @@ fn table_style_border(
     is Some((line, reference)) {
     (line, Some(reference))
   } else {
-    return ("", 0)
+    return ("", 0, "solid")
   }
   line.table_children([
     "noFill", "solidFill", "prstDash", "round", "bevel", "miter",
@@ -71,13 +71,7 @@ fn table_style_border(
     }),
     "Unsupported table style line",
   )
-  table_profile(
-    line
-    .child("prstDash")
-    .map(dash => dash.node.attribute("val") == Some("solid"))
-    .unwrap_or(true),
-    "Dashed table style borders require segment styling",
-  )
+  let dash = line_dash([line])
   let (color, alpha) = fill_rgba(theme, [line], placeholder~)
   table_profile(
     alpha == 1,
@@ -90,6 +84,7 @@ fn table_style_border(
     } else {
       number(line.node.attribute("w").unwrap_or("12700"), 1, 12700000) / 12700
     },
+    dash,
   )
 }
 
@@ -103,8 +98,8 @@ fn table_style_borders(
   columns : Int,
   row_span : Int,
   column_span : Int,
-) -> (Array[(String, Double)], Array[Int]) raise @failure.Failure {
-  let borders : Array[(String, Double)] = []
+) -> (Array[(String, Double, String)], Array[Int]) raise @failure.Failure {
+  let borders : Array[(String, Double, String)] = []
   let priorities : Array[Int] = []
   for
     (side, inside, boundary) in [
@@ -137,7 +132,7 @@ fn table_style_borders(
     } nobreak {
       None
     }
-    let (value, priority) = found.unwrap_or((("", 0), 0))
+    let (value, priority) = found.unwrap_or((("", 0, "solid"), 0))
     borders.push(value)
     priorities.push(priority)
   }

@@ -44,6 +44,7 @@ fn HtmlInput::paragraph(
   if self.open {
     return
   }
+  self.output.afterRule = false
   self.output.paragraphs += 1
   guard self.output.paragraphs <= 512 else {
     @failure.reject("limit-exceeded", "HTML exceeds paragraph budget")
@@ -156,7 +157,7 @@ fn HtmlInput::walk(
         [
           "html", "body", "div", "p", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote",
           "ul", "ol", "li", "pre", "span", "b", "strong", "i", "em", "u", "s", "strike",
-          "del", "sup", "sub", "code", "a", "br", "img", "table", "caption",
+          "del", "sup", "sub", "code", "a", "br", "img", "hr", "table", "caption",
         ].contains(tag) else {
         @failure.reject(
           "unsupported-input",
@@ -169,6 +170,10 @@ fn HtmlInput::walk(
       }
       if tag == "table" {
         self.table(id, context, depth)
+        return
+      }
+      if tag == "hr" {
+        self.rule(id, context)
         return
       }
       if tag == "img" {
@@ -301,7 +306,9 @@ pub fn Session::paste_html(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   self.check_document_protection()
-  let fragment = self.html_fragment(html, mode)
+  let fragment = self.html_fragment(html, mode, available=() => {
+    self.markup_area(selection, mode, probe, profile, images)
+  })
   self.paste_markup_fragment(
     revision, selection, fragment, mode, probe, profile, images,
   )
@@ -312,6 +319,7 @@ fn Session::html_fragment(
   self : Session,
   html : String,
   mode : String,
+  available~ : () -> (Double, Double) raise @failure.Failure = () => (14400, 0),
 ) -> String raise @failure.Failure {
   check_markup_mode(mode)
   guard !html.trim().is_empty() &&
@@ -326,6 +334,7 @@ fn Session::html_fragment(
   let output = MarkupInput::new(
     self.opc.budget.entry_bytes.min(history_byte_limit / 2),
     mode~,
+    available~,
   )
   let input : HtmlInput = {
     output,
@@ -349,6 +358,7 @@ fn Session::html_fragment(
     heading: 0,
     keepNext: false,
     link: None,
+    cellWidth: None,
   }
   input.walk(document.document_element, context, 0)
   input.close_paragraph()

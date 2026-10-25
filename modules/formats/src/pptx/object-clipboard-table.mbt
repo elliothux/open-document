@@ -77,12 +77,12 @@ fn Session::clipboard_table_style(
       if style.child("tcBdr") is Some(borders) {
         content <+ "<a:tcBdr>"
         for edge in borders.tree.children.get(borders.node.id).unwrap_or([]) {
-          let (color, width) = table_style_border(theme, {
+          let (color, width, dash) = table_style_border(theme, {
             tree: borders.tree,
             node: edge,
           })
           content <+
-            "<a:\{edge.name}><a:ln w='\{((width*12700).round().to_int64()).max(1L)}'>\{paint_markup(if color.is_empty() {None} else {Some(color)})}</a:ln></a:\{edge.name}>"
+            "<a:\{edge.name}><a:ln w='\{((width*12700).round().to_int64()).max(1L)}'>\{paint_markup(if color.is_empty() {None} else {Some(color)})}<a:prstDash val='\{dash}'/></a:ln></a:\{edge.name}>"
         }
         content <+ "</a:tcBdr>"
       }
@@ -162,9 +162,9 @@ fn Session::clipboard_table_style(
         // Keep direct border precedence; style borders retain their native regional priorities.
         for side, name in ["lnL", "lnT", "lnR", "lnB"] {
           if props.child(name) is Some(_) {
-            let (color, width) = cell.borders[side]
+            let (color, width, dash) = cell.borders[side]
             borders <+
-              "<a:\{name} w='\{((width*12700).round().to_int64()).max(1L)}'>\{paint_markup(if color.is_empty(){None}else{Some(color)})}</a:\{name}>"
+              "<a:\{name} w='\{((width*12700).round().to_int64()).max(1L)}'>\{paint_markup(if color.is_empty(){None}else{Some(color)})}<a:prstDash val='\{dash}'/></a:\{name}>"
           }
         }
       }

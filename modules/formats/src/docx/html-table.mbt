@@ -222,7 +222,15 @@ fn HtmlInput::table(
       }
       self.output.add("</od:tcPr>")
       let before = self.output.paragraphs
-      let context = owner.map(c => c.context).unwrap_or(context)
+      let context = {
+        ..owner.map(c => c.context).unwrap_or(context),
+        // Native text insets are the greater of the default margin and half the border.
+        cellWidth: Some(
+          width.to_double() / 20 -
+          2 *
+          5.4.max(html_table_border_size(self.document, id).to_double() / 16),
+        ),
+      }
       if owner is Some(cell) && cell.row == r {
         guard self.document.get_node(cell.node) is Some(ElementNode(node)) else {
           @failure.reject("unsupported-input", "Missing HTML cell")
@@ -241,6 +249,7 @@ fn HtmlInput::table(
     self.output.add("</od:tr>")
   }
   self.inTable = false
+  self.output.afterRule = false
   self.output.add("</od:tbl>")
   self.table_caption(id, context, depth, true)
 }
@@ -416,22 +425,34 @@ fn html_cell_properties(
       "<od:vAlign od:val=\"\{if value == "middle" { "center" } else if value == "baseline" { "top" } else { value }}\"/>",
     )
   }
-  if document.get_attribute(table, "border") is Some(value) {
-    let width = @string.parse_double(value) catch {
-      _ => @failure.reject("unsupported-input", "Invalid HTML table border")
+  let size = html_table_border_size(document, table)
+  if size > 0 {
+    out.write_string("<od:tcBorders>")
+    for edge in ["top", "left", "bottom", "right"] {
+      out.write_string(
+        "<od:\{edge} od:val=\"single\" od:sz=\"\{size}\" od:color=\"000000\"/>",
+      )
     }
-    guard !width.is_nan() && width >= 0 && width <= 16 else {
-      @failure.reject("unsupported-input", "HTML table border exceeds bounds")
-    }
-    if width > 0 {
-      out.write_string("<od:tcBorders>")
-      for edge in ["top", "left", "bottom", "right"] {
-        out.write_string(
-          "<od:\{edge} od:val=\"single\" od:sz=\"\{(width * 6).round().to_int().max(2)}\" od:color=\"000000\"/>",
-        )
-      }
-      out.write_string("</od:tcBorders>")
-    }
+    out.write_string("</od:tcBorders>")
   }
   out.to_string()
+}
+
+///|
+fn html_table_border_size(
+  document : @html5.Document,
+  table : Int,
+) -> Int raise @failure.Failure {
+  guard document.get_attribute(table, "border") is Some(value) else { return 0 }
+  let width = @string.parse_double(value) catch {
+    _ => @failure.reject("unsupported-input", "Invalid HTML table border")
+  }
+  guard !width.is_nan() && width >= 0 && width <= 16 else {
+    @failure.reject("unsupported-input", "HTML table border exceeds bounds")
+  }
+  if width == 0 {
+    0
+  } else {
+    (width * 6).round().to_int().max(2)
+  }
 }

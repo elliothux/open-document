@@ -497,6 +497,7 @@ pub fn Session::edit_objects(
     (
       change is Fill(_) ||
       change is Stroke(_, _) ||
+      change is StrokeDash(_) ||
       change is TextInsets(_, _, _, _) ||
       change is TextAnchor(_) ||
       change is TextDirection(_)

@@ -1161,6 +1161,14 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 跨格 `unmerge` 按实际所选主格取消合并，保持原公共网格；相交的合并格整体处理，范围外合并格及普通格保持原源。每个主格的全部文字留在原格，新格为空并继承对应源行格的框与首段格式。所有修改及布局预检合为一项历史，光标定位首个所选主格；没有合并格时保留原源、范围和 revision。未知格源、无可用文字宽度、字体及预算失败整体拒绝。指定行列拆格支持同一范围，规则归上述 `splitCell` 合同。拆表仍须选择单格，默认面板在跨格时禁用。链接、书签及批注创建沿普通文字范围规则；跨格时链接查询给出原因，默认面板禁用对应创建。部分跨入单元格、跨不同表格端点及未知格内容沿既有保护规则；两端在正文的完整表格范围归[正文富文本片段](#正文富文本片段)；跨格边框/边距的默认面板、嵌套表格和其余结构范围操作继续实施。
 
+### HTML/Markdown 水平线
+
+HTML 的 `hr` 和 CommonMark 水平分隔符转换为独立段落中的原生 WordprocessingShape `line`。源格式保留引用和列表的缩进，水平线本身不带编号；首尾水平线与目标前后文字分段。源格式与匹配格式保留可编辑的矢量，默认形状面板可继续修改线宽、颜色、尺寸及删除。纯文本方式只保留段落边界，不写图形或分隔符文字。三种方式沿现有片段事务、精确历史及保存重开路径，无新增命令。
+
+默认使用可用文字区的全部宽度、居中、`808080` 和 1.125 pt 描边。实际粘贴按接收节、分栏或单元格计算宽度；匹配格式计入目标缩进。HTML 导入格按原生固定网格和合并跨度计算，扣除默认边距与半边框宽度的较大值。HTML `width` 接受数字/px、pt 或大于 0、不超过 100% 的比例；`size` 接受数字/px、pt，转换为描边。内联 `width/height` 覆盖对应宽度和线宽，`color` 及 `text-align` 覆盖颜色和对齐，`align` 支持 left/center/right。尺寸换算为 EMU，宽度向下取整，避免超过可用文字区。描边最多 1584 pt，超宽及无可用宽度原子拒绝。资源预检只枚举内嵌图片，不读取目标布局；实际宽度和字体在粘贴前检查。
+
+水平线和图片共用 256 个绘图及唯一身份预算，仍受 512 段落、输入、XML、布局、历史和输出上限约束。当前使用平面实线；阴影、立体效果及更广边框 CSS 继续实施。实现归[水平线转换](../../modules/formats/src/docx/markup-rules.mbt)和[共享原生形状构造](../../modules/formats/src/docx/shape-insert.mbt)。原生内联矢量、宽度、颜色、线宽和对齐依据 [ONLYOFFICE HTML 水平线](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/HtmlFile2/Tags/OOXMLTags.cpp#L674-L765)，未复制上游执行代码。
+
 ### HTML/Markdown 内嵌图片
 
 HTML 的 img/src 和 Markdown 的直接/引用式图片接受 `data:image/png;base64,...` 或 `data:image/jpeg;base64,...`。核心校验 MIME、文件头、像素和尺寸预算，复用原生行内 DrawingML、关系、内容类型及图片部件。保留 alt/title；同片段重复字节共用源部件，绘图身份分别分配。源数据按原压缩字节保存，不重新编码。
@@ -1169,7 +1177,7 @@ HTML 的 img/src 和 Markdown 的直接/引用式图片接受 `data:image/png;ba
 
 `FoundationSession.markupImages(revision, kind, input, mode = "source")` 和异步 `FoundationClient.markupImages` 返回原有 `DocxFragmentImages`：`{ revision, images: [{ key, bytes }] }`。kind 为 html/markdown。查询保留原源、选择、revision 和历史。同步宿主先解码返回的压缩字节，并用原有 `addImage(key, width, height, rgba)` 登记，再调用相同输入/方式的粘贴命令。Web 客户端在需要绘图的方式下自动执行清单、浏览器本地解码、登记及最终粘贴；损坏像素在提交前拒绝，bitmap 总会释放。
 
-源格式和匹配目标格式都保留图片框及资源；纯文本方式保留 alt，省略无 alt 的图片，不创建图片部件。所有方式仍验证图片源及尺寸。每片段最多 256 张，压缩字节累计最多 2 MiB，元数据各最多 1024 个 UTF-16 单元；总输入仍限 65536 单元。单图最多 4096×4096、4194304 像素，解码缓存继续限 16 MiB/256 项。图片框沿原 0.1–14400 pt 范围。实现归[图片输入与预检](../../modules/formats/src/docx/markup-images.mbt)及[共享原生图片构造](../../modules/formats/src/docx/picture-markup.mbt)。尺寸换算参考 [ONLYOFFICE 图片尺寸处理](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L13583-L13625)，未移植上游可执行代码。
+源格式和匹配目标格式都保留图片框及资源；纯文本方式保留 alt，省略无 alt 的图片，不创建图片部件。所有方式仍验证图片源及尺寸。每片段的图片与水平线合计最多 256 个绘图，图片压缩字节累计最多 2 MiB，元数据各最多 1024 个 UTF-16 单元；总输入仍限 65536 单元。单图最多 4096×4096、4194304 像素，解码缓存继续限 16 MiB/256 项。图片框沿原 0.1–14400 pt 范围。实现归[图片输入与预检](../../modules/formats/src/docx/markup-images.mbt)及[共享原生图片构造](../../modules/formats/src/docx/picture-markup.mbt)。尺寸换算参考 [ONLYOFFICE 图片尺寸处理](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L13583-L13625)，未移植上游可执行代码。
 
 ### HTML/Markdown 粘贴方式
 
@@ -1191,11 +1199,11 @@ HTML 的 img/src 和 Markdown 的直接/引用式图片接受 `data:image/png;ba
 
 `FoundationSession`、`FoundationClient` 提供 `pasteHtml(revision, selection, html, profile, mode = "source")`；`DocumentEditor.pasteHtml(html, mode = "source")` 沿现有队列使用当前选择，方式归上节。默认粘贴对话框选择 HTML 后解释输入。普通 Ctrl/Cmd+V 或源格式粘贴先读私有原生片段，再读系统 `text/html`，最后读纯文本；显式单元格矩阵粘贴沿原规则。异步读取期间文档或选择变化时拒绝提交。
 
-核心用固定 html 0.2.1 解析 HTML5，再写入与 Markdown 相同的[正文富文本片段](#正文富文本片段)。支持正文/单格范围替换、div/p、h1–h6、blockquote、pre/code、十进制 ol 起始值/ul、普通 li、span、b/strong、i/em、u、s/strike/del、sup/sub、br、受支持的内嵌 img 和 HTTP/HTTPS/mailto 链接。HTML5 容错由解析库完成；普通 ASCII 空白折叠，NBSP 保留，pre 和指定保留模式写原生 Tab/换行。
+核心用固定 html 0.2.1 解析 HTML5，再写入与 Markdown 相同的[正文富文本片段](#正文富文本片段)。支持正文/单格范围替换、div/p、h1–h6、blockquote、pre/code、十进制 ol 起始值/ul、普通 li、span、b/strong、i/em、u、s/strike/del、sup/sub、br、hr、受支持的内嵌 img 和 HTTP/HTTPS/mailto 链接。HTML5 容错由解析库完成；普通 ASCII 空白折叠，NBSP 保留，pre 和指定保留模式写原生 Tab/换行。
 
-仅使用 style、dir、hidden，以及 a 的 href/title、ol 的 start 和 img 的 src/alt/title/width/height。字符格式支持 font-family、pt/px 字号、粗斜体、RGB 颜色、下划线/删除线和上下标；段落支持对齐、方向、标题 outlineLvl、引用及列表缩进。字号换算到原生半点。white-space 支持 normal/nowrap/pre/pre-wrap/break-spaces。display:none、visibility:hidden/collapse 和 hidden 属性移除对应子树。其他属性及未声明 CSS 丢弃，不把 CSS 写入 DOCX。
+仅使用 style、dir、hidden，以及 a 的 href/title、ol 的 start、img 的 src/alt/title/width/height 和上述[水平线属性](#htmlmarkdown-水平线)。字符格式支持 font-family、pt/px 字号、粗斜体、RGB 颜色、下划线/删除线和上下标；段落支持对齐、方向、标题 outlineLvl、引用及列表缩进。字号换算到原生半点。white-space 支持 normal/nowrap/pre/pre-wrap/break-spaces。display:none、visibility:hidden/collapse 和 hidden 属性移除对应子树。其他属性及未声明 CSS 丢弃，不把 CSS 写入 DOCX。
 
-script/style/head 元数据和 iframe/object/embed/template/noscript 子树全部移除，事件属性不参与转换。核心不执行脚本，也不请求图片、样式、框架或链接。未知元素、未支持图片来源、水平线、SVG/MathML、本地锚点、逆序/逐项改号及不支持的已声明格式明确拒绝；不会回退成纯文本掩盖失败。普通表格归下节，更广 HTML 结构和图片引用形式仍待实施。
+script/style/head 元数据和 iframe/object/embed/template/noscript 子树全部移除，事件属性不参与转换。核心不执行脚本，也不请求图片、样式、框架或链接。未知元素、未支持图片来源、SVG/MathML、本地锚点、逆序/逐项改号及不支持的已声明格式明确拒绝；不会回退成纯文本掩盖失败。普通表格归下节，更广 HTML 结构和图片引用形式仍待实施。
 
 源最多 65536 个 UTF-16 单元及 2048 个 `<`；树最多 4096 个节点。转换沿共同的 32 层、512 段落、256 列表、9 级编号和片段/字体/历史/输出预算。格式、关系及编号共用一项事务，失败保留原源、选区和历史；保存重开后继续原生输入。实现归 [HTML 输入](../../modules/formats/src/docx/html-input.mbt)及[内联格式](../../modules/formats/src/docx/html-style.mbt)，参考 [ONLYOFFICE HTML 粘贴入口](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L12167-L12230)，未移植上游可执行代码。
 
@@ -1219,7 +1227,7 @@ HTML 输入支持 `table`、`caption`、`thead/tbody/tfoot` 行组、`tr`、`td/
 
 核心用固定 cmark 0.4.12 解析 CommonMark，转换为[正文富文本片段](#正文富文本片段)，复用格式、编号、链接及源事务。支持普通正文或单个普通格的范围替换、ATX/Setext 标题、粗体/斜体、实体/转义、软换行和硬换行、引用缩进、行内/块代码、有序/无序嵌套列表、续行段落，以及 HTTP/HTTPS/mailto 的直接、引用式和自动链接。标题写原生 outlineLvl 与粗体；代码写 Courier New 和原生 Tab/换行，字体仍由宿主 profile 显式提供。
 
-一次导入合为一项精确历史，保留目标前后文字及其他源部件，保存重开后继续编辑。编号定义、实例、外链和内嵌图片关系沿原片段事务分配身份；不访问链接。图片范围归上述[内嵌图片](#htmlmarkdown-内嵌图片)。Markdown 内嵌 HTML、外链图片、本地锚点及水平线明确拒绝，不静默丢弃。扩展语法按普通 CommonMark 文字解释，不声明 GFM 表格、删除线、任务框、数学或脚注导入。独立 HTML 入口归[HTML 粘贴](#html-粘贴)；Markdown 内嵌 HTML 及更广交换结构仍待实施。
+一次导入合为一项精确历史，保留目标前后文字及其他源部件，保存重开后继续编辑。编号定义、实例、外链和内嵌图片关系沿原片段事务分配身份；不访问链接。图片范围归上述[内嵌图片](#htmlmarkdown-内嵌图片)，水平分隔符归[水平线](#htmlmarkdown-水平线)。Markdown 内嵌 HTML、外链图片及本地锚点明确拒绝，不静默丢弃。扩展语法按普通 CommonMark 文字解释，不声明 GFM 表格、删除线、任务框、数学或脚注导入。独立 HTML 入口归[HTML 粘贴](#html-粘贴)；Markdown 内嵌 HTML 及更广交换结构仍待实施。
 
 源文本最多 65536 个 UTF-16 单元；解析前限制 `[]()*_>` 及反引号共 1024 个。转换树最多 4096 个节点、32 层、512 个段落、256 个列表及 9 级编号；生成片段仍受原 XML、资源、字体、历史和输出预算限制。未知内容、缺字体、旧 revision、保护及预算失败均不提交源变化。实现归[Markdown 输入](../../modules/formats/src/docx/markdown-input.mbt)。格式转换参考 [ONLYOFFICE 粘贴段落与文本](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L12167-L12230)，未移植上游可执行代码。
 
@@ -3748,13 +3756,15 @@ Wasm/Worker 的 `openPptx`、`createPptx` 接受可选 `dateTime`。平台缺省
 
 插入数量等于选中的行或列数。向前插入使用首行/列，向后插入使用末行/列，复制行高或列宽及各格框属性、首段字符/段落格式，文字置空。旧单元格及其他部件保持原源。网格与外框一起扩展或缩小，提交前按既有排版检查行高；插入后选中新格块，删除后光标定位相邻保留格。删除全部行或列时移除整表，并检查整表删除锁和外部对象引用。每次操作合为一项精确历史。模板中的身份扩展或资源链接、锁定、多对象选择和超限修改受保护；动画引用表格内部范围时，修改需先实现引用重映射，当前受保护。失败保留源和选择。行为依据 [ONLYOFFICE 表格命令](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L6659-L6716)、[行插入](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L9997-L10146)和[列插入](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L10512-L10620)。实现归 [`table-selection.mbt`](../../modules/formats/src/pptx/table-selection.mbt)和 [`table-structure.mbt`](../../modules/formats/src/pptx/table-structure.mbt)。
 
-本地普通 DrawingML 表格（含支持的组成员）沿现有对象查询返回 `kind: "table"`，单元格文字使用现有文字选择和编辑接口。核心读取固定列宽和行高、纯色或无填充、普通不透明实线边框、四边内边距及上/中/下垂直对齐。每格独立裁剪，文字、光标、命中和 PDF 复用公共文字布局。默认内边距沿 [ONLYOFFICE 表格设置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/ChartSpacePrototype.js#L640-L665)；网格和图形框对应关系参考 [Create_TableGraphicFrame](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L4122-L4176)。
+本地普通 DrawingML 表格（含支持的组成员）沿现有对象查询返回 `kind: "table"`，单元格文字使用现有文字选择和编辑接口。核心读取固定列宽和行高、纯色或无填充、普通不透明实线/预设虚线边框、四边内边距及上/中/下垂直对齐。每格独立裁剪，文字、光标、命中和 PDF 复用公共文字布局。默认内边距沿 [ONLYOFFICE 表格设置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/ChartSpacePrototype.js#L640-L665)；网格和图形框对应关系参考 [Create_TableGraphicFrame](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L4122-L4176)。
 
 单格输入、换段、组合输入及取消共用现有源事务。水平文字需要更多高度时，核心增长对应行及外框，连同文字写入一项历史。撤销、重做及保存保留其他单元格和未改部件。查询按行连接单元格段落，以 LF 分隔。多格范围的复制返回完整格文本，列间使用 Tab、行间使用 LF，格内段落及软换行保留为 LF。范围输入把文字写入左上格并清空其他选中格；删除或剪切仅清空内容，保留网格和格式。范围高亮、空白区域命中和可访问描述均使用核心返回的矩形。组合输入候选使用预览选择，取消恢复完整原选区；提交合为一项历史。折叠光标在单元格边界的删除仍受保护，避免把相邻格段落合并或误清空范围。实现归 [`table-input.mbt`](../../modules/formats/src/pptx/table-input.mbt)和 [`table-hit.mbt`](../../modules/formats/src/pptx/table-hit.mbt)。
 
-单选可编辑表格时，既有 `fill`、`stroke`、`textInsets`、`textAnchor` 和 `textDirection` 命令修改单元格属性。对象模式作用于整表的主格，文字模式作用于当前主格或闭合后的矩形范围；延续格保留原属性。填充接受六位 RGB 或 `null` 无填充，保留已有不透明度。边框接受同样的颜色和 0.1–1000 点宽度，设置所选主格的四条不透明实线边；`null` 移除。相邻格的对应共享边同步修改，避免另一侧覆盖显示。若共享边只覆盖相邻合并格的一部分，核心原子拒绝，不改到范围外。内边距以点为单位，四边接受 0–14400，左右合计须留下正文字宽度；垂直锚定接受 `t/ctr/b`。字号、段落、非目标属性和部件保持，变化与行高增长合为一项精确历史；重复应用相同直接格式不新增历史。目标填充或边框中的未知注释及处理指令保持受保护。
+单选可编辑表格时，既有 `fill`、`stroke`、`strokeDash`、`textInsets`、`textAnchor` 和 `textDirection` 命令修改单元格属性。对象模式作用于整表的主格，文字模式作用于当前主格或闭合后的矩形范围；延续格保留原属性。填充接受六位 RGB 或 `null` 无填充，保留已有不透明度。边框接受同样的颜色和 0.1–1000 点宽度，设置所选主格的四条不透明边并保留有效预设线型；`null` 移除。相邻格的对应共享边同步修改，避免另一侧覆盖显示。若共享边只覆盖相邻合并格的一部分，核心原子拒绝，不改到范围外。内边距以点为单位，四边接受 0–14400，左右合计须留下正文字宽度；垂直锚定接受 `t/ctr/b`。字号、段落、非目标属性和部件保持，变化与行高增长合为一项精确历史；重复应用相同直接格式不新增历史。目标填充或边框中的未知注释及处理指令保持受保护。
 
-`table.format` 返回 `{ fill, borderColor, borderWidth, left, top, right, bottom, anchor, direction, reason, borderReason }`。混合值为 `null`，无颜色为 `""`，无边框宽度为 0；其他长度单位为点。`reason` 和 `borderReason` 为空表示相应编辑可用，后者单独说明共享边保护。默认面板显示整表或范围、混合值及保护原因，使用同一命令和既有原生输入。读取及写回归 [`table-cell-format.mbt`](../../modules/formats/src/pptx/table-cell-format.mbt)，共享边归 [`table-cell-borders.mbt`](../../modules/formats/src/pptx/table-cell-borders.mbt)。行为参考 [ONLYOFFICE 单元格共享边](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L1641-L1868)、[底色与垂直对齐](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L2028-L2115)。
+`strokeDash` 复用形状的 11 种 `PptxDash` 预设和 `null` 恢复继承，范围与 `stroke` 相同。只改各目标边的 `prstDash`，保留源颜色和线宽；空的局部边继续继承原生样式和来源优先级。`borderDash` 返回有效共同值，混合时为 `null`。默认表格面板复用形状线型控件；共享边与部分相邻合并格保护不变。实线、虚线及点线共用原区域优先级，选中的整条边携带自己的线型，按有效线宽换算为点值数组。跨文稿复制冻结直接边和原生样式中的线型，重复粘贴后的表格可分别修改。规则沿 [ONLYOFFICE DashPatternPresets](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Metafile.js#L1767-L1820)，实现复用 [`line-dash.mbt`](../../modules/formats/src/pptx/line-dash.mbt)及原生表格边框事务。自定义虚线、复合线及透明边框继续保护。
+
+`table.format` 返回 `{ fill, borderColor, borderWidth, borderDash, left, top, right, bottom, anchor, direction, reason, borderReason }`。混合值为 `null`，无颜色为 `""`，无边框宽度为 0；其他长度单位为点。`reason` 和 `borderReason` 为空表示相应编辑可用，后者单独说明共享边保护。默认面板显示整表或范围、混合值及保护原因，使用同一命令和既有原生输入。读取及写回归 [`table-cell-format.mbt`](../../modules/formats/src/pptx/table-cell-format.mbt)，共享边归 [`table-cell-borders.mbt`](../../modules/formats/src/pptx/table-cell-borders.mbt)。行为参考 [ONLYOFFICE 单元格共享边](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L1641-L1868)、[底色与垂直对齐](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L2028-L2115)。
 
 `editObjects({ action: "textDirection", direction })` 对单格、矩形范围或整表写入原生 `tcPr@vert`。direction 接受 `horz/vert/vert270`；默认单元格面板显示三种方向，`table.format.direction` 返回共同值或混合值 `null`。文字整体旋转，四边物理边距及垂直锚定沿交换后的文字平面求值。切换为旋转方向时，将不足 20 mm 的目标主格所在行提高到该值，并同步原生外框；重新应用相同方向不改源。行高、框高和方向共用一项精确历史。
 
@@ -3776,13 +3786,13 @@ Wasm/Worker 的 `openPptx`、`createPptx` 接受可选 `dateTime`。平台缺省
 
 核心沿 presentation 的 `tableStyles` 关系读取原生 `tblStyleLst`。表格未显式指定 `tableStyleId` 时使用目录的 `def`。支持全表、两组行/列条纹、首末行列和四个角格；按全表、行条纹、列条纹、末列、首列、末行、首行、右下/左下/右上/左上角顺序叠加。行条纹避开首行，列条纹在首列存在有效样式时避开首列。合并主格按其起始物理行列选择区域，内部共享线不绘制。直接单元格属性、run 和段落默认字符属性逐项优先；表格文字样式在母版及文稿默认字符属性之前生效。
 
-读取纯色/无填充、主题填充引用、不透明实线及主题线引用、字体引用/普通字体、粗斜体和文字颜色。表格背景在单元格下方只绘制一次，透明格可透出背景，背景不透明度不重复叠加。全表的内部横竖边映射到实际网格；相邻边先取可见线，再取较高来源优先级，同层取较宽线，最后取右/下格。共享边按物理网格只画一次，跳过同一合并主格内部。`table.format` 使用绘制后的有效边，合并格一侧存在分段差异时返回混合值。文字、填充及边线进入同一 Canvas/PDF 路径。
+读取纯色/无填充、主题填充引用、不透明实线/预设虚线及主题线引用、字体引用/普通字体、粗斜体和文字颜色。表格背景在单元格下方只绘制一次，透明格可透出背景，背景不透明度不重复叠加。全表的内部横竖边映射到实际网格；相邻边先取可见线，再取较高来源优先级，同层取较宽线，最后取右/下格。共享边按物理网格只画一次，跳过同一合并主格内部。`table.format` 使用绘制后的有效边，合并格一侧存在分段差异时返回混合值。文字、填充及边线进入同一 Canvas/PDF 路径。
 
 内置 `No Style, No Grid`、`No Style, Table Grid`，以及 `Themed Style 1` 和 `Medium Style 2` 各六种强调色，共 14 项。使用原生 GUID、主题色及 tint；源目录中的同 ID 定义优先。`table.style` 返回 `{ settings, choices, reason }`；choices 为 `{ id, name }[]`。`settings: PptxTableStyle` 包含 `id` 和六个必需布尔项 `firstRow/lastRow/firstColumn/lastColumn/bandRows/bandColumns`。ID 使用目录身份并规范为大写，最多 80 个 UTF-16 单元；没有样式时查询 ID 为空。类型从 `wasm/pptx`、`web/pptx` 导出。
 
 `editObjects({ action: "tableStyle", style })` 为单选表格应用完整设置；对象模式、单格光标和跨格选择均作用于整表。默认表单提供目录、六个选项和显式应用按钮。应用清除全部物理格的直接填充、边框和 `tcPr` 边距，保留垂直锚定、文字/段落格式、内容、跨度、网格及选择；同样式可重新应用以清除覆盖。缺少的内置定义写入原生目录；目录、关系和内容类型缺失时一起创建，并用中性默认定义保持其他无样式表格的外观。未知源内嵌标记保护被清除的格式。资源和必要行高适配共用一次精确历史，无源变化不增加历史，字体、锁定、候选及输出失败不提交。
 
-目录最多 256 个源定义，名称最多 1024 个 UTF-16 单元，当前查询连同内置项最多 270 项。未知样式、渐变/效果、条件区域的内部横竖边、虚线、透明边框及未解析字体配置继续诊断并保护原源。未使用的未知定义保留，不影响已支持表格。预设和优先级参考 [ONLYOFFICE 原生预设](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L18011-L18200)、[区域合成](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableCell.js#L300-L443)及[应用后清除直接格式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L8673-L8743)。实现归 [`table-style-read.mbt`](../../modules/formats/src/pptx/table-style-read.mbt)、[`table-style-edit.mbt`](../../modules/formats/src/pptx/table-style-edit.mbt)和 [`table-edges.mbt`](../../modules/formats/src/pptx/table-edges.mbt)；更多预设、边线类型及样式定义编辑继续实施。
+目录最多 256 个源定义，名称最多 1024 个 UTF-16 单元，当前查询连同内置项最多 270 项。未知样式、渐变/效果、条件区域的内部横竖边、自定义虚线、透明边框及未解析字体配置继续诊断并保护原源。未使用的未知定义保留，不影响已支持表格。预设和优先级参考 [ONLYOFFICE 原生预设](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L18011-L18200)、[区域合成](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableCell.js#L300-L443)及[应用后清除直接格式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L8673-L8743)。实现归 [`table-style-read.mbt`](../../modules/formats/src/pptx/table-style-read.mbt)、[`table-style-edit.mbt`](../../modules/formats/src/pptx/table-style-edit.mbt)和 [`table-edges.mbt`](../../modules/formats/src/pptx/table-edges.mbt)；更多预设、边线类型及样式定义编辑继续实施。
 
 ### 演讲备注
 

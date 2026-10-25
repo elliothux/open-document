@@ -27,7 +27,7 @@ priv struct DrawingCell {
   body : Body
   fill : String
   alpha : Double
-  borders : Array[(String, Double)]
+  borders : Array[(String, Double, String)]
   border_priorities : Array[Int]
 }
 
@@ -289,20 +289,38 @@ fn read_drawing_table(
         guard properties.bind(p => p.child(name)) is Some(edge) else {
           continue
         }
-        edge.table_children(["noFill", "solidFill"])
+        edge.table_children(["noFill", "solidFill", "prstDash"])
         table_profile(
           edge.node.attributes.all(a => a.uri.is_empty() && a.name == "w"),
           "Unsupported table cell pen",
         )
-        let (color, opacity) = fill_rgba(theme, [edge])
+        let dash = dash_override(edge)
+        if edge.node.attributes.is_empty() &&
+          paint_fill(edge) is None &&
+          dash is None {
+          continue
+        }
+        let inherited = borders[side]
+        let (color, opacity) = if paint_fill(edge) is Some(_) {
+          fill_rgba(theme, [edge])
+        } else {
+          (inherited.0, 1.0)
+        }
         table_profile(
           opacity == 1,
           "Transparent table cell borders require conflict resolution",
         )
         borders[side] = (
           color,
-          number(edge.node.attribute("w").unwrap_or("12700"), 1, 12700000) /
-          12700,
+          edge.node
+          .attribute("w")
+          .map(value => number(value, 1, 12700000) / 12700)
+          .unwrap_or(if inherited.1 > 0 { inherited.1 } else { 1.0 }),
+          if dash is Some(dash) {
+            dash.node.attribute("val").unwrap_or("solid")
+          } else {
+            inherited.2
+          },
         )
         border_priorities[side] = 100
       }

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import type { PresentationEditor } from "@open-document/web/presentation-editor";
 import type {
-  PptxDash,
   PptxCap,
   PptxJoin,
   PptxBackgroundFill,
@@ -9,6 +8,7 @@ import type {
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { PptxLineEnds } from "./pptx-line-ends.js";
+import { PptxDashFields } from "./pptx-dash.js";
 
 type Stops = Extract<PptxBackgroundFill, { kind: "linear" }>["stops"];
 
@@ -174,7 +174,6 @@ export function PptxPaint({
   );
   const [noStroke, setNoStroke] = useState(first?.stroke === null);
   const [width, setWidth] = useState(String(first?.width ?? 1));
-  const [dash, setDash] = useState<PptxDash>(first?.dash ?? "solid");
   const [cap, setCap] = useState<PptxCap>(first?.cap ?? "flat");
   const [join, setJoin] = useState<PptxJoin>(first?.join ?? "round");
   const [miter, setMiter] = useState(String(first?.miterLimit ?? 8));
@@ -198,19 +197,6 @@ export function PptxPaint({
   ] as const;
   const dashReason = objects.find((object) => object.appearance.dashReason)
     ?.appearance.dashReason;
-  const dashes = [
-    ["solid", t.dashSolid],
-    ["dash", t.dashRegular],
-    ["dashDot", t.dashDot],
-    ["dot", t.dashDotted],
-    ["lgDash", t.dashLong],
-    ["lgDashDot", t.dashLongDot],
-    ["lgDashDotDot", t.dashLongDotDot],
-    ["sysDash", t.dashSystem],
-    ["sysDashDot", t.dashSystemDot],
-    ["sysDashDotDot", t.dashSystemDotDot],
-    ["sysDot", t.dashSystemDotted],
-  ] as const;
   const reason = objects.find((object) => object.appearance.reason)?.appearance
     .reason;
   const imageReason = objects.find(
@@ -514,51 +500,13 @@ export function PptxPaint({
           {t.apply} {t.shapeStroke}
         </button>
       </form>
-      <fieldset disabled={!!dashReason}>
-        <legend>{t.shapeLineDash}</legend>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            controller.run(() =>
-              editor.editObjects({ action: "strokeDash", dash }),
-            );
-          }}
-        >
-          <label>
-            {t.shapeLineDash}
-            <select
-              aria-label={t.shapeLineDash}
-              value={dash}
-              onChange={(event) => {
-                const option = dashes.find(
-                  ([value]) => value === event.currentTarget.value,
-                );
-                if (option) setDash(option[0]);
-              }}
-            >
-              {dashes.map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button type="submit">
-            {t.apply} {t.shapeLineDash}
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              controller.run(() =>
-                editor.editObjects({ action: "strokeDash", dash: null }),
-              )
-            }
-          >
-            {t.resetLineDash}
-          </button>
-        </form>
-        {dashReason && <p>{dashReason}</p>}
-      </fieldset>
+      <PptxDashFields
+        controller={controller}
+        state={state}
+        editor={editor}
+        value={first?.dash ?? "solid"}
+        reason={dashReason ?? ""}
+      />
       <fieldset disabled={!!penReason}>
         <legend>{t.shapeLinePen}</legend>
         <form

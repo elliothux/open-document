@@ -73,6 +73,7 @@ export interface PptxTable {
     fill: string | null;
     borderColor: string | null;
     borderWidth: number | null;
+    borderDash: PptxDash | null;
     left: number | null;
     top: number | null;
     right: number | null;
@@ -124,6 +125,10 @@ export function checkPptxTable(
     ![null, "t", "ctr", "b"].some((value) => value === format.anchor) ||
     ![null, "horz", "vert", "vert270"].some(
       (value) => value === format.direction,
+    ) ||
+    !(
+      format.borderDash === null ||
+      pptxDashes.some((value) => value === format.borderDash)
     ) ||
     typeof format.reason !== "string" ||
     typeof format.borderReason !== "string"

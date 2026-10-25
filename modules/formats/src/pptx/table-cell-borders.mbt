@@ -79,7 +79,8 @@ fn table_border_changes(
       }
       ignore(paint_fill(edge))
     }
-    let xml = "<a:\{name} xmlns:a=\"\{drawing_uri}\" w=\"\{(width * 12700).round().to_int64()}\">\{paint_markup(color)}</a:\{name}>"
+    let dash = cell.borders[side].2
+    let xml = "<a:\{name} xmlns:a=\"\{drawing_uri}\" w=\"\{(width * 12700).round().to_int64()}\">\{paint_markup(color)}<a:prstDash val=\"\{dash}\"/></a:\{name}>"
     if properties is Some(properties) && !properties.node.empty {
       changes.push(
         paint_child_change(
@@ -94,6 +95,71 @@ fn table_border_changes(
     }
   }
   if !added.to_string().is_empty() {
+    changes.push(
+      if properties is Some(properties) {
+        insertion(properties.node, added.to_string())
+      } else {
+        insertion(
+          cell.source.node,
+          "<a:tcPr xmlns:a=\"\{drawing_uri}\">\{added}</a:tcPr>",
+        )
+      },
+    )
+  }
+  changes
+}
+
+///|
+fn table_dash_changes(
+  cell : DrawingCell,
+  sides : Array[Bool],
+  value : String?,
+) -> Array[@xml.SourceChange] raise @failure.Failure {
+  let changes : Array[@xml.SourceChange] = []
+  let properties = cell.source.child("tcPr")
+  let names = ["lnL", "lnR", "lnT", "lnB"]
+  let added = StringBuilder()
+  for index, side in [0, 2, 1, 3] {
+    if !sides[side] {
+      continue
+    }
+    let name = names[index]
+    let markup = value
+      .map(value => "<a:prstDash xmlns:a=\"\{drawing_uri}\" val=\"\{value}\"/>")
+      .unwrap_or("")
+    if properties.bind(p => p.child(name)) is Some(edge) {
+      let preset = dash_override(edge)
+      if value == preset.map(p => p.node.attribute("val").unwrap_or("solid")) {
+        continue
+      }
+      if preset is Some(preset) {
+        let source = source_xml(preset)
+        guard !source.contains("<!--") && !source.contains("<?") else {
+          @failure.reject(
+            "protected-content", "Retained table border dash is protected",
+          )
+        }
+      }
+      changes.push(
+        paint_child_change(edge, preset.map(p => p.node), markup, []),
+      )
+    } else if value is Some(_) {
+      let xml = "<a:\{name} xmlns:a=\"\{drawing_uri}\">\{markup}</a:\{name}>"
+      if properties is Some(properties) && !properties.node.empty {
+        changes.push(
+          paint_child_change(
+            properties,
+            None,
+            xml,
+            [..names[index + 1:], "noFill", "solidFill"],
+          ),
+        )
+      } else {
+        added.write_string(xml)
+      }
+    }
+  }
+  if !added.is_empty() {
     changes.push(
       if properties is Some(properties) {
         insertion(properties.node, added.to_string())

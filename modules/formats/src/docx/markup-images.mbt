@@ -7,7 +7,7 @@ fn MarkupInput::image(
   width? : Double,
   height? : Double,
 ) -> Unit raise @failure.Failure {
-  guard alt.length() <= 1024 && title.length() <= 1024 && self.pictures < 256 else {
+  guard alt.length() <= 1024 && title.length() <= 1024 && self.drawings < 256 else {
     @failure.reject("limit-exceeded", "Markup image metadata exceeds budget")
   }
   let comma = source
@@ -32,7 +32,7 @@ fn MarkupInput::image(
       "invalid-image", "Embedded image MIME differs from its source",
     )
   }
-  self.pictures += 1
+  self.drawings += 1
   self.pictureBytes += bytes.length()
   guard self.pictureBytes <= 2097152 else {
     @failure.reject("limit-exceeded", "Markup images exceed byte budget")
@@ -53,7 +53,7 @@ fn MarkupInput::image(
   self.add(
     "<od:r>" +
     picture_markup(
-      self.pictures,
+      self.drawings,
       "image",
       w,
       h,

@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { PresentationEditor } from "@open-document/web/presentation-editor";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+import { PptxDashFields } from "./pptx-dash.js";
 
 export function PptxTableStyle({
   controller,
@@ -329,6 +330,12 @@ export function PptxCells({
             {t.noTableBorder}
           </button>
         </form>
+        <PptxDashFields
+          controller={controller}
+          state={state}
+          editor={editor}
+          value={format.borderDash}
+        />
         {format.borderReason && <p>{format.borderReason}</p>}
       </fieldset>
       <form

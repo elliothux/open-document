@@ -12,6 +12,7 @@ priv struct HtmlContext {
   heading : Int
   keepNext : Bool
   link : (String, String)?
+  cellWidth : Double?
 }
 
 ///|

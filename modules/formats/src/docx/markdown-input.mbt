@@ -8,7 +8,11 @@ priv struct MarkupInput {
   mut units : Int
   mut nodes : Int
   mut paragraphs : Int
-  mut pictures : Int
+  // Resource preflight has no target; resolve receiving geometry only during paste.
+  available : () -> (Double, Double) raise @failure.Failure
+  mut area : (Double, Double)?
+  mut drawings : Int
+  mut afterRule : Bool
   mut pictureBytes : Int
 }
 
@@ -17,6 +21,7 @@ fn MarkupInput::new(
   limit : Int,
   defs~ : Map[String, @cmark.LabelDef] = Map([]),
   mode~ : String = "source",
+  available~ : () -> (Double, Double) raise @failure.Failure = () => (14400, 0),
 ) -> MarkupInput raise @failure.Failure {
   let input : MarkupInput = {
     output: StringBuilder(),
@@ -27,7 +32,10 @@ fn MarkupInput::new(
     units: 0,
     nodes: 0,
     paragraphs: 0,
-    pictures: 0,
+    available,
+    area: None,
+    drawings: 0,
+    afterRule: false,
     pictureBytes: 0,
   }
   input.add("<od:body>")
@@ -63,6 +71,9 @@ fn MarkupInput::number(
 fn MarkupInput::finish(self : MarkupInput) -> String raise @failure.Failure {
   guard self.paragraphs > 0 else {
     @failure.reject("unsupported-input", "Markup has no editable content")
+  }
+  if self.afterRule {
+    self.add("<od:p/>")
   }
   if !self.definitions.is_empty() {
     self.add(
@@ -227,6 +238,7 @@ fn MarkupInput::paragraph(
   heading~ : Int = 0,
   code~ : Bool = false,
 ) -> Unit raise @failure.Failure {
+  self.afterRule = false
   self.paragraphs += 1
   guard self.paragraphs <= 512 else {
     @failure.reject("limit-exceeded", "Markdown exceeds paragraph budget")
@@ -320,13 +332,11 @@ fn MarkupInput::block(
       let content = @cmark.Text(@cmark.Node::new(text))
       self.paragraph(content, depth, quote, list, first, code=true)
     }
-    ThematicBreak(_)
-    | HtmlBlock(_)
-    | ExtMathBlock(_)
-    | ExtTable(_)
-    | ExtFootnoteDefinition(_) =>
+    ThematicBreak(_) =>
+      self.rule(quote * 18 + list.map(pair => (pair.1 + 1) * 36).unwrap_or(0))
+    HtmlBlock(_) | ExtMathBlock(_) | ExtTable(_) | ExtFootnoteDefinition(_) =>
       @failure.reject(
-        "unsupported-input", "Markdown rules, embedded HTML and extensions require a supported import path",
+        "unsupported-input", "Markdown embedded HTML and extensions require a supported import path",
       )
   }
 }
@@ -345,7 +355,9 @@ pub fn Session::paste_markdown(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   self.check_document_protection()
-  let fragment = self.markdown_fragment(markdown, mode)
+  let fragment = self.markdown_fragment(markdown, mode, available=() => {
+    self.markup_area(selection, mode, probe, profile, images)
+  })
   self.paste_markup_fragment(
     revision, selection, fragment, mode, probe, profile, images,
   )
@@ -356,6 +368,7 @@ fn Session::markdown_fragment(
   self : Session,
   markdown : String,
   mode : String,
+  available~ : () -> (Double, Double) raise @failure.Failure = () => (14400, 0),
 ) -> String raise @failure.Failure {
   check_markup_mode(mode)
   guard !markdown.trim().is_empty() && markdown.length() <= 65536 else {
@@ -371,6 +384,7 @@ fn Session::markdown_fragment(
     self.opc.budget.entry_bytes.min(history_byte_limit / 2),
     defs=doc.defs,
     mode~,
+    available~,
   )
   input.block(doc.block, 0, 0, 0, None, Ref(false))
   input.finish()
