@@ -142,7 +142,7 @@ fn Expression::dependencies(
           "ASIN", "ATAN", "ATAN2", "EXP", "LN", "LOG", "LOG10", "SINH", "COSH", "TANH",
           "ACOSH", "ASINH", "ATANH", "SIGN", "CEILING.MATH", "FLOOR.MATH", "CEILING.PRECISE",
           "FLOOR.PRECISE", "CEILING", "FLOOR", "TRUNC", "GCD", "LCM", "FACT", "FACTDOUBLE",
-          "COMBIN", "COMBINA",
+          "COMBIN", "COMBINA", "MROUND",
         ].contains(name) {
         guard uncomputed is Some(reason) && isolated_math_function(name) else {
           @failure.reject(

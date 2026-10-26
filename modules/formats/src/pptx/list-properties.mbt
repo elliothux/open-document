@@ -13,6 +13,8 @@ fn number_format(value : String) -> String {
   match value {
     "arabicPeriod" | "arabicParenBoth" | "arabicParenR" | "arabicPlain" =>
       "decimal"
+    "arabicDbPeriod" | "arabicDbPlain" => "decimalFullWidth"
+    "circleNumDbPlain" => "decimalEnclosedCircle"
     "alphaLcPeriod" | "alphaLcParenBoth" | "alphaLcParenR" => "lowerLetter"
     "alphaUcPeriod" | "alphaUcParenBoth" | "alphaUcParenR" => "upperLetter"
     "romanLcPeriod" | "romanLcParenBoth" | "romanLcParenR" => "lowerRoman"
@@ -150,7 +152,9 @@ fn list_label(
         "(" + label + ")"
       } else if kind.has_suffix("ParenR") {
         label + ")"
-      } else if kind == "arabicPlain" {
+      } else if ["arabicPlain", "arabicDbPlain", "circleNumDbPlain"].contains(
+          kind,
+        ) {
         label
       } else {
         label + "."

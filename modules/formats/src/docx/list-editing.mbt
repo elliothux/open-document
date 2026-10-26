@@ -101,8 +101,8 @@ fn Session::edit_list_with_indent(
     }
     Create(format) => {
       guard [
-        "decimal", "decimalZero", "lowerLetter", "upperLetter", "lowerRoman", "upperRoman",
-        "bullet",
+        "decimal", "decimalZero", "decimalFullWidth", "decimalEnclosedCircle", "lowerLetter",
+        "upperLetter", "lowerRoman", "upperRoman", "bullet",
       ].contains(format) else {
         @failure.reject("invalid-operation", "Invalid list format")
       }

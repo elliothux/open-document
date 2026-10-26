@@ -103,7 +103,16 @@ fn Foundation::docx_table(
               "invalid-operation", "Cell fill requires a color or null",
             )
         }
-        @docx.CellFill(color)
+        let theme = match fields {
+          { "themeColor": Null, .. } => None
+          { "themeColor": String(value), .. } => Some(value)
+          Object(values) if !values.contains("themeColor") => None
+          _ =>
+            @failure.reject(
+              "invalid-operation", "Cell fill theme requires a slot or null",
+            )
+        }
+        @docx.CellFill(color, theme)
       }
       "cellVerticalAlign" => {
         let value = match fields {

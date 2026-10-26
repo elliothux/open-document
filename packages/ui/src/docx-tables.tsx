@@ -9,6 +9,7 @@ import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { DocxMargins } from "./docx-margins.js";
 import { DocxBorders } from "./docx-borders.js";
+import { DocxCellFill } from "./docx-cell-fill.js";
 import { DocxCellSelection, DocxRowHeight } from "./docx-cell-selection.js";
 
 export function DocxTables({
@@ -363,8 +364,7 @@ function TableProperties({
 }) {
   const t = messages(state.locale);
   const [tableWidth, setWidth] = useState(String(width)),
-    [headers, setHeaders] = useState(String(headerRows)),
-    [cellFill, setFill] = useState(`#${fill ?? "ffffff"}`);
+    [headers, setHeaders] = useState(String(headerRows));
   const [columnIndex, setColumnIndex] = useState(column),
     [columnWidth, setColumnWidth] = useState(String(columnWidths[column]));
   const maximumColumnWidth = maxWidth - width + columnWidths[columnIndex]!;
@@ -523,37 +523,12 @@ function TableProperties({
           </button>
         ))}
       </fieldset>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          controller.run(() =>
-            editor.editTable({ action: "cellFill", value: cellFill.slice(1) }),
-          );
-        }}
-      >
-        <label>
-          {t.cellFill}
-          <input
-            type="color"
-            value={cellFill}
-            onChange={(event) => setFill(event.currentTarget.value)}
-          />
-        </label>
-        <button type="submit" aria-label={`${t.apply} ${t.cellFill}`}>
-          {t.apply}
-        </button>
-        <button
-          type="button"
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() =>
-            controller.run(() =>
-              editor.editTable({ action: "cellFill", value: null }),
-            )
-          }
-        >
-          {t.clearCellFill}
-        </button>
-      </form>
+      <DocxCellFill
+        controller={controller}
+        state={state}
+        editor={editor}
+        fill={fill}
+      />
       <DocxRowHeight
         controller={controller}
         state={state}

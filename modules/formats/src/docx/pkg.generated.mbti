@@ -349,7 +349,7 @@ pub(all) enum TableEdit {
   TableWidth(Double)
   ColumnWidth(Int, Double)
   RowHeight(Double, String)
-  CellFill(String?)
+  CellFill(String?, String?)
   CellVerticalAlign(String?)
   CellMargins(@layout.CellMargins?)
   TableMargins(@layout.CellMargins?)

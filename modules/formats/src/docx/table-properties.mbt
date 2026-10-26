@@ -4,6 +4,7 @@ fn Session::fill_table_cell(
   revision : Int,
   selection : Selection,
   color : String?,
+  theme : String?,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   if color is Some(value) {
@@ -11,6 +12,16 @@ fn Session::fill_table_cell(
       @failure.reject(
         "invalid-operation", "Cell fill requires six hexadecimal digits or null",
       )
+    }
+  }
+  if theme is Some(slot) {
+    guard color is Some(_) &&
+      (
+        theme_slots.contains(theme_color_name(slot)) ||
+        ["text1", "text2", "background1", "background2"].contains(slot)
+      ) &&
+      word_theme_color_name(slot) == slot else {
+      @failure.reject("invalid-operation", "Invalid cell fill theme slot")
     }
   }
   let color = color.map(value => value.to_lower())
@@ -25,6 +36,7 @@ fn Session::fill_table_cell(
         ("fill", Some(value)),
       ])
     }),
+    fill_theme=theme,
   )
 }
 
@@ -40,6 +52,7 @@ fn Session::change_table_property(
   whole_row~ : Bool = false,
   header_rows~ : Int? = None,
   border_patch~ : Map[String, TableBorderStyle?]? = None,
+  fill_theme~ : String? = None,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let document = self.document()
@@ -100,8 +113,11 @@ fn Session::change_table_property(
   let parts = self.parts.copy()
   let part_edits : Map[String, Array[@xml.Edit]] = Map([])
   let created : Map[String, @xml.Document] = Map([])
-  if border_patch is Some(patch) &&
-    patch.values().any(edge => edge is Some({ themeColor: Some(_), .. })) {
+  if fill_theme is Some(_) ||
+    (
+      border_patch is Some(patch) &&
+      patch.values().any(edge => edge is Some({ themeColor: Some(_), .. }))
+    ) {
     let reason = self.theme_edit_reason()
     guard reason.is_empty() else {
       @failure.reject("protected-content", reason)
@@ -111,7 +127,7 @@ fn Session::change_table_property(
     }
   }
   let view = { ..self, parts, }
-  let border_themes = if border_patch is Some(_) {
+  let border_themes = if border_patch is Some(_) || name == "shd" {
     view.theme_values()
   } else {
     Map([])
@@ -137,6 +153,8 @@ fn Session::change_table_property(
           } else {
             None
           }
+        } else if name == "shd" && attributes is Some(values) {
+          Some(tree.table_fill_patch(target, values, fill_theme, border_themes))
         } else {
           attributes
         },

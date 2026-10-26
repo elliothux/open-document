@@ -40,8 +40,8 @@ pub fn Session::update_list_level(
     index >= 0 &&
     index <= 8 &&
     [
-      "decimal", "decimalZero", "lowerLetter", "upperLetter", "lowerRoman", "upperRoman",
-      "bullet",
+      "decimal", "decimalZero", "decimalFullWidth", "decimalEnclosedCircle", "lowerLetter",
+      "upperLetter", "lowerRoman", "upperRoman", "bullet",
     ].contains(format.format) &&
     !format.pattern.is_empty() &&
     format.pattern.length() <= 256 &&

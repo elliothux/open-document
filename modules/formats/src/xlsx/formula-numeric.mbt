@@ -84,6 +84,42 @@ fn combination_integer(number : Double) -> Double raise @failure.Failure {
 }
 
 ///|
+fn rounded_multiple(value : Double, step : Double) -> Value {
+  if step == 0 {
+    return Number(0)
+  }
+  if (value < 0 && step > 0) || (value > 0 && step < 0) {
+    return Error("#NUM!")
+  }
+  let shifted = value + step / 2
+  let scale = @math.pow(10, @math.log10(shifted.abs()).floor() - 14)
+  let adjusted = (shifted + 0.5 * (shifted / shifted.abs()) * scale) / scale
+  let quotient = adjusted /
+    adjusted.abs() *
+    adjusted.abs().floor() *
+    scale /
+    step
+  let quotient = quotient +
+    5 *
+    (quotient / quotient.abs()) *
+    @math.pow(10, @math.log10(quotient.abs()).floor() - 15)
+  // The native reference converts the corrected quotient with JavaScript ToInt32.
+  let integer = if quotient.is_nan() || quotient.is_inf() {
+    0.0
+  } else {
+    quotient.trunc() % 4294967296
+  }
+  let signed = if integer >= 2147483648 {
+    integer - 4294967296
+  } else if integer < -2147483648 {
+    integer + 4294967296
+  } else {
+    integer
+  }
+  finite_result(signed * step)
+}
+
+///|
 fn numeric_function(
   name : String,
   args : Array[Expression],
@@ -95,7 +131,9 @@ fn numeric_function(
 ) -> Value raise @failure.Failure {
   let numbers : Array[Double] = []
   for arg in args {
-    let value = if ["FACT", "FACTDOUBLE", "COMBIN", "COMBINA"].contains(name) {
+    let value = if ["FACT", "FACTDOUBLE", "COMBIN", "COMBINA", "MROUND"].contains(
+        name,
+      ) {
       arg.scalar_argument(sheets, sheet, values, work, depth + 1)
     } else {
       arg.evaluate(sheets, sheet, values, work, depth + 1)
@@ -155,6 +193,7 @@ fn numeric_function(
       )
     }
     "PI" => Number(@math.PI)
+    "MROUND" => rounded_multiple(numbers[0], numbers[1])
     "SIN" => finite_result(@math.sin(numbers[0]))
     "COS" => finite_result(@math.cos(numbers[0]))
     "TAN" => finite_result(@math.tan(numbers[0]))

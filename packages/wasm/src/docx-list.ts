@@ -3,6 +3,8 @@ import { record } from "./validation.js";
 export const listFormats = [
   "decimal",
   "decimalZero",
+  "decimalFullWidth",
+  "decimalEnclosedCircle",
   "lowerLetter",
   "upperLetter",
   "lowerRoman",

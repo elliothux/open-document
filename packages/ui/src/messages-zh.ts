@@ -425,6 +425,8 @@ export const zh: Messages = {
   numberingFormat: "编号格式",
   listFormat_decimal: "数字",
   listFormat_decimalZero: "带前导零的数字",
+  listFormat_decimalFullWidth: "全角数字",
+  listFormat_decimalEnclosedCircle: "圆圈数字",
   listFormat_lowerLetter: "小写字母",
   listFormat_upperLetter: "大写字母",
   listFormat_lowerRoman: "小写罗马数字",

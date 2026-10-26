@@ -427,6 +427,8 @@ export const en = {
   numberingFormat: "Numbering format",
   listFormat_decimal: "Numbers",
   listFormat_decimalZero: "Numbers with leading zero",
+  listFormat_decimalFullWidth: "Full-width numbers",
+  listFormat_decimalEnclosedCircle: "Circled numbers",
   listFormat_lowerLetter: "Lowercase letters",
   listFormat_upperLetter: "Uppercase letters",
   listFormat_lowerRoman: "Lowercase Roman numerals",

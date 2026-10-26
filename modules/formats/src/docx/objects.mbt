@@ -142,6 +142,7 @@ fn Session::table(
   let mut styles = styles
   let mut default_vertical_align = "top"
   let mut default_split_row = true
+  let mut default_fill = ""
   let style_margins : Array[(WordTree, Int)] = []
   let inherited_diagnostics : Array[String] = []
   let mut default_margins = table_margin_defaults(
@@ -158,6 +159,12 @@ fn Session::table(
     is Some(key) &&
     styles.tree is Some(source) {
     for style in styles.chain(key, inherited_diagnostics) {
+      if source
+        .child(style, "tcPr")
+        .bind(p => source.table_shading(p, Some(styles.themes)))
+        is Some(color) {
+        default_fill = color
+      }
       if source.table_row_split(style) is Some(value) {
         default_split_row = value
       }
@@ -316,16 +323,9 @@ fn Session::table(
       spans.push(span)
       vertical.push(if continued { 0 } else { 1 })
       let paragraphs : Array[@layout.Paragraph] = []
-      let color = tree
-        .child(cell, "tcPr")
-        .bind(props => tree.child(props, "shd"))
-        .bind(shd => tree.nodes[shd].attribute("fill", uri=word_uri))
-        .unwrap_or("")
-      let color = if color == "auto" { "" } else { color }
-      guard color.is_empty() ||
-        (color.length() == 6 && color.iter().all(ch => ch.is_ascii_hexdigit())) else {
-        @failure.reject("invalid-table", "Invalid cell fill color")
-      }
+      let color = props
+        .bind(p => tree.table_shading(p, Some(styles.themes)))
+        .unwrap_or(default_fill)
       colors.push(color)
       for item in tree.children[cell] {
         match tree.nodes[item].name {

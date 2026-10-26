@@ -205,7 +205,11 @@ export type DocxTableEdit =
   | { action: "columnWidth"; column: number; value: number }
   | { action: "headerRows"; value: number }
   | { action: "rowSplit"; value: boolean }
-  | { action: "cellFill"; value: string | null }
+  | {
+      action: "cellFill";
+      value: string | null;
+      themeColor?: DocxPageBorder["themeColor"];
+    }
   | { action: "cellVerticalAlign"; value: "top" | "center" | "bottom" | null }
   | { action: "cellMargins" | "tableMargins"; value: DocxCellMargins | null }
   | { action: "tableAlign"; value: "left" | "center" | "right" };
@@ -278,8 +282,13 @@ export function checkDocxTableEdit(value: unknown): void {
   }
   if (change.action === "cellFill") {
     if (
-      change.value !== null &&
-      (typeof change.value !== "string" || !/^[0-9a-f]{6}$/i.test(change.value))
+      (change.value !== null &&
+        (typeof change.value !== "string" ||
+          !/^[0-9a-f]{6}$/i.test(change.value))) ||
+      (change.themeColor !== undefined &&
+        change.themeColor !== null &&
+        (change.value === null ||
+          !wordBorderThemeSlots.some((slot) => slot === change.themeColor)))
     )
       throw new Error("Invalid cell fill");
     return;

@@ -223,15 +223,26 @@ fn theme_text_color(
 }
 
 ///|
-fn theme_color_reference(node : @xml.Node) -> String? raise @failure.Failure {
-  let name = node.attribute("themeColor", uri=word_uri)
+fn theme_color_reference(
+  node : @xml.Node,
+  fill~ : Bool = false,
+) -> String? raise @failure.Failure {
+  let name = node.attribute(
+    if fill {
+      "themeFill"
+    } else {
+      "themeColor"
+    },
+    uri=word_uri,
+  )
   if name is Some(name) && name != "none" {
     guard theme_slots.contains(theme_color_name(name)) ||
       ["text1", "text2", "background1", "background2"].contains(name) else {
       @failure.reject("invalid-style", "Invalid theme color")
     }
   }
-  for field in ["themeShade", "themeTint"] {
+  for suffix in ["Shade", "Tint"] {
+    let field = (if fill { "themeFill" } else { "theme" }) + suffix
     if node.attribute(field, uri=word_uri) is Some(value) {
       guard value.length() == 2 && value.iter().all(c => c.is_ascii_hexdigit()) else {
         @failure.reject("invalid-style", "Invalid theme color transform")
@@ -246,8 +257,9 @@ fn theme_node_color(
   node : @xml.Node,
   fallback : String,
   values : Map[String, String],
+  fill~ : Bool = false,
 ) -> String raise @failure.Failure {
-  let name = theme_color_reference(node)
+  let name = theme_color_reference(node, fill~)
   let mut color = if name is Some(name) && name != "none" {
     values
     .get(theme_color_name(name))
@@ -265,7 +277,8 @@ fn theme_node_color(
     @failure.reject("invalid-style", "Invalid color")
   }
   // ONLYOFFICE RtfColor applies shade then tint to HSL luminance.
-  for field in ["themeShade", "themeTint"] {
+  for suffix in ["Shade", "Tint"] {
+    let field = (if fill { "themeFill" } else { "theme" }) + suffix
     if node.attribute(field, uri=word_uri) is Some(value) {
       if name is None || name == Some("none") {
         continue
@@ -275,7 +288,7 @@ fn theme_node_color(
       let low = rgb[0].min(rgb[1]).min(rgb[2])
       let high = rgb[0].max(rgb[1]).max(rgb[2])
       let light = (high + low) / 2
-      let next = if field == "themeShade" {
+      let next = if suffix == "Shade" {
         light * amount
       } else {
         light * amount + 1 - amount

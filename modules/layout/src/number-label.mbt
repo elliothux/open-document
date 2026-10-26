@@ -10,6 +10,19 @@ pub fn numbering_value(
   match format {
     "bullet" => ""
     "decimal" => value.to_string()
+    "decimalFullWidth" => {
+      let out = StringBuilder()
+      for digit in value.to_string() {
+        out.write_char((digit.to_int() - 48 + 0xff10).to_char().unwrap())
+      }
+      out.to_string()
+    }
+    "decimalEnclosedCircle" =>
+      if value >= 1 && value <= 20 {
+        String::from_array([(0x2460 + value - 1).to_char().unwrap()])
+      } else {
+        value.to_string()
+      }
     "decimalZero" => (if value < 10 { "0" } else { "" }) + value.to_string()
     "lowerLetter" | "upperLetter" => {
       if value == 0 {

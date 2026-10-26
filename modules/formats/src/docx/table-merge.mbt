@@ -151,6 +151,10 @@ fn WordTree::check_merge_cell(
   if self.child(cell, "tcPr") is Some(props) {
     for child in self.children[props] {
       let node = self.nodes[child]
+      if node.uri == word_uri && node.name == "shd" {
+        ignore(self.table_shading(props, None))
+        continue
+      }
       if node.uri == word_uri && node.name == "tcBorders" {
         ignore(self.read_borders(props, "tcBorders", None))
         continue
@@ -166,7 +170,6 @@ fn WordTree::check_merge_cell(
       }
       let attributes = match node.name {
         "tcW" => ["type", "w"]
-        "shd" => ["val", "color", "fill"]
         "gridSpan" | "vMerge" | "vAlign" => ["val"]
         _ =>
           @failure.reject(

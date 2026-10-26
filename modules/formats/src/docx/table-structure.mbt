@@ -16,7 +16,7 @@ pub(all) enum TableEdit {
   TableWidth(Double)
   ColumnWidth(Int, Double)
   RowHeight(Double, String)
-  CellFill(String?)
+  CellFill(String?, String?)
   CellVerticalAlign(String?)
   CellMargins(@layout.CellMargins?)
   TableMargins(@layout.CellMargins?)
@@ -268,7 +268,8 @@ pub fn Session::edit_table(
         profile~,
         images?,
       )
-    CellFill(color) => return self.fill_table_cell(revision, selection, color)
+    CellFill(color, theme) =>
+      return self.fill_table_cell(revision, selection, color, theme)
     CellMargins(value) =>
       return self.set_table_margins(revision, selection, value)
     TableMargins(value) =>

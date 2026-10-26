@@ -9,6 +9,7 @@ import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { DocxMargins } from "./docx-margins.js";
 import { DocxBorders } from "./docx-borders.js";
+import { DocxCellFill } from "./docx-cell-fill.js";
 
 export function DocxCellSelection({
   controller,
@@ -24,9 +25,6 @@ export function DocxCellSelection({
   disabled: boolean;
 }) {
   const t = messages(state.locale);
-  const [fill, setFill] = useState(
-    `#${selected.fill.kind === "value" ? (selected.fill.value ?? "ffffff") : "ffffff"}`,
-  );
   const margins: Partial<DocxCellMargins> = {};
   const borders: DocxCellBorders = {
     top: null,
@@ -49,36 +47,12 @@ export function DocxCellSelection({
       <fieldset disabled={disabled}>
         <legend>{t.cellFill}</legend>
         {selected.fill.kind === "mixed" && <p>{t.mixed}</p>}
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            controller.run(() =>
-              editor.editTable({ action: "cellFill", value: fill.slice(1) }),
-            );
-          }}
-        >
-          <label>
-            {t.cellFill}
-            <input
-              type="color"
-              value={fill}
-              onChange={(event) => setFill(event.currentTarget.value)}
-            />
-          </label>
-          <button type="submit" aria-label={`${t.apply} ${t.cellFill}`}>
-            {t.apply}
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              controller.run(() =>
-                editor.editTable({ action: "cellFill", value: null }),
-              )
-            }
-          >
-            {t.clearCellFill}
-          </button>
-        </form>
+        <DocxCellFill
+          controller={controller}
+          state={state}
+          editor={editor}
+          fill={selected.fill.kind === "value" ? selected.fill.value : null}
+        />
       </fieldset>
       <fieldset disabled={disabled}>
         <legend>{t.cellVerticalAlign}</legend>

@@ -156,7 +156,7 @@ fn WordTree::table_property_change(
   if field is Some(id) {
     let allowed = match name {
       "trHeight" => ["val", "hRule"]
-      "shd" => ["val", "color", "fill"]
+      "shd" => table_shading_attributes
       "vAlign" | "jc" | "tblHeader" | "cantSplit" | "gridAfter" => ["val"]
       "tblLayout" => ["type"]
       "tcMar" | "tblCellMar" | "tcBorders" | "tblBorders" => []
