@@ -103,7 +103,10 @@ fn Session::row_revision_rects(
   layout : @layout.Layout,
 ) -> Array[@layout.SelectionRect] raise @failure.Failure {
   let row = tree.nodes[tree.nodes[id].parent].parent
-  let table = tree.nodes[row].parent
+  let whole = tree.nodes[id].name == "tblPrChange"
+  let cell = tree.nodes[id].name == "tcPrChange"
+  let row = if cell { tree.nodes[row].parent } else { row }
+  let table = if whole { row } else { tree.nodes[row].parent }
   let model = self.flow().tables
     .iter()
     .find_first(model => model.id == table)
@@ -111,11 +114,30 @@ fn Session::row_revision_rects(
   let grid = read_table_grid(
     tree,
     model,
-    tree.table_children(table, "tr").search(row).unwrap(),
-    0,
+    if whole {
+      0
+    } else {
+      tree.table_children(table, "tr").search(row).unwrap()
+    },
+    if cell {
+      tree
+      .table_children(row, "tc")
+      .search(tree.nodes[tree.nodes[id].parent].parent)
+      .unwrap()
+    } else {
+      0
+    },
   )
   let paragraphs : Set[Int] = Set([])
-  for cell in grid.cells[grid.row] {
+  let cells = if whole {
+    grid.cells.flatten()
+  } else if cell {
+    let owner = grid.owners[tree.nodes[tree.nodes[id].parent].parent]
+    [grid.cells[owner.0][owner.1]]
+  } else {
+    grid.cells[grid.row]
+  }
+  for cell in cells {
     let (r, c) = grid.owners[cell]
     for paragraph in model.rows[r][c] {
       paragraphs.add(paragraph.id)

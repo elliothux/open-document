@@ -47,6 +47,7 @@ fn object_hit(
   }
   if !polygon_shape(object.preset) &&
     !elbow_arrow_shape(object.preset) &&
+    object.preset != "heart" &&
     (x < -bounds || y < -bounds || x > width + bounds || y > height + bounds) {
     return false
   }
@@ -87,6 +88,9 @@ fn object_hit(
     return (x - t * width) * (x - t * width) +
       (y - t * height) * (y - t * height) <=
       margin * margin
+  }
+  if object.preset == "heart" {
+    return object.heart_hit(width, height, x, y, margin)
   }
   if object.preset == "donut" {
     return object.donut_hit(width, height, x, y, margin)

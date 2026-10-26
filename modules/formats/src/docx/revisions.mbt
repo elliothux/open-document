@@ -111,7 +111,11 @@ fn WordTree::revision_entries(
       @failure.reject("limit-exceeded", "Revision catalog exceeds 4096 entries")
     }
     let (paragraph, reason) = try {
-      let paragraph = if node.name == "trPrChange" {
+      let paragraph = if node.name == "tcPrChange" {
+        self.check_cell_property_revision(id)
+      } else if node.name == "tblPrChange" {
+        self.check_table_property_revision(id)
+      } else if node.name == "trPrChange" {
         self.check_row_property_revision(id)
       } else if self.is_row_revision(id) {
         self.check_row_revision(id)
@@ -124,7 +128,8 @@ fn WordTree::revision_entries(
     } catch {
       @failure.Failure(message~, ..) => (None, message)
     }
-    let preview = if self.is_row_revision(id) || node.name == "trPrChange" {
+    let preview = if self.is_row_revision(id) ||
+      ["trPrChange", "tblPrChange", "tcPrChange"].contains(node.name) {
       self.nodes[node.parent].parent
     } else if ["rPrChange", "pPrChange"].contains(node.name) &&
       paragraph is Some(paragraph) {
@@ -182,6 +187,8 @@ fn WordTree::revision_entries(
           "rPrChange" => "characterFormat"
           "pPrChange" => "paragraphFormat"
           "trPrChange" => "rowFormat"
+          "tblPrChange" => "tableFormat"
+          "tcPrChange" => "cellFormat"
           _ => "unsupported"
         }
       },
@@ -359,16 +366,20 @@ pub fn Session::resolve_revisions(
   let steps : Array[@xml.Edit] = []
   let mut bytes = 0
   // Resolve inner property changes before unwrapping or removing text revisions.
-  for kind in ["characterFormat", "paragraphFormat", "rowFormat", "text"] {
+  for
+    kind in [
+      "characterFormat", "paragraphFormat", "tableFormat", "rowFormat", "cellFormat",
+      "text",
+    ] {
     let tree = WordTree::new(candidate)
     let changes : Array[@xml.SourceChange] = []
     for entry in entries {
       if mark_ids.contains(entry.node) || row_ids.contains(entry.node) {
         continue
       }
-      let properties = ["characterFormat", "paragraphFormat", "rowFormat"].contains(
-        entry.kind,
-      )
+      let properties = [
+        "characterFormat", "paragraphFormat", "tableFormat", "rowFormat", "cellFormat",
+      ].contains(entry.kind)
       if (if properties { entry.kind } else { "text" }) != kind {
         continue
       }
@@ -468,12 +479,23 @@ pub fn Session::resolve_revisions(
     affected.append(row_affected)
     bytes += size
   }
-  if entries.any(entry => entry.kind == "rowFormat") {
+  if entries.any(entry => {
+      ["rowFormat", "tableFormat", "cellFormat"].contains(entry.kind)
+    }) {
     let tables = Set::from_array(
       entries
-      .filter(entry => entry.kind == "rowFormat")
+      .filter(entry => {
+        ["rowFormat", "tableFormat", "cellFormat"].contains(entry.kind)
+      })
       .map(entry => {
-        tree.nodes[tree.nodes[tree.nodes[entry.node].parent].parent].parent
+        let owner = tree.nodes[tree.nodes[entry.node].parent].parent
+        if entry.kind == "tableFormat" {
+          owner
+        } else if entry.kind == "cellFormat" {
+          tree.nodes[tree.nodes[owner].parent].parent
+        } else {
+          tree.nodes[owner].parent
+        }
       }),
     )
     let flow = self.flow_from(candidate)

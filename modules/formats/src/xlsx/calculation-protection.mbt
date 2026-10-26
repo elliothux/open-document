@@ -1,7 +1,7 @@
 ///|
 fn isolated_math_function(name : String) -> Bool {
   // These built-ins read only explicit arguments; dynamic and user functions stay global.
-  name == "SERIESSUM"
+  name == "SUMX2MY2"
 }
 
 ///|

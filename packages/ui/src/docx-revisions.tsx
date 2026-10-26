@@ -75,6 +75,8 @@ export function DocxRevisions({
     rowInsert: t.revisionRowInsertion,
     rowDelete: t.revisionRowDeletion,
     rowFormat: t.revisionRowFormat,
+    tableFormat: t.revisionTableFormat,
+    cellFormat: t.revisionCellFormat,
     characterFormat: t.revisionCharacterFormat,
     paragraphFormat: t.revisionParagraphFormat,
     unsupported: t.revisionUnsupported,

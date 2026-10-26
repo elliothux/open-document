@@ -119,6 +119,7 @@ fn Session::edit_table_rows(
         },
         0,
         1,
+        review=true,
       )
       let xml = self.split_empty_cell(tree, cell, width, props, review=true)
       guard xml.length() <= changes.limit - length else {
@@ -228,6 +229,12 @@ fn Session::remove_table_rows(
         continue
       }
       tree.check_merge_cell(cell, self.main, notes=true, review~)
+      guard tree.child(cell, "tcPr").bind(p => tree.child(p, "tcPrChange"))
+        is None else {
+        @failure.reject(
+          "protected-content", "Review cell formatting before promoting a merged continuation",
+        )
+      }
       let props = tree.split_cell_properties(
         document,
         cell,

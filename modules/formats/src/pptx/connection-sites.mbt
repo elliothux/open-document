@@ -14,6 +14,7 @@ fn Object::local_connection_sites(self : Object) -> Array[(Double, Double)] {
     return self.elbow_connection_sites()
   }
   match self.preset {
+    "heart" => [(w / 2, h / 4), (w / 2, h)]
     "snip1Rect"
     | "snip2SameRect"
     | "snip2DiagRect"

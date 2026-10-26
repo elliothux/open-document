@@ -221,15 +221,16 @@ fn WordTree::table_property_change(
           !["tblStyle", "tblW", "jc", "tblCellSpacing", "tblInd"].contains(
             self.nodes[child].name,
           )
-        "shd" => ["tcMar", "vAlign"].contains(self.nodes[child].name)
-        "tcMar" => self.nodes[child].name == "vAlign"
-        "vAlign" => false
+        "shd" =>
+          ["tcMar", "vAlign", "tcPrChange"].contains(self.nodes[child].name)
+        "tcMar" => ["vAlign", "tcPrChange"].contains(self.nodes[child].name)
+        "vAlign" => self.nodes[child].name == "tcPrChange"
         "cantSplit" =>
           [
             "trHeight", "tblHeader", "tblCellSpacing", "jc", "hidden", "ins", "del",
             "trPrChange",
           ].contains(self.nodes[child].name)
-        "trPrChange" => false
+        "trPrChange" | "tblPrChange" | "tcPrChange" => false
         "ins" | "del" => self.nodes[child].name == "trPrChange"
         "trHeight" =>
           [
@@ -240,7 +241,8 @@ fn WordTree::table_property_change(
             self.nodes[child].name,
           )
         "jc" => !["tblStyle", "tblW"].contains(self.nodes[child].name)
-        "tblCellMar" => self.nodes[child].name == "tblLook"
+        "tblCellMar" =>
+          ["tblLook", "tblPrChange"].contains(self.nodes[child].name)
         "tblLayout" =>
           ["tblCellMar", "tblLook", "tblPrChange"].contains(
             self.nodes[child].name,
@@ -497,7 +499,7 @@ fn Session::size_table(
   } else {
     let first = selected.map(range => range.top).unwrap_or(grid.row)
     let end = selected.map(range => range.bottom).unwrap_or(grid.row + 1)
-    self.record_row_properties(
+    self.record_table_properties(
       document,
       candidate,
       grid.rows[first:end].to_owned(),

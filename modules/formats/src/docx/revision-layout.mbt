@@ -22,7 +22,8 @@ pub fn Session::revision_rects(
     entry.paragraph is Some(paragraph) else {
     @failure.reject("protected-content", "Revision has no supported body range")
   }
-  if tree.is_row_revision(entry.node) || entry.kind == "rowFormat" {
+  if tree.is_row_revision(entry.node) ||
+    ["rowFormat", "tableFormat", "cellFormat"].contains(entry.kind) {
     return self.row_revision_rects(tree, entry.node, layout)
   }
   let target = match entry.kind {

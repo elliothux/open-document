@@ -7,6 +7,7 @@ fn WordTree::split_cell_properties(
   merge : String,
   part : Int,
   count : Int,
+  review~ : Bool = false,
 ) -> String raise @failure.Failure {
   let props = self.child(cell, "tcPr")
   if props is Some(id) {
@@ -46,6 +47,10 @@ fn WordTree::split_cell_properties(
   }
   if props is Some(id) {
     for child in self.children[id] {
+      if review && self.nodes[child].name == "tcPrChange" {
+        ignore(self.check_cell_property_revision(child))
+        continue
+      }
       if !["tcW", "gridSpan", "vMerge"].contains(self.nodes[child].name) {
         fields.push(self.standalone_markup(document, child))
       }
@@ -66,7 +71,7 @@ fn Session::split_empty_cell(
   self
   .empty_table_cell(tree, cell, width, notes=true, review~)
   .replace(
-    old=tree.table_cell_properties(self.document(), cell, width)[:],
+    old=tree.table_cell_properties(self.document(), cell, width, review~)[:],
     new=props[:],
   )
 }

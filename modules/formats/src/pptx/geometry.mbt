@@ -161,6 +161,9 @@ fn shape_path(
   height : Double,
   adjustments : (Double, Double, Double),
 ) -> Array[@layout.PathSegment] {
+  if preset == "heart" {
+    return heart_path(width, height)
+  }
   if preset == "donut" {
     return donut_path(width, height, adjustments.0)
   }

@@ -29,6 +29,7 @@ export const pptxInsertKinds = [
   "snip2DiagRect",
   "ellipse",
   "donut",
+  "heart",
   "triangle",
   "rtTriangle",
   "diamond",

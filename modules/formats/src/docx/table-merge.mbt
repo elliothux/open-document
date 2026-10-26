@@ -42,6 +42,13 @@ fn Session::table_grid(
   )
   let row = tree.nodes[cell].parent
   let table = tree.nodes[row].parent
+  if !review &&
+    tree.child(table, "tblPr").bind(p => tree.child(p, "tblPrChange"))
+    is Some(_) {
+    @failure.reject(
+      "protected-content", "Review table formatting before changing its grid or cell properties",
+    )
+  }
   let model = self.flow_from(self.document()).tables
     .iter()
     .find_first(t => t.id == table)
@@ -151,6 +158,10 @@ fn WordTree::check_merge_cell(
   if self.child(cell, "tcPr") is Some(props) {
     for child in self.children[props] {
       let node = self.nodes[child]
+      if node.uri == word_uri && node.name == "tcPrChange" && review {
+        ignore(self.check_cell_property_revision(child))
+        continue
+      }
       if node.uri == word_uri && node.name == "shd" {
         ignore(self.table_shading(props, None))
         continue

@@ -33,7 +33,7 @@ fn line_shape(preset : String) -> Bool {
 
 ///|
 fn supported_shape(preset : String) -> Bool {
-  ["rect", "ellipse", "donut"].contains(preset) ||
+  ["rect", "ellipse", "donut", "heart"].contains(preset) ||
   rounded_shape(preset) ||
   line_shape(preset) ||
   arrow_shape(preset) ||
@@ -95,13 +95,16 @@ fn read_shape_adjustments(
   } else {
     0.0
   }
-  if ["bentConnector2", "curvedConnector2"].contains(preset) &&
+  if ["bentConnector2", "curvedConnector2", "heart"].contains(preset) &&
     geometry.bind(source => source.child("avLst")) is Some(list) {
+    let source = list.tree.document.source()[list.node.start:list.node.end]
     guard list.node.attributes.is_empty() &&
       list.node.text.trim().is_empty() &&
+      !source.contains("<!--") &&
+      !source.contains("<?") &&
       list.tree.children.get(list.node.id).unwrap_or([]).is_empty() else {
       @failure.reject(
-        "unsupported-geometry", "This connector preset does not have adjustment guides",
+        "unsupported-geometry", "This preset does not have adjustment guides",
       )
     }
   }
@@ -351,6 +354,8 @@ fn Object::shape_body(self : Object, geometry : Geometry) -> Body {
   // ONLYOFFICE CreateGeometry text rectangles precede DrawingML body insets.
   let (left, top, right, bottom) = if rounded_shape(self.preset) {
     rounded_insets(self.preset, w, h, self.adjustments)
+  } else if self.preset == "heart" {
+    (w / 6, h / 4, w / 6, h / 3)
   } else if self.preset == "donut" {
     let inset = (1.0 - @math.cos(@math.PI / 4)) / 2
     (w * inset, h * inset, w * inset, h * inset)

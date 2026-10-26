@@ -58,16 +58,11 @@ fn Session::change_table_property(
   let document = self.document()
   let tree = WordTree::new(document)
   let row_format = whole_row || header_rows is Some(_)
-  let selected = self.table_cell_range(
-    tree,
-    selection,
-    notes=true,
-    review=row_format,
-  )
+  let selected = self.table_cell_range(tree, selection, notes=true, review=true)
   let grid = selected
     .map(range => range.grid)
     .unwrap_or_else(() => {
-      self.table_grid(tree, selection, notes=true, review=row_format)
+      self.table_grid(tree, selection, notes=true, review=true)
     })
   if whole_row &&
     name == "cantSplit" &&
@@ -142,7 +137,7 @@ fn Session::change_table_property(
   }
   for index, target in targets {
     if !whole_table && !whole_row && header_rows is None {
-      tree.check_merge_cell(target, self.main, notes=true)
+      tree.check_merge_cell(target, self.main, notes=true, review=true)
     }
     if tree.table_property_change(
         document,
@@ -180,11 +175,18 @@ fn Session::change_table_property(
     return self.edit_state()
   }
   let (candidate, edit) = document.edit_source(changes.items)
-  let (candidate, recorded, record_bytes) = if row_format {
-    self.record_row_properties(document, candidate, targets)
-  } else {
-    (candidate, [], 0)
-  }
+  let (candidate, recorded, record_bytes) = self.record_table_properties(
+    document,
+    candidate,
+    targets,
+    kind=if whole_table {
+      "tblPr"
+    } else if row_format {
+      "trPr"
+    } else {
+      "tcPr"
+    },
+  )
   let flow = view.flow_from(candidate)
   let updated = flow.tables.iter().find_first(t => t.id == grid.table).unwrap()
   if header_rows is Some(count) && updated.headerRows != count {
@@ -228,7 +230,7 @@ fn Session::change_table_property(
     },
     candidate,
     parts~,
-    tracking_edit=row_format,
+    tracking_edit=true,
   )
   self.typing_format = pending
   self.edit_result(affected)

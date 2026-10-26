@@ -144,19 +144,21 @@ WEEKDAY、WEEKNUM 和 ISOWEEKNUM 已接通普通公式、跨表依赖、标准�
 
 TEXT 已复用当前数字格式模块，接通普通输入、格式参数依赖、字符串缓存与历史。当前数字格式扩展的 14 项定向核心及 1 条 Chromium 同时检查数值转换、日期系统、共享/名称/跨表重算、结构变化、精确历史、重开及独立 XML/PDF。自定义格式的当前保护范围归[显示与计算](references/formats.md#显示与计算)，其余 P11 继续实施。
 
-`MULTINOMIAL` 已接通原始数值总和、独立阶乘截断、稀疏范围、依赖和原生缓存。9 项定向核心与 3 条 Chromium 流程通过，覆盖类型/错误顺序、参数数量、工作预算、共享/名称/跨表、结构修改、精确历史、重开输入和独立 XML/PDF。未计算链及图表用例改用已核对显式依赖的 `SERIESSUM`，保留全部保护断言。范围归[显示与计算](references/formats.md#显示与计算)，其余 P11 继续实施。
+`SERIESSUM` 已接通标量及稀疏范围系数，复用依赖、原生缓存、结构修改与历史事务。9 项定向核心与 3 条 Chromium 流程通过，覆盖范围位置、类型/错误顺序、幂边界、工作预算、共享/名称/跨表、精确历史、重开输入及独立 XML/PDF。未计算链和图表保护改用已核对显式依赖的 `SUMX2MY2`，保留全部保护断言。范围归[显示与计算](references/formats.md#显示与计算)，其余 P11 继续实施。
 
-`QUOTIENT` 已接通主参考的有符号整数转换、范围隐式取值、依赖、缓存、结构维护和精确历史。11 项定向核心与 3 条 Chromium 流程通过，覆盖数值/错误、科学计数法边界、共享/名称/跨表、保存重开、原生输入及独立 XML/PDF。未计算链与图表保护使用已核对显式依赖的 `SERIESSUM`，保留全部保护预期。范围归[显示与计算](references/formats.md#显示与计算)，其余 P11 继续实施。
+`MULTINOMIAL` 已接通原始数值总和、独立阶乘截断、稀疏范围、依赖和原生缓存。9 项定向核心与 3 条 Chromium 流程通过，覆盖类型/错误顺序、参数数量、工作预算、共享/名称/跨表、结构修改、精确历史、重开输入和独立 XML/PDF。未计算链及图表用例改用已核对显式依赖的 `SUMX2MY2`，保留全部保护断言。范围归[显示与计算](references/formats.md#显示与计算)，其余 P11 继续实施。
+
+`QUOTIENT` 已接通主参考的有符号整数转换、范围隐式取值、依赖、缓存、结构维护和精确历史。11 项定向核心与 3 条 Chromium 流程通过，覆盖数值/错误、科学计数法边界、共享/名称/跨表、保存重开、原生输入及独立 XML/PDF。未计算链与图表保护使用已核对显式依赖的 `SUMX2MY2`，保留全部保护预期。范围归[显示与计算](references/formats.md#显示与计算)，其余 P11 继续实施。
 
 `MROUND` 已接通原生精度修正、符号规则、整数回绕、范围隐式取值、依赖、缓存和历史。9 项定向核心及 3 条 Chromium 流程通过，覆盖独立数值/错误基线、工作预算、共享/名称/跨表、结构修改、精确历史、重开输入与独立 XML/PDF；组合函数及未计算链/图表保护同时通过。范围归[显示与计算](references/formats.md#显示与计算)，其余 P11 继续实施。
 
 `COMBIN/COMBINA` 已接通主参考的阶乘商、原始定义域、整数转换、范围隐式取值、依赖、缓存和历史。9 项定向核心与 3 条 Chromium 流程通过，覆盖小数/指数边界、错误顺序、工作预算、原生前缀、共享/名称/跨表、结构变化、重开输入及独立 XML/PDF；既有阶乘和未计算链/图表保护同时通过。范围归[显示与计算](references/formats.md#显示与计算)，其余 P11 继续实施。
 
-`FACT/FACTDOUBLE` 已接通原生整数截断、数值边界、范围隐式取值、依赖重算、缓存、结构平移及精确历史。7 项定向核心和 3 条 Chromium 流程通过，覆盖零与微小值终止、负数/上限、类型/错误、共享/名称/跨表范围、重开输入和独立 XML/PDF；未计算链与图表保护现沿 SERIESSUM 运行。范围归[显示与计算](references/formats.md#显示与计算)，其余 P11 继续实施。
+`FACT/FACTDOUBLE` 已接通原生整数截断、数值边界、范围隐式取值、依赖重算、缓存、结构平移及精确历史。7 项定向核心和 3 条 Chromium 流程通过，覆盖零与微小值终止、负数/上限、类型/错误、共享/名称/跨表范围、重开输入和独立 XML/PDF；未计算链与图表保护现沿 SUMX2MY2 运行。范围归[显示与计算](references/formats.md#显示与计算)，其余 P11 继续实施。
 
-`GCD/LCM` 已接通普通公式输入、导入链、共享/名称/跨表依赖、原生缓存、结构平移及精确历史。5 项定向核心与 1 条 Chromium 流程通过，检查参数转换、整数边界、稀疏范围、错误顺序、工作预算、重开输入及独立 XML/PDF。尚未求值的 SERIESSUM 继续隔离完整依赖链，保留缓存及无关联编辑。范围归[显示与计算](references/formats.md#显示与计算)，其余 P11 继续实施。
+`GCD/LCM` 已接通普通公式输入、导入链、共享/名称/跨表依赖、原生缓存、结构平移及精确历史。5 项定向核心与 1 条 Chromium 流程通过，检查参数转换、整数边界、稀疏范围、错误顺序、工作预算、重开输入及独立 XML/PDF。尚未求值的 SUMX2MY2 继续隔离完整依赖链，保留缓存及无关联编辑。范围归[显示与计算](references/formats.md#显示与计算)，其余 P11 继续实施。
 
-`ATANH` 已接通实际求值、共享/名称/跨表重算、缓存、结构平移、精确历史和保存重开。扩展 7 项既有核心与 3 条既有 Chromium 流程，检查定义域、极小值、原生输入、独立 XML/PDF、未计算链及图表重绑定。`SERIESSUM` 沿既有隔离保护完整依赖链，保留导入缓存并允许无关联编辑；该项仍未求值。范围归[显示与计算](references/formats.md#显示与计算)，其余 P11 继续实施。
+`ATANH` 已接通实际求值、共享/名称/跨表重算、缓存、结构平移、精确历史和保存重开。扩展 7 项既有核心与 3 条既有 Chromium 流程，检查定义域、极小值、原生输入、独立 XML/PDF、未计算链及图表重绑定。`SUMX2MY2` 沿既有隔离保护完整依赖链，保留导入缓存并允许无关联编辑；该项仍未求值。范围归[显示与计算](references/formats.md#显示与计算)，其余 P11 继续实施。
 
 `ACOSH/ASINH` 已接通实际求值与普通依赖、缓存、输入和历史事务。扩展既有用例后，9 项定向核心及 4 条 Chromium 流程通过，覆盖定义域、极值、共享/名称/跨表引用、插行、精确历史、预算失败、重开、未计算图表保护及独立 XML/PDF。范围归[显示与计算](references/formats.md#显示与计算)，其余 P11 继续实施。
 
@@ -166,19 +168,19 @@ TEXT 已复用当前数字格式模块，接通普通输入、格式参数依赖
 
 `ACOS/ASIN/ATAN/ATAN2` 已接通实际求值、默认公式栏、名称/共享/跨表依赖、缓存与结构引用维护。7 项定向核心和 1 条 Chromium 检查弧度、象限、坐标顺序、类型与错误、参数数量、导入旧缓存、精确历史、预算失败、重开及独立 XML/PDF。范围归[显示与计算](references/formats.md#显示与计算)，其余 P11 继续实施。
 
-`SIN/COS/TAN`、`PI` 和角度/弧度换算已接通实际求值、名称/共享/跨表重算、缓存及结构引用维护。13 项定向核心和 3 条 Chromium 检查原生公式输入、陈旧缓存、精确历史、重开及独立 XML/PDF。未计算链用例使用仍未求值的 `SERIESSUM`，保留全部保护预期；当前隔离范围归[显示与计算](references/formats.md#显示与计算)。其余 P11 继续实施。
+`SIN/COS/TAN`、`PI` 和角度/弧度换算已接通实际求值、名称/共享/跨表重算、缓存及结构引用维护。13 项定向核心和 3 条 Chromium 检查原生公式输入、陈旧缓存、精确历史、重开及独立 XML/PDF。未计算链用例使用仍未求值的 `SUMX2MY2`，保留全部保护预期；当前隔离范围归[显示与计算](references/formats.md#显示与计算)。其余 P11 继续实施。
 
 公式中的后缀百分比 `%` 和乘方 `^` 已接通，乘方复用 POWER 的类型与错误规则。优先级、共享公式、填充后的后缀保存、带符号表名、精确历史和重开均已检查；默认公式栏与 PDF 保留已有数字格式，合同归[显示与计算](references/formats.md#显示与计算)。
 
 文本连接 `&` 已接通类型转换、运算优先级、单行/单列隐式取值，以及已有 SUMPRODUCT 的矩形逐元素求值。它复用文字与公式预算，支持 HYPERLINK 地址拼接、共享公式、填充、引用改名、精确历史和保存重开。默认公式栏与 PDF 已沿同一核心路径检查，规则归[显示与计算](references/formats.md#显示与计算)。
 
-已在原有六函数上接通下表的八项逻辑、错误处理与类型判断函数、十八项数值函数、十六项文本函数、十二项日期/时间函数、十项计数/条件聚合函数及九项标量查找/位置函数，以及 HYPERLINK，其余集合继续增量实现。新增函数沿用依赖图、原子编辑、计算缓存及历史。IFERROR/IFNA 按需求值，错误、空白和类型转换有独立预期；源前缀及范围边界归[格式合同](references/formats.md#显示与计算)。函数共享值系统，不建立插件求值器。
+已在原有六函数上接通下表的逻辑与错误、数值、统计、文本、日期/时间、条件聚合、查找/位置函数及 HYPERLINK，其余集合继续增量实现。新增函数沿用依赖图、原子编辑、计算缓存及历史。IFERROR/IFNA 按需求值，错误、空白和类型转换有独立预期；源前缀及范围边界归[格式合同](references/formats.md#显示与计算)。函数共享值系统，不建立插件求值器。
 
 | 用途 | 本阶段首批函数 |
 | --- | --- |
 | 逻辑与错误 | AND、OR、NOT、IFERROR、IFNA、ISBLANK、ISNUMBER、ISTEXT |
 | 聚合与条件 | COUNTA、COUNTBLANK、SUMIF/SUMIFS、COUNTIF/COUNTIFS、AVERAGEIF/AVERAGEIFS、MINIFS/MAXIFS、SUBTOTAL |
-| 数值 | ABS、SIGN、ROUND、ROUNDUP、ROUNDDOWN、INT、MOD、MROUND、QUOTIENT、SQRT、POWER、FACT、FACTDOUBLE、COMBIN、COMBINA、MULTINOMIAL、GCD、LCM、PRODUCT、MEDIAN、CEILING、FLOOR、TRUNC、CEILING.MATH、FLOOR.MATH、CEILING.PRECISE、FLOOR.PRECISE |
+| 数值 | ABS、SIGN、ROUND、ROUNDUP、ROUNDDOWN、INT、MOD、MROUND、QUOTIENT、SQRT、POWER、FACT、FACTDOUBLE、COMBIN、COMBINA、MULTINOMIAL、SERIESSUM、GCD、LCM、PRODUCT、MEDIAN、CEILING、FLOOR、TRUNC、CEILING.MATH、FLOOR.MATH、CEILING.PRECISE、FLOOR.PRECISE |
 | 统计 | VAR、VAR.S、VARP、VAR.P、STDEV、STDEV.S、STDEVP、STDEV.P 与 SUBTOTAL 共用稳定方差累计；MODE/MODE.SNGL、LARGE/SMALL 提供众数及次序统计 |
 | 文本 | LEN、LEFT、RIGHT、MID、TRIM、UPPER、LOWER、CONCAT/CONCATENATE、TEXTJOIN、FIND、SEARCH、SUBSTITUTE、EXACT、REPT、TEXT（当前数字格式） |
 | 日期 | DATE、YEAR、MONTH、DAY、TIME、HOUR、MINUTE、SECOND、DAYS、WEEKDAY、WEEKNUM、ISOWEEKNUM |
@@ -194,7 +196,7 @@ MINIFS/MAXIFS 已接通多条件极值、隐藏行与稀疏整列、名称和跨
 
 关联普通图表已接通未计算缓存预览和无关联编辑。原生图表缓存保持，来源值、公式、显隐和剪贴板数值转换继续保护；默认面板可改绑到已计算来源并恢复实时更新与 PDF。2 项新增及 7 项既有核心、3 条 Chromium 检查历史、原生输入、重开及独立 XML/PDF。范围归[工作表图表](references/formats.md#工作表图表)，其余未计算资源继续实施。
 
-静态数学函数的未计算链隔离已接通现有依赖图。核心保留公式和导入缓存，保护其完整上下游及相关输入；无关联格可输入和重算，纯格式可编辑。名称、共享及跨表引用沿同一解析路径，SUBTOTAL 的可见性变化继续保护。3 项新增及 7 项既有核心、1 条 Chromium 已检查原生输入、默认格式、精确历史、重开及独立 XML/PDF。当前未计算链包含合同列出的六项静态函数，图表打印及其他关联资源仍遵守已计算来源要求；其余 P11 继续实施。
+静态数学函数的未计算链隔离已接通现有依赖图。核心保留公式和导入缓存，保护其完整上下游及相关输入；无关联格可输入和重算，纯格式可编辑。名称、共享及跨表引用沿同一解析路径，SUBTOTAL 的可见性变化继续保护。3 项新增及 7 项既有核心、1 条 Chromium 已检查原生输入、默认格式、精确历史、重开及独立 XML/PDF。当前未计算链包含合同列出的静态函数，图表打印及其他关联资源仍遵守已计算来源要求；其余 P11 继续实施。
 
 DEVSQ、MODE/MODE.SNGL、LARGE/SMALL、STDEV/STDEV.S/STDEVP/STDEV.P、VAR/VAR.S/VARP/VAR.P、SUMSQ、SUMPRODUCT、SQRT、POWER、PRODUCT、MEDIAN 及 EXACT/REPT 已真实求值，进入普通依赖重算和缓存事务。DEVSQ 支持名称、共享公式、跨表和稀疏引用；与方差和标准差共用平移后的稳定平方偏差累计。DEVSQ 专用未计算链保护已移除。动态引用、自定义函数及其他未核实函数继续整本保护；查询 `calculationReason` 和默认公式栏说明原因，汇总和完整打印不冒用缓存。当前合同归[显示与计算](references/formats.md#显示与计算)。
 

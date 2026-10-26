@@ -283,6 +283,8 @@ fn Expression::evaluate(
       sum_squares_function(args, sheets, sheet, values, work, depth)
     Function("MULTINOMIAL", args) =>
       multinomial_function(args, sheets, sheet, values, work, depth)
+    Function("SERIESSUM", args) =>
+      series_sum_function(args, sheets, sheet, values, work, depth)
     Function("SUMPRODUCT", args) =>
       sum_product_function(args, sheets, sheet, values, work, depth)
     Function("DEVSQ", args) =>

@@ -74,6 +74,7 @@ fn WordTree::table_cell_properties(
   document : @xml.Document,
   cell : Int,
   width : Int,
+  review~ : Bool = false,
 ) -> String raise @failure.Failure {
   let fields = ["<od:tcW od:type=\"dxa\" od:w=\"\{width}\"/>"]
   if self.child(cell, "tcPr") is Some(props) {
@@ -86,6 +87,15 @@ fn WordTree::table_cell_properties(
       @failure.reject("protected-content", "Unknown cell property markup")
     }
     for id in self.children[props] {
+      if self.nodes[id].name == "tcPrChange" {
+        guard review else {
+          @failure.reject(
+            "protected-content", "Review cell formatting before changing its grid",
+          )
+        }
+        ignore(self.check_cell_property_revision(id))
+        continue
+      }
       if !["tcW", "gridSpan", "vMerge"].contains(self.nodes[id].name) {
         fields.push(self.standalone_markup(document, id))
       }
@@ -178,7 +188,12 @@ fn Session::empty_table_cell(
     let name = if prefix.is_empty() { "xmlns" } else { "xmlns:" + prefix }
     out.write_string(" \{name}=\"\{property_attribute(uri)}\"")
   }
-  let properties = tree.table_cell_properties(self.document(), cell, width)
+  let properties = tree.table_cell_properties(
+    self.document(),
+    cell,
+    width,
+    review~,
+  )
   out.write_string(
     ">\{properties}<od:p>\{paragraph}<od:r>\{run}<od:t/></od:r></od:p></od:tc>",
   )
