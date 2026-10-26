@@ -1,8 +1,17 @@
 ///|
+priv struct NoteLine {
+  line : Line
+  advance : Double
+  paragraph : Paragraph
+}
+
+///|
 fn Pagination::note_lines(
   self : Pagination,
-) -> Array[(Line, Double)] raise @failure.Failure {
-  let lines : Array[(Line, Double)] = []
+  paragraphs : Array[Paragraph],
+) -> Array[NoteLine] raise @failure.Failure {
+  let sources = Map::from_array(paragraphs.map(p => (p.id, p)))
+  let lines : Array[NoteLine] = []
   for page_index, page in self.pages {
     for index, line in page.lines {
       guard lines.length() < 32768 else {
@@ -24,12 +33,11 @@ fn Pagination::note_lines(
             line.height
           },
         )
-      lines.push(
-        (
-          note_shift(line, -line.y + leading),
-          advance.max(line.height) + leading,
-        ),
-      )
+      lines.push({
+        line: note_shift(line, -line.y + leading),
+        advance: advance.max(line.height) + leading,
+        paragraph: sources[line.paragraph],
+      })
     }
   }
   lines
@@ -39,31 +47,26 @@ fn Pagination::note_lines(
 fn reflow_notes(
   probe : TextProbe,
   flow : Flow,
-  pending : Array[(Line, Double)],
+  pending : Array[NoteLine],
   page : PageSetup,
   cache : ParagraphCache,
   profile : Map[String, String],
   images : Images,
-) -> Array[(Line, Double)] raise @failure.Failure {
+) -> Array[NoteLine] raise @failure.Failure {
   if pending.is_empty() {
     return []
   }
-  let paragraphs : Map[Int, Paragraph] = Map([])
-  for note in flow.notes {
-    for p in note.content {
-      paragraphs[p.id] = p
-    }
-  }
+  let paragraphs : Array[Paragraph] = []
   let area = Pagination::new({ ..page, top: 0, bottom: 0, height: 14400, })
   let seen : Set[Int] = Set([])
-  for (line, _) in pending {
+  for item in pending {
+    let line = item.line
     if seen.contains(line.paragraph) {
       continue
     }
     seen.add(line.paragraph)
-    guard paragraphs.get(line.paragraph) is Some(p) else {
-      @failure.reject("invalid-style", "Missing continued note paragraph")
-    }
+    let p = item.paragraph
+    paragraphs.push(p)
     area.paragraph(
       cache,
       probe,
@@ -74,5 +77,5 @@ fn reflow_notes(
       startOffset=line.start,
     )
   }
-  area.note_lines()
+  area.note_lines(paragraphs)
 }

@@ -10,7 +10,7 @@ priv struct SectionContinuation {
 ///|
 fn Pagination::section_continuation(self : Pagination) -> SectionContinuation? {
   let index = self.pages.length() - 1
-  if self.notePages.contains(index) ||
+  if self.notePages.keys().any(frame => frame / self.columns.count == index) ||
     self.noteCursor < self.notePending.length() {
     return None
   }

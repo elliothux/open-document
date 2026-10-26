@@ -16,10 +16,12 @@ priv struct Pagination {
   mut gap : Double
   wrapping : Array[WrappingRect]
   placedWrapping : Map[(Int, Int), Unit]
-  noteReferences : Map[(Int, Int), Array[(Line, Double)]]
+  noteReferences : Map[(Int, Int), Array[NoteLine]]
+  noteReflow : ((Array[NoteLine], PageSetup) -> Array[NoteLine] raise @failure.Failure)?
   noteUsed : Set[(Int, Int)]
-  notePending : Array[(Line, Double)]
+  notePending : Array[NoteLine]
   mut noteCursor : Int
+  mut noteCount : Int
   mut noteBodyHeight : Double
   notePages : Map[Int, Array[Line]]
   noteHeights : Map[Int, Double]
@@ -35,8 +37,9 @@ fn Pagination::new(
   balance~ : (Int, Double)? = None,
   anchorPage~ : PageSetup? = None,
   wrapping~ : Array[WrappingRect] = [],
-  noteReferences~ : Map[(Int, Int), Array[(Line, Double)]] = Map([]),
-  pendingNotes~ : Array[(Line, Double)] = [],
+  noteReferences~ : Map[(Int, Int), Array[NoteLine]] = Map([]),
+  noteReflow~ : ((Array[NoteLine], PageSetup) -> Array[NoteLine] raise @failure.Failure)? = None,
+  pendingNotes~ : Array[NoteLine] = [],
   continuation~ : SectionContinuation? = None,
 ) -> Pagination {
   let anchor_page = anchorPage.unwrap_or(page)
@@ -69,9 +72,11 @@ fn Pagination::new(
     wrapping,
     placedWrapping: Map([]),
     noteReferences,
+    noteReflow,
     noteUsed: Set([]),
     notePending: pendingNotes.copy(),
     noteCursor: 0,
+    noteCount: 0,
     noteBodyHeight: 0,
     notePages: Map([]),
     noteHeights: Map([]),
@@ -93,6 +98,7 @@ fn Pagination::next_page(self : Pagination) -> Unit raise @failure.Failure {
   guard self.pages.length() < 1024 * self.columns.count else {
     @failure.reject("limit-exceeded", "Page budget exceeded")
   }
+  let previous = self.page
   self.page = self.page_at(self.pages.length())
   self.pages.push({
     width: self.page.width,
@@ -108,6 +114,16 @@ fn Pagination::next_page(self : Pagination) -> Unit raise @failure.Failure {
   self.gap = 0
   if self.noteCursor < self.notePending.length() {
     self.noteContinuations.add(self.pages.length() - 1)
+    if (self.page.left != previous.left || self.page.right != previous.right) &&
+      self.noteReflow is Some(reflow) {
+      let pending = reflow(
+        self.notePending[self.noteCursor:].to_owned(),
+        self.page,
+      )
+      self.notePending.clear()
+      self.notePending.append(pending)
+      self.noteCursor = 0
+    }
   }
   self.reserve_pending_notes(self.noteBodyHeight)
 }
@@ -123,16 +139,18 @@ fn Pagination::fit(
       "layout-overflow", "Object is taller than the page content area",
     )
   }
-  for
-    _ in 0..<(3 +
-    self.wrapping.length() +
-    self.notePending.length() -
-    self.noteCursor) {
+  let mut idle = 0
+  for _ in 0..<(1024 * self.columns.count) {
     self.avoid_wrapping(height, square~)
     if self.y + height <= self.page.height - self.page.bottom {
       return
     }
+    let previous = self.noteCount
     self.next_page()
+    idle = if self.noteCount > previous { 0 } else { idle + 1 }
+    if idle >= 2 + self.columns.count + self.wrapping.length() {
+      break
+    }
   }
   @failure.reject(
     "layout-overflow", "Object is taller than the page content area",

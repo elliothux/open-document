@@ -120,7 +120,10 @@ fn Pagination::sheet_break(self : Pagination) -> Unit raise @failure.Failure {
 }
 
 ///|
-fn Pagination::finish_columns(self : Pagination) -> Unit {
+fn Pagination::finish_columns(
+  self : Pagination,
+  notes : Array[Array[Line]],
+) -> Unit {
   if self.columns.count == 1 {
     return
   }
@@ -136,7 +139,11 @@ fn Pagination::finish_columns(self : Pagination) -> Unit {
       page.fills.append(frame.fills)
       page.cellAreas.append(frame.cellAreas)
       if self.columns.separator &&
-        (!frame.lines.is_empty() || !frame.cellAreas.is_empty()) {
+        (
+          !frame.lines.is_empty() ||
+          !frame.cellAreas.is_empty() ||
+          !notes[index].is_empty()
+        ) {
         let setup = self.page_at(index)
         page.fills.push({
           x: setup.left -
@@ -166,15 +173,12 @@ fn column_body(
   images : Images,
   setups : Array[PageSetup],
   page_setups : Array[PageSetup],
-  pendingNotes~ : Array[(Line, Double)] = [],
+  pendingNotes~ : Array[NoteLine] = [],
+  endnotes~ : Array[Note]? = None,
+  flushFootnotes~ : Bool = true,
   continuation~ : SectionContinuation? = None,
-) -> (Pagination, Int, Int, PaginationCache?) raise @failure.Failure {
+) -> (Pagination, Array[Array[Line]], Int, Int, PaginationCache?) raise @failure.Failure {
   let columns = flow.columns
-  guard pendingNotes.is_empty() || columns.count == 1 else {
-    @failure.reject(
-      "unsupported-layout", "Footnote continuation in columns requires shared reservations",
-    )
-  }
   let note_references = note_references(probe, flow, cache, profile, images)
   ignore(columns.width(flow.page))
   for setup in setups + page_setups {
@@ -213,9 +217,25 @@ fn column_body(
         anchorPage=Some(flow.page),
         wrapping=wrapping.copy(),
         noteReferences=note_references,
+        noteReflow=Some((pending, page) => {
+          reflow_notes(probe, flow, pending, page, cache, profile, images)
+        }),
         pendingNotes~,
         continuation~,
       )
+      if !pendingNotes.is_empty() {
+        let pending = reflow_notes(
+          probe,
+          flow,
+          pendingNotes,
+          pagination.page,
+          cache,
+          profile,
+          images,
+        )
+        pagination.notePending.clear()
+        pagination.notePending.append(pending)
+      }
       let (reflowed, reused, next) = pagination.body(
         probe,
         { ..flow, page: pagination.page, },
@@ -223,9 +243,18 @@ fn column_body(
         profile,
         images,
       )
+      let notes = pagination.finish_notes(
+        flow,
+        cache,
+        probe,
+        profile,
+        images,
+        endnotes~,
+        flushFootnotes~,
+      )
       let current = wrapping_rects(pagination.pages, columns.count)
       if !wraps || Json(current) == Json(wrapping) {
-        return (pagination, reflowed, reused, next)
+        return (pagination, notes, reflowed, reused, next)
       }
       wrapping = current
     }
@@ -238,6 +267,9 @@ fn column_body(
     return initial
   }
   let last = (initial.0.pages.length() - 1) / columns.count
+  let pending_units = initial.0.notePending[initial.0.noteCursor:]
+    .iter()
+    .fold(init=0, (sum, item) => sum + item.line.end - item.line.start)
   let setup = initial.0.page_at(last * columns.count)
   let mut low = 1
   let mut high = ((setup.height - setup.top - setup.bottom) * 20)
@@ -256,19 +288,28 @@ fn column_body(
       value => Some(value)
     }
     if trial is Some(value) &&
-      value.0.pages.length() <= (last + 1) * columns.count {
+      value.0.pages.length() <= (last + 1) * columns.count &&
+      value.0.notePending[value.0.noteCursor:]
+      .iter()
+      .fold(init=0, (sum, item) => sum + item.line.end - item.line.start) <=
+      pending_units {
       best = value
       high = middle
     } else {
       low = middle + 1
     }
   }
-  let (pagination, reflowed, reused, next) = best
-  pagination.finish_columns()
+  let (pagination, notes, reflowed, reused, next) = best
   let reused = if reflowed == 0 {
-    pagination.pages.length()
+    (pagination.pages.length() + columns.count - 1) / columns.count
   } else {
     reused / columns.count
   }
-  (pagination, pagination.pages.length() - reused, reused, next)
+  (
+    pagination,
+    notes,
+    (pagination.pages.length() + columns.count - 1) / columns.count - reused,
+    reused,
+    next,
+  )
 }

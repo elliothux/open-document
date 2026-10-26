@@ -469,6 +469,7 @@ fn FormulaParser::atom(
           | "ISOWEEKNUM" => args.length() == 1
           "DATE" | "TIME" => args.length() == 3
           "SERIESSUM" => args.length() == 4
+          "SUMX2MY2" | "SUMX2PY2" | "SUMXMY2" => args.length() == 2
           "DAYS" => args.length() == 2
           "ROW" | "COLUMN" => args.length() <= 1
           "ROWS" | "COLUMNS" => args.length() == 1

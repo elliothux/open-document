@@ -6,7 +6,7 @@ fn paginate_running(
   profile : Map[String, String],
   images : Images,
   documentTotal~ : Int? = None,
-  pendingNotes~ : Array[(Line, Double)] = [],
+  pendingNotes~ : Array[NoteLine] = [],
   endnotes~ : Array[Note]? = None,
   flushFootnotes~ : Bool = true,
   resolveBodyFields~ : Bool = true,
@@ -39,7 +39,7 @@ fn paginate_running(
   let mut page_setups : Array[PageSetup] = []
   let mut prepared : Array[Array[Line]] = []
   for attempt in 0..<8 {
-    let (pagination, reflowed, reused, next) = column_body(
+    let (pagination, frames, reflowed, reused, next) = column_body(
       probe,
       body,
       cache,
@@ -48,18 +48,20 @@ fn paginate_running(
       setups,
       page_setups,
       pendingNotes~,
-      continuation~,
-    )
-    let notes = pagination.finish_notes(
-      flow,
-      cache,
-      probe,
-      profile,
-      images,
       endnotes~,
       flushFootnotes~,
+      continuation~,
     )
-    let reflowed = if flow.notes.is_empty() {
+    let notes : Array[Array[Line]] = []
+    for index, lines in frames {
+      if index % flow.columns.count == 0 {
+        notes.push(lines.copy())
+      } else {
+        notes.last().unwrap().append(lines)
+      }
+    }
+    pagination.finish_columns(frames)
+    let reflowed = if frames.all(lines => lines.is_empty()) {
       reflowed
     } else {
       pagination.pages.length() - reused

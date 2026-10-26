@@ -101,17 +101,13 @@ fn Expression::resolve_names(
     Constant(_) => self
     Structured(name, selector) =>
       structured_reference(name, selector, sheets, sheet, origin, work)
-    Reference(target, first, last) => {
-      let target = if target is Some(target) {
-        target
-      } else if sheet >= 0 {
-        sheets[sheet].name
-      } else {
+    Reference(target, _, _) => {
+      guard target is Some(_) || sheet >= 0 else {
         @failure.reject(
           "unsupported-formula", "Defined name cell references require a worksheet",
         )
       }
-      Reference(Some(target), first, last)
+      self
     }
     Named(target, name) => {
       if target is None &&

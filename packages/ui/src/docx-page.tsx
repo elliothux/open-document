@@ -72,6 +72,14 @@ export function DocxPage({
   };
   const stale = settings?.revision !== state.document?.revision;
   const fullWidth = settings?.columns.availableWidth ?? 468;
+  const lastColumnWidth =
+    Math.round(
+      (fullWidth -
+        columns.custom
+          .slice(0, -1)
+          .reduce((sum, column) => sum + column.width + column.gap, 0)) *
+        20,
+    ) / 20;
   const customColumns = (count: number) =>
     Array.from(
       { length: count },
@@ -230,7 +238,14 @@ export function DocxPage({
           onSubmit={(event) => {
             event.preventDefault();
             controller.run(async () => {
-              await editor.setPageColumns(section, columns);
+              await editor.setPageColumns(section, {
+                ...columns,
+                custom: columns.custom.map((column, index) =>
+                  index === columns.custom.length - 1
+                    ? { ...column, width: lastColumnWidth }
+                    : column,
+                ),
+              });
               await load();
             });
           }}
@@ -310,18 +325,7 @@ export function DocxPage({
             </label>
             {columns.custom.map((column, index) => {
               const last = index === columns.custom.length - 1;
-              const width = last
-                ? Math.round(
-                    (fullWidth -
-                      columns.custom
-                        .slice(0, index)
-                        .reduce(
-                          (sum, column) => sum + column.width + column.gap,
-                          0,
-                        )) *
-                      20,
-                  ) / 20
-                : column.width;
+              const width = last ? lastColumnWidth : column.width;
               return (
                 <fieldset key={index}>
                   <legend>

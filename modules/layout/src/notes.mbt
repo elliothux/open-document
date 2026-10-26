@@ -23,14 +23,8 @@ fn note_references(
   cache : ParagraphCache,
   profile : Map[String, String],
   images : Images,
-) -> Map[(Int, Int), Array[(Line, Double)]] raise @failure.Failure {
-  // shortcut: Share physical-page reservations before enabling notes in columns.
-  guard flow.notes.all(n => n.kind != "footnote") || flow.columns.count == 1 else {
-    @failure.reject(
-      "unsupported-layout", "Notes in multiple columns require shared physical-page reservations",
-    )
-  }
-  let result : Map[(Int, Int), Array[(Line, Double)]] = Map([])
+) -> Map[(Int, Int), Array[NoteLine]] raise @failure.Failure {
+  let result : Map[(Int, Int), Array[NoteLine]] = Map([])
   let mut count = 0
   for note in flow.notes {
     if note.kind != "footnote" {
@@ -57,7 +51,7 @@ fn note_references(
         flow.additiveSpacing,
       )
     }
-    let lines = area.note_lines()
+    let lines = area.note_lines(note.content)
     count += lines.length()
     guard count <= 32768 else {
       @failure.reject("limit-exceeded", "Note line budget exceeded")
@@ -154,32 +148,59 @@ fn Pagination::fit_note_references(
   if fresh.is_empty() {
     return
   }
-  let first_line = self.noteReferences[fresh[0]][0].0
-  let first = first_line.y + first_line.height
-  self.fit(
-    height +
-    first +
-    (if self.noteHeights.contains(self.pages.length() - 1) { 0.0 } else { 6.0 }),
-    square~,
-  )
-  for key in fresh {
-    self.noteUsed.add(key)
-    self.notePending.append(self.noteReferences[key])
+  for _ in 0..<(self.columns.count + 2) {
+    let prepared = fresh.map(key => {
+      let lines = self.noteReferences[key]
+      if self.noteReflow is Some(reflow) {
+        reflow(lines, self.page)
+      } else {
+        lines
+      }
+    })
+    let first = prepared[0][0].line
+    let page = self.pages.length()
+    self.fit(
+      height +
+      first.y +
+      first.height +
+      (if self.noteHeights.contains(page - 1) { 0.0 } else { 6.0 }),
+      square~,
+    )
+    if page != self.pages.length() {
+      continue
+    }
+    for index, key in fresh {
+      guard self.noteCount +
+        self.notePending.length() -
+        self.noteCursor +
+        prepared[index].length() <=
+        32768 else {
+        @failure.reject("limit-exceeded", "Note line budget exceeded")
+      }
+      self.noteUsed.add(key)
+      self.notePending.append(prepared[index])
+    }
+    self.reserve_pending_notes(height)
+    return
   }
-  self.reserve_pending_notes(height)
+  @failure.reject(
+    "layout-overflow", "A note reference cannot fit its first line",
+  )
 }
 
 ///|
 fn Pagination::reserve_pending_notes(
   self : Pagination,
   body_height : Double,
-) -> Unit {
+) -> Unit raise @failure.Failure {
   let index = self.pages.length() - 1
   let mut height = self.noteHeights.get(index).unwrap_or(0)
   let mut available = self.page.height - self.page.bottom - self.y - body_height
   let mut added = 0.0
   while self.noteCursor < self.notePending.length() {
-    let (line, advance) = self.notePending[self.noteCursor]
+    let item = self.notePending[self.noteCursor]
+    let line = item.line
+    let advance = item.advance
     let gap = if height == 0 { 6.0 } else { 0.0 }
     if available < line.y + line.height + gap {
       break
@@ -192,10 +213,35 @@ fn Pagination::reserve_pending_notes(
     added += gap + advance
     available -= gap + advance
     self.noteCursor += 1
+    self.noteCount += 1
+    guard self.noteCount <= 32768 - self.count else {
+      @failure.reject("limit-exceeded", "Note line budget exceeded")
+    }
   }
   if added > 0 {
     self.noteHeights[index] = height
     self.page = { ..self.page, bottom: self.page.bottom + added, }
+  }
+}
+
+///|
+fn Pagination::flush_footnotes(
+  self : Pagination,
+  flush : Bool,
+) -> Unit raise @failure.Failure {
+  self.noteBodyHeight = 0
+  self.reserve_pending_notes(0)
+  if flush || self.columns.count > 1 {
+    while self.noteCursor < self.notePending.length() &&
+          (flush || self.pages.length() % self.columns.count != 0) {
+      let before = self.noteCount
+      self.next_page()
+      guard self.noteCount > before else {
+        @failure.reject(
+          "layout-overflow", "A footnote line exceeds the page content area",
+        )
+      }
+    }
   }
 }
 
@@ -211,16 +257,14 @@ fn Pagination::finish_notes(
   flushFootnotes~ : Bool = true,
 ) -> Array[Array[Line]] raise @failure.Failure {
   let stories = endnotes.unwrap_or(flow.notes).filter(n => n.kind == "endnote")
-  guard stories.is_empty() || self.columns.count == 1 else {
-    @failure.reject(
-      "unsupported-layout", "Endnote columns require shared physical-page placement",
-    )
-  }
   let endnotes : Map[Int, Array[Line]] = Map([])
-  let mut count = self.notePending.length()
+  let counts = self.pages.map(page => page.lines.length())
+  guard self.noteCount + self.notePending.length() - self.noteCursor <=
+    32768 - self.count else {
+    @failure.reject("limit-exceeded", "Note line budget exceeded")
+  }
   for note in stories {
     for paragraph in note.content {
-      let counts = self.pages.map(page => page.lines.length())
       self.paragraph(
         cache,
         probe,
@@ -229,50 +273,43 @@ fn Pagination::finish_notes(
         images,
         flow.additiveSpacing,
       )
-      for index, page in self.pages {
-        let start = counts.get(index).unwrap_or(0)
-        count += page.lines.length() - start
-        guard count <= 32768 - (self.count - (page.lines.length() - start)) else {
-          @failure.reject("limit-exceeded", "Note line budget exceeded")
-        }
-        endnotes
-        .get_or_init(index, () => [])
-        .append(page.lines[start:].to_owned().map(line => note_shift(line, 0)))
-        self.count -= page.lines.length() - start
-        while page.lines.length() > start {
-          ignore(page.lines.pop())
-        }
-      }
     }
   }
-  self.noteBodyHeight = 0
-  self.reserve_pending_notes(0)
-  if flushFootnotes {
-    while self.noteCursor < self.notePending.length() {
-      let before = self.noteCursor
-      self.next_page()
-      guard self.noteCursor > before else {
-        @failure.reject(
-          "layout-overflow", "A footnote line exceeds the page content area",
-        )
-      }
+  let mut end_count = 0
+  for index, page in self.pages {
+    let start = counts.get(index).unwrap_or(0)
+    end_count += page.lines.length() - start
+    endnotes[index] = page.lines[start:]
+      .to_owned()
+      .map(line => note_shift(line, 0))
+    self.count -= page.lines.length() - start
+    while page.lines.length() > start {
+      ignore(page.lines.pop())
     }
+  }
+  self.flush_footnotes(flushFootnotes)
+  guard end_count + self.noteCount + self.notePending.length() - self.noteCursor <=
+    32768 - self.count else {
+    @failure.reject("limit-exceeded", "Note line budget exceeded")
   }
   self.pages.mapi((index, page) => {
     let height = self.noteHeights.get(index).unwrap_or(0)
-    let offset = page.height - self.sheet_setup(index).bottom - height
+    let setup = self.page_at(index)
+    let offset = page.height -
+      self.sheet_setup(index / self.columns.count).bottom -
+      height
     let notes = self.notePages
       .get(index)
       .unwrap_or([])
       .map(line => note_shift(line, offset))
     if height > 0 {
       page.fills.push({
-        x: flow.page.left,
+        x: setup.left,
         y: offset,
         width: if self.noteContinuations.contains(index) {
-          flow.page.width - flow.page.left - flow.page.right
+          setup.width - setup.left - setup.right
         } else {
-          (flow.page.width - flow.page.left - flow.page.right).min(144)
+          (setup.width - setup.left - setup.right).min(144)
         },
         height: 0.5,
         color: "000000",

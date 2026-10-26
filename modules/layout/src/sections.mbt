@@ -138,7 +138,7 @@ fn paginate_sections(
     let page_sections : Array[(Int, Int)?] = []
     let mut numbering = flow.pageNumbering
     let mut lines = 0
-    let mut pending : Array[(Line, Double)] = []
+    let mut pending : Array[NoteLine] = []
     let mut continuation : SectionContinuation? = None
     for index in 0..<=flow.sectionBreaks.length() {
       let shared = flow.sectionBreaks
