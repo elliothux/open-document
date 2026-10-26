@@ -61,9 +61,10 @@ fn Session::split_empty_cell(
   cell : Int,
   width : Int,
   props : String,
+  review~ : Bool = false,
 ) -> String raise @failure.Failure {
   self
-  .empty_table_cell(tree, cell, width, notes=true)
+  .empty_table_cell(tree, cell, width, notes=true, review~)
   .replace(
     old=tree.table_cell_properties(self.document(), cell, width)[:],
     new=props[:],

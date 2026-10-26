@@ -281,6 +281,8 @@ fn Expression::evaluate(
       subtotal_function(args, sheets, sheet, values, work, depth)
     Function("SUMSQ", args) =>
       sum_squares_function(args, sheets, sheet, values, work, depth)
+    Function("MULTINOMIAL", args) =>
+      multinomial_function(args, sheets, sheet, values, work, depth)
     Function("SUMPRODUCT", args) =>
       sum_product_function(args, sheets, sheet, values, work, depth)
     Function("DEVSQ", args) =>

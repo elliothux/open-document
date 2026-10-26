@@ -305,6 +305,19 @@ fn Session::paragraph(
       continue
     }
     let base = styles.run_character_style(tree, run, run_style, diagnostics)
+    let row_mark = tree.nodes
+      .get(tree.nodes[id].parent)
+      .filter(node => node.uri == word_uri && node.name == "tc")
+      .bind(node => tree.row_revision(node.parent))
+    let base = if row_mark is Some(mark) {
+      if tree.nodes[mark].name == "ins" {
+        { ..base, underline: true, }
+      } else {
+        { ..base, strike: true, }
+      }
+    } else {
+      base
+    }
     let review = tree.nodes[tree.nodes[run].parent]
     let style = if review.uri == word_uri && review.name == "ins" {
       { ..base, underline: true, }

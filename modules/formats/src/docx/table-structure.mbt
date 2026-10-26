@@ -103,17 +103,40 @@ fn Session::empty_table_cell(
   fields~ : Bool = false,
   math~ : Bool = false,
   notes~ : Bool = false,
+  review~ : Bool = false,
 ) -> String raise @failure.Failure {
   let p = tree.child(cell, "p").unwrap()
-  tree.check_editable_paragraph(p, part=self.main, fields~, math~, notes~)
-  tree.check_structure_paragraph(p, running=fields)
+  let reviewed = review && tree.has_review_markup(p)
+  let parts = if reviewed {
+    tree.review_text_parts(p)
+  } else {
+    tree.check_editable_paragraph(p, part=self.main, fields~, math~, notes~)
+    tree.check_structure_paragraph(p, running=fields)
+    []
+  }
   let original = self.document()
+  let nested = if reviewed {
+    let mark = tree
+      .child(p, "pPr")
+      .map(props => {
+        formatted_properties(tree, original, props, "rPr", Map([]), nested={
+          "ins": "",
+          "del": "",
+          "rPrChange": "",
+        })
+      })
+      .unwrap_or("")
+    { "rPr": mark, "pPrChange": "" }
+  } else {
+    Map([])
+  }
   let paragraph = formatted_properties(
     tree,
     original,
     p,
     "pPr",
     ParagraphFormat::new(pageBreakBefore=Set(false)).properties(),
+    nested~,
   )
   let reference = tree
     .child(p, "r")
@@ -127,7 +150,18 @@ fn Session::empty_table_cell(
         None
       }
     })
-  let run = if reference is Some(id) {
+  let run = if reviewed {
+    let run = parts
+      .iter()
+      .find_first(part => part.kind != "del")
+      .map(part => part.run)
+      .unwrap_or_else(() => tree.child(p, "pPr").unwrap_or(p))
+    formatted_properties(tree, original, run, "rPr", Map([]), nested={
+      "rPrChange": "",
+      "ins": "",
+      "del": "",
+    })
+  } else if reference is Some(id) {
     tree.note_input_properties(original, id)
   } else {
     tree

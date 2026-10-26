@@ -229,6 +229,12 @@ fn WordTree::table_property_change(
             "trHeight", "tblHeader", "tblCellSpacing", "jc", "hidden", "ins", "del",
             "trPrChange",
           ].contains(self.nodes[child].name)
+        "trPrChange" => false
+        "ins" | "del" => self.nodes[child].name == "trPrChange"
+        "trHeight" =>
+          [
+            "tblHeader", "tblCellSpacing", "jc", "hidden", "ins", "del", "trPrChange",
+          ].contains(self.nodes[child].name)
         "tblHeader" =>
           ["tblCellSpacing", "jc", "hidden", "ins", "del", "trPrChange"].contains(
             self.nodes[child].name,
@@ -288,11 +294,13 @@ fn Session::size_table(
   let selected = if width {
     None
   } else {
-    self.table_cell_range(tree, selection, notes=true)
+    self.table_cell_range(tree, selection, notes=true, review=true)
   }
   let grid = selected
     .map(range => range.grid)
-    .unwrap_or_else(() => self.table_grid(tree, selection, notes=true))
+    .unwrap_or_else(() => {
+      self.table_grid(tree, selection, notes=true, review=!width)
+    })
   let body = tree.nodes[grid.table].parent
   guard tree.nodes[body].name == "body" && tree.nodes[body].uri == word_uri else {
     @failure.reject("protected-content", "Table sizes require a body table")
@@ -458,7 +466,7 @@ fn Session::size_table(
     }
     for row in first..<end {
       for cell in grid.cells[row] {
-        tree.check_merge_cell(cell, self.main, notes=true)
+        tree.check_merge_cell(cell, self.main, notes=true, review=true)
       }
       if value != model.heights[row] ||
         (rule == "exact") != model.exactHeights[row] {
@@ -484,6 +492,17 @@ fn Session::size_table(
     return self.edit_state()
   }
   let (candidate, edit) = document.edit_source(changes.items)
+  let (candidate, recorded, record_bytes) = if width {
+    (candidate, [], 0)
+  } else {
+    let first = selected.map(range => range.top).unwrap_or(grid.row)
+    let end = selected.map(range => range.bottom).unwrap_or(grid.row + 1)
+    self.record_row_properties(
+      document,
+      candidate,
+      grid.rows[first:end].to_owned(),
+    )
+  }
   let updated = self.flow_from(candidate).tables
     .iter()
     .find_first(t => t.id == grid.table)
@@ -504,7 +523,7 @@ fn Session::size_table(
     )
   }
   let affected = model.rows.flatten().flatten().map(p => p.id)
-  let bytes = edit.payload_bytes()
+  let bytes = edit.payload_bytes() + record_bytes.to_int64()
   guard bytes <= history_byte_limit.to_int64() else {
     @failure.reject("limit-exceeded", "Table size history exceeds budget")
   }
@@ -515,7 +534,7 @@ fn Session::size_table(
   }
   self.commit_edit(
     {
-      xml: [edit],
+      xml: [edit, ..recorded],
       parts: Map([]),
       created: Map([]),
       created_media: Map([]),
@@ -525,6 +544,7 @@ fn Session::size_table(
       bytes: bytes.to_int(),
     },
     candidate,
+    tracking_edit=!width,
   )
   self.typing_format = pending
   self.edit_result(affected)

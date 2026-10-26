@@ -111,7 +111,11 @@ fn WordTree::revision_entries(
       @failure.reject("limit-exceeded", "Revision catalog exceeds 4096 entries")
     }
     let (paragraph, reason) = try {
-      let paragraph = if ["rPrChange", "pPrChange"].contains(node.name) {
+      let paragraph = if node.name == "trPrChange" {
+        self.check_row_property_revision(id)
+      } else if self.is_row_revision(id) {
+        self.check_row_revision(id)
+      } else if ["rPrChange", "pPrChange"].contains(node.name) {
         self.check_property_revision(id)
       } else {
         self.check_text_revision(id)
@@ -120,7 +124,9 @@ fn WordTree::revision_entries(
     } catch {
       @failure.Failure(message~, ..) => (None, message)
     }
-    let preview = if ["rPrChange", "pPrChange"].contains(node.name) &&
+    let preview = if self.is_row_revision(id) || node.name == "trPrChange" {
+      self.nodes[node.parent].parent
+    } else if ["rPrChange", "pPrChange"].contains(node.name) &&
       paragraph is Some(paragraph) {
       if node.name == "rPrChange" {
         self.nodes[node.parent].parent
@@ -163,12 +169,21 @@ fn WordTree::revision_entries(
       node: id,
       source_id,
       element: node.name,
-      kind: match node.name {
-        "ins" => "insert"
-        "del" => "delete"
-        "rPrChange" => "characterFormat"
-        "pPrChange" => "paragraphFormat"
-        _ => "unsupported"
+      kind: if self.is_row_revision(id) {
+        if node.name == "ins" {
+          "rowInsert"
+        } else {
+          "rowDelete"
+        }
+      } else {
+        match node.name {
+          "ins" => "insert"
+          "del" => "delete"
+          "rPrChange" => "characterFormat"
+          "pPrChange" => "paragraphFormat"
+          "trPrChange" => "rowFormat"
+          _ => "unsupported"
+        }
       },
       author,
       date,
@@ -328,6 +343,8 @@ pub fn Session::resolve_revisions(
     tree.is_paragraph_revision(entry.node)
   })
   let mark_ids = Set::from_array(paragraph_marks.map(entry => entry.node))
+  let row_marks = entries.filter(entry => tree.is_row_revision(entry.node))
+  let row_ids = Set::from_array(row_marks.map(entry => entry.node))
   let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
   let mut units = 0
   for entry in entries {
@@ -342,14 +359,14 @@ pub fn Session::resolve_revisions(
   let steps : Array[@xml.Edit] = []
   let mut bytes = 0
   // Resolve inner property changes before unwrapping or removing text revisions.
-  for kind in ["characterFormat", "paragraphFormat", "text"] {
+  for kind in ["characterFormat", "paragraphFormat", "rowFormat", "text"] {
     let tree = WordTree::new(candidate)
     let changes : Array[@xml.SourceChange] = []
     for entry in entries {
-      if mark_ids.contains(entry.node) {
+      if mark_ids.contains(entry.node) || row_ids.contains(entry.node) {
         continue
       }
-      let properties = ["characterFormat", "paragraphFormat"].contains(
+      let properties = ["characterFormat", "paragraphFormat", "rowFormat"].contains(
         entry.kind,
       )
       if (if properties { entry.kind } else { "text" }) != kind {
@@ -428,13 +445,59 @@ pub fn Session::resolve_revisions(
     candidate = updated
     steps.push(step)
   }
+  if !row_marks.is_empty() {
+    let next = WordTree::new(candidate)
+    let row_marks = row_marks.map(entry => {
+      let row = tree.nodes[tree.nodes[entry.node].parent].parent
+      guard next.row_revision(row) is Some(mark) &&
+        next.nodes[mark].attribute("id", uri=word_uri) == Some(entry.source_id) else {
+        @failure.reject(
+          "protected-content", "Row revision changed during review",
+        )
+      }
+      { ..entry, node: mark, }
+    })
+    let (updated, row_steps, row_affected, size) = self.resolve_row_revisions(
+      candidate, row_marks, accept,
+    )
+    guard size <= history_byte_limit - bytes else {
+      @failure.reject("limit-exceeded", "Revision history exceeds budget")
+    }
+    candidate = updated
+    steps.append(row_steps)
+    affected.append(row_affected)
+    bytes += size
+  }
+  if entries.any(entry => entry.kind == "rowFormat") {
+    let tables = Set::from_array(
+      entries
+      .filter(entry => entry.kind == "rowFormat")
+      .map(entry => {
+        tree.nodes[tree.nodes[tree.nodes[entry.node].parent].parent].parent
+      }),
+    )
+    let flow = self.flow_from(candidate)
+    for table in flow.tables.filter(table => tables.contains(table.id)) {
+      check_margin_layout(
+        table,
+        page_area_for_position(flow, table_start_position(table)).0,
+      )
+      for r in 0..<table.headerRows {
+        guard table.rowSpans[r].all(span => span <= table.headerRows - r) else {
+          @failure.reject(
+            "protected-content", "Reviewed header boundary crosses a vertical merge",
+          )
+        }
+      }
+    }
+  }
   let next = WordTree::new(candidate)
   let after = if self.selection is Some(selection) &&
     !affected.contains(selection.anchor.paragraph) &&
     !affected.contains(selection.focus.paragraph) {
     self.selection
   } else {
-    affected
+    (affected + next.order)
     .iter()
     .find_first(id => {
       try {

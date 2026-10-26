@@ -72,6 +72,9 @@ export function DocxRevisions({
   const kinds = {
     insert: t.revisionInsertion,
     delete: t.revisionDeletion,
+    rowInsert: t.revisionRowInsertion,
+    rowDelete: t.revisionRowDeletion,
+    rowFormat: t.revisionRowFormat,
     characterFormat: t.revisionCharacterFormat,
     paragraphFormat: t.revisionParagraphFormat,
     unsupported: t.revisionUnsupported,

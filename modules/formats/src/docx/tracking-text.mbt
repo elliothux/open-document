@@ -271,6 +271,18 @@ fn WordTree::unused_revision_id(
   self : WordTree,
   reserved : Int?,
 ) -> Int raise @failure.Failure {
+  self.unused_revision_ids(1, reserved~)[0]
+}
+
+///|
+fn WordTree::unused_revision_ids(
+  self : WordTree,
+  count : Int,
+  reserved~ : Int? = None,
+) -> Array[Int] raise @failure.Failure {
+  if count == 0 {
+    return []
+  }
   let used : Set[String] = Set([])
   for node in self.nodes.values() {
     if node.uri == word_uri && revision_element(node.name) {
@@ -279,9 +291,13 @@ fn WordTree::unused_revision_id(
       }
     }
   }
+  let ids : Array[Int] = []
   for id in 0..<16384 {
     if reserved != Some(id) && !used.contains(id.to_string()) {
-      return id
+      ids.push(id)
+      if ids.length() == count {
+        return ids
+      }
     }
   }
   @failure.reject("limit-exceeded", "Revision identities exhausted")

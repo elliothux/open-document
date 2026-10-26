@@ -57,10 +57,18 @@ fn Session::change_table_property(
   self.check_revision(revision)
   let document = self.document()
   let tree = WordTree::new(document)
-  let selected = self.table_cell_range(tree, selection, notes=true)
+  let row_format = whole_row || header_rows is Some(_)
+  let selected = self.table_cell_range(
+    tree,
+    selection,
+    notes=true,
+    review=row_format,
+  )
   let grid = selected
     .map(range => range.grid)
-    .unwrap_or_else(() => self.table_grid(tree, selection, notes=true))
+    .unwrap_or_else(() => {
+      self.table_grid(tree, selection, notes=true, review=row_format)
+    })
   if whole_row &&
     name == "cantSplit" &&
     attributes is Some(values) &&
@@ -172,6 +180,11 @@ fn Session::change_table_property(
     return self.edit_state()
   }
   let (candidate, edit) = document.edit_source(changes.items)
+  let (candidate, recorded, record_bytes) = if row_format {
+    self.record_row_properties(document, candidate, targets)
+  } else {
+    (candidate, [], 0)
+  }
   let flow = view.flow_from(candidate)
   let updated = flow.tables.iter().find_first(t => t.id == grid.table).unwrap()
   if header_rows is Some(count) && updated.headerRows != count {
@@ -192,6 +205,7 @@ fn Session::change_table_property(
   }
   let affected = grid.model.rows.flatten().flatten().map(p => p.id)
   let bytes = edit.payload_bytes() +
+    record_bytes.to_int64() +
     xml_part_edit_bytes(part_edits, created).to_int64()
   guard bytes <= history_byte_limit.to_int64() else {
     @failure.reject("limit-exceeded", "Table property history exceeds budget")
@@ -203,7 +217,7 @@ fn Session::change_table_property(
   }
   self.commit_edit(
     {
-      xml: [edit],
+      xml: [edit, ..recorded],
       parts: part_edits,
       created,
       created_media: Map([]),
@@ -214,6 +228,7 @@ fn Session::change_table_property(
     },
     candidate,
     parts~,
+    tracking_edit=row_format,
   )
   self.typing_format = pending
   self.edit_result(affected)

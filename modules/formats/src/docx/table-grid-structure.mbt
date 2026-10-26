@@ -3,11 +3,22 @@ fn WordTree::check_table_structure(
   self : WordTree,
   grid : TableGrid,
   columns~ : Bool = false,
+  review~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   let tree = self
   let table = grid.table
   let rows = grid.rows
   let cells = grid.cells
+  for row in rows {
+    if tree.row_revision(row) is Some(mark) {
+      guard review else {
+        @failure.reject(
+          "protected-content", "Review table row revisions before changing the grid",
+        )
+      }
+      ignore(tree.check_row_revision(mark))
+    }
+  }
   for id in [table, ..rows, ..cells.flatten()] {
     let allowed = match tree.nodes[id].name {
       "tbl" => ["tblPr", "tblGrid", "tr"]
@@ -79,6 +90,7 @@ fn WordTree::copy_row_properties(
   document : @xml.Document,
   row : Int,
   after~ : Int? = None,
+  review~ : Bool = false,
 ) -> String raise @failure.Failure {
   guard self.table_children(row, "trPr").length() <= 1 else {
     @failure.reject("protected-content", "Duplicate row properties")
@@ -96,6 +108,8 @@ fn WordTree::copy_row_properties(
           self.nodes[child].uri == word_uri &&
           (
             ["gridAfter", "trHeight"].contains(self.nodes[child].name) ||
+            (review && self.is_row_revision(child)) ||
+            (review && self.nodes[child].name == "trPrChange") ||
             (
               ["tblHeader", "cantSplit"].contains(self.nodes[child].name) &&
               self.valid_on_off_property(child)
@@ -106,7 +120,24 @@ fn WordTree::copy_row_properties(
           "protected-content", "Unknown row properties prevent structural editing",
         )
       }
-      self.standalone_markup(document, id)
+      if review {
+        if self.child(id, "trPrChange") is Some(change) {
+          ignore(self.check_row_property_revision(change))
+        }
+        if self.row_revision(row) is Some(mark) {
+          ignore(self.check_row_revision(mark))
+        }
+        "<od:trPr xmlns:od=\"\{word_uri}\">" +
+        self.children[id]
+        .filter(child => {
+          !self.is_row_revision(child) && self.nodes[child].name != "trPrChange"
+        })
+        .map(child => self.standalone_markup(document, child))
+        .join("") +
+        "</od:trPr>"
+      } else {
+        self.standalone_markup(document, id)
+      }
     })
     .unwrap_or("")
   guard after is Some(after) && after != self.row_grid_after(row) else {
@@ -288,6 +319,7 @@ fn Session::commit_table_structure(
   probe : @layout.TextProbe?,
   profile : Map[String, String],
   images : @layout.Images?,
+  tracking~ : Bool = false,
 ) -> Json raise @failure.Failure {
   let table = grid.table
   let body = tree.nodes[table].parent
@@ -347,6 +379,7 @@ fn Session::commit_table_structure(
       bytes: bytes.to_int(),
     },
     candidate,
+    tracking_edit=tracking,
   )
   self.edit_result(affected)
 }

@@ -39,6 +39,9 @@ export interface DocxRevisions {
     kind:
       | "insert"
       | "delete"
+      | "rowInsert"
+      | "rowDelete"
+      | "rowFormat"
       | "characterFormat"
       | "paragraphFormat"
       | "unsupported";
@@ -100,6 +103,9 @@ export function docxRevisions(value: unknown): DocxRevisions {
       ![
         "insert",
         "delete",
+        "rowInsert",
+        "rowDelete",
+        "rowFormat",
         "characterFormat",
         "paragraphFormat",
         "unsupported",

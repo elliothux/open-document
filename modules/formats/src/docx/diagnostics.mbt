@@ -47,6 +47,26 @@ fn WordTree::diagnose_properties(
   }
   for child in self.children[id] {
     let feature = self.nodes[child]
+    if feature.uri == word_uri && feature.name == "trPrChange" {
+      if (try {
+          ignore(self.check_row_property_revision(child))
+          true
+        } catch {
+          @failure.Failure(..) => false
+        }) {
+        continue
+      }
+    }
+    if self.is_row_revision(child) {
+      if (try {
+          ignore(self.check_row_revision(child))
+          true
+        } catch {
+          @failure.Failure(..) => false
+        }) {
+        continue
+      }
+    }
     if self.is_paragraph_revision(child) {
       if (try {
           ignore(self.check_paragraph_revision(child))

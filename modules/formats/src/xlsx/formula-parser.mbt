@@ -477,7 +477,8 @@ fn FormulaParser::atom(
           "XLOOKUP" => args.length() >= 3 && args.length() <= 6
           "COUNTBLANK" => args.length() == 1
           "SUBTOTAL" => args.length() >= 2 && args.length() <= 255
-          "GCD" | "LCM" => args.length() >= 1 && args.length() <= 255
+          "GCD" | "LCM" | "MULTINOMIAL" =>
+            args.length() >= 1 && args.length() <= 255
           "COUNTIF" => args.length() == 2
           "COUNTIFS" =>
             args.length() >= 2 && args.length() <= 254 && args.length() % 2 == 0

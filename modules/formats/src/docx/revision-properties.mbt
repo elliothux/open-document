@@ -205,6 +205,23 @@ fn property_revision_change(
         "</\{previous.qualified}>"
     }
   }
+  if properties.name == "trPr" {
+    let retained = tree.children[properties.id]
+      .filter(id => tree.is_row_revision(id))
+      .map(id => tree.standalone_markup(document, id))
+      .join("")
+    if !retained.is_empty() {
+      let tail = if previous.empty {
+        2
+      } else {
+        previous.end - previous.closing_start
+      }
+      markup = markup[:markup.length() - tail].to_owned() +
+        (if previous.empty { ">" } else { "" }) +
+        retained +
+        "</\{previous.qualified}>"
+    }
+  }
   {
     node: parent.id,
     offset: properties.start - parent.start,
