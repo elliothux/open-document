@@ -298,7 +298,7 @@ pub fn Session::set_page_background(Self, Int, String?) -> Json raise @failure.F
 pub fn Session::set_page_borders(Self, Int, Int, @layout.PageBorders?) -> Json raise @failure.Failure
 pub fn Session::set_page_columns(Self, Int, Int, @layout.Columns?, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_page_numbering(Self, Int, Int, SectionNumbering?, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
-pub fn Session::set_page_setup(Self, Int, Int, @layout.PageSetup, orientation? : String?, startType? : String?) -> Json raise @failure.Failure
+pub fn Session::set_page_setup(Self, Int, Int, @layout.PageSetup, orientation? : String?, startType? : String?, footnotesAt? : String?) -> Json raise @failure.Failure
 pub fn Session::set_paragraph_format(Self, Int, Selection, ParagraphFormat, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_running_area(Self, Int, Int, String, String, Array[RunningContent], Double, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_running_link(Self, Int, Int, String, String, Bool, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure

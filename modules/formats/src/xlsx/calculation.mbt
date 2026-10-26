@@ -143,7 +143,7 @@ fn Expression::dependencies(
           "ACOSH", "ASINH", "ATANH", "SIGN", "CEILING.MATH", "FLOOR.MATH", "CEILING.PRECISE",
           "FLOOR.PRECISE", "CEILING", "FLOOR", "TRUNC", "GCD", "LCM", "FACT", "FACTDOUBLE",
           "COMBIN", "COMBINA", "MROUND", "QUOTIENT", "MULTINOMIAL", "SERIESSUM",
-          "SUMX2MY2", "SUMX2PY2", "SUMXMY2",
+          "SUMX2MY2", "SUMX2PY2", "SUMXMY2", "MDETERM",
         ].contains(name) {
         guard uncomputed is Some(reason) && isolated_math_function(name) else {
           @failure.reject(

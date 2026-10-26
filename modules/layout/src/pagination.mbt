@@ -25,6 +25,7 @@ priv struct Pagination {
   mut noteBodyHeight : Double
   notePages : Map[Int, Array[Line]]
   noteHeights : Map[Int, Double]
+  noteBodyEnds : Map[Int, Double]
   noteContinuations : Set[Int]
 }
 
@@ -80,6 +81,7 @@ fn Pagination::new(
     noteBodyHeight: 0,
     notePages: Map([]),
     noteHeights: Map([]),
+    noteBodyEnds: Map([]),
     noteContinuations: Set([]),
   }
   result.page = result.page_at(0)
@@ -95,6 +97,7 @@ fn Pagination::new(
 
 ///|
 fn Pagination::next_page(self : Pagination) -> Unit raise @failure.Failure {
+  self.noteBodyEnds[self.pages.length() - 1] = self.y + self.after
   guard self.pages.length() < 1024 * self.columns.count else {
     @failure.reject("limit-exceeded", "Page budget exceeded")
   }

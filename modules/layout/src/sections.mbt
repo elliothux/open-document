@@ -5,6 +5,7 @@ pub(all) struct SectionBreak {
   beforeTable : Int
   kind : String
   restartNumbering : Bool
+  footnotesAt : String
   page : PageSetup
   pageBorders : PageBorders
   pageNumbering : PageNumbering
@@ -49,6 +50,7 @@ fn Flow::section_body(
       {
         ..body,
         page: section.page,
+        footnotesAt: section.footnotesAt,
         pageBorders: section.pageBorders,
         columns: section.columns,
         headers: section.headers,
@@ -103,6 +105,9 @@ fn Flow::validate_sections(self : Flow) -> Unit raise @failure.Failure {
       @failure.reject("unsupported-layout", "Unsupported section break type")
     }
     section.page.validate()
+    guard ["pageBottom", "beneathText"].contains(section.footnotesAt) else {
+      @failure.reject("invalid-style", "Invalid footnote placement")
+    }
     section.pageBorders.validate()
     section.pageNumbering.validate()
     ignore(section.columns.width(section.page))

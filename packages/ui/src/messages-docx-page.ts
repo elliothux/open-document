@@ -1,6 +1,9 @@
 import { indexEn, indexZh } from "./messages-docx-index.js";
 import { sourcesEn, sourcesZh } from "./messages-docx-sources.js";
 export const pageEn = {
+  footnotesPosition: "Footnote position",
+  footnotesPageBottom: "Page bottom",
+  footnotesBeneathText: "Beneath text",
   ...indexEn,
   ...sourcesEn,
   sectionBreakType: "Section break type",
@@ -155,6 +158,9 @@ export const pageEn = {
   inheritedPageNumberFormat: "Use section format",
 };
 export const pageZh = {
+  footnotesPosition: "脚注位置",
+  footnotesPageBottom: "页底",
+  footnotesBeneathText: "紧随正文",
   ...indexZh,
   ...sourcesZh,
   sectionBreakType: "分节符类型",

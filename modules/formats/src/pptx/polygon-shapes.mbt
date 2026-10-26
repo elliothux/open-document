@@ -4,7 +4,7 @@ fn polygon_shape(preset : String) -> Bool {
     "triangle", "rtTriangle", "diamond", "parallelogram", "trapezoid", "pentagon",
     "hexagon", "octagon", "plus", "star4", "star5", "star6", "star8", "chevron",
     "homePlate", "star10", "star12", "star7", "star16", "star24", "star32", "heptagon",
-    "decagon", "dodecagon", "snip1Rect", "snip2SameRect", "snip2DiagRect",
+    "decagon", "dodecagon", "snip1Rect", "snip2SameRect", "snip2DiagRect", "lightningBolt",
   ].contains(preset)
 }
 
@@ -87,6 +87,20 @@ fn polygon_points(
   let other = w.min(h) * second.clamp(min=0, max=0.5)
   // ONLYOFFICE CreateGeometry uses shortest-side offsets for slanted quadrilaterals.
   match preset {
+    "lightningBolt" =>
+      [
+        (8472.0, 0.0),
+        (12860.0, 6080.0),
+        (11050.0, 6797.0),
+        (16577.0, 12007.0),
+        (14767.0, 12877.0),
+        (21600.0, 21600.0),
+        (10012.0, 14915.0),
+        (12222.0, 13987.0),
+        (5022.0, 9705.0),
+        (7602.0, 8382.0),
+        (0.0, 3890.0),
+      ].map(point => (w * point.0 / 21600, h * point.1 / 21600))
     "snip1Rect" => [(0.0, 0.0), (w - inset, 0.0), (w, inset), (w, h), (0.0, h)]
     "snip2SameRect" =>
       [
@@ -437,6 +451,8 @@ fn polygon_insets(
   let cut = w.min(h) * a / 2
   let other = w.min(h) * second.clamp(min=0, max=0.5) / 2
   match preset {
+    "lightningBolt" =>
+      (w * 8757 / 21600, h * 7437 / 21600, w * 7683 / 21600, h * 7323 / 21600)
     "snip1Rect" => (0.0, cut, cut, 0.0)
     "snip2SameRect" => (cut.max(other), cut, cut.max(other), other)
     "snip2DiagRect" => {

@@ -40,6 +40,7 @@ export interface TextStyle {
 export interface DocxFlow {
   sectionBreaks: DocxSectionBreak[];
   endnotesAt: "sectEnd" | "docEnd";
+  footnotesAt: "pageBottom" | "beneathText";
   columns: DocxColumns;
   pageNumbering: { start: number; format: string };
   bookmarks: Record<string, [number, number, number, number]>;

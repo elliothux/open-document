@@ -53,7 +53,40 @@ fn Session::flow_sections(
   let headers : Map[String, Array[@layout.Paragraph]] = Map([])
   let footers : Map[String, Array[@layout.Paragraph]] = Map([])
   let identities : Map[(String, Int), Int] = Map([])
+  let has_footnotes = tree.order.any(id => {
+    tree.nodes[id].uri == word_uri && tree.nodes[id].name == "footnoteReference"
+  })
+  let note_defaults = try {
+    if has_footnotes {
+      Some(self.note_settings("footnote"))
+    } else {
+      None
+    }
+  } catch {
+    @failure.Failure(code="limit-exceeded", ..) as error => raise error
+    @failure.Failure(message~, ..) => {
+      diagnostics.push("unsupported-layout:notes:" + message)
+      None
+    }
+  }
   for index, (id, _, _) in ends {
+    let footnotes_at = try {
+      if note_defaults is Some(defaults) {
+        if id < 0 {
+          defaults.position
+        } else {
+          defaults.read(tree, id, "footnote", document=false).position
+        }
+      } else {
+        "pageBottom"
+      }
+    } catch {
+      @failure.Failure(code="limit-exceeded", ..) as error => raise error
+      @failure.Failure(message~, ..) => {
+        diagnostics.push("unsupported-layout:notes:" + message)
+        "pageBottom"
+      }
+    }
     let previous = ends.get(index - 1)
     let mut page = default_page_setup()
     let mut borders = @layout.PageBorders::new()
@@ -180,6 +213,7 @@ fn Session::flow_sections(
       beforeTable: previous.map(e => e.2).unwrap_or(0),
       kind,
       restartNumbering: restart,
+      footnotesAt: footnotes_at,
       page,
       pageBorders: borders,
       pageNumbering: numbering,

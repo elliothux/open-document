@@ -95,7 +95,9 @@ fn read_shape_adjustments(
   } else {
     0.0
   }
-  if ["bentConnector2", "curvedConnector2", "heart"].contains(preset) &&
+  if ["bentConnector2", "curvedConnector2", "heart", "lightningBolt"].contains(
+      preset,
+    ) &&
     geometry.bind(source => source.child("avLst")) is Some(list) {
     let source = list.tree.document.source()[list.node.start:list.node.end]
     guard list.node.attributes.is_empty() &&

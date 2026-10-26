@@ -440,7 +440,8 @@ fn FormulaParser::atom(
           | "SQRT"
           | "FACT"
           | "FACTDOUBLE"
-          | "SIGN" => args.length() == 1
+          | "SIGN"
+          | "MDETERM" => args.length() == 1
           "SIN"
           | "COS"
           | "TAN"

@@ -202,6 +202,7 @@ pub fn Session::page_setup(
       "page": {
         "section": index,
         "startType": tree.section_start_type(section),
+        "footnotesAt": self.section_footnotes_at(tree, section),
         "width": page.width,
         "height": page.height,
         "top": page.top,
@@ -240,8 +241,14 @@ pub fn Session::set_page_setup(
   page : @layout.PageSetup,
   orientation~ : String? = None,
   startType~ : String? = None,
+  footnotesAt~ : String? = None,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
+  if footnotesAt is Some(position) {
+    guard ["pageBottom", "beneathText"].contains(position) else {
+      @failure.reject("invalid-operation", "Invalid footnote placement")
+    }
+  }
   if startType is Some(kind) {
     guard ["nextPage", "oddPage", "evenPage", "continuous"].contains(kind) else {
       @failure.reject("invalid-operation", "Unsupported section start type")
@@ -295,7 +302,11 @@ pub fn Session::set_page_setup(
   let start_changed = startType
     .map(kind => kind != tree.section_start_type(section))
     .unwrap_or(false)
-  if !page_changed && !start_changed {
+  let notes_changed = match footnotesAt {
+    Some(position) => position != self.section_footnotes_at(tree, section)
+    None => false
+  }
+  if !page_changed && !start_changed && !notes_changed {
     return self.edit_state()
   }
   let (initial, edits, section) = page_section(original, tree, section)
@@ -372,6 +383,14 @@ pub fn Session::set_page_setup(
   if start_changed && startType is Some(kind) {
     let tree = WordTree::new(candidate)
     if tree.section_start_change(candidate, section, kind) is Some(change) {
+      let (updated, edit) = candidate.edit_source([change])
+      candidate = updated
+      edits.push(edit)
+    }
+  }
+  if notes_changed && footnotesAt is Some(position) {
+    let tree = WordTree::new(candidate)
+    if tree.footnotes_at_change(candidate, section, position) is Some(change) {
       let (updated, edit) = candidate.edit_source([change])
       candidate = updated
       edits.push(edit)

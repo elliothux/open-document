@@ -287,6 +287,8 @@ fn Expression::evaluate(
       series_sum_function(args, sheets, sheet, values, work, depth)
     Function("SUMX2MY2" | "SUMX2PY2" | "SUMXMY2" as name, args) =>
       paired_squares_function(name, args, sheets, sheet, values, work, depth)
+    Function("MDETERM", args) =>
+      determinant_function(args[0], sheets, sheet, values, work, depth)
     Function("SUMPRODUCT", args) =>
       sum_product_function(args, sheets, sheet, values, work, depth)
     Function("DEVSQ", args) =>

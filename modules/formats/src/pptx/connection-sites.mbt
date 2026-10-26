@@ -14,6 +14,16 @@ fn Object::local_connection_sites(self : Object) -> Array[(Double, Double)] {
     return self.elbow_connection_sites()
   }
   match self.preset {
+    "lightningBolt" =>
+      [
+        (w * 8472 / 21600, 0.0),
+        (0.0, h * 3890 / 21600),
+        (w * 5022 / 21600, h * 9705 / 21600),
+        (w * 10012 / 21600, h * 14915 / 21600),
+        (w, h),
+        (w * 16577 / 21600, h * 12007 / 21600),
+        (w * 12860 / 21600, h * 6080 / 21600),
+      ]
     "heart" => [(w / 2, h / 4), (w / 2, h)]
     "snip1Rect"
     | "snip2SameRect"

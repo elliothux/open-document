@@ -4,13 +4,13 @@ fn page_setup_format(
 ) -> @layout.PageSetup raise @failure.Failure {
   guard request is { "page": Object(fields), .. } &&
     fields.length() >= 7 &&
-    fields.length() <= 9 &&
+    fields.length() <= 10 &&
     fields
     .keys()
     .all(key => {
       [
         "section", "width", "height", "top", "right", "bottom", "left", "orientation",
-        "startType",
+        "startType", "footnotesAt",
       ].contains(key)
     }) else {
     @failure.reject("invalid-operation", "Invalid page setup fields")
@@ -704,6 +704,12 @@ fn Foundation::docx_page(
         startType=match request {
           { "page": Object(fields) as page, .. } if fields.contains("startType") =>
             Some(field_string(page, "startType"))
+          _ => None
+        },
+        footnotesAt=match request {
+          { "page": Object(fields) as page, .. } if fields.contains(
+              "footnotesAt",
+            ) => Some(field_string(page, "footnotesAt"))
           _ => None
         },
       )

@@ -30,6 +30,7 @@ export const pptxInsertKinds = [
   "ellipse",
   "donut",
   "heart",
+  "lightningBolt",
   "triangle",
   "rtTriangle",
   "diamond",

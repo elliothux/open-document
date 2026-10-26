@@ -279,6 +279,7 @@ pub(all) struct Flow {
   revision : Int
   sectionBreaks : Array[SectionBreak]
   endnotesAt : String
+  footnotesAt : String
   background : String
   pageBorders : PageBorders
   page : PageSetup
@@ -759,6 +760,7 @@ pub(all) struct SectionBreak {
   beforeTable : Int
   kind : String
   restartNumbering : Bool
+  footnotesAt : String
   page : PageSetup
   pageBorders : PageBorders
   pageNumbering : PageNumbering

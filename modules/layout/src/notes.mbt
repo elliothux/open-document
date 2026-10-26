@@ -66,6 +66,9 @@ fn note_references(
 
 ///|
 fn Flow::validate_notes(self : Flow) -> Unit raise @failure.Failure {
+  guard ["pageBottom", "beneathText"].contains(self.footnotesAt) else {
+    @failure.reject("invalid-style", "Invalid footnote placement")
+  }
   guard ["sectEnd", "docEnd"].contains(self.endnotesAt) else {
     @failure.reject("invalid-style", "Invalid endnote placement")
   }
@@ -287,6 +290,7 @@ fn Pagination::finish_notes(
       ignore(page.lines.pop())
     }
   }
+  self.noteBodyEnds[self.pages.length() - 1] = self.y + self.after
   self.flush_footnotes(flushFootnotes)
   guard end_count + self.noteCount + self.notePending.length() - self.noteCursor <=
     32768 - self.count else {
@@ -298,6 +302,11 @@ fn Pagination::finish_notes(
     let offset = page.height -
       self.sheet_setup(index / self.columns.count).bottom -
       height
+    let offset = if flow.footnotesAt == "beneathText" {
+      self.noteBodyEnds.get(index).unwrap_or(setup.top).min(offset)
+    } else {
+      offset
+    }
     let notes = self.notePages
       .get(index)
       .unwrap_or([])

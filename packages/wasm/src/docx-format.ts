@@ -176,9 +176,13 @@ export function docxPageSettings(value: unknown): DocxPageSettings {
   const page = record(result.page);
   const startType = page.startType;
   checkSectionBreak(startType);
+  const footnotesAt = page.footnotesAt;
+  if (footnotesAt !== "pageBottom" && footnotesAt !== "beneathText")
+    throw new Error("Invalid footnote placement");
   const setup: DocxPageSetup = {
     section: Number(page.section),
     startType,
+    footnotesAt,
     width: Number(page.width),
     height: Number(page.height),
     top: Number(page.top),
@@ -187,10 +191,13 @@ export function docxPageSettings(value: unknown): DocxPageSettings {
     left: Number(page.left),
   };
   if (
-    Object.keys(page).length !== 8 ||
+    Object.keys(page).length !== 9 ||
     setup.section >= Number(result.sectionCount) ||
     !Object.entries(page).every(
-      ([key, value]) => key === "startType" || typeof value === "number",
+      ([key, value]) =>
+        key === "startType" ||
+        key === "footnotesAt" ||
+        typeof value === "number",
     ) ||
     result.reason
   )

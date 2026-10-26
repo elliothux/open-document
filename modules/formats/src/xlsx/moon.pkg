@@ -11,6 +11,7 @@ import {
   "moonbitlang/core/string",
   "moonbitlang/core/json",
   "moonbitlang/core/math",
+  "moonbitlang/core/double",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/encoding/base64",
   "moonbit-community/ucd",

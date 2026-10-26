@@ -136,6 +136,7 @@ fn Session::flow_from(
     pageBorders: first.pageBorders,
     sectionBreaks: sections[1:].to_owned(),
     endnotesAt: endnotes_at,
+    footnotesAt: first.footnotesAt,
     page: first.page,
     pageNumbering: first.pageNumbering,
     outlineLevels: outline_levels,

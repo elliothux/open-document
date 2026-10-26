@@ -56,10 +56,15 @@ fn NoteSettings::read(
         }
       "numRestart" if ["continuous", "eachSect"].contains(value) =>
         restart = value
-      "pos" if (kind == "footnote" && value == "pageBottom") ||
+      "pos" if (
+          kind == "footnote" &&
+          ["pageBottom", "beneathText", "sectEnd", "docEnd"].contains(value)
+        ) ||
         (kind == "endnote" && ["sectEnd", "docEnd"].contains(value)) =>
-        // ONLYOFFICE preserves section pos but uses the document-wide placement.
-        if document {
+        // Native footnote docEnd/sectEnd positions behave as beneathText.
+        if kind == "footnote" {
+          position = if value == "pageBottom" { value } else { "beneathText" }
+        } else if document {
           position = value
         }
       _ =>
@@ -121,4 +126,58 @@ fn WordTree::note_sections(self : WordTree) -> Map[Int, Int] {
     }
   }
   result
+}
+
+///|
+fn Session::section_footnotes_at(
+  self : Session,
+  tree : WordTree,
+  section : Int?,
+) -> String raise @failure.Failure {
+  let defaults = self.note_settings("footnote")
+  match section {
+    None => defaults.position
+    Some(id) => defaults.read(tree, id, "footnote", document=false).position
+  }
+}
+
+///|
+fn WordTree::footnotes_at_change(
+  self : WordTree,
+  document : @xml.Document,
+  section : Int,
+  position : String,
+) -> @xml.SourceChange? raise @failure.Failure {
+  if self.child(section, "footnotePr") is Some(properties) {
+    let markup = property_markup(
+      self,
+      document,
+      self.child(properties, "pos"),
+      "pos",
+      Some({ "val": Some(position) }),
+    )
+    return properties_change(self, document, properties, "pos", markup)
+  }
+  let markup = "<od:footnotePr xmlns:od='\{word_uri}'><od:pos od:val='\{position}'/></od:footnotePr>"
+  let node = self.nodes[section]
+  let previous = self.children[section]
+    .filter(id => {
+      ["headerReference", "footerReference"].contains(self.nodes[id].name)
+    })
+    .last()
+  Some(
+    if node.empty {
+      section_insertion(self, section, markup)
+    } else {
+      {
+        node: section,
+        offset: previous
+        .map(id => self.nodes[id].end)
+        .unwrap_or(node.opening_end) -
+        node.start,
+        length: 0,
+        xml: markup,
+      }
+    },
+  )
 }

@@ -573,6 +573,25 @@ export function DocxPage({
         >
           <fieldset disabled={disabled || stale || draft.section !== section}>
             <label>
+              {t.footnotesPosition}
+              <select
+                aria-label={t.footnotesPosition}
+                value={draft.footnotesAt}
+                onChange={(event) =>
+                  setDraft({
+                    ...draft,
+                    footnotesAt:
+                      event.currentTarget.value === "beneathText"
+                        ? "beneathText"
+                        : "pageBottom",
+                  })
+                }
+              >
+                <option value="pageBottom">{t.footnotesPageBottom}</option>
+                <option value="beneathText">{t.footnotesBeneathText}</option>
+              </select>
+            </label>
+            <label>
               {t.sectionStartType}
               <select
                 aria-label={t.sectionStartType}

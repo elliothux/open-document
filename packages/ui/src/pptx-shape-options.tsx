@@ -13,6 +13,7 @@ export function PptxShapeOptions({ t }: { t: Messages }) {
       <option value="ellipse">{t.ellipse}</option>
       <option value="donut">{t.donut}</option>
       <option value="heart">{t.heart}</option>
+      <option value="lightningBolt">{t.lightningBolt}</option>
       <option value="triangle">{t.triangle}</option>
       <option value="rtTriangle">{t.rightTriangle}</option>
       <option value="diamond">{t.diamond}</option>

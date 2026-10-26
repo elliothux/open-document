@@ -19,6 +19,8 @@ export interface DocxPageSetup {
   section: number;
   /** Omission retains the native section start type; queries always include it. */
   startType?: SectionStart;
+  /** Omission retains the section's native placement and document inheritance. */
+  footnotesAt?: "pageBottom" | "beneathText";
   width: number;
   height: number;
   top: number;
@@ -43,6 +45,12 @@ export function checkPageSetup(value: unknown): void {
   const page = record(value);
   checkPageSection(page.section);
   if ("startType" in page) checkSectionBreak(page.startType);
+  if (
+    "footnotesAt" in page &&
+    page.footnotesAt !== "pageBottom" &&
+    page.footnotesAt !== "beneathText"
+  )
+    throw new Error("Invalid footnote placement");
   const fields = ["width", "height", "top", "right", "bottom", "left"];
   if (
     !Object.keys(page).every(
@@ -50,7 +58,8 @@ export function checkPageSetup(value: unknown): void {
         fields.includes(key) ||
         key === "orientation" ||
         key === "section" ||
-        key === "startType",
+        key === "startType" ||
+        key === "footnotesAt",
     ) ||
     (page.orientation !== undefined &&
       page.orientation !== "portrait" &&
@@ -81,6 +90,7 @@ export type DocxSectionBreak = {
   | "page"
   | "pageBorders"
   | "pageNumbering"
+  | "footnotesAt"
   | "columns"
   | "headers"
   | "headerDistance"
@@ -97,6 +107,8 @@ export function checkDocxSections(
 ): void {
   if (flow.endnotesAt !== "sectEnd" && flow.endnotesAt !== "docEnd")
     throw new Error("Invalid endnote placement");
+  if (flow.footnotesAt !== "pageBottom" && flow.footnotesAt !== "beneathText")
+    throw new Error("Invalid footnote placement");
   if (
     !Array.isArray(flow.sectionBreaks) ||
     flow.sectionBreaks.length >= 1024 ||
@@ -120,6 +132,8 @@ export function checkDocxSections(
       !["nextPage", "oddPage", "evenPage", "continuous"].includes(
         section.kind,
       ) ||
+      (section.footnotesAt !== "pageBottom" &&
+        section.footnotesAt !== "beneathText") ||
       typeof section.restartNumbering !== "boolean"
     )
       throw new Error("Invalid document section boundary");

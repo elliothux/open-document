@@ -165,6 +165,7 @@ pub(all) struct Flow {
   revision : Int
   sectionBreaks : Array[SectionBreak]
   endnotesAt : String
+  footnotesAt : String
   background : String
   pageBorders : PageBorders
   page : PageSetup
