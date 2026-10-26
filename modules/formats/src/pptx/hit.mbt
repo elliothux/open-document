@@ -88,6 +88,9 @@ fn object_hit(
       (y - t * height) * (y - t * height) <=
       margin * margin
   }
+  if object.preset == "donut" {
+    return object.donut_hit(width, height, x, y, margin)
+  }
   if object.preset == "ellipse" {
     if width <= 0 || height <= 0 {
       return false

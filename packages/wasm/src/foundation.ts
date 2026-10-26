@@ -5,7 +5,7 @@ import {
 } from "./docx-chart.js";
 export * from "./docx-chart.js";
 export { type ChartSettings } from "./chart.js";
-import { FoundationInkSession } from "./docx-ink.js";
+import { FoundationSelectionSession } from "./docx-selection.js";
 export * from "./docx-ink.js";
 export * from "./docx-tracking.js";
 export * from "./docx-clipboard.js";
@@ -160,10 +160,6 @@ export {
   docxSelectionGeometry,
   type DocxSelectionGeometry,
 } from "./docx-hit.js";
-import {
-  docxSelectionGeometry,
-  type DocxSelectionGeometry,
-} from "./docx-hit.js";
 
 export type NavigationDirection =
   "left" | "right" | "up" | "down" | "home" | "end";
@@ -303,7 +299,7 @@ export function shapeBatch(value: unknown): ShapeBatch {
   return value as ShapeBatch;
 }
 
-export class FoundationSession extends FoundationInkSession {
+export class FoundationSession extends FoundationSelectionSession {
   charts(revision: number) {
     return docxCharts(this.call({ operation: "docxCharts", revision }));
   }
@@ -655,11 +651,6 @@ export class FoundationSession extends FoundationInkSession {
     );
   }
 
-  selectDocx(revision: number, selection: DocxSelection): EditState {
-    return editState(
-      this.call({ operation: "selectDocx", revision, selection }),
-    );
-  }
   replaceRange(
     revision: number,
     selection: DocxSelection,
@@ -746,15 +737,6 @@ export class FoundationSession extends FoundationInkSession {
         direction,
         extend,
       }),
-    );
-  }
-
-  selectionGeometry(
-    layoutId: number,
-    selection: DocxSelection,
-  ): DocxSelectionGeometry {
-    return docxSelectionGeometry(
-      this.call({ operation: "selectionGeometry", layoutId, selection }),
     );
   }
 

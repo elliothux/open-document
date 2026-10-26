@@ -31,6 +31,7 @@ fn Object::adjustment_handles(self : Object) -> Array[AdjustmentHandle] {
   .map(item => {
     // ONLYOFFICE preset XY handles vary one guide linearly on its declared local axis.
     let (x, y, dx, dy) = match (self.preset, item.0) {
+      ("donut", "adj") => (0.0, h / 2, side, 0.0)
       ("bentConnector3" | "curvedConnector3", "adj1") => (0.0, h / 2, w, 0.0)
       (
         "bentConnector4"

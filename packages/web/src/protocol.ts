@@ -659,6 +659,7 @@ export type Operation =
       revision: number;
       selection: DocxSelection;
     }
+  | { operation: "selectAllDocx"; revision: number }
   | {
       operation: "tableClipboard" | "docxClipboard";
       revision: number;

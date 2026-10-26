@@ -70,30 +70,32 @@ export function PptxShapeAdjustments({
                   : guide.name === "adj"
                     ? ["roundRect", "round1Rect"].includes(first.preset)
                       ? t.cornerRadius
-                      : first.preset === "triangle"
-                        ? t.triangleApex
-                        : ["chevron", "homePlate"].includes(first.preset)
-                          ? t.arrowHead
-                          : first.preset === "hexagon"
-                            ? t.shapeSideInset
-                            : ["octagon", "snip1Rect"].includes(first.preset)
-                              ? t.shapeCornerCut
-                              : first.preset === "plus"
-                                ? t.shapeArmInset
-                                : [
-                                      "star4",
-                                      "star5",
-                                      "star6",
-                                      "star8",
-                                      "star10",
-                                      "star12",
-                                      "star7",
-                                      "star16",
-                                      "star24",
-                                      "star32",
-                                    ].includes(first.preset)
-                                  ? t.shapeInnerRadius
-                                  : t.shapeSlant
+                      : first.preset === "donut"
+                        ? t.shapeRingThickness
+                        : first.preset === "triangle"
+                          ? t.triangleApex
+                          : ["chevron", "homePlate"].includes(first.preset)
+                            ? t.arrowHead
+                            : first.preset === "hexagon"
+                              ? t.shapeSideInset
+                              : ["octagon", "snip1Rect"].includes(first.preset)
+                                ? t.shapeCornerCut
+                                : first.preset === "plus"
+                                  ? t.shapeArmInset
+                                  : [
+                                        "star4",
+                                        "star5",
+                                        "star6",
+                                        "star8",
+                                        "star10",
+                                        "star12",
+                                        "star7",
+                                        "star16",
+                                        "star24",
+                                        "star32",
+                                      ].includes(first.preset)
+                                    ? t.shapeInnerRadius
+                                    : t.shapeSlant
                     : guide.name === "adj1"
                       ? ["bentConnector3", "curvedConnector3"].includes(
                           first.preset,

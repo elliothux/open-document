@@ -1,4 +1,18 @@
 ///|
+fn select_docx(
+  session : @docx.Session,
+  request : Json,
+  all : Bool,
+) -> Json raise @failure.Failure {
+  let revision = field_int(request, "revision")
+  if all {
+    session.select_all(revision)
+  } else {
+    session.select(revision, field_selection(request))
+  }
+}
+
+///|
 fn Foundation::hit_result(
   self : Foundation,
   session : @docx.Session,

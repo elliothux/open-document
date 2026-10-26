@@ -780,4 +780,6 @@ export const zh: Messages = {
   deleteAnnotation: "删除批注",
   choose: "请选择…",
   working: "处理中",
+  donut: "圆环",
+  shapeRingThickness: "圆环厚度 (%)",
 };

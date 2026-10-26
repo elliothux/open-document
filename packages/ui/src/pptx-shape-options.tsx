@@ -11,6 +11,7 @@ export function PptxShapeOptions({ t }: { t: Messages }) {
       <option value="round2DiagRect">{t.round2DiagRect}</option>
       <option value="snipRoundRect">{t.snipRoundRect}</option>
       <option value="ellipse">{t.ellipse}</option>
+      <option value="donut">{t.donut}</option>
       <option value="triangle">{t.triangle}</option>
       <option value="rtTriangle">{t.rightTriangle}</option>
       <option value="diamond">{t.diamond}</option>

@@ -418,6 +418,7 @@ fn FormulaParser::atom(
           | "COMBIN"
           | "COMBINA"
           | "MROUND"
+          | "QUOTIENT"
           | "ROUND"
           | "CEILING"
           | "FLOOR"

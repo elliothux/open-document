@@ -51,6 +51,8 @@ GenOffice 的主要依据是 [DOCX 引擎导出][d-engine]、[Ribbon][d-ribbon]�
 
 实施归 [P10 技术方案](p10-docx-core.md)；复杂排版与导入变体在阶段 P14 扩展。以 ONLYOFFICE 的布局和编辑规则补全核心，保留已有 LibreOffice 证据的真实来源。不能直接把 Tiptap 文档树或 DOM 测量结果变成本项目权威状态。
 
+DOCX 正文及当前文本框的全选已接通同一核心范围、API 与 Ctrl/Cmd+A，保留空段落、当前页面、源和历史。修改沿既有范围保护；范围归[编辑 API](references/formats.md#p4-当前编辑-api-切片)，实施归 [P10](p10-docx-core.md)。
+
 ## 表格：XLSX
 
 GenOffice 使用 Univer OSS UI/计算能力与自身网关、sidecar 和写回代码。依据 [Ribbon 操作][s-ribbon]、[操作定义][s-dsl]、[操作执行][s-executor]、[表结构操作][s-workbook]、[透视表][s-pivot]和[公式边界用例][s-formulas]。当前项目依据 [P5](implemented/p5-xlsx-editing.md)与 [`XlsxClient`](../packages/web/src/xlsx.ts)。
@@ -84,7 +86,7 @@ GenOffice 使用 Univer OSS UI/计算能力与自身网关、sidecar 和写回�
 
 实施归 [P11 技术方案](p11-xlsx-core.md)，先解决“常用工作簿能继续编辑”，再扩展数据分析能力。不能通过忽略未知公式、写入猜测值或取消保护来消除整本只读。应记录依赖影响，保留未知内容，仅开放已能证明安全的操作。GenOffice 的旧说明与较新代码存在范围差异，流式会话和结构操作以对应执行路径为准，不照抄旧 README 的限制。
 
-XLSX 的 SIN/COS/TAN、ACOS/ASIN/ATAN/ATAN2、EXP/LN/LOG/LOG10、SINH/COSH/TANH、ACOSH/ASINH/ATANH、PI、角度换算、FACT/FACTDOUBLE、COMBIN/COMBINA、MROUND 及 GCD/LCM 已有实际求值，QUOTIENT 已有未计算链隔离，保留缓存并保护完整上下游，无关联格可继续输入；动态、自定义及未核实函数仍整本保护，范围归[显示与计算](references/formats.md#显示与计算)。
+XLSX 的 SIN/COS/TAN、ACOS/ASIN/ATAN/ATAN2、EXP/LN/LOG/LOG10、SINH/COSH/TANH、ACOSH/ASINH/ATANH、PI、角度换算、FACT/FACTDOUBLE、COMBIN/COMBINA、MROUND、QUOTIENT 及 GCD/LCM 已有实际求值，MULTINOMIAL 已有未计算链隔离，保留缓存并保护完整上下游，无关联格可继续输入；动态、自定义及未核实函数仍整本保护，范围归[显示与计算](references/formats.md#显示与计算)。
 
 ## 演示：PPTX
 
@@ -116,6 +118,8 @@ XLSX 的 SIN/COS/TAN、ACOS/ASIN/ATAN/ATAN2、EXP/LN/LOG/LOG10、SINH/COSH/TANH�
 | T22 导入与保护 | [旧 PPT 和加密 OOXML 有明确拒绝路径][t-main]；复杂对象仍有各自限制 | 已有限 Transitional PPTX 保护与保存；扩展时不把“全功能”解释为 GenOffice 已支持所有旧格式 | P1 |
 
 实施归 [P12 技术方案](p12-pptx-core.md)。媒体解码和播放设备在宿主，文档对象、动画触发与时间关系在核心。Renderer 接收确定的显示状态；不在 React 或 Canvas 层建立另一套幻灯片模型。
+
+PPTX 可调圆环已接通原生孔洞、厚度与手柄、文字区域和连接点，默认创建、历史、重开输入及 Canvas/PDF 共用同一路径。范围归[形状类型](references/formats.md#更改形状类型)，实施归 [P12](p12-pptx-core.md)。
 
 ## PDF
 

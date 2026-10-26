@@ -534,6 +534,11 @@ export class FoundationClient extends FoundationClipboardClient {
       }),
     );
   }
+  async selectAllDocx(revision: number): Promise<EditState> {
+    return editState(
+      await this.connection.request({ operation: "selectAllDocx", revision }),
+    );
+  }
   async selectDocx(
     revision: number,
     selection: DocxSelection,

@@ -11,6 +11,7 @@ import { errorResponse, type Request, type Response } from "./protocol";
 import { mathOperation } from "./worker-math.js";
 import { inkOperation } from "./worker-docx-ink.js";
 import { reviewOperation } from "./worker-docx-review.js";
+import { selectionOperation } from "./worker-docx-selection.js";
 import {
   isXlsxCommentsRequest,
   commentsOperation,
@@ -651,13 +652,9 @@ async function dispatch(request: Request): Promise<unknown> {
             request.compositionId,
           );
         case "selectDocx":
-          return foundation.selectDocx(request.revision, request.selection);
+        case "selectAllDocx":
         case "selectedText":
-          return foundation.selectedText(
-            request.revision,
-            request.selection,
-            request.cut,
-          );
+          return selectionOperation(foundation, request);
         case "tableClipboard":
           return foundation.tableClipboard(
             request.revision,

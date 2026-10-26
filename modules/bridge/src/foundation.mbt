@@ -234,6 +234,7 @@ fn Foundation::dispatch(
     "query"
     | "editState"
     | "selectDocx"
+    | "selectAllDocx"
     | "queryFormatting"
     | "docxRuler"
     | "editDocxRuler"
@@ -430,11 +431,8 @@ fn Foundation::dispatch(
         | "pasteMarkdown"
         | "pasteHtml"
         | "markupImages" => self.clipboard_command(session, request)
-        "selectDocx" =>
-          session.select(
-            field_int(request, "revision"),
-            field_selection(request),
-          )
+        "selectDocx" | "selectAllDocx" =>
+          select_docx(session, request, operation == "selectAllDocx")
         "queryFormatting" =>
           session.query_formatting(
             field_int(request, "revision"),

@@ -788,5 +788,7 @@ export const en = {
   deleteAnnotation: "Delete annotation",
   choose: "Choose…",
   working: "Working",
+  donut: "Donut",
+  shapeRingThickness: "Ring thickness (%)",
 };
 export type Messages = { readonly [K in keyof typeof en]: string };

@@ -68,13 +68,13 @@ fn factorial_product(
 }
 
 ///|
-fn combination_integer(number : Double) -> Double raise @failure.Failure {
+fn decimal_integer(number : Double) -> Double raise @failure.Failure {
   // JavaScript parseInt reads the mantissa when the number uses exponential notation.
-  if number >= 1.0e21 || (number > 0 && number < 1.0e-6) {
+  if number.abs() >= 1.0e21 || (number != 0 && number.abs() < 1.0e-6) {
     try
       @string.parse_double(number.to_string().split("e").head().unwrap())
     catch {
-      _ => @failure.reject("invalid-number", "Invalid combination argument")
+      _ => @failure.reject("invalid-number", "Invalid integer argument")
     } noraise {
       value => value.trunc()
     }
@@ -131,9 +131,9 @@ fn numeric_function(
 ) -> Value raise @failure.Failure {
   let numbers : Array[Double] = []
   for arg in args {
-    let value = if ["FACT", "FACTDOUBLE", "COMBIN", "COMBINA", "MROUND"].contains(
-        name,
-      ) {
+    let value = if [
+        "FACT", "FACTDOUBLE", "COMBIN", "COMBINA", "MROUND", "QUOTIENT",
+      ].contains(name) {
       arg.scalar_argument(sheets, sheet, values, work, depth + 1)
     } else {
       arg.evaluate(sheets, sheet, values, work, depth + 1)
@@ -168,8 +168,8 @@ fn numeric_function(
         return Error("#NUM!")
       }
       let (total, chosen) = if name == "COMBINA" {
-        let chosen = combination_integer(second)
-        (combination_integer(first) + chosen - 1, chosen)
+        let chosen = decimal_integer(second)
+        (decimal_integer(first) + chosen - 1, chosen)
       } else {
         (first, second)
       }
@@ -194,6 +194,17 @@ fn numeric_function(
     }
     "PI" => Number(@math.PI)
     "MROUND" => rounded_multiple(numbers[0], numbers[1])
+    "QUOTIENT" => {
+      if numbers[1] == 0 {
+        return Error("#DIV/0!")
+      }
+      let quotient = numbers[0] / numbers[1]
+      if quotient.is_nan() || quotient.is_inf() {
+        Error("#NUM!")
+      } else {
+        Number(decimal_integer(quotient))
+      }
+    }
     "SIN" => finite_result(@math.sin(numbers[0]))
     "COS" => finite_result(@math.cos(numbers[0]))
     "TAN" => finite_result(@math.tan(numbers[0]))

@@ -33,7 +33,7 @@ fn line_shape(preset : String) -> Bool {
 
 ///|
 fn supported_shape(preset : String) -> Bool {
-  ["rect", "ellipse"].contains(preset) ||
+  ["rect", "ellipse", "donut"].contains(preset) ||
   rounded_shape(preset) ||
   line_shape(preset) ||
   arrow_shape(preset) ||
@@ -53,7 +53,7 @@ fn read_shape_adjustments(
   preset : String,
 ) -> (Double, Double, Double) raise @failure.Failure {
   let single = [
-    "roundRect", "triangle", "parallelogram", "trapezoid", "hexagon", "octagon",
+    "roundRect", "donut", "triangle", "parallelogram", "trapezoid", "hexagon", "octagon",
     "plus", "star4", "star5", "star6", "star7", "star8", "star10", "star12", "star16",
     "star24", "star32", "chevron", "homePlate", "snip1Rect", "round1Rect",
   ].contains(preset)
@@ -66,7 +66,7 @@ fn read_shape_adjustments(
     | "round2DiagRect"
     | "snipRoundRect" => 0.16667
     "snip2DiagRect" => 0.0
-    "parallelogram" | "trapezoid" | "hexagon" | "plus" => 0.25
+    "parallelogram" | "trapezoid" | "hexagon" | "plus" | "donut" => 0.25
     "octagon" => 0.29289
     "star5" => 0.19098
     "star4" => 0.125
@@ -351,6 +351,9 @@ fn Object::shape_body(self : Object, geometry : Geometry) -> Body {
   // ONLYOFFICE CreateGeometry text rectangles precede DrawingML body insets.
   let (left, top, right, bottom) = if rounded_shape(self.preset) {
     rounded_insets(self.preset, w, h, self.adjustments)
+  } else if self.preset == "donut" {
+    let inset = (1.0 - @math.cos(@math.PI / 4)) / 2
+    (w * inset, h * inset, w * inset, h * inset)
   } else if elbow_arrow_shape(self.preset) {
     elbow_arrow_insets(self.preset, w, h, self.adjustments)
   } else if branched_arrow_shape(self.preset) {

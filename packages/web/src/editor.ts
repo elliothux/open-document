@@ -212,7 +212,7 @@ export class DocumentEditor extends DocumentTables {
           !this.closed && !this.paused && !this.blocked && !this.resuming,
         enqueue: (operation, composition) =>
           this.enqueue(operation, false, composition),
-        changed: (state, relayout) => this.changed(state, relayout),
+        changed: this.changed.bind(this),
         history: (redo) => this.history(redo),
         stop: (error) => this.stop(error),
       },
@@ -652,7 +652,7 @@ export class DocumentEditor extends DocumentTables {
     if (this.currentLayout.id !== layoutId)
       throw new Error("Selection geometry belongs to a stale layout");
     this.state = { ...this.state, formatting };
-    if (caret) this.page = caret.page;
+    if (caret && reveal) this.page = caret.page;
     const description = await docxSelectionDescription(
       this.client,
       this.state,

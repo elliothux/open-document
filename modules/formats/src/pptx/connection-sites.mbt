@@ -20,7 +20,7 @@ fn Object::local_connection_sites(self : Object) -> Array[(Double, Double)] {
     | "round2SameRect"
     | "round2DiagRect"
     | "snipRoundRect" => [(w, h / 2), (w / 2, h), (0.0, h / 2), (w / 2, 0.0)]
-    "ellipse" => {
+    "ellipse" | "donut" => {
       let dx = w * 0.3535533905932738
       let dy = h * 0.3535533905932738
       [

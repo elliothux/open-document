@@ -15,7 +15,11 @@ interface InputHost {
   layoutId(): number;
   available(): boolean;
   enqueue(operation: () => Promise<void>, composition?: boolean): Promise<void>;
-  changed(state: EditState, relayout?: boolean): Promise<void>;
+  changed(
+    state: EditState,
+    relayout?: boolean,
+    reveal?: boolean,
+  ): Promise<void>;
   history(redo: boolean): Promise<void>;
   stop(error: Error): void;
 }
@@ -25,7 +29,7 @@ export interface NativeInputHost<State extends { revision: number }> {
   limit(): number;
   available(): boolean;
   enqueue(operation: () => Promise<void>, composition?: boolean): Promise<void>;
-  changed(state: State, relayout?: boolean): Promise<void>;
+  changed(state: State, relayout?: boolean, reveal?: boolean): Promise<void>;
   history(redo: boolean): Promise<void>;
   stop(error: Error): void;
 }
@@ -48,6 +52,7 @@ export interface NativeInputCommands<State> {
   nativeEnter: boolean;
   tab?(revision: number, backward: boolean): Promise<State>;
   enter?(revision: number): Promise<State>;
+  selectAll?(revision: number): Promise<State>;
 }
 
 interface Composition {
@@ -298,6 +303,20 @@ export class NativeTextInput<State extends { revision: number }> {
     }
     if (!this.host.available()) return;
     if (
+      command &&
+      !event.altKey &&
+      !event.shiftKey &&
+      event.key.toLowerCase() === "a" &&
+      this.commands.selectAll
+    ) {
+      event.preventDefault();
+      const selectAll = this.commands.selectAll;
+      this.send(async () =>
+        this.host.changed(await selectAll(this.state.revision), false, false),
+      );
+      return;
+    }
+    if (
       event.key === "Tab" &&
       !event.altKey &&
       !event.metaKey &&
@@ -434,6 +453,7 @@ export class TextInput extends NativeTextInput<EditState> {
         nativeEnter: true,
         enter: (revision) => client.enterDocx(revision),
         tab: (revision, backward) => client.tabDocx(revision, backward),
+        selectAll: (revision) => client.selectAllDocx(revision),
       },
       { ...host, limit: () => host.state().commandLimit },
     );
