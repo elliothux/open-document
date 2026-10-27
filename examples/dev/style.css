@@ -1,0 +1,48 @@
+html,
+body,
+#root,
+main,
+#editor {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+body {
+  overflow: hidden;
+  color: #242424;
+  background: #f6f7f9;
+  font:
+    14px/1.5 system-ui,
+    sans-serif;
+}
+.empty {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+.empty button {
+  padding: 12px 24px;
+  border: 0;
+  border-radius: 6px;
+  color: white;
+  background: #174ea6;
+  font: inherit;
+  cursor: pointer;
+}
+.empty button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.error {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  max-width: 80vw;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 12px;
+  color: #b3261e;
+  background: #fff;
+  border: 1px solid currentColor;
+}

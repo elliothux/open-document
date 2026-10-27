@@ -19,6 +19,7 @@ PDF 输入和文档操作见 [P7](../implemented/p7-pdf-input.md) 与 [P8](../im
 | `packages/wasm` | 实例化与 ABI 校验 | WasmGC 产物；不拥有第二份文档模型 |
 | `packages/web` | Worker 请求、输入事件排序、页面呈现与生命周期 | wasm 包；不实现文本替换、撤销或排版 |
 | `packages/ui` | 默认 React UI、ShadowRoot、文件候选、宿主保存回调 | web、React、Base UI；文档操作复用编辑宿主队列 |
+| `packages/devtools` | 独立开发检查面板；订阅公开宿主快照 | UI 类型、React；产品包不反向依赖 |
 
 根 `moon.work` 明确列举四个 module，各 module 内以 package 划分真实 concern。暂不为每种格式创建独立发布 module，也不创建 CLI 空壳。根 Bun workspace 只包含 `packages/*`，一个公开 `bun.lock`；私有工具是独立仓库和独立依赖域，不加入公开 workspace。
 
@@ -85,7 +86,25 @@ await mounted.close();
 
 `packages/ui` 以 React `useSyncExternalStore` 观察宿主。Tailwind 只在构建时运行，省略 Preflight，CSS 文本随 ESM 入口进入实例 `<style>`。Base UI 的 Tabs/Menu/Dialog 使用实例内 Portal；`styleNonce` 同时供应自建样式和 Base UI CSP provider。关键尺寸为本地 px token，light/dark 不改变文档颜色。普通菜单非模态；关闭确认暂时限制整个页面交互并恢复焦点/滚动。
 
-`bun run build` 生成三个包的 JS/types/样式、Wasm、Worker 和 [`examples/web-sdk`](../../examples/web-sdk/index.html) 普通 JS 示例。只重建示例时运行 `bun run build:example`，前提是三个包已有当前构建。使用静态 HTTP 服务托管整个示例目录，选择本地文档即可打开。示例自动加载随附替代字体并提示排版差异；额外字体和 profile 为可选覆盖，规则归[字体资源与替代](formats.md#字体资源与替代)。例如运行 `python3 -m http.server 4173 --bind 127.0.0.1 --directory examples/web-sdk`，在 Chrome 打开 `http://127.0.0.1:4173/`。示例每次加载为入口 JS 创建新请求标识，Wasm/Worker 在挂载时共用新标识，字体与 Wasm 禁用 HTTP 缓存，避免开发期 HTML 与旧执行资源混用。缺省输出下载；勾选宿主保存后，Chrome 选择目录，示例回调在文件流关闭成功后确认保存。示例没有私有路径、字体或测试服务器依赖。
+`bun run build` 生成产品包和 devtools 的 JS/types、UI 样式、Wasm、Worker 和 [`examples/web-sdk`](../../examples/web-sdk/index.html) 普通 JS 示例。只重建普通 JS 示例时运行 `bun run build:example`，前提是产品包已有当前构建。静态托管整个示例目录，选择本地文档即可打开。示例自动加载随附替代字体并提示排版差异；额外字体和 profile 为可选覆盖，规则归[字体资源与替代](formats.md#字体资源与替代)。示例每次加载为入口 JS 创建新请求标识，Wasm/Worker 在挂载时共用新标识，字体与 Wasm 禁用 HTTP 缓存，避免开发期 HTML 与旧执行资源混用。缺省输出下载；勾选宿主保存后，Chrome 选择目录，示例回调在文件流关闭成功后确认保存。示例没有私有路径、字体或测试服务器依赖。
+
+### 开发预览与 devtools
+
+首次运行 `bun run build`，再运行 `bun run preview`。在 Chrome 打开 `http://127.0.0.1:4173/`，点击中央“打开文件”，选文件后直接打开。编辑器占满页面；文件菜单负责打开和关闭，关闭后回到中央按钮。宿主通过 `onOpen` 接管选择器，允许切换格式；未保存修改仍由 SDK 确认。预览由 Bun 运行 Vite，页面位于 [`examples/dev`](../../examples/dev/index.html)。该页面使用 React，并通过 `mountEditor` 接入产品 UI；产品组件保留自身职责。
+
+Vite 直接加载 UI、Web 与 Wasm 包的 TS 源码。React Fast Refresh 更新产品 UI 时保留已挂载会话和未保存编辑，Tailwind 源样式随 Vite 更新。修改挂载适配器、Worker 或 MoonBit 后，重新打开文档以使用新会话；MoonBit 改动先执行 `bun run build` 更新 Wasm。
+
+开发页面在挂载成功后，通过 DEV 条件动态导入独立的 `@open-document/devtools`，随后调用 `setupDevTools(editor)`。面板订阅公开快照，显示会话、选区、诊断与按需展开的核心查询。接入点在 [`app.tsx`](../../examples/dev/app.tsx)，没有加载按钮；产品组件不包含调试逻辑或 UI。
+
+```ts
+if (import.meta.env.DEV) {
+  const { setupDevTools } = await import("@open-document/devtools");
+  const disposeDevTools = setupDevTools(editor);
+  // Call disposeDevTools() before replacing or disposing the editor.
+}
+```
+
+预览页在关闭、替换和热更新时清理面板。`bun node_modules/vite/bin/vite.js build --config examples/dev/vite.config.ts` 生成生产预览，DEV 分支及 devtools 均被移除。开发服务器仅监听回环地址，文件范围限公开的 packages、examples 与 node_modules。
 
 三个包仍为 private/WIP，可分别用 `bun pm pack` 生成本地 tarball。消费项目将 `@open-document/wasm`、`@open-document/web`、`@open-document/ui` 指向这些 tarball，并将 Wasm/Web 的 overrides 指向同一份本地包；安装固定 React/React DOM peer 版本。主线程由消费项目构建器解析公开子路径；Worker 和 Wasm 由宿主部署到明确 URL，不自动加载字体。
 

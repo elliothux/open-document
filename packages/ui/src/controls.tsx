@@ -112,7 +112,11 @@ export function FileMenu({
               <Menu.Item
                 className="od-menu-item"
                 disabled={unavailable}
-                onClick={() => input.current?.click()}
+                onClick={() => {
+                  if (controller.options.onOpen)
+                    controller.run(controller.options.onOpen);
+                  else input.current?.click();
+                }}
               >
                 {t.open}
               </Menu.Item>

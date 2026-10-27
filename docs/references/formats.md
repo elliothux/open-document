@@ -48,6 +48,8 @@ DOCX、XLSX、PPTX 也接受 `document: { name, blank: true }`，`OfficeDocument
 
 每个实例追加一个自建容器与 open ShadowRoot，保留调用者原有 DOM。菜单与 Dialog 的 Portal 位于实例内；关闭确认是模态，会暂时限制整个页面交互。主题、关键尺寸与基础样式在实例内定义，宿主无需 Tailwind。当前目标只有 Chrome/Chromium。
 
+可选 `onOpen()` 将文件菜单的“打开”交给宿主，例如选择任意支持格式后重新挂载。未提供时使用当前格式的内置选择器。回调在菜单点击中直接调用，允许打开原生文件选择器；异常显示在编辑器中。宿主仍须通过 `open()` 或 `close()` 处理未保存修改，选择文件本身不确认放弃。关闭完成后，公开快照的 `closed` 为 `true`，宿主可据此显示空白页或打开入口。
+
 框架无关的四类编辑宿主提供 `getSnapshot()`、`subscribe()`、`focus()`、`setPaused()`、`markSaved(output)` 和 `markDownloaded(output)`。快照包含会话身份、revision、导航、缩放、选区摘要、历史、诊断、停止/错误、在途操作及组合/拖动/草稿状态，并附格式当前查询。未变化时保持对象身份；已提交但绘制失败仍发布新 revision，保留保存与恢复入口。低层宿主借用 client，调用者等待宿主释放后另行关闭 client。
 
 编辑宿主的原格式保存、Office PDF、DOCX/PPTX PNG、PPTX JPEG、XLSX CSV 和 DOCX HTML/Markdown 输出统一返回 `EditorOutput = { documentId, revision, format, bytes }`。`format` 另包含 `csv`、`png`、`jpeg`、`html` 和 `markdown`；编辑器输入格式仍为 DOCX/XLSX/PPTX/PDF。默认 UI 另加文件名 `name`。全页图片返回按页序排列的只读 `EditorOutput` 数组，具体合同见[DOCX 页面 PNG](#docx-页面-png)及[PPTX 图片输出](#当前页-png-输出)。此约定不改变原始 Wasm/client 的保存结果。只有该宿主实际产生的原格式输出可以 `markSaved`；旧会话、其他格式和任意裸 revision 都不能确认保存。确认的是输出 revision，其后新编辑仍显示未保存。导航、缩放和 UI 变化不修改文档。

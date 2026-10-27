@@ -429,7 +429,7 @@ export function Properties(props: PanelProps) {
     return (
       <aside className="od-properties">
         <XlsxTablesPanel
-          key={`${props.state.document?.documentId}:${props.file.editor.currentState.sheet}`}
+          key={`tables:${props.state.document?.documentId}:${props.file.editor.currentState.sheet}`}
           {...props}
           disabled={props.disabled || !!props.state.document?.stopped}
         />
@@ -445,7 +445,7 @@ export function Properties(props: PanelProps) {
           disabled={props.disabled}
         />
         <XlsxFilter
-          key={`${props.state.document?.documentId}:${props.file.editor.currentState.sheet}`}
+          key={`filter:${props.state.document?.documentId}:${props.file.editor.currentState.sheet}`}
           controller={props.controller}
           state={props.state}
           editor={props.file.editor}

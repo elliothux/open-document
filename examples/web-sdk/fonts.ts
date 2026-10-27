@@ -1,3 +1,5 @@
+import type { EditorResources } from "@open-document/ui";
+
 const defaults = [
   ["LiberationSans-Regular.ttf", "preview-sans"],
   ["LiberationSans-Bold.ttf", "preview-bold"],
@@ -5,10 +7,13 @@ const defaults = [
   ["LiberationSans-BoldItalic.ttf", "preview-bold-italic"],
   ["NotoSansSC-Regular.ttf", "preview-cjk"],
   ["DejaVuMathTeXGyre.ttf", "preview-math"],
-];
+] as const;
 
-export async function previewFonts(files, overrides) {
-  const fonts = await Promise.all(
+export async function previewFonts(
+  files: Iterable<File>,
+  overrides: Readonly<Record<string, string>>,
+): Promise<Pick<EditorResources, "fonts" | "profile">> {
+  const fonts: { identity: string; bytes: Uint8Array }[] = await Promise.all(
     defaults.map(async ([file, identity]) => {
       const response = await fetch(
         new URL(`./fonts/${file}`, import.meta.url),

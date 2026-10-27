@@ -1,0 +1,25 @@
+{
+  "name": "@open-document/devtools",
+  "version": "0.0.1",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "devDependencies": {
+    "@open-document/ui": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --target browser --outdir dist --external react --external 'react-dom/*' && tsc --project tsconfig.json --declaration --emitDeclarationOnly --noEmit false --outDir dist/types && cp ../../LICENSE dist/LICENSE",
+    "typecheck": "tsc --project tsconfig.json"
+  }
+}

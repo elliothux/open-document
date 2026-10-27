@@ -103,5 +103,7 @@ GPOS 的合并补丁身份见上表；原版权头、Apache-2.0 及公开包 not
 | `@types/react` / `@types/react-dom` | 19.3.0；严格类型检查 | MIT |
 | `@base-ui/react` | 1.9.0；Tabs、非模态 Menu、模态 Dialog 与 CSP provider | MIT |
 | Tailwind CSS / `@tailwindcss/cli` | 4.3.3；构建 CSS，宿主不需要运行时 Tailwind | MIT |
+| Vite / `@vitejs/plugin-react-swc` | 8.3.5 / 4.3.3；Bun 开发预览与 React Fast Refresh | MIT |
+| `@tailwindcss/vite` / `@types/node` | 4.3.3 / 24.19.2；预览样式编译与配置类型 | MIT |
 
 GenOffice 固定源码 `5eab98adc8d0ebf6ecea687e42400a791ef58d64` 的设计变量、功能区分组与选定剪贴板/历史 SVG 用于 UI。复用文件保留 Mainfunc 2026 版权与 Apache-2.0 来源，详见 [`packages/ui/NOTICE`](../../packages/ui/NOTICE)。未引入其 Electron、Tiptap、Univer 或 AI 引擎。UI 包分发自身 Apache LICENSE；依赖分发保留原许可。

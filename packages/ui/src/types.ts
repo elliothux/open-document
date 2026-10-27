@@ -45,6 +45,8 @@ interface CommonOptions {
   readonly theme?: Theme;
   readonly locale?: Locale;
   readonly onSave?: (document: SavedDocument) => Promise<void> | void;
+  /** Handle File > Open in the host, for example to switch document formats. */
+  readonly onOpen?: () => Promise<void> | void;
   readonly signal?: AbortSignal;
   readonly styleNonce?: string;
   /** Explicit local author for new presentation comments, replies and cell notes. */
