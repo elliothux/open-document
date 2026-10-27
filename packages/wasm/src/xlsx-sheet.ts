@@ -1,5 +1,13 @@
 import { record, integer } from "./validation.js";
 import {
+  checkXlsxSubtotalSettings,
+  type XlsxSubtotalSettings,
+} from "./xlsx-subtotal.js";
+import {
+  checkXlsxConsolidateSettings,
+  type XlsxConsolidateSettings,
+} from "./xlsx-consolidate.js";
+import {
   checkXlsxSparklineEdit,
   type XlsxSparklineEdit,
 } from "./xlsx-sparkline.js";
@@ -40,6 +48,17 @@ import {
 } from "./xlsx-print.js";
 
 export type XlsxSheetEdit =
+  | {
+      action: "createSubtotals";
+      settings: XlsxSubtotalSettings;
+      sourceRevision: number;
+    }
+  | {
+      action: "consolidate";
+      settings: XlsxConsolidateSettings;
+      sourceRevision: number;
+      overwrite: boolean;
+    }
   | XlsxSparklineEdit
   | XlsxPivotEdit
   | XlsxSlicerEdit
@@ -286,7 +305,7 @@ export function checkXlsxSheetEdit(value: unknown): void {
     checkXlsxPivotEdit(value);
     return;
   }
-  if (change.action === "textToColumns") {
+  if (change.action === "textToColumns" || change.action === "consolidate") {
     if (
       Object.keys(change).length !== 4 ||
       Object.keys(change).some(
@@ -297,10 +316,15 @@ export function checkXlsxSheetEdit(value: unknown): void {
       typeof change.overwrite !== "boolean"
     )
       throw new Error("Invalid text to columns command");
-    checkXlsxTextColumnSettings(change.settings);
+    if (change.action === "textToColumns")
+      checkXlsxTextColumnSettings(change.settings);
+    else checkXlsxConsolidateSettings(change.settings);
     return;
   }
-  if (change.action === "removeDuplicates") {
+  if (
+    change.action === "removeDuplicates" ||
+    change.action === "createSubtotals"
+  ) {
     if (
       Object.keys(change).length !== 3 ||
       Object.keys(change).some(
@@ -309,7 +333,9 @@ export function checkXlsxSheetEdit(value: unknown): void {
       !integer(change.sourceRevision, 0, 2147483647)
     )
       throw new Error("Invalid duplicate removal command");
-    checkXlsxDuplicateSettings(change.settings);
+    if (change.action === "removeDuplicates")
+      checkXlsxDuplicateSettings(change.settings);
+    else checkXlsxSubtotalSettings(change.settings);
     return;
   }
   if (change.action === "note") {

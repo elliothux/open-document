@@ -9,6 +9,8 @@ export interface ChartSettings {
     | "percentStackedColumn"
     | "percentStackedBar"
     | "line"
+    | "stackedLine"
+    | "percentStackedLine"
     | "pie"
     | "area"
     | "stackedArea"
@@ -41,6 +43,8 @@ export function checkChartSettings(value: unknown): void {
       "percentStackedColumn",
       "percentStackedBar",
       "line",
+      "stackedLine",
+      "percentStackedLine",
       "pie",
       "area",
       "stackedArea",

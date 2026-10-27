@@ -406,7 +406,7 @@ pub fn Session::import_slides(
     }
     ignore(source.read_animations(source.slides[indices[offset]]))
     for key in slide_font_keys([slide]) {
-      guard profile.get(key) is Some(font) else {
+      guard @layout.font_profile_identity(profile, key) is Some(font) else {
         @failure.reject("missing-font", "Missing imported font profile: " + key)
       }
       ignore(probe.font_index(font))

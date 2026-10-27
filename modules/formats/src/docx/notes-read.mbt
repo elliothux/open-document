@@ -232,5 +232,9 @@ pub fn Session::notes(
   guard entries.length() <= 8192 else {
     @failure.reject("limit-exceeded", "Combined note catalog exceeds limits")
   }
-  { "revision": self.revision, "entries": entries }
+  {
+    "revision": self.revision,
+    "entries": entries,
+    "endnotes": self.endnote_position_settings(),
+  }
 }

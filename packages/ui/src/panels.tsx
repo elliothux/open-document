@@ -31,8 +31,7 @@ import { XlsxNames } from "./xlsx-names.js";
 import { XlsxFormat } from "./xlsx-format.js";
 import { XlsxSearch } from "./xlsx-search.js";
 import { XlsxSort } from "./xlsx-sort.js";
-import { XlsxDuplicates } from "./xlsx-duplicates.js";
-import { XlsxTextColumns } from "./xlsx-text-columns.js";
+import { XlsxDataTools } from "./xlsx-data-tools.js";
 import { XlsxFilter } from "./xlsx-filter.js";
 import { XlsxPrintSetup, XlsxPrintCommands } from "./xlsx-print-setup.js";
 export interface PanelProps {
@@ -459,15 +458,7 @@ export function Properties(props: PanelProps) {
           editor={props.file.editor}
           disabled={props.disabled || !!props.state.document?.stopped}
         />
-        <XlsxTextColumns
-          key={`columns:${props.state.document?.documentId}:${props.file.editor.currentState.sheet}:${props.file.editor.currentState.selection.address}`}
-          controller={props.controller}
-          state={props.state}
-          editor={props.file.editor}
-          disabled={props.disabled || !!props.state.document?.stopped}
-        />
-        <XlsxDuplicates
-          key={`duplicates:${props.state.document?.documentId}:${props.file.editor.currentState.sheet}:${props.file.editor.currentState.selection.address}`}
+        <XlsxDataTools
           controller={props.controller}
           state={props.state}
           editor={props.file.editor}

@@ -62,6 +62,8 @@ export function XlsxCharts({
     percentStackedColumn: t.chartPercentStackedColumn,
     percentStackedBar: t.chartPercentStackedBar,
     line: t.chartLine,
+    stackedLine: t.chartStackedLine,
+    percentStackedLine: t.chartPercentStackedLine,
     pie: t.chartPie,
     area: t.chartArea,
     stackedArea: t.chartStackedArea,

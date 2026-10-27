@@ -41,13 +41,15 @@
         required
     /></label>
     <label
-      >Licensed fonts<input id="fonts" type="file" accept=".ttf,.otf" multiple
+      >Optional additional fonts<input
+        id="fonts"
+        type="file"
+        accept=".ttf,.otf"
+        multiple
     /></label>
     <label
-      >Font profile (font key → font filename without extension)<textarea
-        id="profile"
-      >
-{}</textarea>
+      >Optional font overrides (font key → font filename without
+      extension)<textarea id="profile">{}</textarea>
     </label>
     <label
       ><span>Host save callback</span
@@ -60,8 +62,11 @@
     <button type="button" id="close">Close</button>
   </form>
   <p id="host-status" role="status">
-    Supply a document and any fonts it needs. Files stay in this browser.
+    Choose a document. Bundled substitute fonts are available automatically;
+    layout may differ. Files stay in this browser.
   </p>
   <div id="editor"></div>
-  <script type="module" src="./dist/app.js"></script>
+  <script type="module">
+    await import(`./dist/app.js?v=${Date.now()}`);
+  </script>
 </html>

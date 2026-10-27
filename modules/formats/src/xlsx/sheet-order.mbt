@@ -148,6 +148,10 @@ fn Session::edit_sheet_current(
       return self.split_text_columns(
         sheet, settings, source_revision, overwrite,
       )
+    Consolidate(settings, source_revision, overwrite) =>
+      return self.consolidate_cells(sheet, settings, source_revision, overwrite)
+    CreateSubtotals(settings, source_revision) =>
+      return self.create_subtotals(sheet, settings, source_revision)
     InsertRows(first, count) =>
       return self.edit_axes(sheet, {
         rows: true,
@@ -327,6 +331,8 @@ fn Session::edit_sheet_current(
     | Sort(_, _)
     | RemoveDuplicates(_, _)
     | TextToColumns(_, _, _)
+    | Consolidate(_, _, _)
+    | CreateSubtotals(_, _)
     | SetFilter(_)
     | TableFilter(_, _)
     | TableFilterClear(_)

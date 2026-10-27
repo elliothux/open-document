@@ -16,12 +16,18 @@ import { WasmSession } from "./session.js";
 import { docxTracking, checkTrackingAuthor } from "./docx-tracking.js";
 import {
   docxNotes,
+  docxNoteNumbering,
+  checkNoteNumbering,
+  type DocxNoteKind,
+  type DocxNoteNumberingValue,
   checkDocxNoteEdit,
   type DocxNoteEdit,
   checkDocxNoteCreate,
   checkDocxNoteIdentity,
   type DocxNoteCreate,
   type DocxNoteIdentity,
+  checkEndnotePosition,
+  type DocxEndnotePosition,
 } from "./docx-notes.js";
 import { integer, record } from "./validation.js";
 import { editState, type EditState } from "./docx-format.js";
@@ -201,6 +207,45 @@ export class FoundationReviewSession extends WasmSession {
   }
   notes(revision: number) {
     return docxNotes(this.call({ operation: "docxNotes", revision }));
+  }
+  noteNumbering(revision: number, kind: DocxNoteKind, section: number) {
+    return docxNoteNumbering(
+      this.call({ operation: "noteNumbering", revision, kind, section }),
+    );
+  }
+  setNoteNumbering(
+    revision: number,
+    kind: DocxNoteKind,
+    section: number,
+    numbering: DocxNoteNumberingValue,
+    profile: Record<string, string>,
+  ) {
+    checkNoteNumbering(numbering);
+    return editState(
+      this.call({
+        operation: "setNoteNumbering",
+        revision,
+        kind,
+        section,
+        numbering,
+        profile,
+      }),
+    );
+  }
+  setEndnotePosition(
+    revision: number,
+    position: DocxEndnotePosition,
+    profile: Record<string, string>,
+  ) {
+    checkEndnotePosition(position);
+    return editState(
+      this.call({
+        operation: "setEndnotePosition",
+        revision,
+        position,
+        profile,
+      }),
+    );
   }
   editNote(
     revision: number,

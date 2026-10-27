@@ -11,6 +11,7 @@ import { errorResponse, type Request, type Response } from "./protocol";
 import { mathOperation } from "./worker-math.js";
 import { inkOperation } from "./worker-docx-ink.js";
 import { reviewOperation } from "./worker-docx-review.js";
+import { noteOperation } from "./worker-docx-notes.js";
 import { selectionOperation } from "./worker-docx-selection.js";
 import {
   isXlsxCommentsRequest,
@@ -116,6 +117,18 @@ async function dispatch(request: Request): Promise<unknown> {
         );
       case "textColumnsXlsx":
         return workbook.textColumns(
+          request.revision,
+          request.sheet,
+          request.settings,
+        );
+      case "consolidationXlsx":
+        return workbook.consolidation(
+          request.revision,
+          request.sheet,
+          request.settings,
+        );
+      case "subtotalsXlsx":
+        return workbook.subtotals(
           request.revision,
           request.sheet,
           request.settings,
@@ -250,6 +263,8 @@ async function dispatch(request: Request): Promise<unknown> {
         case "pivotPreviewXlsx":
         case "duplicatesXlsx":
         case "textColumnsXlsx":
+        case "consolidationXlsx":
+        case "subtotalsXlsx":
         case "selectXlsx":
         case "replaceXlsx":
         case "findXlsx":
@@ -321,25 +336,13 @@ async function dispatch(request: Request): Promise<unknown> {
         case "bodyPageField":
           return foundation.bodyPageField(request.revision, request.selection);
         case "docxNotes":
-          return foundation.notes(request.revision);
+        case "noteNumbering":
+        case "setNoteNumbering":
+        case "setEndnotePosition":
         case "insertDocxNote":
-          return foundation.insertNote(
-            request.revision,
-            request.note,
-            request.profile,
-          );
         case "removeDocxNote":
-          return foundation.removeNote(
-            request.revision,
-            request.note,
-            request.profile,
-          );
         case "editDocxNote":
-          return foundation.editNote(
-            request.revision,
-            request.note,
-            request.profile,
-          );
+          return noteOperation(foundation, request);
         case "editBodyPageField":
           return foundation.editBodyPageField(
             request.revision,

@@ -85,7 +85,7 @@ await mounted.close();
 
 `packages/ui` 以 React `useSyncExternalStore` 观察宿主。Tailwind 只在构建时运行，省略 Preflight，CSS 文本随 ESM 入口进入实例 `<style>`。Base UI 的 Tabs/Menu/Dialog 使用实例内 Portal；`styleNonce` 同时供应自建样式和 Base UI CSP provider。关键尺寸为本地 px token，light/dark 不改变文档颜色。普通菜单非模态；关闭确认暂时限制整个页面交互并恢复焦点/滚动。
 
-`bun run build` 生成三个包的 JS/types/样式、Wasm、Worker 和 [`examples/web-sdk`](../../examples/web-sdk/index.html) 普通 JS 示例。只重建示例时运行 `bun run build:example`，前提是三个包已有当前构建。使用已有静态 HTTP 服务托管示例目录，选择本地文档、授权字体和 profile。缺省输出下载；勾选宿主保存后，Chrome 选择目录，示例回调在文件流关闭成功后确认保存。示例没有私有路径、字体或测试服务器依赖。
+`bun run build` 生成三个包的 JS/types/样式、Wasm、Worker 和 [`examples/web-sdk`](../../examples/web-sdk/index.html) 普通 JS 示例。只重建示例时运行 `bun run build:example`，前提是三个包已有当前构建。使用静态 HTTP 服务托管整个示例目录，选择本地文档即可打开。示例自动加载随附替代字体并提示排版差异；额外字体和 profile 为可选覆盖，规则归[字体资源与替代](formats.md#字体资源与替代)。例如运行 `python3 -m http.server 4173 --bind 127.0.0.1 --directory examples/web-sdk`，在 Chrome 打开 `http://127.0.0.1:4173/`。示例每次加载为入口 JS 创建新请求标识，Wasm/Worker 在挂载时共用新标识，字体与 Wasm 禁用 HTTP 缓存，避免开发期 HTML 与旧执行资源混用。缺省输出下载；勾选宿主保存后，Chrome 选择目录，示例回调在文件流关闭成功后确认保存。示例没有私有路径、字体或测试服务器依赖。
 
 三个包仍为 private/WIP，可分别用 `bun pm pack` 生成本地 tarball。消费项目将 `@open-document/wasm`、`@open-document/web`、`@open-document/ui` 指向这些 tarball，并将 Wasm/Web 的 overrides 指向同一份本地包；安装固定 React/React DOM peer 版本。主线程由消费项目构建器解析公开子路径；Worker 和 Wasm 由宿主部署到明确 URL，不自动加载字体。
 

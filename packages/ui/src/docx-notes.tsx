@@ -3,6 +3,7 @@ import type { DocumentEditor, DocumentNotes } from "@open-document/web/editor";
 import type {
   DocxNotes as Notes,
   DocxNoteKind,
+  DocxEndnotePosition,
 } from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
@@ -24,12 +25,14 @@ export function DocxNotes({
   const [text, setText] = useState("");
   const [kind, setKind] = useState<DocxNoteKind>("footnote");
   const [newText, setNewText] = useState("");
+  const [position, setPosition] = useState<DocxEndnotePosition>("docEnd");
   const load = async (created?: DocxNoteKind) => {
     const value = await editor.notes();
     const selected = created
       ? value.entries.filter((entry) => entry.kind === created).at(-1)
       : undefined;
     setSource(value);
+    setPosition(value.endnotes.position ?? "docEnd");
     setSelected(selected);
     setText(selected?.text ?? "");
   };
@@ -86,6 +89,41 @@ export function DocxNotes({
       </button>
       {source && (
         <>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              controller.run(async () => {
+                await editor.setEndnotePosition(source, position);
+                await load();
+              });
+            }}
+          >
+            <label>
+              {t.endnotePosition}
+              <select
+                aria-label={t.endnotePosition}
+                value={position}
+                disabled={disabled || stale || !!source.endnotes.reason}
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+                  if (value === "docEnd" || value === "sectEnd")
+                    setPosition(value);
+                }}
+              >
+                <option value="docEnd">{t.endnotesDocumentEnd}</option>
+                <option value="sectEnd">{t.endnotesSectionEnd}</option>
+              </select>
+            </label>
+            {source.endnotes.reason && (
+              <p role="status">{t.protectedEndnotePosition}</p>
+            )}
+            <button
+              type="submit"
+              disabled={disabled || stale || !!source.endnotes.reason}
+            >
+              {t.applyEndnotePosition}
+            </button>
+          </form>
           <label>
             {t.docxNoteEntry}
             <select

@@ -128,6 +128,18 @@ pub fn ConditionalThreshold::equal(Self, Self) -> Bool
 pub fn ConditionalThreshold::not_equal(Self, Self) -> Bool
 pub fn ConditionalThreshold::to_json(Self) -> Json
 
+pub(all) struct ConsolidateSettings {
+  sources : Array[ConsolidateSource]
+  target : String
+  operation : String
+  leftLabels : Bool
+}
+
+pub(all) struct ConsolidateSource {
+  sheet : String
+  range : String
+}
+
 pub(all) struct CopiedCell {
   value : Value
   formula : String?
@@ -433,6 +445,7 @@ pub fn Session::capture_format(Self, Int) -> Json raise @failure.Failure
 pub fn Session::charts(Self, Int, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::clear(Self, Int, mode? : String) -> Json raise @failure.Failure
 pub fn Session::close(Self) -> Unit
+pub fn Session::consolidation(Self, Int, String, ConsolidateSettings) -> Json raise @failure.Failure
 pub fn Session::copy(Self, Int) -> String raise @failure.Failure
 pub fn Session::create(@archive.Budget, date? : String?) -> Self raise @failure.Failure
 pub fn Session::create_pivot(Self, Int, String, String, String, PivotSettings) -> Json raise @failure.Failure
@@ -497,6 +510,7 @@ pub fn Session::set_timeline_level(Self, Int, String, String, Int) -> Json raise
 pub fn Session::shapes(Self, Int, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::slicer_gesture(Self, Int, Int, String, Int, Int, Double, Double, Bool, Bool, @layout.TextProbe, Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::slicers(Self, Int, String) -> Json raise @failure.Failure
+pub fn Session::subtotals(Self, Int, String, SubtotalSettings) -> Json raise @failure.Failure
 pub fn Session::text_columns(Self, Int, String, TextColumnSettings) -> Json raise @failure.Failure
 pub fn Session::threads(Self, Int, String, String) -> Json raise @failure.Failure
 pub fn Session::timeline_gesture(Self, Int, Int, String, Int, Int, Int, Double, Double, Bool, @layout.TextProbe, Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
@@ -576,6 +590,8 @@ pub(all) enum SheetEdit {
   Sort(String, SortSettings)
   RemoveDuplicates(DuplicateSettings, Int)
   TextToColumns(TextColumnSettings, Int, Bool)
+  Consolidate(ConsolidateSettings, Int, Bool)
+  CreateSubtotals(SubtotalSettings, Int)
   SetFilter(FilterSettings)
   ClearFilter
   RemoveFilter
@@ -629,6 +645,13 @@ pub(all) struct SortSettings {
   header : Bool
   case_sensitive : Bool
   keys : Array[SortKey]
+}
+
+pub(all) struct SubtotalSettings {
+  range : String
+  groupColumn : Int
+  valueColumn : Int
+  operation : String
 }
 
 pub(all) struct TableStyleElement {

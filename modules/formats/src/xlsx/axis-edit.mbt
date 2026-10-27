@@ -1,9 +1,22 @@
 ///|
-fn Session::edit_axes(
+priv struct AxisEditPlan {
+  sheets : Array[Sheet]
+  workbook : @xml.Document
+  calculation : Calculation
+  edits : Array[(String, @xml.Edit)]
+  after : (String, Range)
+  parts : Map[String, @xml.Document]
+  removed : Map[String, @xml.Document]
+  table_edits : Array[String]
+  pivot_moves : Map[String, Range]
+}
+
+///|
+fn Session::prepare_axes(
   self : Session,
   id : String,
   change : AxisChange,
-) -> Json raise @failure.Failure {
+) -> AxisEditPlan? raise @failure.Failure {
   guard change.first >= 1 &&
     change.first <= change.limit() &&
     change.count >= 1 &&
@@ -287,7 +300,7 @@ fn Session::edit_axes(
     self.selection
   }
   if edits.is_empty() {
-    return self.query()
+    return None
   }
   let removed_parts = self.removed.copy()
   for part in removed.keys() {
@@ -356,17 +369,38 @@ fn Session::edit_axes(
     sheets[index],
     comments.read_sheet_threads(sheets[index]),
   )
-  self.commit(
+  Some({
     sheets,
     workbook,
     calculation,
     edits,
     after,
-    parts~,
-    removed~,
-    table_edits=tables.map(plan => plan.before.part),
-    drawing_selection=self.drawing_selection,
-    pivot_moves~,
-  )
+    parts,
+    removed,
+    table_edits: tables.map(plan => plan.before.part),
+    pivot_moves,
+  })
+}
+
+///|
+fn Session::edit_axes(
+  self : Session,
+  id : String,
+  change : AxisChange,
+) -> Json raise @failure.Failure {
+  if self.prepare_axes(id, change) is Some(plan) {
+    self.commit(
+      plan.sheets,
+      plan.workbook,
+      plan.calculation,
+      plan.edits,
+      plan.after,
+      parts=plan.parts,
+      removed=plan.removed,
+      table_edits=plan.table_edits,
+      drawing_selection=self.drawing_selection,
+      pivot_moves=plan.pivot_moves,
+    )
+  }
   self.query()
 }

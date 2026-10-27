@@ -1,4 +1,6 @@
 import { docxBordersZh } from "./messages-docx-borders.js";
+import { consolidateZh } from "./messages-xlsx-consolidate.js";
+import { subtotalZh } from "./messages-xlsx-subtotal.js";
 import { docxPicturesZh } from "./messages-docx-pictures.js";
 import { importZh } from "./messages-pptx-import.js";
 import { mathZh } from "./messages-docx-math.js";
@@ -24,6 +26,8 @@ import { protectionZh } from "./messages-xlsx-protection.js";
 import { sparklineZh } from "./messages-xlsx-sparkline.js";
 
 export const zh: Messages = {
+  ...subtotalZh,
+  ...consolidateZh,
   ...conditionalStatisticsZh,
   ...sparklineZh,
   ...protectionZh,
@@ -600,6 +604,8 @@ export const zh: Messages = {
   saved: "已保存",
   modified: "未保存修改",
   ready: "就绪",
+  fontFallbackWarning:
+    "缺失字体使用替代字体显示。换行和分页可能有差异，文档原字体保持不变。",
   loading: "正在打开文件…",
   saving: "正在保存…",
   generated: "已生成下载",

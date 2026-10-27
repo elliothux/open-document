@@ -13,9 +13,13 @@ pub fn basic_shape_path(String, Double, Double) -> Array[PathSegment]
 
 pub fn chart_color(Int) -> String
 
+pub fn font_profile_identity(Map[String, String], String) -> String?
+
 pub fn grapheme_boundaries(String) -> Array[Int]
 
 pub fn horizontal_bar_chart(String) -> Bool
+
+pub fn line_chart(String) -> Bool
 
 pub fn numbering_value(String, Int) -> String raise @failure.Failure
 
@@ -517,9 +521,20 @@ pub(all) struct Note {
   key : String
   paragraph : Int
   node : Int
+  numbering : NoteNumbering
   content : Array[Paragraph]
 } derive(ToJson)
 pub fn Note::to_json(Self) -> Json
+
+pub(all) struct NoteNumbering {
+  format : String
+  value : Int64
+  restart : String
+  marker : Int
+}
+pub fn NoteNumbering::text(Self) -> String raise @failure.Failure
+pub fn NoteNumbering::to_json(Self) -> Json
+pub impl ToJson for NoteNumbering
 
 pub(all) struct NoteReference {
   bookmark : String

@@ -21,7 +21,7 @@ import {
 export type { SpreadsheetEditorData } from "./spreadsheet-semantics.js";
 import { SpreadsheetPrint } from "./spreadsheet-print.js";
 import { SpreadsheetCanvas } from "./spreadsheet-canvas.js";
-import { SpreadsheetClipboard } from "./spreadsheet-clipboard-host.js";
+import { SpreadsheetData } from "./spreadsheet-data.js";
 import { SpreadsheetFormula } from "./spreadsheet-formula.js";
 import { SpreadsheetPointer } from "./spreadsheet-pointer.js";
 import {
@@ -54,13 +54,9 @@ import type {
   CopiedCellFormat,
   XlsxClearMode,
   XlsxSelectionGeometry,
-  XlsxDuplicateSettings,
-  XlsxDuplicates,
-  XlsxTextColumnSettings,
-  XlsxTextColumns,
   XlsxFindOptions,
 } from "@open-document/wasm/xlsx";
-export class SpreadsheetEditor extends SpreadsheetClipboard {
+export class SpreadsheetEditor extends SpreadsheetData {
   private readonly container: HTMLDivElement;
   private readonly viewport: HTMLDivElement;
   private readonly holder: HTMLDivElement;
@@ -590,16 +586,6 @@ export class SpreadsheetEditor extends SpreadsheetClipboard {
   pivotPreview(settings: XlsxPivotSettings, part?: string) {
     return this.read(() =>
       this.client.pivotPreview(this.state.revision, settings, part),
-    );
-  }
-  duplicates(settings: XlsxDuplicateSettings): Promise<XlsxDuplicates> {
-    return this.read(() =>
-      this.client.duplicates(this.state.revision, this.state.sheet, settings),
-    );
-  }
-  textColumns(settings: XlsxTextColumnSettings): Promise<XlsxTextColumns> {
-    return this.read(() =>
-      this.client.textColumns(this.state.revision, this.state.sheet, settings),
     );
   }
   formatCells(patch: XlsxCellFormat): Promise<void> {

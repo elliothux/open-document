@@ -5,11 +5,21 @@ fn Pagination::body_field_values(
   flow : Flow,
   fixed_values : Map[(Int, Int), String],
   contexts~ : Array[(PageNumbering, Int)] = [],
+  noteRunning~ : Array[Array[Line]] = [],
 ) -> (Map[(Int, Int), String], Array[String]) raise @failure.Failure {
   let values : Map[(Int, Int), String] = Map([])
   let diagnostics : Array[String] = []
   if fields.is_empty() {
     return (values, diagnostics)
+  }
+  let note_values = self.page_note_values(flow, noteRunning)
+  for key, value in note_values {
+    values[key] = value
+  }
+  let note_references = if note_values.is_empty() {
+    Map([])
+  } else {
+    flow.resolve_body_fields(note_values, self.pages.length()).0.note_reference_values()
   }
   let references : Map[(Int, Int), PageReference] = Map([])
   for key, code in fields {
@@ -25,7 +35,11 @@ fn Pagination::body_field_values(
         for source in run.sources {
           let key = (line.paragraph, source.node)
           guard fields.get(key) is Some(code) else { continue }
-          if references.get(key) is Some(reference) {
+          if code.has_prefix("NOTE:") {
+            continue
+          } else if note_references.get(key) is Some(text) {
+            values[key] = text
+          } else if references.get(key) is Some(reference) {
             if !origins.contains(key) {
               work += line.carets.length()
               guard work <= 1048576 else {

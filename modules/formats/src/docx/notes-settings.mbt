@@ -54,8 +54,8 @@ fn NoteSettings::read(
         start = @string.parse_int64(value) catch {
           _ => @failure.reject("unsupported-layout", "Invalid note start")
         }
-      "numRestart" if ["continuous", "eachSect"].contains(value) =>
-        restart = value
+      "numRestart" if ["continuous", "eachSect"].contains(value) ||
+        (kind == "footnote" && value == "eachPage") => restart = value
       "pos" if (
           kind == "footnote" &&
           ["pageBottom", "beneathText", "sectEnd", "docEnd"].contains(value)
@@ -134,11 +134,7 @@ fn Session::section_footnotes_at(
   tree : WordTree,
   section : Int?,
 ) -> String raise @failure.Failure {
-  let defaults = self.note_settings("footnote")
-  match section {
-    None => defaults.position
-    Some(id) => defaults.read(tree, id, "footnote", document=false).position
-  }
+  self.section_note_settings(tree, section, "footnote").position
 }
 
 ///|
@@ -158,26 +154,43 @@ fn WordTree::footnotes_at_change(
     )
     return properties_change(self, document, properties, "pos", markup)
   }
-  let markup = "<od:footnotePr xmlns:od='\{word_uri}'><od:pos od:val='\{position}'/></od:footnotePr>"
+  Some(
+    self.new_note_properties(
+      section,
+      "footnote",
+      "<od:pos od:val='\{position}'/>",
+    ),
+  )
+}
+
+///|
+fn WordTree::new_note_properties(
+  self : WordTree,
+  section : Int,
+  kind : String,
+  contents : String,
+) -> @xml.SourceChange {
+  let markup = "<od:\{kind}Pr xmlns:od='\{word_uri}'>\{contents}</od:\{kind}Pr>"
   let node = self.nodes[section]
   let previous = self.children[section]
     .filter(id => {
-      ["headerReference", "footerReference"].contains(self.nodes[id].name)
+      let name = self.nodes[id].name
+      self.nodes[id].uri == word_uri &&
+      (
+        ["headerReference", "footerReference"].contains(name) ||
+        (kind == "endnote" && name == "footnotePr")
+      )
     })
     .last()
-  Some(
-    if node.empty {
-      section_insertion(self, section, markup)
-    } else {
-      {
-        node: section,
-        offset: previous
-        .map(id => self.nodes[id].end)
-        .unwrap_or(node.opening_end) -
-        node.start,
-        length: 0,
-        xml: markup,
-      }
-    },
-  )
+  if node.empty {
+    section_insertion(self, section, markup)
+  } else {
+    {
+      node: section,
+      offset: previous.map(id => self.nodes[id].end).unwrap_or(node.opening_end) -
+      node.start,
+      length: 0,
+      xml: markup,
+    }
+  }
 }

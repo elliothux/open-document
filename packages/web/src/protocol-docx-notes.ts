@@ -2,8 +2,31 @@ import type {
   DocxNoteEdit,
   DocxNoteCreate,
   DocxNoteIdentity,
+  DocxEndnotePosition,
+  DocxNoteKind,
+  DocxNoteNumberingValue,
 } from "@open-document/wasm/foundation";
 export type DocxNoteRequest =
+  | {
+      operation: "noteNumbering";
+      revision: number;
+      kind: DocxNoteKind;
+      section: number;
+    }
+  | {
+      operation: "setNoteNumbering";
+      revision: number;
+      kind: DocxNoteKind;
+      section: number;
+      numbering: DocxNoteNumberingValue;
+      profile: Record<string, string>;
+    }
+  | {
+      operation: "setEndnotePosition";
+      revision: number;
+      position: DocxEndnotePosition;
+      profile: Record<string, string>;
+    }
   | {
       operation: "insertDocxNote";
       revision: number;

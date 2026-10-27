@@ -219,7 +219,7 @@ pub fn Session::set_theme_fonts(
         continue
       }
       checked[key] = true
-      guard profile.get(key) is Some(identity) else {
+      guard @layout.font_profile_identity(profile, key) is Some(identity) else {
         @failure.reject("missing-font", "Missing theme font profile: " + key)
       }
       ignore(probe.font_index(identity))

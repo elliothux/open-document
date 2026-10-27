@@ -143,7 +143,7 @@ fn ChartData::paint_legend(
       let color = chart_paint_color(colors, index)
       if self.kind == "scatter" {
         out.append(chart_marker(rect.x + 4, rect.y + 7, color))
-      } else if ["line", "radar"].contains(self.kind) {
+      } else if line_chart(self.kind) || self.kind == "radar" {
         out.push(
           Path(
             [Move(rect.x, rect.y + 7), Line(rect.x + 8, rect.y + 7)],

@@ -9,6 +9,7 @@ import {
   type DocxPageBorders,
 } from "./docx-format.js";
 import { record } from "./validation.js";
+import { checkDocxNotes, type DocxFlowNote } from "./preview-notes.js";
 import { checkShapePath, type BasicDrawingShape } from "./preview-shape.js";
 import { checkDocxSpanField } from "./preview-fields.js";
 import { checkDocxSections, type DocxSectionBreak } from "./docx-sections.js";
@@ -108,13 +109,7 @@ export interface DocxFlow {
   headerDistance: number;
   footers: Record<string, DocxFlow["paragraphs"]>;
   footerDistance: number;
-  notes: {
-    kind: "footnote" | "endnote";
-    key: string;
-    paragraph: number;
-    node: number;
-    content: DocxFlow["paragraphs"];
-  }[];
+  notes: DocxFlowNote[];
   differentFirst: boolean;
   differentEven: boolean;
   tables: {
@@ -553,34 +548,7 @@ export function docxFlow(value: unknown): DocxFlow {
     }
   }
   const paragraphs = entries(flow.paragraphs);
-  const notes = entries(flow.notes);
-  if (notes.length > 8192) throw new Error("Note count exceeds limits");
-  const identities = new Set<string>();
-  const anchors = new Set<string>();
-  for (const value of notes) {
-    const note = fields(value, ["paragraph", "node"], ["kind", "key"]);
-    const key = String(note.key);
-    const identity = `${String(note.kind)}:${key}`;
-    const anchor = `${String(note.paragraph)}:${String(note.node)}`;
-    if (
-      !["footnote", "endnote"].includes(String(note.kind)) ||
-      key !== String(Number(key)) ||
-      !/^[0-9]+$/u.test(key) ||
-      Number(key) > 2147483647 ||
-      !Number.isSafeInteger(note.paragraph) ||
-      Number(note.paragraph) < 0 ||
-      !Number.isSafeInteger(note.node) ||
-      Number(note.node) < 0 ||
-      identities.has(identity) ||
-      anchors.has(anchor)
-    )
-      throw new Error("Invalid note identity");
-    identities.add(identity);
-    anchors.add(anchor);
-    const content = entries(note.content);
-    if (!content.length) throw new Error("Missing note story");
-    for (const paragraph of content) checkParagraph(paragraph);
-  }
+  checkDocxNotes(flow.notes, checkParagraph);
   for (const value of paragraphs) checkParagraph(value);
   checkDocxSections(flow, paragraphs.length, docxFlow);
   for (const stories of [record(flow.headers), record(flow.footers)]) {

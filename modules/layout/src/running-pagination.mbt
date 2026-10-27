@@ -76,7 +76,10 @@ fn paginate_running(
     })
     let total = pagination.pages.length()
     let (values, diagnostics) = pagination.body_field_values(
-      fields, flow, fixed_values,
+      fields,
+      flow,
+      fixed_values,
+      noteRunning=previous,
     )
     let (updated, body_stable) = if fields.is_empty() {
       (body, true)

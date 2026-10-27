@@ -1,5 +1,17 @@
 import { xlsxQuery, type XlsxQuery } from "./xlsx-query.js";
 import { record } from "./validation.js";
+import {
+  checkXlsxSubtotalSettings,
+  xlsxSubtotals,
+  type XlsxSubtotalSettings,
+} from "./xlsx-subtotal.js";
+export * from "./xlsx-subtotal.js";
+import {
+  checkXlsxConsolidateSettings,
+  xlsxConsolidation,
+  type XlsxConsolidateSettings,
+} from "./xlsx-consolidate.js";
+export * from "./xlsx-consolidate.js";
 import { XlsxDrawingSession } from "./xlsx-drawings.js";
 export * from "./xlsx-comments.js";
 export * from "./xlsx-shapes.js";
@@ -465,6 +477,22 @@ export class XlsxSession extends XlsxDrawingSession {
     checkXlsxDuplicateSettings(settings);
     return xlsxDuplicates(
       this.call({ operation: "duplicatesXlsx", revision, sheet, settings }),
+    );
+  }
+  consolidation(
+    revision: number,
+    sheet: string,
+    settings: XlsxConsolidateSettings,
+  ) {
+    checkXlsxConsolidateSettings(settings);
+    return xlsxConsolidation(
+      this.call({ operation: "consolidationXlsx", revision, sheet, settings }),
+    );
+  }
+  subtotals(revision: number, sheet: string, settings: XlsxSubtotalSettings) {
+    checkXlsxSubtotalSettings(settings);
+    return xlsxSubtotals(
+      this.call({ operation: "subtotalsXlsx", revision, sheet, settings }),
     );
   }
   textColumns(

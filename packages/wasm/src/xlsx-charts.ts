@@ -14,6 +14,8 @@ export const xlsxChartKinds = [
   "percentStackedColumn",
   "percentStackedBar",
   "line",
+  "stackedLine",
+  "percentStackedLine",
   "pie",
   "area",
   "stackedArea",

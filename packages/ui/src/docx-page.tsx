@@ -2,6 +2,7 @@ import { DocxRunning } from "./docx-running.js";
 import { DocxBodyField } from "./docx-body-field.js";
 import { DocxCaption } from "./docx-caption.js";
 import { DocxNotes } from "./docx-notes.js";
+import { DocxNoteNumbering } from "./docx-note-numbering.js";
 import { DocxProtection } from "./docx-protection.js";
 import { DocxCover } from "./docx-cover.js";
 import { DocxWatermark } from "./docx-watermark.js";
@@ -200,6 +201,14 @@ export function DocxPage({
         disabled={disabled}
       />
       <DocxNotes
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
+      <DocxNoteNumbering
+        key={`note-numbering:${section}`}
+        section={section}
         controller={controller}
         state={state}
         editor={editor}

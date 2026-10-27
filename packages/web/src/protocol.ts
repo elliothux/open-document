@@ -4,6 +4,7 @@ import type { DocxTrackingRequest } from "./protocol-docx-tracking.js";
 import type { DocxPageCommand } from "./protocol-docx-page.js";
 import type { XlsxAnalysisRequest } from "./protocol-xlsx-analysis.js";
 import type { XlsxCommentsRequest } from "./protocol-xlsx-comments.js";
+import type { XlsxDataRequest } from "./protocol-xlsx-data.js";
 import type {
   DocxChartEdit,
   DocxFractionEdit,
@@ -45,7 +46,6 @@ import type {
 } from "@open-document/wasm/foundation";
 import type {
   GridViewport,
-  XlsxDuplicateSettings,
   PrintOptions,
   XlsxSheetEdit,
   XlsxCellFormat,
@@ -55,7 +55,6 @@ import type {
   XlsxPasteMode,
   XlsxFindOptions,
   XlsxDelimitedOptions,
-  XlsxTextColumnSettings,
   XlsxFillTarget,
   XlsxPictureSettings,
   XlsxShapeKind,
@@ -71,6 +70,7 @@ export type Operation =
   | DocxInkRequest
   | DocxNoteRequest
   | XlsxAnalysisRequest
+  | XlsxDataRequest
   | XlsxCommentsRequest
   | {
       operation: "insertXlsxChart";
@@ -148,18 +148,6 @@ export type Operation =
     }
   | { operation: "docxRuler"; revision: number }
   | { operation: "editDocxRuler"; source: DocxRuler; change: DocxRulerEdit }
-  | {
-      operation: "textColumnsXlsx";
-      revision: number;
-      sheet: string;
-      settings: XlsxTextColumnSettings;
-    }
-  | {
-      operation: "duplicatesXlsx";
-      revision: number;
-      sheet: string;
-      settings: XlsxDuplicateSettings;
-    }
   | { operation: "editBookmark"; revision: number; change: DocxBookmarkEdit }
   | { operation: "docxComments"; revision: number }
   | { operation: "docxRevisions"; revision: number }

@@ -1,6 +1,20 @@
-import { XlsxCommentsClient } from "./xlsx-comments.js";
+import { XlsxDataClient } from "./xlsx-data.js";
 export * from "./xlsx-comments.js";
+export {
+  checkXlsxSubtotalSettings,
+  xlsxSubtotals,
+  subtotalFunctions,
+  type XlsxSubtotalSettings,
+  type XlsxSubtotals,
+} from "@open-document/wasm/xlsx";
 import { xlsxTimelines } from "@open-document/wasm/xlsx";
+export {
+  checkXlsxConsolidateSettings,
+  xlsxConsolidation,
+  consolidateFunctions,
+  type XlsxConsolidateSettings,
+  type XlsxConsolidation,
+} from "@open-document/wasm/xlsx";
 export {
   xlsxTimelines,
   type XlsxTimeline,
@@ -125,14 +139,6 @@ import {
 import {
   xlsxQuery,
   spreadsheetDate,
-  checkXlsxDuplicateSettings,
-  xlsxDuplicates,
-  type XlsxDuplicateSettings,
-  type XlsxDuplicates,
-  checkXlsxTextColumnSettings,
-  xlsxTextColumns,
-  type XlsxTextColumnSettings,
-  type XlsxTextColumns,
   xlsxFindOptions,
   xlsxDelimitedOptions,
   type XlsxDelimitedOptions,
@@ -262,7 +268,7 @@ export type {
 } from "@open-document/wasm/xlsx";
 
 /** Browser workbook transport; one Worker owns the complete core session. */
-export class XlsxClient extends XlsxCommentsClient {
+export class XlsxClient extends XlsxDataClient {
   async selectDrawing(
     revision: number,
     layout: number,
@@ -586,36 +592,6 @@ export class XlsxClient extends XlsxCommentsClient {
         sheet,
         change,
         date: spreadsheetDate(date),
-      }),
-    );
-  }
-  async duplicates(
-    revision: number,
-    sheet: string,
-    settings: XlsxDuplicateSettings,
-  ): Promise<XlsxDuplicates> {
-    checkXlsxDuplicateSettings(settings);
-    return xlsxDuplicates(
-      await this.connection.request({
-        operation: "duplicatesXlsx",
-        revision,
-        sheet,
-        settings,
-      }),
-    );
-  }
-  async textColumns(
-    revision: number,
-    sheet: string,
-    settings: XlsxTextColumnSettings,
-  ): Promise<XlsxTextColumns> {
-    checkXlsxTextColumnSettings(settings);
-    return xlsxTextColumns(
-      await this.connection.request({
-        operation: "textColumnsXlsx",
-        revision,
-        sheet,
-        settings,
       }),
     );
   }

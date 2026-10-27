@@ -1,0 +1,4 @@
+Liberation Sans (four styles): copied without modification from GenOffice5eab98adc8d0ebf6ecea687e42400a791ef58d64 apps/docs/src/renderer/fonts/. SIL OFL1.1; copyright and license in LICENSE-OFL.txt.
+Noto Sans SC: notofonts/noto-cjk f8d157532fbfaeda587e826d4cd5b21a49186f7c Sans/Variable/TTF/Subset/NotoSansSC-VF.ttf. Static wght400 instance produced with hb-subset --keep-everything --retain-gids --variations=wght=400. SIL OFL1.1; copyright and license in LICENSE-OFL.txt. The Reserved Font Name is Source.
+DejaVu Math TeX Gyre: ONLYOFFICE/core-fonts7030c6681fb5bbed560675cb42422f91df15d5c9/dejavu/DejaVuMathTeXGyre.ttf, unmodified. Copyright and license in LICENSE-DejaVuMath.txt.
+Bundled fonts are preview substitutes. Original document font declarations remain unchanged; substitution may change metrics and pagination. No system fonts are read and no remote font service is contacted.

@@ -89,8 +89,24 @@ fn Flow::validate_notes(self : Flow) -> Unit raise @failure.Failure {
   let identities : Set[String] = Set([])
   let content_ids : Set[Int] = Set([])
   for note in self.notes {
+    PageNumbering::new(format=note.numbering.format).validate()
     let identity = note.kind + ":" + note.key
     guard ["footnote", "endnote"].contains(note.kind) &&
+      note.numbering.value >= 0L &&
+      note.numbering.value <= 4294975486L &&
+      (
+        ["continuous", "eachSect"].contains(note.numbering.restart) ||
+        (note.kind == "footnote" && note.numbering.restart == "eachPage")
+      ) &&
+      (
+        note.numbering.restart != "eachPage" ||
+        note.content
+        .map(p => p.spans)
+        .flatten()
+        .filter(span => span.node == note.numbering.marker)
+        .length() ==
+        1
+      ) &&
       !note.content.is_empty() &&
       !identities.contains(identity) &&
       anchors.get((note.paragraph, note.node)) == Some("NOTE:" + identity) &&

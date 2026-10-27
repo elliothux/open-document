@@ -38,6 +38,8 @@ pub(all) enum SheetEdit {
   Sort(String, SortSettings)
   RemoveDuplicates(DuplicateSettings, Int)
   TextToColumns(TextColumnSettings, Int, Bool)
+  Consolidate(ConsolidateSettings, Int, Bool)
+  CreateSubtotals(SubtotalSettings, Int)
   SetFilter(FilterSettings)
   ClearFilter
   RemoveFilter

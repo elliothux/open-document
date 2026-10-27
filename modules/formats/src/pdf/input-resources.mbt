@@ -185,7 +185,7 @@ fn font_resource(
         )
       },
     )
-  } else if profile.get(base) is Some(identity) {
+  } else if @layout.font_profile_identity(profile, base) is Some(identity) {
     substituted = true
     diagnostics.push("Explicit font substitution: " + base)
     let key = "pdf-substitute-" + base

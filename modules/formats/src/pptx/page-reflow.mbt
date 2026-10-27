@@ -46,7 +46,8 @@ fn check_changed_source_fonts(
     if previous.contains(key) {
       continue
     }
-    guard probe is Some(probe) && profile.get(key) is Some(identity) else {
+    guard probe is Some(probe) &&
+      @layout.font_profile_identity(profile, key) is Some(identity) else {
       @failure.reject("missing-font", "Missing source font profile: " + key)
     }
     ignore(probe.font_index(identity))
@@ -117,7 +118,7 @@ fn Session::reflow_source(
         )
       }
       for key in slide_font_keys([{ ..slide, objects: [object], }]) {
-        guard profile.get(key) is Some(identity) else {
+        guard @layout.font_profile_identity(profile, key) is Some(identity) else {
           @failure.reject("missing-font", "Missing source font profile: " + key)
         }
         ignore(probe.font_index(identity))

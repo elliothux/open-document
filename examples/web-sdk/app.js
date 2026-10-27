@@ -1,4 +1,5 @@
 import { mountEditor } from "@open-document/ui";
+import { previewFonts } from "./fonts.js";
 
 export { mountEditor };
 
@@ -17,12 +18,12 @@ form.addEventListener("submit", async (event) => {
     const format = ["csv", "tsv"].includes(extension) ? "xlsx" : extension;
     if (!["docx", "xlsx", "pptx", "pdf"].includes(format))
       throw new Error("Choose DOCX, XLSX, CSV, TSV, PPTX or PDF");
-    const profile = JSON.parse(document.querySelector("#profile").value);
+    const overrides = JSON.parse(document.querySelector("#profile").value);
     if (
-      !profile ||
-      Array.isArray(profile) ||
-      typeof profile !== "object" ||
-      Object.values(profile).some((value) => typeof value !== "string")
+      !overrides ||
+      Array.isArray(overrides) ||
+      typeof overrides !== "object" ||
+      Object.values(overrides).some((value) => typeof value !== "string")
     )
       throw new Error("Font profile must be an object of string values");
     const directory = document.querySelector("#host-save").checked
@@ -30,17 +31,19 @@ form.addEventListener("submit", async (event) => {
       : undefined;
     if (mounted && !(await mounted.close())) return;
     mounted = undefined;
-    const fonts = await Promise.all(
-      Array.from(document.querySelector("#fonts").files, async (font) => ({
-        identity: font.name.replace(/\.[^.]*$/, ""),
-        bytes: new Uint8Array(await font.arrayBuffer()),
-      })),
+    const { fonts, profile } = await previewFonts(
+      document.querySelector("#fonts").files,
+      overrides,
     );
-    // Resources are host inputs; the SDK never downloads fonts or uploads document bytes.
+    // Bundled substitutes are host resources; document font declarations remain unchanged.
+    const version = Date.now().toString();
+    const wasmUrl = new URL("./engine.wasm", import.meta.url);
+    wasmUrl.searchParams.set("v", version);
     const wasm = await (
-      await fetch(new URL("./engine.wasm", import.meta.url))
+      await fetch(wasmUrl, { cache: "no-store" })
     ).arrayBuffer();
     const workerUrl = new URL("./worker.js", import.meta.url);
+    workerUrl.searchParams.set("v", version);
     mounted = await mountEditor(document.querySelector("#editor"), {
       format,
       document: {

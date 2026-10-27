@@ -163,7 +163,14 @@ fn read_chart(
   } else if plot.child("doughnutChart", uri=chart_uri) is Some(doughnut) {
     (doughnut, "doughnut")
   } else if plot.child("lineChart", uri=chart_uri) is Some(line) {
-    (line, "line")
+    let kind = match chart_child(line, "grouping").node.attribute("val") {
+      Some("standard") => "line"
+      Some("stacked") => "stackedLine"
+      Some("percentStacked") => "percentStackedLine"
+      _ =>
+        @failure.reject("unsupported-chart", "Unsupported line chart grouping")
+    }
+    (line, kind)
   } else if plot.child("areaChart", uri=chart_uri) is Some(area) {
     let kind = match chart_child(area, "grouping").node.attribute("val") {
       Some("standard") => "area"

@@ -37,7 +37,8 @@ fn Session::digit_width(
   probe : @layout.TextProbe,
   profile : Map[String, String],
 ) -> Double raise @failure.Failure {
-  guard profile.get(self.normal_font) is Some(identity) else {
+  guard @layout.font_profile_identity(profile, self.normal_font)
+    is Some(identity) else {
     @failure.reject(
       "missing-font",
       "Missing font profile mapping: " + self.normal_font,

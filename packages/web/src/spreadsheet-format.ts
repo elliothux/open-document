@@ -39,7 +39,9 @@ export function checkFontMapping(
   key: string,
   profile: Record<string, string>,
 ): void {
-  if (!profile[key])
+  const parts = key.split("|");
+  const fallback = `*${parts.includes("bold") ? "|bold" : ""}${parts.includes("italic") ? "|italic" : ""}`;
+  if (!profile[key] && !profile[fallback] && !profile["*"])
     throw new DocumentError(
       "missing-font",
       `Missing font profile mapping: ${key}`,

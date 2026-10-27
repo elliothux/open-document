@@ -25,7 +25,7 @@ fn TextProbe::math_font_index(
   style : TextStyle,
   profile : Map[String, String],
 ) -> Int raise @failure.Failure {
-  guard profile.get(style.font) is Some(identity) else {
+  guard font_profile_identity(profile, style.font) is Some(identity) else {
     @failure.reject(
       "missing-font",
       "Missing mathematical font profile mapping: " + style.font,

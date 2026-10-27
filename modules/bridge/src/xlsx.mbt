@@ -62,8 +62,10 @@ fn Foundation::xlsx_operation(
       xlsx_comments_operation(session, operation, request)
     "pivotsXlsx" | "slicersXlsx" | "timelinesXlsx" | "pivotPreviewXlsx" =>
       xlsx_analysis_query(session, operation, request)
-    "duplicatesXlsx" | "textColumnsXlsx" =>
-      xlsx_data(session, operation, request)
+    "duplicatesXlsx"
+    | "textColumnsXlsx"
+    | "consolidationXlsx"
+    | "subtotalsXlsx" => xlsx_data(session, operation, request)
     "exportXlsxCsv" =>
       {
         "bytes": @base64.encode(
@@ -197,41 +199,10 @@ fn Foundation::xlsx_operation(
         }
         "add" => @xlsx.Add
         "copy" => @xlsx.Copy
-        "textToColumns" => {
-          guard change is Object(fields) &&
-            fields.length() == 4 &&
-            fields
-            .keys()
-            .all(k => {
-              ["action", "settings", "sourceRevision", "overwrite"].contains(k)
-            }) &&
-            fields.get("settings") is Some(settings) else {
-            @failure.reject(
-              "invalid-operation", "Invalid text to columns command",
-            )
-          }
-          @xlsx.TextToColumns(
-            xlsx_column_settings(settings),
-            field_int(change, "sourceRevision"),
-            xlsx_boolean(change, "overwrite"),
-          )
-        }
-        "removeDuplicates" => {
-          guard change is Object(fields) &&
-            fields.length() == 3 &&
-            fields
-            .keys()
-            .all(k => ["action", "settings", "sourceRevision"].contains(k)) &&
-            fields.get("settings") is Some(settings) else {
-            @failure.reject(
-              "invalid-operation", "Invalid duplicate removal command",
-            )
-          }
-          @xlsx.RemoveDuplicates(
-            xlsx_duplicate_settings(settings),
-            field_int(change, "sourceRevision"),
-          )
-        }
+        "textToColumns"
+        | "removeDuplicates"
+        | "consolidate"
+        | "createSubtotals" => xlsx_data_edit(change)
         "delete" => @xlsx.Delete
         "sparkline" => xlsx_sparkline_edit(change)
         "conditionalRule" => {

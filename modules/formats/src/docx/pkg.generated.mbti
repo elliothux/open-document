@@ -256,6 +256,7 @@ pub fn Session::math_fractions(Self, Int) -> Json raise @failure.Failure
 pub fn Session::math_scripts(Self, Int) -> Json raise @failure.Failure
 pub fn Session::navigate(Self, Int, @layout.Layout, Int, String, extend_selection~ : Bool) -> @layout.Hit raise @failure.Failure
 pub fn Session::navigate_comment(Self, Int, String) -> Json raise @failure.Failure
+pub fn Session::note_numbering(Self, Int, String, Int) -> Json raise @failure.Failure
 pub fn Session::notes(Self, Int) -> Json raise @failure.Failure
 pub fn Session::open(Bytes, @archive.Budget) -> Self raise @failure.Failure
 pub fn Session::overview(Self, Int) -> Json raise @failure.Failure
@@ -293,7 +294,9 @@ pub fn Session::set_default_tab_stop(Self, Int, Double?) -> Json raise @failure.
 pub fn Session::set_document_protection(Self, Int, Bool, String, Bytes) -> Json raise @failure.Failure
 pub fn Session::set_drawing_anchor(Self, Int, Int, @layout.DrawingAnchor?, target? : Position, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_drawing_hyperlink(Self, Int, Int, String?) -> Json raise @failure.Failure
+pub fn Session::set_endnote_position(Self, Int, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_hyperlink(Self, Int, Selection, String?, text? : String?) -> Json raise @failure.Failure
+pub fn Session::set_note_numbering(Self, Int, String, Int, @layout.PageNumbering, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_page_background(Self, Int, String?) -> Json raise @failure.Failure
 pub fn Session::set_page_borders(Self, Int, Int, @layout.PageBorders?) -> Json raise @failure.Failure
 pub fn Session::set_page_columns(Self, Int, Int, @layout.Columns?, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure

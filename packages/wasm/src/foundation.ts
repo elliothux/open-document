@@ -770,6 +770,13 @@ export class FoundationSession extends FoundationSelectionSession {
 }
 export {
   docxNotes,
+  noteNumberFormats,
+  docxNoteNumbering,
+  checkNoteNumbering,
+  type DocxNoteNumbering,
+  type DocxNoteNumberingValue,
+  checkEndnotePosition,
+  type DocxEndnotePosition,
   checkDocxNoteEdit,
   checkDocxNoteCreate,
   checkDocxNoteIdentity,

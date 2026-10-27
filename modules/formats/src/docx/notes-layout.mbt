@@ -104,14 +104,20 @@ fn Session::layout_notes(
         @failure.reject("unsupported-layout", "Missing or repeated note body")
       }
       used.add(key)
-      let label = @layout.PageNumbering::new(
-        start=if setting.restart == "eachSect" {
-          section_count.to_int64() + 1L
-        } else {
-          setting.numbering.start + index.to_int64()
-        },
-        format=setting.numbering.format,
-      ).field_text("PAGE", 0, 1)
+      let ordinal = if setting.restart == "eachPage" {
+        1L
+      } else if setting.restart == "eachSect" {
+        section_count.to_int64() + 1L
+      } else {
+        setting.numbering.start + index.to_int64()
+      }
+      let numbering : @layout.NoteNumbering = {
+        value: ordinal,
+        format: setting.numbering.format,
+        restart: setting.restart,
+        marker: 0,
+      }
+      let label = numbering.text()
       section_count += 1
       let markers : Map[Int, (String, String)] = Map([])
       for child in source.tree.descendants(entry.node) {
@@ -175,7 +181,14 @@ fn Session::layout_notes(
         )
       }
       references[id] = (label, "NOTE:" + kind + ":" + key)
-      notes.push({ kind, key, paragraph, node: id, content, })
+      notes.push({
+        kind,
+        key,
+        paragraph,
+        node: id,
+        content,
+        numbering: { ..numbering, marker: markers.keys().to_array()[0], },
+      })
     }
   }
   (references, notes, endnotes_at)

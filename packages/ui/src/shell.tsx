@@ -274,6 +274,14 @@ export function EditorShell({
             )}
           </div>
         )}
+        {file &&
+          Object.keys(controller.options.resources.profile).some(
+            (key) => key === "*" || key.startsWith("*|"),
+          ) && (
+            <p className="od-status" role="status">
+              {t.fontFallbackWarning}
+            </p>
+          )}
         <div className="od-workbench">
           {panel && <PageList {...panel} />}
           <div className="od-workspace">

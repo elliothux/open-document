@@ -111,7 +111,7 @@ fn prepare_paragraph(
     let font = if span.drawing is Some(_) {
       -1
     } else {
-      guard profile.get(span.style.font) is Some(identity) else {
+      guard font_profile_identity(profile, span.style.font) is Some(identity) else {
         @failure.reject(
           "missing-font",
           "Missing font profile mapping: " + span.style.font,

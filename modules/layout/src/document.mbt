@@ -136,11 +136,45 @@ pub(all) struct Paragraph {
 pub extend Paragraph with ToJson::{to_json}
 
 ///|
+pub(all) struct NoteNumbering {
+  format : String
+  value : Int64
+  restart : String
+  marker : Int
+}
+
+///|
+pub impl ToJson for NoteNumbering with fn to_json(self) {
+  {
+    "format": self.format,
+    "value": self.value.to_double(),
+    "restart": self.restart,
+    "marker": self.marker,
+  }
+}
+
+///|
+pub extend NoteNumbering with ToJson::{to_json}
+
+///|
+/// Formats a derived ordinal, which can exceed the native start by preceding notes.
+pub fn NoteNumbering::text(
+  self : NoteNumbering,
+) -> String raise @failure.Failure {
+  PageNumbering::new(format=self.format).validate()
+  guard self.value >= 0L && self.value <= 4294975486L else {
+    @failure.reject("invalid-numbering", "Invalid note ordinal")
+  }
+  numbering_text(self.format, self.value)
+}
+
+///|
 pub(all) struct Note {
   kind : String
   key : String
   paragraph : Int
   node : Int
+  numbering : NoteNumbering
   content : Array[Paragraph]
 } derive(ToJson)
 

@@ -84,6 +84,14 @@ pub fn PageNumbering::field_text(
     "decimal"
   }
   PageNumbering::{ start: 0L, format, }.validate()
+  numbering_text(format, value)
+}
+
+///|
+fn numbering_text(
+  format : String,
+  value : Int64,
+) -> String raise @failure.Failure {
   match format {
     "decimal" => value.to_string()
     "decimalZero" => (if value < 10L { "0" } else { "" }) + value.to_string()

@@ -67,7 +67,7 @@ pub fn markup(
   let horizontal = @layout.horizontal_bar_chart(data.kind)
   let stacked = @layout.stacked_chart(data.kind)
   let percent = @layout.percent_stacked_chart(data.kind)
-  let line = data.kind == "line"
+  let line = @layout.line_chart(data.kind)
   let radar = data.kind == "radar"
   let area = @layout.area_chart(data.kind)
   let last = data.categories.length() + 1
@@ -85,7 +85,7 @@ pub fn markup(
     } else if area {
       "<c:areaChart><c:grouping val=\"\{if percent {"percentStacked"} else if stacked {"stacked"} else {"standard"}}\"/><c:varyColors val=\"0\"/>"
     } else if line {
-      "<c:lineChart><c:grouping val=\"standard\"/><c:varyColors val=\"0\"/>"
+      "<c:lineChart><c:grouping val=\"\{if percent {"percentStacked"} else if stacked {"stacked"} else {"standard"}}\"/><c:varyColors val=\"0\"/>"
     } else {
       "<c:barChart><c:barDir val=\"\{if horizontal {"bar"} else {"col"}}\"/><c:grouping val=\"\{if percent {"percentStacked"} else if stacked {"stacked"} else {"clustered"}}\"/><c:varyColors val=\"0\"/>"
     },

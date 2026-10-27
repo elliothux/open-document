@@ -132,7 +132,7 @@ fn ChartData::paint_plot(
     )
   }
   let slots = data.categories.length()
-  let line = data.kind == "line"
+  let line = line_chart(data.kind)
   let area = area_chart(data.kind)
   let scatter = data.kind == "scatter"
   if scatter {
@@ -213,11 +213,25 @@ fn ChartData::paint_plot(
     }
   }
   if line {
+    let cumulative = Array::make(slots, 0.0)
     for series_index, series in data.series {
       let path : Array[PathSegment] = []
       let markers : Array[PositionedPrimitive] = []
       let mut connected = false
       for index, value in series.values {
+        let value = if stacked {
+          // Native stacked lines treat missing points as zero contributions.
+          let next = cumulative[index] +
+            data.bar_values(index)[series_index].unwrap_or(0)
+          cumulative[index] = if percent {
+            next.clamp(min=-1, max=1)
+          } else {
+            next
+          }
+          Some(cumulative[index])
+        } else {
+          value
+        }
         if value is Some(value) {
           let x = left + (index.to_double() + 0.5) * slot
           let y = top + h * (1 - (value - low) / (high - low))

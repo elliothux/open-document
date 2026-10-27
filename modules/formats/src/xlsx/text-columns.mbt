@@ -141,7 +141,7 @@ fn Session::text_column_plan(
     types,
     settings.formulas,
   )
-  let preview = self.text_column_values(sheet, target, edit)
+  let preview = self.cell_plan_values(sheet, target, edit)
   { target, preview, overwritten, types, split_columns: width, edit, changed, }
 }
 

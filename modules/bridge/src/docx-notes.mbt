@@ -1,8 +1,9 @@
 ///|
 fn is_docx_note_operation(operation : String) -> Bool {
-  ["docxNotes", "editDocxNote", "insertDocxNote", "removeDocxNote"].contains(
-    operation,
-  )
+  [
+    "docxNotes", "editDocxNote", "insertDocxNote", "removeDocxNote", "setEndnotePosition",
+    "noteNumbering", "setNoteNumbering",
+  ].contains(operation)
 }
 
 ///|
@@ -17,6 +18,56 @@ fn Foundation::docx_note_operation(
   let revision = field_int(request, "revision")
   if operation == "docxNotes" {
     return session.notes(revision)
+  }
+  if operation == "noteNumbering" {
+    return session.note_numbering(
+      revision,
+      field_string(request, "kind"),
+      field_int(request, "section"),
+    )
+  }
+  if operation == "setNoteNumbering" {
+    guard request is { "numbering": Object(fields) as value, .. } &&
+      fields.length() == 3 &&
+      fields.keys().all(key => ["format", "start", "restart"].contains(key)) else {
+      @failure.reject("invalid-operation", "Invalid note numbering fields")
+    }
+    let start = xlsx_number(value, "start")
+    guard start >= 0 && start <= 4294967295 && start.floor() == start else {
+      @failure.reject("invalid-operation", "Invalid note numbering start")
+    }
+    let result = session.set_note_numbering(
+      revision,
+      field_string(request, "kind"),
+      field_int(request, "section"),
+      @layout.PageNumbering::new(
+        start=start.to_int64(),
+        format=field_string(value, "format"),
+      ),
+      field_string(value, "restart"),
+      probe=self.probe,
+      profile=xlsx_profile(request),
+      images=self.images,
+    )
+    if result is { "revision": Number(current, ..), .. } &&
+      current != revision.to_double() {
+      self.layout = None
+    }
+    return result
+  }
+  if operation == "setEndnotePosition" {
+    let result = session.set_endnote_position(
+      revision,
+      field_string(request, "position"),
+      probe=self.probe,
+      profile=xlsx_profile(request),
+      images=self.images,
+    )
+    if result is { "revision": Number(current, ..), .. } &&
+      current != revision.to_double() {
+      self.layout = None
+    }
+    return result
   }
   let keys = if operation == "insertDocxNote" {
     ["kind", "text"]

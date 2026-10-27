@@ -13,6 +13,7 @@ export {
   DOCX_PAGE_BREAK,
   DOCX_COLUMN_BREAK,
   listFormats,
+  noteNumberFormats,
   sourceKinds,
 } from "@open-document/wasm/foundation";
 import {

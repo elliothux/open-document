@@ -37,6 +37,13 @@ import {
   docxOverview,
   docxComments,
   docxNotes,
+  docxNoteNumbering,
+  checkNoteNumbering,
+  type DocxNoteKind,
+  type DocxNoteNumbering,
+  type DocxNoteNumberingValue,
+  checkEndnotePosition,
+  type DocxEndnotePosition,
   checkDocxNoteEdit,
   type DocxNotes,
   type DocxNoteEdit,
@@ -60,6 +67,9 @@ export interface DocumentComments extends DocxComments {
   documentId: string;
 }
 export interface DocumentNotes extends DocxNotes {
+  documentId: string;
+}
+export interface DocumentNoteNumbering extends DocxNoteNumbering {
   documentId: string;
 }
 export interface DocumentRevisions extends DocxRevisions {
@@ -177,6 +187,50 @@ export class FoundationReviewClient {
   async notes(revision: number) {
     return docxNotes(
       await this.connection.request({ operation: "docxNotes", revision }),
+    );
+  }
+  async noteNumbering(revision: number, kind: DocxNoteKind, section: number) {
+    return docxNoteNumbering(
+      await this.connection.request({
+        operation: "noteNumbering",
+        revision,
+        kind,
+        section,
+      }),
+    );
+  }
+  async setNoteNumbering(
+    revision: number,
+    kind: DocxNoteKind,
+    section: number,
+    numbering: DocxNoteNumberingValue,
+    profile: Record<string, string>,
+  ) {
+    checkNoteNumbering(numbering);
+    return editState(
+      await this.connection.request({
+        operation: "setNoteNumbering",
+        revision,
+        kind,
+        section,
+        numbering,
+        profile,
+      }),
+    );
+  }
+  async setEndnotePosition(
+    revision: number,
+    position: DocxEndnotePosition,
+    profile: Record<string, string>,
+  ) {
+    checkEndnotePosition(position);
+    return editState(
+      await this.connection.request({
+        operation: "setEndnotePosition",
+        revision,
+        position,
+        profile,
+      }),
     );
   }
   async editNote(
@@ -428,6 +482,58 @@ export abstract class DocumentReview {
         return result.value;
       });
   }
+  noteNumbering(
+    kind: DocxNoteKind,
+    section: number,
+  ): Promise<DocumentNoteNumbering> {
+    return this.review
+      .read(async () => {
+        try {
+          const value = {
+            ...(await this.review.client.noteNumbering(
+              this.review.snapshot().revision,
+              kind,
+              section,
+            )),
+            documentId: this.review.snapshot().documentId,
+          };
+          return { ok: true as const, value };
+        } catch (error) {
+          return { ok: false as const, error };
+        }
+      })
+      .then((result) => {
+        if (!result.ok) throw result.error;
+        return result.value;
+      });
+  }
+  setNoteNumbering(
+    source: DocumentNoteNumbering,
+    value: DocxNoteNumberingValue,
+  ): Promise<void> {
+    return this.noteCommand(
+      () => {
+        checkNoteNumbering(value);
+        docxNoteNumbering(source);
+        const current = this.review.snapshot();
+        if (
+          source.documentId !== current.documentId ||
+          source.revision !== current.revision
+        )
+          throw new Error("Note numbering belongs to an older document state");
+        if (source.value === null || source.reason)
+          throw new Error("Note numbering requires structured editing");
+      },
+      () =>
+        this.review.client.setNoteNumbering(
+          source.revision,
+          source.kind,
+          source.section,
+          value,
+          this.review.layout().profile,
+        ),
+    );
+  }
   editNote(source: DocumentNotes, note: DocxNoteEdit): Promise<void> {
     const check = () => {
       checkDocxNoteEdit(note);
@@ -439,6 +545,30 @@ export abstract class DocumentReview {
         note,
         this.review.layout().profile,
       ),
+    );
+  }
+  setEndnotePosition(
+    source: DocumentNotes,
+    position: DocxEndnotePosition,
+  ): Promise<void> {
+    return this.noteCommand(
+      () => {
+        checkEndnotePosition(position);
+        const current = this.review.snapshot();
+        if (
+          source.documentId !== current.documentId ||
+          source.revision !== current.revision
+        )
+          throw new Error("Note catalog belongs to an older document state");
+        if (source.endnotes.reason || source.endnotes.position === null)
+          throw new Error("Endnote settings require structured editing");
+      },
+      () =>
+        this.review.client.setEndnotePosition(
+          source.revision,
+          position,
+          this.review.layout().profile,
+        ),
     );
   }
   insertNote(note: DocxNoteCreate): Promise<void> {

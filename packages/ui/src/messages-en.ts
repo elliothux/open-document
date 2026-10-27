@@ -1,4 +1,6 @@
 import { docxBordersEn } from "./messages-docx-borders.js";
+import { consolidateEn } from "./messages-xlsx-consolidate.js";
+import { subtotalEn } from "./messages-xlsx-subtotal.js";
 import { docxPicturesEn } from "./messages-docx-pictures.js";
 import { importEn } from "./messages-pptx-import.js";
 import { mathEn } from "./messages-docx-math.js";
@@ -22,6 +24,8 @@ import { xlsxChartsEn } from "./messages-xlsx-charts.js";
 import { protectionEn } from "./messages-xlsx-protection.js";
 import { sparklineEn } from "./messages-xlsx-sparkline.js";
 export const en = {
+  ...subtotalEn,
+  ...consolidateEn,
   ...conditionalStatisticsEn,
   ...mathEn,
   ...sparklineEn,
@@ -604,6 +608,8 @@ export const en = {
   saved: "Saved",
   modified: "Unsaved changes",
   ready: "Ready",
+  fontFallbackWarning:
+    "Missing fonts use substitutes. Line breaks and pagination may differ; original document fonts are preserved.",
   loading: "Opening file…",
   saving: "Saving…",
   generated: "Download generated",

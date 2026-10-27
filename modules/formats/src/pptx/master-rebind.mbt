@@ -126,7 +126,8 @@ fn Session::rebind_master_slides(
       if previous.contains(key) {
         continue
       }
-      guard probe is Some(probe) && profile.get(key) is Some(identity) else {
+      guard probe is Some(probe) &&
+        @layout.font_profile_identity(profile, key) is Some(identity) else {
         @failure.reject(
           "missing-font",
           "Missing replacement master font profile: " + key,

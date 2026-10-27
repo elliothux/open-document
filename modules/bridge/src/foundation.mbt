@@ -143,6 +143,8 @@ fn Foundation::dispatch(
     | "pivotPreviewXlsx"
     | "duplicatesXlsx"
     | "textColumnsXlsx"
+    | "consolidationXlsx"
+    | "subtotalsXlsx"
     | "selectXlsx"
     | "replaceXlsx"
     | "findXlsx"

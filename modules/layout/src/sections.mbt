@@ -322,6 +322,7 @@ fn paginate_sections(
       flow,
       fixed,
       contexts~,
+      noteRunning=running,
     )
     diagnostics.append(problems)
     let (updated, stable) = body.resolve_body_fields(

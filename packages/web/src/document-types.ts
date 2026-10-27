@@ -14,6 +14,7 @@ export type {
   DocumentComments,
   DocumentRevisions,
   DocumentNotes,
+  DocumentNoteNumbering,
 } from "./document-review.js";
 export type {
   DocumentSearchResult,

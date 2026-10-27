@@ -6,9 +6,19 @@ fn Flow::body_fields(
     @failure.reject("limit-exceeded", "Field targets exceed limits")
   }
   let fields : Map[(Int, Int), String] = Map([])
+  let mut ordinary = 0
+  let page_notes = Map::from_array(
+    self.notes
+    .filter(note => note.numbering.restart == "eachPage")
+    .map(note => ((note.paragraph, note.node), true)),
+  )
   for paragraph in self.body_field_paragraphs() {
     for span in paragraph.spans {
-      if !span.field.is_empty() && !span.field.has_prefix("NOTE:") {
+      if !span.field.is_empty() &&
+        (
+          !span.field.has_prefix("NOTE:") ||
+          page_notes.contains((paragraph.id, span.node))
+        ) {
         if span.field.has_prefix("PAGEREF:") {
           ignore(PageReference::parse(span.field))
         } else if span.field.has_prefix("REF:") {
@@ -20,7 +30,13 @@ fn Flow::body_fields(
         } else if span.field.has_prefix("STYLEREF:") {
           ignore(style_reference_level(span.field))
         }
-        guard span.drawing is None && fields.length() < 4096 else {
+        if !span.field.has_prefix("NOTE:") &&
+          !fields.contains((paragraph.id, span.node)) {
+          ordinary += 1
+        }
+        guard span.drawing is None &&
+          ordinary <= 4096 &&
+          fields.length() < 12288 else {
           @failure.reject("limit-exceeded", "Body page fields exceed limits")
         }
         fields[(paragraph.id, span.node)] = span.field
@@ -41,7 +57,11 @@ fn Flow::resolve_body_fields(
     {
       ..paragraph,
       spans: paragraph.spans.map(span => {
-        if span.field.is_empty() || span.field.has_prefix("NOTE:") {
+        if span.field.is_empty() ||
+          (
+            span.field.has_prefix("NOTE:") &&
+            !values.contains((paragraph.id, span.node))
+          ) {
           return span
         }
         let text = values
@@ -56,7 +76,8 @@ fn Flow::resolve_body_fields(
               } else {
                 self.pageNumbering.field_text(reference.page_code(), 0, total)
               }
-            } else if span.field.has_prefix("REF:") ||
+            } else if span.field.has_prefix("NOTE:") ||
+              span.field.has_prefix("REF:") ||
               span.field.has_prefix("NOTEREF:") ||
               span.field.has_prefix("STYLEREF:") ||
               span.field.has_prefix("CITATION:") {
@@ -91,7 +112,26 @@ fn Flow::resolve_body_fields(
     ..table,
     rows: table.rows.map(row => row.map(cell => cell.map(resolve))),
   })
-  ({ ..self, paragraphs, tables, }, stable)
+  let notes = self.notes.map(note => {
+    guard values.get((note.paragraph, note.node)) is Some(label) else {
+      return note
+    }
+    {
+      ..note,
+      content: note.content.map(paragraph => {
+        ..paragraph,
+        spans: paragraph.spans.map(span => {
+          if span.node == note.numbering.marker && span.text != label {
+            stable = false
+            { ..span, text: label, }
+          } else {
+            span
+          }
+        }),
+      }),
+    }
+  })
+  ({ ..self, paragraphs, tables, notes, }, stable)
 }
 
 ///|

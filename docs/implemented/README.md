@@ -12,6 +12,9 @@
 | [P7 PDF 输入、预览与文字查询](p7-pdf-input.md) | 有界严格读取、源坐标图文、页内选择复制、提取与搜索；仅 Chromium |
 | [P8 PDF 页面操作、批注与表单保存](p8-pdf-operations.md) | 页面整理、便笺/高亮、普通字段/复选框、局部历史和对象图保存；仅 Chromium |
 | [P9 Web SDK 与默认 UI](p9-web-sdk-ui.md) | 四格式现有能力的 React/Shadow DOM UI、状态、保存回调、候选替换与普通 JS 接入；仅 Chromium |
+| [P10 DOCX 核心功能](p10-docx-core.md) | 六批最低范围：格式、页面/表格、图文、引用/审阅、图表/数学及保存输出 |
+| [P11 XLSX 核心功能](p11-xlsx-core.md) | 五批最低范围：工作簿/结构/格式、常用计算、数据规则、分析绘图与交换打印 |
+| [P12 PPTX 核心功能](p12-pptx-core.md) | 五批最低范围：页面/对象、母版/文本、复合内容、放映媒体与输出 |
 | [R0 通用渲染架构与薄 Renderer](r0-renderer-foundation.md) | DOCX/XLSX/PPTX/PDF Web 接入；有序路径/矩阵/样式与核心指令、共用 Canvas 表面、独立覆盖层与资源身份；其他平台待需求 |
 | [G2 测试流水线与 Agent 改进闭环](g2-test-pipeline.md) | 冻结双路径报告、真实文件、受控恢复、独立性能与本地 Docker；不声明远端 CI 或盲测 |
 

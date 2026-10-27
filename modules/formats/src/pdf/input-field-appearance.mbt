@@ -193,7 +193,8 @@ fn field_appearance(
   for index, info in supplied.font_info() {
     ignore(probe.add_font(supplied.font_bytes(index), info.identity))
   }
-  let identity = if profile.get("form") is Some(identity) {
+  let identity = if @layout.font_profile_identity(profile, "form")
+    is Some(identity) {
     ignore(probe.font_index(identity))
     identity
   } else {
