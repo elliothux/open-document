@@ -1,5 +1,15 @@
 # 测试说明
 
+## P14 素材、环境与当前基线
+
+P14 首轮素材在私有 `cases/p14-xlsx.json`、`cases/p14-office.json`、`cases/p14-pdf.json`，环境依赖在 `cases/p14-environment.json`。产品范围、具体操作及小批退出条件归 [P14 方案](../p14-compatibility-performance.md)。
+
+从 `test-lab/` 运行 `bun run test:p14-preparation` 校验离线素材及独立输入预期；`bun run test:p14-environment` 核对工具、字体、Chromium 和现有 13 个性能输入；`bun run test:p14-recovery` 在临时副本验证缺文件恢复、派生重建与篡改拒绝。恢复原件用 `bun run prepare:p14`，需要固定源码 checkout；已有完整素材的日常检查不依赖该目录。
+
+`bun run test:p14-baseline` 先复核环境并重新构建 SDK，再沿 `p14.config.ts` 执行首四 XLSX 案例。它复用现有执行/判定及精确清单规则，每案只执行一次，失败保留非零退出和实际错误。当前范围结果见新建运行目录内的 `p14-summary.json`；`plan.json`、`frozen-inputs.json`、`results.jsonl`、`browser.json` 和 HTML 保留定位信息。该范围内通过不授予完整资格或性能通过，尚未执行的后续格式也不计入通过。
+
+准备检查只证明原件身份、输入预期和运行依赖。实际兼容失败按冻结样本复现；缺字体或独立视觉参考的分页/像素项保持待确认。性能输入已准备不表示计时已执行，完整性能工具仍保留其既有资格基线要求。
+
 ## R1 领域拆包与共享加载
 
 2026-10-28 定向检查：公开 Moon check/build/info、严格 TS、lint、格式、冻结锁文件、私有 TS/lint/格式通过。18 项单元检查通过；3 项七包消费检查通过，共 4006 个断言。消费检查沿用已有用例，另检查 XLSX/PDF 独立 bundle、core/web 无 React、唯一 Wasm 和公共 Loader 外部引用。

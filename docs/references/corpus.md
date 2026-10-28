@@ -40,6 +40,8 @@ P4 验证范围与证据入口见 [P4](../implemented/p4-docx-editing.md#验证�
 
 `bun run test:corpus` 只验证数据完整性及独立基线。日常测试使用已入库资产，不依赖研究 checkout 或网络下载。现有 `tools/import-corpus.mbtx` 和 `tools/prepare-corpus.mbtx` 用于需要时导入/生成，拒绝覆盖已有资产；重建在独立临时位置比较并审阅。
 
+P14 首轮原件和断言源登记在私有 `cases/p14-xlsx.json`、`cases/p14-office.json`、`cases/p14-pdf.json`。`bun run prepare:p14` 恢复已登记的缺失资产并核对 hash，拒绝覆盖不同内容；`bun run test:p14-preparation` 离线核对来源及独立输入预期。兼容基线使用单独的严格入口，准备通过不授予 SDK 兼容通过。范围、字体和参考缺口归 [P14](../p14-compatibility-performance.md#首轮素材与环境)。
+
 原件、许可、预期和必要失败复现保留。临时日志与缓存放 `.temp/`，遵守根 AGENTS 的容量限制；不保留完整历史构建来证明 fixture 身份。第三方许可随资产保留，字体不因本机可用就获得再分发权。
 
 ## P5 XLSX 输入

@@ -6,6 +6,30 @@
 
 参考关系不是整体 fork，也不是逐行翻译。优先参考功能语义、数据结构、格式兼容规则、测试样本和真实行为，再按照本项目边界实现。
 
+## 本地源码目录
+
+2026-10-28 将下列 15 个仓库检出到根 `references/`，供本地源码对比。采用深度为 1 的浅克隆；已有研究快照使用本文记录的 revision，Collabora 使用本次读取的上游 HEAD。各目录保留 Git 元数据与原许可证，准确来源和完整 commit 见本地 `references/SOURCES.json`，入口索引见 `references/README.md`。
+
+| 项目 | 本地目录 | 参考范围 |
+| --- | --- | --- |
+| GenOffice | `references/genoffice/` | 四类编辑器的功能、UI 与操作 |
+| ONLYOFFICE core | `references/onlyoffice-core/` | 首选格式、布局、字体与算法 |
+| ONLYOFFICE sdkjs | `references/onlyoffice-sdkjs/` | 首选编辑模型、交互与兼容行为 |
+| LibreOffice core | `references/libreoffice/` | 次选格式、布局与独立回归依据 |
+| [Collabora Online](https://github.com/CollaboraOnline/online.mirror) | `references/collabora-online/` | 浏览器集成与补充交互案例 |
+| BetterOffice | `references/betteroffice/` | SDK 架构与核心/宿主边界 |
+| Univer | `references/univer/` | API、公式与能力组织 |
+| Open XML SDK | `references/open-xml-sdk/` | OPC、OOXML 与未知内容保留 |
+| Typst | `references/typst/` | 布局与核心/宿主边界 |
+| Parley | `references/parley/` | 文本布局与编辑几何 |
+| IronCalc | `references/ironcalc/` | 公式与表格事务 |
+| Excelize | `references/excelize/` | XLSX 读写与格式规则 |
+| Krilla | `references/krilla/` | PDF 输出与字体子集 |
+| PDF.js | `references/pdfjs/` | PDF 浏览器行为 |
+| PDFium | `references/pdfium/` | PDF 独立读取与渲染 |
+
+这些副本只用于源码对比；子模块与 Git LFS 大文件按实际构建需求另行获取。`references/` 由根 `.gitignore` 管理，公开 SDK 构建继续使用固定生产依赖。
+
 ## BetterOffice：架构与核心/宿主边界
 
 - [上游仓库](https://github.com/openooxml/betteroffice)
