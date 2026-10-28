@@ -37,7 +37,7 @@
 | P11 | [XLSX 核心功能](implemented/p11-xlsx-core.md) | `implemented`：五批最低交付范围、计算/数据/分析及交换输出；更广公式与复杂资源按 P14 扩展 |
 | P12 | [PPTX 核心功能](implemented/p12-pptx-core.md) | `implemented`：五批最低交付范围、对象/母版/复合内容、放映媒体及输出；复杂效果按 P14 扩展 |
 
-后续阶段为 `planned`：P13 PDF 核心功能，P14 兼容与性能，P15 次要与外围能力，P16 跨宿主。跨宿主按功能优先级 P2 最后实施。具体顺序和范围只在[路线图](references/roadmap.md#后续阶段与顺序)维护。
+后续阶段为 `planned`：[P13 PDF 核心功能](p13-pdf-core.md)，P14 兼容与性能，P15 次要与外围能力，P16 跨宿主。P13 已基于 P10–P12 和 R1 细化为六批操作，尚未实现。跨宿主按功能优先级 P2 最后实施。具体顺序和范围只在[路线图](references/roadmap.md#后续阶段与顺序)维护。
 
 ## 活动研究
 
