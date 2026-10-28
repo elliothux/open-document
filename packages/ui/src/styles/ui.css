@@ -4,6 +4,10 @@
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
 @source "../*.tsx";
+@source "../../../docx/src/react/*.tsx";
+@source "../../../xlsx/src/react/*.tsx";
+@source "../../../pptx/src/react/*.tsx";
+@source "../../../pdf/src/react/*.tsx";
 @theme inline {
   --spacing: 4px;
   --color-surface: var(--od-ui-surface);

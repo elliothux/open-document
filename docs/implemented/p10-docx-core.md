@@ -17,7 +17,7 @@
 
 ## 实现与完整性
 
-状态、内容与原生写回由 `modules/formats/src/docx/` 拥有，分页和图元由 `modules/layout/src/` 拥有。`packages/wasm/`、`packages/web/` 和 `packages/ui/` 分别承载严格类型入口、Worker/平台事件和默认界面，复用 [R0](r0-renderer-foundation.md)。多部件事务一起维护关系、内容类型、资源和选择，失败保持源与历史。
+状态、内容与原生写回由 `modules/formats/src/docx/` 拥有，分页和图元由 `modules/layout/src/` 拥有。R1 后，严格类型入口、Worker/平台事件和领域界面归 `packages/docx/`，共用绘制与外壳归 `packages/web-core/`、`packages/ui/`，复用 [R0](r0-renderer-foundation.md)。多部件事务一起维护关系、内容类型、资源和选择，失败保持源与历史。
 
 本阶段的源代码归属和精确接口在[格式合同](../references/formats.md)维护。安全/未知源保护、字体预检、资源及历史上限继续生效；不通过丢弃原生内容开放编辑。
 

@@ -1,0 +1,37 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "open_document/bridge/common"
+
+import {
+  "open_document/core/failure",
+}
+
+// Values
+pub fn archive_budget() -> Json
+
+pub fn field_boolean(Json, String) -> Bool raise @failure.Failure
+
+pub fn field_int(Json, String) -> Int raise @failure.Failure
+
+pub fn field_number(Json, String) -> Double raise @failure.Failure
+
+pub fn field_string(Json, String) -> String raise @failure.Failure
+
+pub fn font_input_bytes(String) -> Bytes raise @failure.Failure
+
+pub fn font_profile(Json) -> Map[String, String] raise @failure.Failure
+
+pub fn input_bytes(Json, Int) -> Bytes raise @failure.Failure
+
+pub fn optional_string(Json, String) -> String? raise @failure.Failure
+
+pub fn parse_request(String) -> Json raise @failure.Failure
+
+pub fn response(() -> Json raise @failure.Failure) -> String
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

@@ -1,5 +1,21 @@
 # 测试说明
 
+## R1 领域拆包与共享加载
+
+2026-10-28 定向检查：公开 Moon check/build/info、严格 TS、lint、格式、冻结锁文件、私有 TS/lint/格式通过。18 项单元检查通过；3 项七包消费检查通过，共 4006 个断言。消费检查沿用已有用例，另检查 XLSX/PDF 独立 bundle、core/web 无 React、唯一 Wasm 和公共 Loader 外部引用。
+
+六条相关 Chromium 流程通过：`engine-loader.spec.ts` 的并发 XLSX/PDF Module 克隆、关闭重开与独立保存；`web-sdk-ui.spec.ts` 的 DOCX 保存确认/替换/双实例和 PDF 编辑保存；`xlsx.spec.ts` 的工作簿编辑/历史/保存重开；`pptx.spec.ts` 的文字/对象编辑与输出；`dev-preview.spec.ts` 的全屏、切换、热更新及 DEV setup/清理。共享流程实际观察到一次获取、一次编译、三次 Module 初始化。生产 Vite 构建通过，产物无 devtools。结果归 `.temp/r1/` 的 `unit-final.log`、`installed-final.log`、`current-browser.log`、`docx-final.log`、`check-final.log` 和 `vite-final.log`。
+
+`current-browser.log` 中 DOCX 首次失败暴露旧异步成功回调清除较新错误的问题；共用控制器修复后，`docx-final.log` 记录该流程通过。旧 UI/旧栈对照的失败日志保留为定位证据，不表示当前用例仍失败。交付边界归 [R1](../implemented/r1-domain-packages-shared-wasm.md)。
+
+补充修复：XLSX 后台重绘继续串行执行并计入队列预算，但不再通过 `busy` 禁用正在点击或输入的控件。`xlsx-repaint.spec.ts` 在按下历史按钮后挂起一次真实 Worker 重绘请求，检查历史按钮和范围框仍可用，并确认松开后撤销执行。原 P9 XLSX 完整流程也通过，保留自动适配、精确历史、公式栏、原生输入及保存输出断言。
+
+PPTX 原对象或组合已有的文字/表格溢出继续作为副本的布局诊断；复制仍执行字体测量、资源和事务校验。新增核心回归覆盖溢出组合的矩阵、文字、历史和保存重开，11 项对象复制相关核心检查通过。原 P9 PPTX 完整流程通过，覆盖组合复制、幻灯片管理、预设形状、历史及输出。另修正面板 key 冲突、原生 ESM 测试的 import map/Loader 配对，以及范围框和对象坐标的重名定位。
+
+补充结果归 `.temp/r1/copy-core.log`、`failures-fixed2.log`、`pptx-fixed-final.log` 和 `fix-check-final.log`。两条累计多个功能的集成用例使用 120 秒总预算及 10 秒动作上限，断言和零重试保持。未跑全量语料、性能或浏览器矩阵。
+
+## 历史定向检查
+
 P10 多节普通表格通过 20 项定向核心检查。新增 Chromium 流程通过，复用本轮已通过的两条尺寸/精确行高流程。覆盖目标节及不等宽起始栏、创建与网格编辑、属性和片段、节归属、精确历史、重开输入、实际 Canvas 和独立 XML/PDF。公开 api/check/build 与私有定向静态检查通过，证据归 `sectionTablesCheckpoint`。沿用 20 秒及零重试；未跑全量或安装包矩阵，连续分节及其余 P10–P12 功能继续实施。
 
 P10 分节创建通过 7 项定向核心检查，包含两项新建分节、三项拆表与两项多节输入检查。新增 Chromium 流程通过，复用本轮已通过的多节输入和拆表流程。覆盖三种分节类型、选择文字保留、表格行拆分及首行插入、继承编号与页眉、精确历史、重开和继续输入。实际 Canvas 空白页、独立 qpdf/PDF 文字及空白页栅格通过。公开 api/check/build、89 项单元断言与私有定向静态检查通过，证据归 `sectionCreationCheckpoint`。连续分节与其余 P10–P12 功能继续实施。

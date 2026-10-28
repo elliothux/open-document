@@ -1,24 +1,25 @@
-import type { DocumentEditor } from "@open-document/web/editor";
-import type { SpreadsheetEditor } from "@open-document/web/spreadsheet-editor";
-import type { PresentationEditor } from "@open-document/web/presentation-editor";
-import type { PdfEditor } from "@open-document/web/pdf-editor";
-import type { FoundationClient } from "@open-document/web/foundation";
-import type { PdfClient } from "@open-document/web/pdf";
-import type { XlsxDelimitedOptions } from "@open-document/web/xlsx";
-import type { PptxCommentAuthor } from "@open-document/web/pptx";
+import type { ReactNode } from "react";
+import type { EngineHandle } from "@open-document/wasm";
 import type {
   EditorOutput,
   EditorSnapshot,
-} from "@open-document/web/editor-state";
+  EditorFormat,
+} from "@open-document/web-core/editor-state";
+import type { EditorController, UiSnapshot } from "./controller.js";
+import type { MessageKey } from "./messages.js";
 
 export type Locale = "en-US" | "zh-CN";
 export type Theme = "light" | "dark";
+export interface DelimitedOptions {
+  numbers?: boolean;
+  dates?: boolean;
+  formulas?: boolean;
+}
 export interface EditorDocument {
   readonly name: string;
   readonly bytes: Uint8Array;
   readonly blank?: never;
-  /** Explicit conversions for CSV/TSV input in an XLSX editor. */
-  readonly delimited?: XlsxDelimitedOptions;
+  readonly delimited?: DelimitedOptions;
 }
 export type OfficeDocument =
   | EditorDocument
@@ -29,7 +30,7 @@ export type OfficeDocument =
       readonly delimited?: never;
     };
 export interface EditorResources {
-  readonly wasm: ArrayBuffer;
+  readonly engine: EngineHandle;
   readonly workerUrl: URL;
   readonly fonts: readonly {
     readonly identity: string;
@@ -40,33 +41,20 @@ export interface EditorResources {
 export interface SavedDocument extends EditorOutput {
   readonly name: string;
 }
-interface CommonOptions {
+export interface CommonOptions {
   readonly resources: EditorResources;
   readonly theme?: Theme;
   readonly locale?: Locale;
   readonly onSave?: (document: SavedDocument) => Promise<void> | void;
-  /** Handle File > Open in the host, for example to switch document formats. */
   readonly onOpen?: () => Promise<void> | void;
   readonly signal?: AbortSignal;
   readonly styleNonce?: string;
-  /** Explicit local author for new presentation comments, replies and cell notes. */
-  readonly commentAuthor?: PptxCommentAuthor;
+  readonly commentAuthor?: { name: string; initials: string };
 }
-type OfficeBudget = Awaited<ReturnType<FoundationClient["defaultBudget"]>>;
-type PdfBudget = Awaited<ReturnType<PdfClient["defaultBudget"]>>;
-export type EditorOptions = CommonOptions &
-  (
-    | {
-        readonly budget?: OfficeBudget;
-        readonly format: "docx" | "xlsx" | "pptx";
-        readonly document: OfficeDocument;
-      }
-    | {
-        readonly format: "pdf";
-        readonly document: EditorDocument;
-        readonly budget?: PdfBudget;
-      }
-  );
+/** Internal shell options; each domain owns its public options and budget. */
+export interface EditorOptions extends CommonOptions {
+  readonly document: OfficeDocument;
+}
 export type MountedSnapshot = EditorSnapshot & {
   readonly name: string;
   readonly saving: boolean;
@@ -77,38 +65,95 @@ export type MountedSnapshot = EditorSnapshot & {
 export interface MountedMethods {
   getSnapshot(): MountedSnapshot;
   subscribe(listener: () => void): () => void;
-  open(document: EditorDocument): Promise<boolean>;
+  open(document: OfficeDocument): Promise<boolean>;
   save(): Promise<SavedDocument>;
   saveAs(name: string): Promise<SavedDocument>;
-  /** Request Chrome's print dialog for the current core PDF; does not confirm saving or printing. */
   print(): Promise<void>;
   close(): Promise<boolean>;
   dispose(): Promise<void>;
   setTheme(theme: Theme): void;
   setLocale(locale: Locale): void;
 }
-export type MountedEditor = MountedMethods &
-  (
-    | ({
-        create(document: { readonly name: string }): Promise<boolean>;
-        open(document: OfficeDocument): Promise<boolean>;
-      } & (
-        | { readonly format: "docx"; readonly editor: DocumentEditor }
-        | { readonly format: "xlsx"; readonly editor: SpreadsheetEditor }
-        | { readonly format: "pptx"; readonly editor: PresentationEditor }
-      ))
-    | { readonly format: "pdf"; readonly editor: PdfEditor }
-  );
-export type EditorFile =
-  | { readonly format: "docx"; readonly editor: DocumentEditor }
-  | { readonly format: "xlsx"; readonly editor: SpreadsheetEditor }
-  | { readonly format: "pptx"; readonly editor: PresentationEditor }
-  | { readonly format: "pdf"; readonly editor: PdfEditor };
-export type OwnedFile = EditorFile & {
+export interface EditorHost {
+  getSnapshot(): EditorSnapshot;
+  subscribe(listener: () => void): () => void;
+  setPaused(paused: boolean): Promise<void>;
+  setZoom(zoom: number): Promise<void>;
+  undo(): Promise<unknown>;
+  redo(): Promise<unknown>;
+  copy(): Promise<void>;
+  focus(): void;
+  markSaved(output: EditorOutput): void;
+  markDownloaded(output: EditorOutput): void;
+  dispose(): Promise<void>;
+}
+export interface ClipboardActions {
+  readonly canCopy: boolean;
+  readonly textMode: boolean;
+  readonly readOnly: boolean;
+  readonly richText?: boolean;
+  cut?(): Promise<void>;
+  paste?(
+    text: string,
+    format: string,
+    mode: "source" | "merge" | "text",
+  ): Promise<void>;
+  pasteClipboard?(): Promise<unknown>;
+}
+export interface OwnedFile<E extends EditorHost = EditorHost> {
+  readonly format: EditorFormat;
+  readonly editor: E;
   readonly surface: HTMLElement;
   readonly inputLimit: number;
+  readonly originalName: string;
+  readonly imported: boolean;
+  readonly draftCanSave: boolean;
+  cancelDraft?(): void;
+  navigate(index: number): Promise<void> | undefined;
+  recover(): Promise<void>;
+  output(kind: string): Promise<EditorOutput>;
+  pageImages?(format: "png" | "jpeg"): Promise<readonly EditorOutput[]>;
+  clipboard(): ClipboardActions;
   dispose(): Promise<void>;
-};
+}
+export interface PanelProps<E extends EditorHost = EditorHost> {
+  controller: EditorController<E>;
+  state: UiSnapshot<E>;
+  file: OwnedFile<E>;
+  disabled: boolean;
+}
+export type PanelSlot =
+  | "edit"
+  | "view"
+  | "pages"
+  | "annotations"
+  | "navigation"
+  | "pages-list"
+  | "properties"
+  | "before-surface"
+  | "after-surface"
+  | "status";
+export interface Product<E extends EditorHost> {
+  readonly format: EditorFormat;
+  readonly canCreate: boolean;
+  readonly delimited: boolean;
+  readonly accept: string;
+  readonly readLabel: boolean;
+  readonly extraTabs: boolean;
+  readonly addressStatus: boolean;
+  readonly editReadOnly: boolean;
+  readonly outputs: readonly {
+    kind: string;
+    label: MessageKey;
+    title?: MessageKey;
+  }[];
+  prepare(
+    document: OfficeDocument,
+    parent: HTMLElement,
+    signal: AbortSignal,
+  ): Promise<OwnedFile<E>>;
+  render(slot: PanelSlot, props: PanelProps<E>): ReactNode;
+}
 export const mime: Record<EditorOutput["format"], string> = {
   png: "image/png",
   jpeg: "image/jpeg",

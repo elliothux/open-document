@@ -1,0 +1,13 @@
+Open Document UI
+
+GenOffice UI design tokens and ribbon behavior inform this implementation.
+Source: genspark-ai/genoffice, revision 5eab98adc8d0ebf6ecea687e42400a791ef58d64.
+Copyright 2026 Mainfunc, Inc. Licensed under Apache-2.0.
+The selected tokens are adapted to an instance-local ShadowRoot and --od-ui-* names.
+Selected clipboard and history glyphs are adapted from apps/slides/src/renderer/components/icons.tsx.
+No GenOffice editor engine or application dependency is included.
+
+React and React DOM 19.3.1: Copyright Meta Platforms, Inc. and affiliates; MIT.
+Base UI 1.9.0: Copyright Material UI SAS; MIT.
+Tailwind CSS 4.3.3: Copyright Tailwind Labs, Inc.; MIT; build-time only.
+Dependency distributions retain their original license files.

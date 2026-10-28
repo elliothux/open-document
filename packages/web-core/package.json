@@ -1,0 +1,25 @@
+{
+  "name": "@open-document/web-core",
+  "version": "0.0.1",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "files": [
+    "src",
+    "dist",
+    "NOTICE",
+    "UNICODE-LICENSE"
+  ],
+  "exports": {
+    "./*": {
+      "types": "./dist/types/*.d.ts",
+      "default": "./dist/*.js"
+    }
+  },
+  "dependencies": {
+    "@open-document/wasm": "0.0.1"
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json"
+  }
+}

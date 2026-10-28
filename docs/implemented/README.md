@@ -16,6 +16,7 @@
 | [P11 XLSX 核心功能](p11-xlsx-core.md) | 五批最低范围：工作簿/结构/格式、常用计算、数据规则、分析绘图与交换打印 |
 | [P12 PPTX 核心功能](p12-pptx-core.md) | 五批最低范围：页面/对象、母版/文本、复合内容、放映媒体与输出 |
 | [R0 通用渲染架构与薄 Renderer](r0-renderer-foundation.md) | DOCX/XLSX/PPTX/PDF Web 接入；有序路径/矩阵/样式与核心指令、共用 Canvas 表面、独立覆盖层与资源身份；其他平台待需求 |
+| [R1 领域拆包与共享 Wasm 加载](r1-domain-packages-shared-wasm.md) | 四格式独立 core/web/react/worker、领域 Bridge、唯一 Wasm、共享 Module 与独立会话 |
 | [G2 测试流水线与 Agent 改进闭环](g2-test-pipeline.md) | 冻结双路径报告、真实文件、受控恢复、独立性能与本地 Docker；不声明远端 CI 或盲测 |
 
 设计和调研不等于产品实现，活动工作见[文档索引](../README.md)。

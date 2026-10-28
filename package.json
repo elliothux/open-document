@@ -9,12 +9,12 @@
   "scripts": {
     "check:moon": "moon run tools/prepare-dependencies.mbtx && moon check --target wasm-gc --deny-warn",
     "build:moon": "moon run tools/prepare-dependencies.mbtx && moon build --target wasm-gc --release --deny-warn",
-    "build": "bun run build:moon && bun run --filter '@open-document/*' build && cp _build/wasm-gc/release/build/open_document/bridge/bridge.wasm packages/wasm/dist/engine.wasm && bun run build:example",
-    "build:example": "bun build examples/web-sdk/app.js --target browser --outdir examples/web-sdk/dist && cp packages/wasm/dist/engine.wasm packages/web/dist/worker.js examples/web-sdk/dist/ && cp -R examples/web-sdk/fonts examples/web-sdk/dist/",
+    "build": "bun run build:moon && moon run tools/build-packages.mbtx && bun run build:example",
+    "build:example": "moon run tools/build-example.mbtx",
     "typecheck": "bun run --filter '@open-document/*' typecheck && tsc --project examples/dev/tsconfig.json",
     "lint": "oxlint --deny-warnings packages examples",
-    "format": "moon fmt && moon fmt tools/prepare-dependencies.mbtx && prettier --write package.json tsconfig.json .oxlintrc.json .vscode packages examples",
-    "format:check": "moon fmt --check && moon fmt --check tools/prepare-dependencies.mbtx && prettier --check package.json tsconfig.json .oxlintrc.json .vscode packages examples",
+    "format": "moon fmt && moon fmt tools/prepare-dependencies.mbtx && moon fmt tools/build-packages.mbtx && moon fmt tools/build-example.mbtx && prettier --write package.json tsconfig.json .oxlintrc.json .vscode packages examples",
+    "format:check": "moon fmt --check && moon fmt --check tools/prepare-dependencies.mbtx && moon fmt --check tools/build-packages.mbtx && moon fmt --check tools/build-example.mbtx && prettier --check package.json tsconfig.json .oxlintrc.json .vscode packages examples",
     "check": "bun run check:moon && bun run typecheck && bun run lint && bun run format:check",
     "test": "test -f test-lab/package.json && cd test-lab && bun run test",
     "hooks:install": "simple-git-hooks",
@@ -37,7 +37,13 @@
     "simple-git-hooks": "2.14.0",
     "tailwindcss": "4.3.3",
     "typescript": "7.0.2",
-    "vite": "8.3.5"
+    "vite": "8.3.5",
+    "@open-document/docx": "workspace:*",
+    "@open-document/xlsx": "workspace:*",
+    "@open-document/pptx": "workspace:*",
+    "@open-document/pdf": "workspace:*",
+    "@open-document/wasm": "workspace:*",
+    "@open-document/web-core": "workspace:*"
   },
   "simple-git-hooks": {
     "pre-commit": "bun run check"

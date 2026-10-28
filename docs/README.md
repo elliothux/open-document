@@ -50,6 +50,7 @@
 | 编号 | 文档 | 当前状态 |
 | --- | --- | --- |
 | R0 | [通用渲染架构与薄 Renderer](implemented/r0-renderer-foundation.md) | `implemented`：DOCX/XLSX/PPTX/PDF Web 接入；有序图元、路径/矩阵/样式、共用 Canvas 表面与独立覆盖层 |
+| R1 | [领域拆包与共享 Wasm 加载](implemented/r1-domain-packages-shared-wasm.md) | `implemented`：四格式独立入口、领域 Bridge、唯一 Wasm、共享编译与独立文档会话 |
 
 ## 测试基础设施
 

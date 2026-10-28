@@ -20,7 +20,7 @@ P0–P9 提供四类文件底座与默认 UI。P10–P12 已完成各自最低 O
 
 ## 文档：DOCX
 
-GenOffice 的主要依据是 [DOCX 引擎导出][d-engine]、[Ribbon][d-ribbon]、[插入][d-insert]、[布局][d-layout]、[引用][d-references]和[文件操作][d-file]。当前项目依据 [P3](implemented/p3-docx-preview.md)、[P4](implemented/p4-docx-editing.md)与 [`FoundationClient`](../packages/web/src/foundation.ts)。
+GenOffice 的主要依据是 [DOCX 引擎导出][d-engine]、[Ribbon][d-ribbon]、[插入][d-insert]、[布局][d-layout]、[引用][d-references]和[文件操作][d-file]。当前项目依据 [P3](implemented/p3-docx-preview.md)、[P4](implemented/p4-docx-editing.md)与 [`FoundationClient`](../packages/docx/src/web/foundation.ts)。
 
 | ID / 功能 | GenOffice 源码中的能力与限制 | 本项目已有与缺口 | 优先级 |
 | --- | --- | --- | --- |
@@ -55,7 +55,7 @@ DOCX 正文及当前文本框的全选已接通同一核心范围、API 与 Ctrl
 
 ## 表格：XLSX
 
-GenOffice 使用 Univer OSS UI/计算能力与自身网关、sidecar 和写回代码。依据 [Ribbon 操作][s-ribbon]、[操作定义][s-dsl]、[操作执行][s-executor]、[表结构操作][s-workbook]、[透视表][s-pivot]和[公式边界用例][s-formulas]。当前项目依据 [P5](implemented/p5-xlsx-editing.md)与 [`XlsxClient`](../packages/web/src/xlsx.ts)。
+GenOffice 使用 Univer OSS UI/计算能力与自身网关、sidecar 和写回代码。依据 [Ribbon 操作][s-ribbon]、[操作定义][s-dsl]、[操作执行][s-executor]、[表结构操作][s-workbook]、[透视表][s-pivot]和[公式边界用例][s-formulas]。当前项目依据 [P5](implemented/p5-xlsx-editing.md)与 [`XlsxClient`](../packages/xlsx/src/web/xlsx.ts)。
 
 | ID / 功能 | GenOffice 源码中的能力与限制 | 本项目已有与缺口 | 优先级 |
 | --- | --- | --- | --- |
@@ -90,7 +90,7 @@ XLSX 的 SIN/COS/TAN、ACOS/ASIN/ATAN/ATAN2、EXP/LN/LOG/LOG10、SINH/COSH/TANH�
 
 ## 演示：PPTX
 
-依据 [幻灯片操作][t-slides]、[对象插入][t-insert]、[对象编辑][t-elements]、[表格][t-tables]、[排列][t-arrange]、[IPC 操作入口][t-ipc]与[放映实现][t-show]。当前项目依据 [P6](implemented/p6-pptx-editing.md)与 [`PptxClient`](../packages/web/src/pptx.ts)。
+依据 [幻灯片操作][t-slides]、[对象插入][t-insert]、[对象编辑][t-elements]、[表格][t-tables]、[排列][t-arrange]、[IPC 操作入口][t-ipc]与[放映实现][t-show]。当前项目依据 [P6](implemented/p6-pptx-editing.md)与 [`PptxClient`](../packages/pptx/src/web/pptx.ts)。
 
 | ID / 功能 | GenOffice 源码中的能力与限制 | 本项目已有与缺口 | 优先级 |
 | --- | --- | --- | --- |
@@ -123,7 +123,7 @@ PPTX 闪电形已接通原生轮廓、凹口命中、文字区域和七个连接
 
 ## PDF
 
-依据 [操作入口][f-ipc]、[编辑操作][f-ops]、[保存与页面操作][f-save]、[文字编辑][f-text]、[图片编辑][f-image]和[阅读界面][f-app]。当前项目依据 [P7](implemented/p7-pdf-input.md)、[P8](implemented/p8-pdf-operations.md)与 [`PdfClient`](../packages/web/src/pdf.ts)。
+依据 [操作入口][f-ipc]、[编辑操作][f-ops]、[保存与页面操作][f-save]、[文字编辑][f-text]、[图片编辑][f-image]和[阅读界面][f-app]。当前项目依据 [P7](implemented/p7-pdf-input.md)、[P8](implemented/p8-pdf-operations.md)与 [`PdfClient`](../packages/pdf/src/web/pdf.ts)。
 
 | ID / 功能 | GenOffice 源码中的能力与限制 | 本项目已有与缺口 | 优先级 |
 | --- | --- | --- | --- |
@@ -154,7 +154,7 @@ PPTX 闪电形已接通原生轮廓、凹口命中、文字区域和七个连接
 
 ## 共同 SDK、UI 与外围能力
 
-GenOffice 是桌面应用组合，不能把其 IPC 或 AI 操作注册表直接当成可嵌入 SDK。Web 包提供按格式划分的 client 和编辑宿主；独立 UI 包接通现有能力。依据 [`packages/web/package.json`](../packages/web/package.json)、[`packages/ui/package.json`](../packages/ui/package.json)、[共享 UI 依赖][c-ui]和[设计变量][c-tokens]。
+GenOffice 是桌面应用组合，不能把其 IPC 或 AI 操作注册表直接当成可嵌入 SDK。领域包提供各自的 client、编辑宿主和 React 面板；公共 UI 包提供共用外壳。依据 [`packages/docx/package.json`](../packages/docx/package.json)、[`packages/ui/package.json`](../packages/ui/package.json)、[共享 UI 依赖][c-ui]和[设计变量][c-tokens]。
 
 | ID / 能力 | 当前差距与交付方式 | 优先级 |
 | --- | --- | --- |

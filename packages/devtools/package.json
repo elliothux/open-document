@@ -12,7 +12,7 @@
     }
   },
   "devDependencies": {
-    "@open-document/ui": "workspace:*"
+    "@open-document/web-core": "0.0.1"
   },
   "peerDependencies": {
     "react": "19.3.1",

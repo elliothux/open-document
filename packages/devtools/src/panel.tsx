@@ -1,7 +1,10 @@
 import { useState, useSyncExternalStore } from "react";
-import type { MountedEditor } from "@open-document/ui";
+import type { EditorSnapshot } from "@open-document/web-core/editor-state";
 
-export type DevToolsSource = Pick<MountedEditor, "getSnapshot" | "subscribe">;
+export interface DevToolsSource {
+  getSnapshot(): EditorSnapshot & { readonly name?: string };
+  subscribe(listener: () => void): () => void;
+}
 
 export function DevToolsPanel({ source }: { source: DevToolsSource }) {
   const snapshot = useSyncExternalStore(source.subscribe, source.getSnapshot);

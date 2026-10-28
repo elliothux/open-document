@@ -1,0 +1,759 @@
+import type { EngineHandle } from "@open-document/wasm";
+import { engineModule } from "@open-document/wasm/loader";
+import type { Operation } from "../worker/protocol.js";
+import { XlsxDataClient } from "./xlsx-data.js";
+export * from "./xlsx-comments.js";
+export {
+  checkXlsxSubtotalSettings,
+  xlsxSubtotals,
+  subtotalFunctions,
+  type XlsxSubtotalSettings,
+  type XlsxSubtotals,
+} from "../core/xlsx.js";
+import { xlsxTimelines } from "../core/xlsx.js";
+export {
+  checkXlsxConsolidateSettings,
+  xlsxConsolidation,
+  consolidateFunctions,
+  type XlsxConsolidateSettings,
+  type XlsxConsolidation,
+} from "../core/xlsx.js";
+export {
+  xlsxTimelines,
+  type XlsxTimeline,
+  checkXlsxTimelineSettings,
+  type XlsxTimelineSettings,
+  type XlsxTimelineRange,
+  type XlsxTimelineEdit,
+  type XlsxTimelineView,
+  type XlsxTimelineGesture,
+  type XlsxAnalysisPreview,
+  type XlsxTimelines,
+} from "../core/xlsx.js";
+import {
+  xlsxSlicers,
+  checkXlsxSlicerSettings,
+  checkXlsxDrawingFrame,
+  type XlsxDrawingFrame,
+  type XlsxSlicerSettings,
+} from "../core/xlsx.js";
+export {
+  xlsxSlicers,
+  checkXlsxSlicerSettings,
+  checkXlsxDrawingFrame,
+} from "../core/xlsx.js";
+export type {
+  XlsxSlicer,
+  XlsxSlicerMember,
+  XlsxSlicers,
+  XlsxSlicerEdit,
+  XlsxSlicerView,
+  XlsxSlicerGesture,
+  XlsxSlicerSettings,
+  XlsxDrawingFrame,
+} from "../core/xlsx.js";
+export {
+  xlsxChartKinds,
+  xlsxCharts,
+  checkXlsxChartSettings,
+  checkXlsxChartFrame,
+} from "../core/xlsx.js";
+export type {
+  XlsxChartSettings,
+  XlsxDrawingClipboard,
+  XlsxChartFrame,
+  XlsxChart,
+  XlsxCharts,
+} from "../core/xlsx.js";
+export { xlsxShapeKinds, checkXlsxShapeSettings } from "../core/xlsx.js";
+export type {
+  XlsxShapeKind,
+  XlsxShapeSettings,
+  XlsxShape,
+  XlsxShapes,
+} from "../core/xlsx.js";
+import { Connection } from "@open-document/web-core/connection";
+import {
+  xlsxDrawingSelection,
+  xlsxDrawingPreview,
+  checkDrawingGesture,
+  type XlsxDrawingGesture,
+} from "../core/xlsx.js";
+export type {
+  XlsxPictureSettings,
+  XlsxPicture,
+  XlsxPictures,
+  XlsxDrawingSelection,
+  XlsxDrawingGesture,
+  XlsxDrawingPreview,
+} from "../core/xlsx.js";
+import {
+  checkXlsxPivotSettings,
+  xlsxPivotPreview,
+  xlsxPivots,
+  type XlsxPivotSettings,
+} from "../core/xlsx.js";
+export {
+  xlsxPivotAggregates,
+  xlsxPivotValueModes,
+  xlsxPivotBaseModes,
+  xlsxPivotCompareModes,
+  xlsxPivotDateUnits,
+  checkXlsxPivotSettings,
+} from "../core/xlsx.js";
+export type {
+  XlsxPivotSettings,
+  XlsxPivotFilter,
+  XlsxPivotNumberGroup,
+  XlsxPivotDateGroup,
+  XlsxPivotValue,
+  XlsxPivotBaseItem,
+  XlsxPivotPreview,
+  XlsxPivots,
+  XlsxPivotEdit,
+} from "../core/xlsx.js";
+import { resetCellClipboard } from "./spreadsheet-clipboard.js";
+export type { XlsxProtection } from "../core/xlsx.js";
+export type {
+  XlsxSparkline,
+  XlsxSparklineKind,
+  XlsxSparklineEdit,
+  XlsxSparklines,
+} from "../core/xlsx.js";
+export type {
+  CopiedCell,
+  CopiedCells,
+  CopiedConditional,
+  CopiedValidation,
+  CopiedHyperlink,
+  CopiedNotes,
+  CopiedSparkline,
+  XlsxPasteMode,
+} from "../core/xlsx.js";
+import {
+  copiedCells,
+  checkXlsxPasteMode,
+  type CopiedCells,
+  type XlsxPasteMode,
+} from "../core/xlsx.js";
+import {
+  xlsxQuery,
+  spreadsheetDate,
+  xlsxFindOptions,
+  xlsxDelimitedOptions,
+  type XlsxDelimitedOptions,
+  xlsxSearchResult,
+  type XlsxFindOptions,
+  type XlsxSearchResult,
+  checkXlsxSheetEdit,
+  type XlsxSheetEdit,
+  type XlsxClearMode,
+  checkXlsxCellFormat,
+  copiedCellFormat,
+  type CopiedCellFormat,
+  type XlsxCellFormat,
+  xlsxViewport,
+  xlsxPrintLayout,
+  xlsxSelection,
+  checkXlsxFillTarget,
+  xlsxFillPreview,
+  type XlsxFillTarget,
+  type XlsxFillPreview,
+  type XlsxQuery,
+  type GridViewport,
+  type XlsxViewport,
+  type PrintOptions,
+  type XlsxPrintLayout,
+  type XlsxSelectionGeometry,
+} from "../core/xlsx.js";
+import { resourceBudget, type Budget } from "@open-document/wasm/abi/session";
+export type { XlsxSheetEdit, XlsxClearMode } from "../core/xlsx.js";
+export type {
+  XlsxOutline,
+  XlsxTable,
+  XlsxTableColumn,
+  XlsxTableEdit,
+  XlsxTableTotal,
+  XlsxTableStyle,
+  XlsxTableStyleElement,
+  XlsxTableStyleChoice,
+  XlsxTableTotalFunction,
+  XlsxOutlineGroup,
+  XlsxOutlineEdit,
+} from "../core/xlsx.js";
+export {
+  checkXlsxTextColumnSettings,
+  xlsxTableStyleRegions,
+} from "../core/xlsx.js";
+export type { XlsxTextColumnType } from "../core/xlsx.js";
+export type { XlsxTextColumnSettings, XlsxTextColumns } from "../core/xlsx.js";
+export type { XlsxFillTarget, XlsxFillPreview } from "../core/xlsx.js";
+export type { XlsxStatistics } from "../core/xlsx.js";
+export type { XlsxDuplicateSettings, XlsxDuplicates } from "../core/xlsx.js";
+export {
+  checkXlsxSheetEdit,
+  checkXlsxHyperlinkTarget,
+  type XlsxHyperlink,
+  type XlsxNote,
+} from "../core/xlsx.js";
+export type { XlsxName, XlsxNames, XlsxNameEdit } from "../core/xlsx.js";
+export type { XlsxSortSettings, XlsxSortKey } from "../core/xlsx.js";
+export type {
+  XlsxFilterValues,
+  XlsxFilterColumn,
+  XlsxFilterCondition,
+  XlsxFilterOperator,
+  XlsxCustomFilter,
+  XlsxRankFilter,
+  XlsxAverageFilter,
+  XlsxDateFilter,
+  XlsxCalendarFilter,
+  XlsxRelativeDateFilter,
+  XlsxColorFilter,
+  XlsxIconFilter,
+  XlsxFilterSettings,
+  XlsxFilterState,
+} from "../core/xlsx.js";
+export { xlsxRelativeDatePeriods, spreadsheetDate } from "../core/xlsx.js";
+export type {
+  XlsxConditionalFormat,
+  XlsxConditionalRank,
+  XlsxConditionalAverage,
+  XlsxConditionalRule,
+  XlsxConditionalState,
+  XlsxConditionalStop,
+  XlsxConditionalThreshold,
+  XlsxDataBar,
+  XlsxIconSet,
+  XlsxIconThreshold,
+} from "../core/xlsx.js";
+export {
+  conditionalThresholds,
+  conditionalDatePeriods,
+  conditionalIconSets,
+} from "../core/xlsx.js";
+export { validationKinds, validationOperators } from "../core/xlsx.js";
+export type { XlsxDataValidation, XlsxValidationState } from "../core/xlsx.js";
+export type {
+  XlsxPrintSetup,
+  XlsxPrintRange,
+  XlsxHeaderFooter,
+  XlsxDelimitedOptions,
+  XlsxFindOptions,
+  XlsxSearchResult,
+} from "../core/xlsx.js";
+export { xlsxNumberFormats, xlsxBorderStyles } from "../core/xlsx.js";
+export type {
+  XlsxCellFormat,
+  XlsxFormatting,
+  XlsxCellBorder,
+  CopiedCellFormat,
+  XlsxSelectionGeometry,
+} from "../core/xlsx.js";
+
+/** Browser workbook transport; one Worker owns the complete core session. */
+export class XlsxClient extends XlsxDataClient {
+  async selectDrawing(
+    revision: number,
+    layout: number,
+    objectId: string | null,
+  ) {
+    return xlsxDrawingSelection(
+      await this.connection.request({
+        operation: "selectDrawingXlsx",
+        revision,
+        layout,
+        objectId,
+      }),
+    );
+  }
+  async drawingGesture(
+    revision: number,
+    layout: number,
+    gesture: XlsxDrawingGesture,
+    profile: Record<string, string>,
+  ) {
+    checkDrawingGesture(gesture);
+    return xlsxDrawingPreview(
+      await this.connection.request({
+        operation: "drawingGestureXlsx",
+        revision,
+        layout,
+        ...gesture,
+        profile,
+      }),
+    );
+  }
+  async pivots(revision: number, sheet: string) {
+    return xlsxPivots(
+      await this.connection.request({
+        operation: "pivotsXlsx",
+        revision,
+        sheet,
+      }),
+    );
+  }
+  async slicers(revision: number, sheet: string) {
+    return xlsxSlicers(
+      await this.connection.request({
+        operation: "slicersXlsx",
+        revision,
+        sheet,
+      }),
+    );
+  }
+  async insertSlicer(
+    revision: number,
+    sheet: string,
+    settings: XlsxSlicerSettings,
+    profile: Record<string, string>,
+  ) {
+    checkXlsxSlicerSettings(settings);
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "insertXlsxSlicer",
+        revision,
+        sheet,
+        settings,
+        profile,
+      }),
+    );
+  }
+  async pivotPreview(
+    revision: number,
+    settings: XlsxPivotSettings,
+    part?: string,
+  ) {
+    checkXlsxPivotSettings(settings);
+    return xlsxPivotPreview(
+      await this.connection.request({
+        operation: "pivotPreviewXlsx",
+        revision,
+        settings,
+        ...(part === undefined ? {} : { part }),
+      }),
+    );
+  }
+  async setSlicerFrame(
+    revision: number,
+    sheet: string,
+    id: string,
+    frame: XlsxDrawingFrame,
+    profile: Record<string, string>,
+  ) {
+    checkXlsxDrawingFrame(frame);
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "frameXlsxSlicer",
+        revision,
+        sheet,
+        objectId: id,
+        frame,
+        profile,
+      }),
+    );
+  }
+  async timelines(revision: number, sheet: string) {
+    return xlsxTimelines(
+      await this.connection.request({
+        operation: "timelinesXlsx",
+        revision,
+        sheet,
+      }),
+    );
+  }
+  async find(
+    revision: number,
+    sheet: string,
+    text: string,
+    options: XlsxFindOptions = {},
+  ): Promise<XlsxSearchResult> {
+    return xlsxSearchResult(
+      await this.connection.request({
+        operation: "findXlsx",
+        revision,
+        sheet,
+        text,
+        options: xlsxFindOptions(options),
+      }),
+    );
+  }
+  async replaceMatches(
+    revision: number,
+    sheet: string,
+    text: string,
+    options: XlsxFindOptions,
+    replacement: string,
+    index?: number,
+  ): Promise<XlsxQuery> {
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "replaceXlsxMatches",
+        revision,
+        sheet,
+        text,
+        options: xlsxFindOptions(options),
+        replacement,
+        index,
+      }),
+    );
+  }
+  async autoFit(
+    revision: number,
+    sheet: string,
+    first: number,
+    last: number,
+    axis: "rows" | "columns",
+    profile: Record<string, string>,
+  ): Promise<XlsxQuery> {
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "autoFitXlsx",
+        revision,
+        sheet,
+        first,
+        last,
+        axis,
+        profile,
+      }),
+    );
+  }
+  async captureFormat(revision: number): Promise<CopiedCellFormat> {
+    return copiedCellFormat(
+      await this.connection.request({
+        operation: "captureXlsxFormat",
+        revision,
+      }),
+    );
+  }
+  async applyFormat(
+    revision: number,
+    format: CopiedCellFormat,
+  ): Promise<XlsxQuery> {
+    copiedCellFormat(format);
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "applyXlsxFormat",
+        revision,
+        format,
+      }),
+    );
+  }
+  async formatCells(
+    revision: number,
+    patch: XlsxCellFormat,
+  ): Promise<XlsxQuery> {
+    checkXlsxCellFormat(patch);
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "formatXlsxCells",
+        revision,
+        patch,
+      }),
+    );
+  }
+  private constructor(connection: Connection<Operation>) {
+    super(connection);
+  }
+
+  static async open(
+    engine: EngineHandle,
+    workerUrl: URL,
+    signal?: AbortSignal,
+  ): Promise<XlsxClient> {
+    const client = new XlsxClient(
+      new Connection<Operation>(new Worker(workerUrl, { type: "module" })),
+    );
+    try {
+      await client.connection.initialize(
+        { operation: "initialize", module: engineModule(engine) },
+        signal,
+      );
+      return client;
+    } catch (error) {
+      client.dispose();
+      throw error;
+    }
+  }
+  async defaultBudget(): Promise<Budget> {
+    return resourceBudget(
+      await this.connection.request({ operation: "budget" }),
+    );
+  }
+  async addFont(bytes: Uint8Array, identity: string): Promise<void> {
+    await this.connection.request({ operation: "font", bytes, identity });
+  }
+  async create(budget: Budget, date?: string): Promise<XlsxQuery> {
+    resetCellClipboard(this);
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "createXlsx",
+        budget,
+        date: spreadsheetDate(date),
+      }),
+    );
+  }
+  async importDelimited(
+    bytes: Uint8Array,
+    delimiter: "," | "\t",
+    budget: Budget,
+    options: XlsxDelimitedOptions = {},
+    date?: string,
+  ): Promise<XlsxQuery> {
+    if (delimiter !== "," && delimiter !== "\t")
+      throw new Error("Invalid delimiter");
+    if (
+      bytes.length > Math.min(budget.fileBytes, budget.retainedBytes, 4194304)
+    )
+      throw new Error("Delimited input exceeds budget");
+    resetCellClipboard(this);
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "importXlsxDelimited",
+        bytes,
+        delimiter,
+        budget,
+        options: xlsxDelimitedOptions(options),
+        date: spreadsheetDate(date),
+      }),
+    );
+  }
+  async exportCsv(revision: number, selection = false): Promise<Uint8Array> {
+    if (typeof selection !== "boolean") throw new Error("Invalid CSV scope");
+    const bytes = await this.connection.request({
+      operation: "exportXlsxCsv",
+      revision,
+      selection,
+    });
+    if (!(bytes instanceof Uint8Array)) throw new Error("Invalid CSV bytes");
+    return bytes;
+  }
+  async openXlsx(
+    bytes: Uint8Array,
+    budget: Budget,
+    date?: string,
+  ): Promise<XlsxQuery> {
+    resetCellClipboard(this);
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "openXlsx",
+        bytes,
+        budget,
+        date: spreadsheetDate(date),
+      }),
+    );
+  }
+  async query(sheet?: string, range?: string): Promise<XlsxQuery> {
+    return xlsxQuery(
+      await this.connection.request({ operation: "queryXlsx", sheet, range }),
+    );
+  }
+  async select(
+    revision: number,
+    sheet: string,
+    range: string,
+  ): Promise<XlsxQuery> {
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "selectXlsx",
+        revision,
+        sheet,
+        range,
+      }),
+    );
+  }
+  async editSheet(
+    revision: number,
+    sheet: string,
+    change: XlsxSheetEdit,
+    date?: string,
+  ): Promise<XlsxQuery> {
+    checkXlsxSheetEdit(change);
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "editXlsxSheet",
+        revision,
+        sheet,
+        change,
+        date: spreadsheetDate(date),
+      }),
+    );
+  }
+  async replace(
+    revision: number,
+    sheet: string,
+    range: string,
+    values: string[][],
+    literal = false,
+    acceptWarnings = false,
+  ): Promise<XlsxQuery> {
+    if (typeof acceptWarnings !== "boolean")
+      throw new Error("Invalid validation warning acceptance");
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "replaceXlsx",
+        revision,
+        sheet,
+        range,
+        values,
+        literal,
+        acceptWarnings,
+      }),
+    );
+  }
+  async undo(revision: number): Promise<XlsxQuery> {
+    return xlsxQuery(
+      await this.connection.request({ operation: "undoXlsx", revision }),
+    );
+  }
+  async redo(revision: number): Promise<XlsxQuery> {
+    return xlsxQuery(
+      await this.connection.request({ operation: "redoXlsx", revision }),
+    );
+  }
+  async save(): Promise<Uint8Array> {
+    const bytes = await this.connection.request({ operation: "saveXlsx" });
+    if (!(bytes instanceof Uint8Array))
+      throw new Error("Invalid workbook bytes");
+    return bytes;
+  }
+  dispose(): void {
+    this.connection.dispose();
+  }
+  async viewport(options: GridViewport): Promise<XlsxViewport> {
+    return xlsxViewport(
+      await this.connection.request({ operation: "viewportXlsx", ...options }),
+    );
+  }
+  async hit(layoutId: number, x: number, y: number): Promise<string> {
+    const value = await this.connection.request({
+      operation: "hitXlsx",
+      layoutId,
+      x,
+      y,
+    });
+    if (typeof value !== "string" || !/^[A-Z]{1,3}[1-9][0-9]{0,6}$/.test(value))
+      throw new Error("Invalid grid hit");
+    return value;
+  }
+  async selectionGeometry(layoutId: number): Promise<XlsxSelectionGeometry> {
+    return xlsxSelection(
+      await this.connection.request({ operation: "selectionXlsx", layoutId }),
+    );
+  }
+  async fillPreview(
+    layoutId: number,
+    target: XlsxFillTarget,
+  ): Promise<XlsxFillPreview> {
+    checkXlsxFillTarget(target);
+    return xlsxFillPreview(
+      await this.connection.request({
+        operation: "fillPreviewXlsx",
+        layoutId,
+        target,
+      }),
+    );
+  }
+  async navigate(
+    revision: number,
+    direction: "left" | "right" | "up" | "down" | "home",
+    extend = false,
+  ): Promise<XlsxQuery> {
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "navigateXlsx",
+        revision,
+        direction,
+        extend,
+      }),
+    );
+  }
+  async copy(revision: number): Promise<string> {
+    const value = await this.connection.request({
+      operation: "copyXlsx",
+      revision,
+    });
+    if (typeof value !== "string" || value.length > 1048576)
+      throw new Error("Invalid clipboard text");
+    return value;
+  }
+  async captureCells(revision: number): Promise<CopiedCells> {
+    return copiedCells(
+      await this.connection.request({
+        operation: "captureXlsxCells",
+        revision,
+      }),
+    );
+  }
+  async pasteCells(
+    revision: number,
+    copied: CopiedCells,
+    mode: XlsxPasteMode = "all",
+    transpose = false,
+    acceptWarnings = false,
+  ): Promise<XlsxQuery> {
+    copiedCells(copied);
+    checkXlsxPasteMode(mode);
+    if (typeof transpose !== "boolean" || typeof acceptWarnings !== "boolean")
+      throw new Error("Invalid cell paste options");
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "pasteXlsxCells",
+        revision,
+        copied,
+        mode,
+        transpose,
+        acceptWarnings,
+      }),
+    );
+  }
+  async paste(
+    revision: number,
+    text: string,
+    acceptWarnings = false,
+  ): Promise<XlsxQuery> {
+    if (typeof acceptWarnings !== "boolean")
+      throw new Error("Invalid validation warning acceptance");
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "pasteXlsx",
+        revision,
+        text,
+        acceptWarnings,
+      }),
+    );
+  }
+  async clear(
+    revision: number,
+    mode: XlsxClearMode = "contents",
+  ): Promise<XlsxQuery> {
+    return xlsxQuery(
+      await this.connection.request({ operation: "clearXlsx", revision, mode }),
+    );
+  }
+  async printLayout(
+    revision: number,
+    sheet: string,
+    options: PrintOptions | null,
+    profile: Record<string, string>,
+  ): Promise<XlsxPrintLayout> {
+    return xlsxPrintLayout(
+      await this.connection.request({
+        operation: "printXlsx",
+        revision,
+        sheet,
+        options,
+        profile,
+      }),
+    );
+  }
+  async exportPdf(layoutId: number, outputBytes: number): Promise<Uint8Array> {
+    const bytes = await this.connection.request({
+      operation: "exportXlsxPdf",
+      layoutId,
+      outputBytes,
+    });
+    if (!(bytes instanceof Uint8Array)) throw new Error("Invalid PDF bytes");
+    return bytes;
+  }
+}

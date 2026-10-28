@@ -1,0 +1,39 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/async@0.22.4/fs",
+}
+
+///|
+async fn main {
+  if @fs.exists("examples/web-sdk/dist") {
+    @shell.Cmd("find", ["examples/web-sdk/dist", "-depth", "-delete"])
+    .output()
+    .check()
+  }
+  @shell.Cmd("bun", [
+    "build", "examples/web-sdk/app.js", "--target", "browser", "--splitting", "--format",
+    "esm", "--outdir", "examples/web-sdk/dist",
+  ])
+  .output()
+  .check()
+  @shell.Cmd("cp", [
+    "packages/wasm/dist/engine.wasm", "examples/web-sdk/dist/engine.wasm",
+  ])
+  .output()
+  .check()
+  for name in ["docx", "xlsx", "pptx", "pdf"] {
+    @shell.Cmd("cp", [
+      "packages/" + name + "/dist/worker/index.js",
+      "examples/web-sdk/dist/" + name + "-worker.js",
+    ])
+    .output()
+    .check()
+  }
+  @shell.Cmd("cp", [
+    "-R", "examples/web-sdk/fonts", "examples/web-sdk/dist/fonts",
+  ])
+  .output()
+  .check()
+}

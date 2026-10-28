@@ -1,0 +1,63 @@
+{
+  "name": "@open-document/pptx",
+  "version": "0.0.1",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "files": [
+    "src",
+    "dist",
+    "NOTICE",
+    "UNICODE-LICENSE"
+  ],
+  "exports": {
+    "./core": {
+      "types": "./dist/types/core/index.d.ts",
+      "default": "./dist/core/index.js"
+    },
+    "./core/*": {
+      "types": "./dist/types/core/*.d.ts",
+      "default": "./dist/core/*.js"
+    },
+    "./web": {
+      "types": "./dist/types/web/index.d.ts",
+      "default": "./dist/web/index.js"
+    },
+    "./web/*": {
+      "types": "./dist/types/web/*.d.ts",
+      "default": "./dist/web/*.js"
+    },
+    "./react": {
+      "types": "./dist/types/react/index.d.ts",
+      "default": "./dist/react/index.js"
+    },
+    "./react/*": {
+      "types": "./dist/types/react/*.d.ts",
+      "default": "./dist/react/*.js"
+    },
+    "./worker": "./dist/worker/index.js"
+  },
+  "dependencies": {
+    "@open-document/wasm": "0.0.1",
+    "@open-document/web-core": "0.0.1"
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json"
+  },
+  "peerDependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "@open-document/ui": "0.0.1"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "@open-document/ui": {
+      "optional": true
+    }
+  }
+}

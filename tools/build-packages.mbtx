@@ -1,0 +1,110 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/x@0.5.5/crypto",
+}
+
+///|
+async fn main {
+  for name in ["wasm", "web-core", "ui", "docx", "xlsx", "pptx", "pdf"] {
+    if @fs.exists("packages/" + name + "/dist") {
+      @shell.Cmd("find", ["packages/" + name + "/dist", "-depth", "-delete"])
+      .output()
+      .check()
+    }
+  }
+  let wasm = @fs.read_file(
+    "_build/wasm-gc/release/build/open_document/bridge/all/all.wasm",
+  ).binary()
+  let identity = StringBuilder()
+  for byte in @crypto.sha256(wasm) {
+    identity.write_string(byte.to_int().to_string(radix=16).pad_start(2, '0'))
+  }
+  @shell.Cmd("mkdir", ["-p", "packages/wasm/dist"]).output().check()
+  @fs.write_file("packages/wasm/dist/engine.wasm", wasm)
+  @fs.write_file(
+    "packages/wasm/dist/engine-source.js",
+    "export const engineBuildId = \"" + identity.to_string() + "\";\n",
+  )
+  @fs.write_file(
+    "packages/wasm/dist/engine-source.d.ts", "export declare const engineBuildId: string;\n",
+  )
+  @shell.Cmd("bun", [
+    "x", "tailwindcss", "-i", "packages/ui/src/styles/ui.css", "-o", "packages/ui/dist/styles.css",
+    "--minify",
+  ])
+  .output()
+  .check()
+  @fs.write_file(
+    "packages/ui/dist/styles.js",
+    "export default " +
+    Json(@fs.read_file("packages/ui/dist/styles.css").text()).stringify() +
+    ";\n",
+  )
+  @fs.write_file(
+    "packages/ui/dist/styles.d.ts", "declare const css: string;\nexport default css;\n",
+  )
+  for name in ["wasm", "web-core", "ui", "docx", "xlsx", "pptx", "pdf"] {
+    let root = "packages/" + name
+    let files : Array[String] = []
+    @fs.walk(root + "/src", (directory, entries) => {
+      for entry in entries {
+        if (entry.has_suffix(".ts") || entry.has_suffix(".tsx")) &&
+          !entry.has_suffix(".d.ts") {
+          files.push(directory + "/" + entry)
+        }
+      }
+    })
+    guard files.length() > 0 else { fail("Package has no source: " + name) }
+    @shell.Cmd(
+      "bun",
+      [
+        "build",
+        ..files,
+        "--no-bundle",
+        "--target",
+        "browser",
+        "--root",
+        root + "/src",
+        "--outdir",
+        root + "/dist",
+      ],
+    )
+    .output()
+    .check()
+    if ["docx", "xlsx", "pptx", "pdf"].contains(name) {
+      @shell.Cmd("bun", [
+        "build",
+        root + "/src/worker/index.ts",
+        "--target",
+        "browser",
+        "--outfile",
+        root + "/dist/worker/index.js",
+      ])
+      .output()
+      .check()
+    }
+    @shell.Cmd("bun", [
+      "x",
+      "tsc",
+      "--project",
+      root + "/tsconfig.json",
+      "--declaration",
+      "--emitDeclarationOnly",
+      "--noEmit",
+      "false",
+      "--rootDir",
+      root + "/src",
+      "--outDir",
+      root + "/dist/types",
+    ])
+    .output()
+    .check()
+    @shell.Cmd("cp", ["LICENSE", root + "/dist/LICENSE"]).output().check()
+  }
+  @shell.Cmd("bun", ["run", "--cwd", "packages/devtools", "build"])
+  .output()
+  .check()
+}

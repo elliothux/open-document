@@ -6,7 +6,13 @@
       "name": "open-document",
       "devDependencies": {
         "@open-document/devtools": "workspace:*",
+        "@open-document/docx": "workspace:*",
+        "@open-document/pdf": "workspace:*",
+        "@open-document/pptx": "workspace:*",
         "@open-document/ui": "workspace:*",
+        "@open-document/wasm": "workspace:*",
+        "@open-document/web-core": "workspace:*",
+        "@open-document/xlsx": "workspace:*",
         "@tailwindcss/cli": "4.3.3",
         "@tailwindcss/vite": "4.3.3",
         "@types/node": "24.19.2",
@@ -34,12 +40,67 @@
         "react-dom": "19.3.1",
       },
     },
+    "packages/docx": {
+      "name": "@open-document/docx",
+      "version": "0.0.1",
+      "dependencies": {
+        "@open-document/wasm": "0.0.1",
+        "@open-document/web-core": "0.0.1",
+      },
+      "peerDependencies": {
+        "@open-document/ui": "0.0.1",
+        "react": "19.3.1",
+        "react-dom": "19.3.1",
+      },
+      "optionalPeers": [
+        "@open-document/ui",
+        "react",
+        "react-dom",
+      ],
+    },
+    "packages/pdf": {
+      "name": "@open-document/pdf",
+      "version": "0.0.1",
+      "dependencies": {
+        "@open-document/wasm": "0.0.1",
+        "@open-document/web-core": "0.0.1",
+      },
+      "peerDependencies": {
+        "@open-document/ui": "0.0.1",
+        "react": "19.3.1",
+        "react-dom": "19.3.1",
+      },
+      "optionalPeers": [
+        "@open-document/ui",
+        "react",
+        "react-dom",
+      ],
+    },
+    "packages/pptx": {
+      "name": "@open-document/pptx",
+      "version": "0.0.1",
+      "dependencies": {
+        "@open-document/wasm": "0.0.1",
+        "@open-document/web-core": "0.0.1",
+      },
+      "peerDependencies": {
+        "@open-document/ui": "0.0.1",
+        "react": "19.3.1",
+        "react-dom": "19.3.1",
+      },
+      "optionalPeers": [
+        "@open-document/ui",
+        "react",
+        "react-dom",
+      ],
+    },
     "packages/ui": {
       "name": "@open-document/ui",
       "version": "0.0.1",
       "dependencies": {
         "@base-ui/react": "1.9.0",
-        "@open-document/web": "workspace:*",
+        "@open-document/wasm": "0.0.1",
+        "@open-document/web-core": "0.0.1",
       },
       "peerDependencies": {
         "react": "19.3.1",
@@ -50,12 +111,30 @@
       "name": "@open-document/wasm",
       "version": "0.0.1",
     },
-    "packages/web": {
-      "name": "@open-document/web",
+    "packages/web-core": {
+      "name": "@open-document/web-core",
       "version": "0.0.1",
       "dependencies": {
-        "@open-document/wasm": "workspace:*",
+        "@open-document/wasm": "0.0.1",
       },
+    },
+    "packages/xlsx": {
+      "name": "@open-document/xlsx",
+      "version": "0.0.1",
+      "dependencies": {
+        "@open-document/wasm": "0.0.1",
+        "@open-document/web-core": "0.0.1",
+      },
+      "peerDependencies": {
+        "@open-document/ui": "0.0.1",
+        "react": "19.3.1",
+        "react-dom": "19.3.1",
+      },
+      "optionalPeers": [
+        "@open-document/ui",
+        "react",
+        "react-dom",
+      ],
     },
   },
   "packages": {
@@ -85,11 +164,19 @@
 
     "@open-document/devtools": ["@open-document/devtools@workspace:packages/devtools"],
 
+    "@open-document/docx": ["@open-document/docx@workspace:packages/docx"],
+
+    "@open-document/pdf": ["@open-document/pdf@workspace:packages/pdf"],
+
+    "@open-document/pptx": ["@open-document/pptx@workspace:packages/pptx"],
+
     "@open-document/ui": ["@open-document/ui@workspace:packages/ui"],
 
     "@open-document/wasm": ["@open-document/wasm@workspace:packages/wasm"],
 
-    "@open-document/web": ["@open-document/web@workspace:packages/web"],
+    "@open-document/web-core": ["@open-document/web-core@workspace:packages/web-core"],
+
+    "@open-document/xlsx": ["@open-document/xlsx@workspace:packages/xlsx"],
 
     "@oxc-project/types": ["@oxc-project/types@0.155.0", "", {}, "sha512-SeE8JPwW1xs1tHeNycjUtUBdhorRa8o4jlvjwk49R7/Z291i+4DQa7JJIgOm/TaYQZx+QrPQbVJ/9c8dMIZN8Q=="],
 

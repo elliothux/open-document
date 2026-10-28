@@ -1,4 +1,4 @@
-import type { ChartSettings } from "@open-document/web/foundation";
+import type { ChartSettings } from "@open-document/wasm/abi/chart";
 import type { ReactNode } from "react";
 import type { messages } from "./messages.js";
 export const initialChart: ChartSettings = {

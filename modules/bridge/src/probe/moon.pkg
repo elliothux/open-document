@@ -1,0 +1,13 @@
+import {
+  "open_document/core/text",
+}
+
+options(
+  link: {
+    "wasm-gc": {
+      "exports": [ "open_text", "read_text", "replace_text", "undo", "close" ],
+      "use-js-builtin-string": true,
+      "imported-string-constants": "_",
+    },
+  },
+)

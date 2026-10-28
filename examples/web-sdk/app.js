@@ -1,7 +1,22 @@
-import { mountEditor } from "@open-document/ui";
-import { previewFonts } from "./fonts.js";
+import { loadEngine } from "@open-document/wasm";
+import { engineBuildId } from "@open-document/wasm/engine-source";
 
-export { mountEditor };
+export async function mountEditor(container, options) {
+  const { format } = options;
+  const module =
+    format === "docx"
+      ? await import("@open-document/docx/react")
+      : format === "xlsx"
+        ? await import("@open-document/xlsx/react")
+        : format === "pptx"
+          ? await import("@open-document/pptx/react")
+          : format === "pdf"
+            ? await import("@open-document/pdf/react")
+            : undefined;
+  if (!module) throw new Error("Unknown document format");
+  return module.mountEditor(container, options);
+}
+import { previewFonts } from "./fonts.js";
 
 const form = document.querySelector("#open-form");
 const status = document.querySelector("#host-status");
@@ -36,21 +51,18 @@ form.addEventListener("submit", async (event) => {
       overrides,
     );
     // Bundled substitutes are host resources; document font declarations remain unchanged.
-    const version = Date.now().toString();
-    const wasmUrl = new URL("./engine.wasm", import.meta.url);
-    wasmUrl.searchParams.set("v", version);
-    const wasm = await (
-      await fetch(wasmUrl, { cache: "no-store" })
-    ).arrayBuffer();
-    const workerUrl = new URL("./worker.js", import.meta.url);
-    workerUrl.searchParams.set("v", version);
+    const engine = await loadEngine({
+      url: new URL("./engine.wasm", import.meta.url),
+      build: engineBuildId,
+    });
+    const workerUrl = new URL(`./${format}-worker.js`, import.meta.url);
     mounted = await mountEditor(document.querySelector("#editor"), {
       format,
       document: {
         name: file.name,
         bytes: new Uint8Array(await file.arrayBuffer()),
       },
-      resources: { wasm, workerUrl, fonts, profile },
+      resources: { engine, workerUrl, fonts, profile },
       locale: "en-US",
       ...(directory
         ? {
@@ -91,3 +103,10 @@ document.querySelector("#close").addEventListener("click", async () => {
     status.textContent = String(error);
   }
 });
+
+export function loadSharedEngine() {
+  return loadEngine({
+    url: new URL("./engine.wasm", import.meta.url),
+    build: engineBuildId,
+  });
+}

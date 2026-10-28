@@ -1,0 +1,34 @@
+import {
+  "open_document/bridge/docx",
+  "open_document/bridge/xlsx",
+  "open_document/bridge/pptx",
+  "open_document/bridge/pdf",
+}
+
+options(
+  link: {
+    "wasm-gc": {
+      "exports": [
+        "abi_version",
+        "docx_new",
+        "docx_call",
+        "docx_add_font",
+        "docx_close",
+        "xlsx_new",
+        "xlsx_call",
+        "xlsx_add_font",
+        "xlsx_close",
+        "pptx_new",
+        "pptx_call",
+        "pptx_add_font",
+        "pptx_close",
+        "pdf_new",
+        "pdf_call",
+        "pdf_add_font",
+        "pdf_close",
+      ],
+      "use-js-builtin-string": true,
+      "imported-string-constants": "_",
+    },
+  },
+)

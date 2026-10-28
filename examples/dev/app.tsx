@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { EditorOptions, MountedEditor } from "@open-document/ui";
+import type { EditorOptions, MountedEditor } from "./formats.js";
 import { EditorHost } from "./editor-host.js";
 import { previewResources } from "./resources.js";
 
@@ -70,7 +70,7 @@ export function App() {
         await editor.open(document);
         return;
       }
-      const resources = await previewResources();
+      const resources = await previewResources(format);
       if (editor && !(await editor.close())) return;
       setOptions({
         format,

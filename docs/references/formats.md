@@ -28,7 +28,7 @@ DOCX 文字区段的实际宽度和后续起点按固定 LibreOffice 的整数 t
 
 ## 默认 UI 与编辑宿主
 
-`@open-document/ui` 的 `mountEditor(container, options)` 挂载 DOCX、XLSX、PPTX 或 PDF 默认 UI。`container` 由宿主提供可测量的高度。`options.format` 区分格式；`document` 为 `{ name, bytes }`，`resources` 明确提供 `{ wasm, workerUrl, fonts, profile }`，可传对应 `budget`、`theme: "light" | "dark"`、`locale: "zh-CN" | "en-US"`、异步 `onSave`、初始 `signal` 和 `styleNonce`。接入代码与普通 JS 示例归[开发说明](development.md#默认-web-ui)。
+各领域的 `@open-document/<format>/react` 提供 `mountEditor(container, options)`，分别挂载 DOCX、XLSX、PPTX 或 PDF 默认 UI。`container` 由宿主提供可测量的高度。格式由入口确定；`document` 为 `{ name, bytes }`，`resources` 明确提供 `{ engine, workerUrl, fonts, profile }`，可传对应 `budget`、`theme: "light" | "dark"`、`locale: "zh-CN" | "en-US"`、异步 `onSave`、初始 `signal` 和 `styleNonce`。接入代码与普通 JS 示例归[开发说明](development.md#默认-web-ui)。
 
 DOCX、XLSX、PPTX 也接受 `document: { name, blank: true }`，`OfficeDocument` 类型排除同时传入 `bytes`。包与模板由各自 MoonBit 格式模块生成，继续使用现有输入、包与输出预算；字体仍由宿主显式提供。DOCX 的 `FoundationSession/Client.createDocx(budget)` 使用 Letter 页面、一英寸边距、11 pt Times New Roman 和一个空段落。XLSX/PPTX 的具体入口和默认值归下文各格式合同。PDF 仍要求已有文件字节。
 
@@ -72,7 +72,7 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 
 ## 会话与宿主
 
-`(await loadEngine(bytes)).openFoundation()` 创建同步 `FoundationSession`；浏览器使用 `FoundationClient.open(wasm, workerUrl)`，每会话独占 Worker，一次只允许一个请求。`dispose()` 终止 Worker，取消等待中的请求；同步 Wasm 调用本身不支持抢占取消。创建失败、非法打开或替换失败后可以继续使用未提交的会话；成功打开的会话只拥有一个 DOCX。
+`openDocx(engine)` 创建同步 `FoundationSession`；浏览器使用 `FoundationClient.open(engine, workerUrl)`，每会话独占 Worker，一次只允许一个请求。`dispose()` 终止 Worker，取消等待中的请求；同步 Wasm 调用本身不支持抢占取消。创建失败、非法打开或替换失败后可以继续使用未提交的会话；成功打开的会话只拥有一个 DOCX。
 
 `defaultBudget()` 从 MoonBit 返回默认值；打开时必须显式传 `Budget`，可以收紧。`openDocx`/`query` 返回派生快照，修改快照不会改变文档；`replaceNode(id, revision, text)` 按已查询的文字、内联控制或图片片段写入文字，与逻辑范围命令共用校验、提交与历史，ID 在该会话内稳定。它保留相邻未知结构，并保留合法 XML 文本中的 CR 等字符，不赋予该段落可视编辑能力。成功内容变化增加 revision；无变化不增加。`saveDocx()` 返回新字节，不改宿主输入、不清空历史。保存失败可能留下已核验的读取缓存，但不提交编辑或输出。`close()`/`dispose()` 释放核心/宿主引用，后续访问报错。
 
@@ -92,7 +92,7 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 
 `deleteDocx(revision, direction)` 的方向为 `backward` / `forward`。已有范围整体删除；折叠选区按逻辑前/后扩展字素删除，复用范围事务和历史。组合符与 surrogate 不拆开。段首 Backspace/段尾 Delete 可合并同一正文或单元格内的相邻普通段落；文档首尾保持 revision、源和历史不变。折叠光标越过单元格边界、跨表格或受保护内容时报 `protected-content`；已有整格选区的清空归[跨格内容输入与清空](#跨格内容输入与清空)。
 
-`selectAllDocx(revision)` 返回普通 `EditState`；`DocumentEditor.selectAll()` 使用同一核心命令。正文位置（含单元格）全选主文档正文，文本框位置只全选当前文本框；无选区时选择正文。范围保留首尾空段落、逻辑对象占位和 UTF-16 端点，不把嵌套文本框文字并入正文。全选结束连续输入分组，重置待输入格式与纵向导航目标，只改选区，不改源、revision、历史或重做分支。默认文档原生输入区域的 Ctrl/Cmd+A 使用该命令，保留当前显示页；组合期间和不可用状态不发送全选，面板输入框与 PPTX 沿各自路径。旧 revision、活动候选/手势、关闭会话及受保护端点保持原子失败；全选继续使用既有范围复制与修改保护。页眉页脚及注释正文沿各自独立入口。实现归 [selection-all.mbt](../../modules/formats/src/docx/selection-all.mbt)和 [text-input.ts](../../packages/web/src/text-input.ts)，依据 [ONLYOFFICE 文档全选](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L8099-L8148)、[正文端点](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L21753-L21775)及[文本故事](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/DocumentContent.js#L7003-L7031)，未复制上游执行代码。
+`selectAllDocx(revision)` 返回普通 `EditState`；`DocumentEditor.selectAll()` 使用同一核心命令。正文位置（含单元格）全选主文档正文，文本框位置只全选当前文本框；无选区时选择正文。范围保留首尾空段落、逻辑对象占位和 UTF-16 端点，不把嵌套文本框文字并入正文。全选结束连续输入分组，重置待输入格式与纵向导航目标，只改选区，不改源、revision、历史或重做分支。默认文档原生输入区域的 Ctrl/Cmd+A 使用该命令，保留当前显示页；组合期间和不可用状态不发送全选，面板输入框与 PPTX 沿各自路径。旧 revision、活动候选/手势、关闭会话及受保护端点保持原子失败；全选继续使用既有范围复制与修改保护。页眉页脚及注释正文沿各自独立入口。实现归 [selection-all.mbt](../../modules/formats/src/docx/selection-all.mbt)和 [text-input.ts](../../packages/web-core/src/text-input.ts)，依据 [ONLYOFFICE 文档全选](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L8099-L8148)、[正文端点](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L21753-L21775)及[文本故事](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/DocumentContent.js#L7003-L7031)，未复制上游执行代码。
 
 `editState()` 返回 revision、选区、撤销/重做可用性、历史容量与受影响段落；`selectDocx(revision, selection)` 仅更新选区。`replaceRange(revision, selection, text, inputGroup?)` 可跨 run，以及同一正文或单元格中连续的普通段落；`undoDocx(revision)` / `redoDocx(revision)` 恢复内容和选区，revision 继续单调增加。`selection` 保留 anchor/focus，每个位置包含稳定 paragraph ID、段落 UTF-16 offset 与 `before` / `after` affinity；范围按 XML 顺序排序，起点 affinity 决定 run 边界的插入格式。所有命令由 MoonBit 验证，TS 只转发和校验响应。
 
@@ -238,7 +238,7 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 默认编辑栏提供 50 项常用 Unicode 标点、数学符号、货币、箭头、形状和圈号选择。选择后点击插入，沿 `DocumentEditor.paste(symbol)` 替换当前范围或在光标插入；对应同步/Worker 核心操作仍为既有 `replaceRange`。字符保存在普通 `w:t`，继承当前位置的字符和段落格式，保留非目标源。字体与缺字处理沿宿主提供的字体 profile 和既有回退。每次插入产生一项精确历史，并把焦点交还原生输入；后续键入保留原生编辑行为。组合输入、暂停、只读或格式保护状态沿现有控件和核心保护禁用。保存、语义文字、Canvas/PDF 和重开使用共同核心文字路径。OMML 读取、编辑和排版归[数学合同](#docx-嵌套行内数学)；专用符号字体与旧式 `w:sym` 编辑归 [P14](roadmap.md#p14-兼容与性能)。
 
-控件归 [`docx-symbols.tsx`](../../packages/ui/src/docx-symbols.tsx)，接入既有编辑栏和中英文文案。功能目录来自 [GenOffice 常用符号](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/apps/docs/src/renderer/components/ribbon-insert-tab.tsx#L63-L114)，Unicode 插入与字体语义参考 [ONLYOFFICE 符号插入](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/apiBase.js#L3718-L3752)。当前操作复用原核心格式与输入事务，未新增符号模型、桥命令、协议或依赖。
+控件归 [`docx-symbols.tsx`](../../packages/docx/src/react/docx-symbols.tsx)，接入既有编辑栏和中英文文案。功能目录来自 [GenOffice 常用符号](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/apps/docs/src/renderer/components/ribbon-insert-tab.tsx#L63-L114)，Unicode 插入与字体语义参考 [ONLYOFFICE 符号插入](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/apiBase.js#L3718-L3752)。当前操作复用原核心格式与输入事务，未新增符号模型、桥命令、协议或依赖。
 
 ### DOCX 行内分数
 
@@ -268,7 +268,7 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 段内文字及换段复用 [`body-field-input.mbt`](../../modules/formats/src/docx/body-field-input.mbt)，源结构参照 [ONLYOFFICE Paragraph.Split](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L13838-L13881)及 [ParaMath.Split](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Math.js#L3001-L3034)。当前仅开放公式两侧及整体操作，公式内部通过分数面板编辑。
 
-编辑归 [`math-edit.mbt`](../../modules/formats/src/docx/math-edit.mbt)，接口校验归 [`docx-math.ts`](../../packages/wasm/src/docx-math.ts)，默认面板归 [`docx-math.tsx`](../../packages/ui/src/docx-math.tsx)。
+编辑归 [`math-edit.mbt`](../../modules/formats/src/docx/math-edit.mbt)，接口校验归 [`docx-math.ts`](../../packages/docx/src/core/docx-math.ts)，默认面板归 [`docx-math.tsx`](../../packages/docx/src/react/docx-math.tsx)。
 
 读取归 [`math-read.mbt`](../../modules/formats/src/docx/math-read.mbt)及 [`math-run.mbt`](../../modules/formats/src/docx/math-run.mbt)，布局归 [`layout/math-fraction.mbt`](../../modules/layout/src/math-fraction.mbt)。数学轴参考 [ONLYOFFICE Math.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Math.js#L2520-L2525)，参数缩放、间距及横线规则参考 [fraction.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/fraction.js#L352-L459)和[分子分母间距](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/fraction.js#L821-L909)。私有测试使用带完整许可的 DejaVu Math 字体，公开构建不依赖私有资源。
 
@@ -300,7 +300,7 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 模型为 `EquationArray(baseAlignment, rows)`，flow 为 `{kind:"equationArray", baseAlignment, rows}`；各行是表达式或 `null` 的数组。最多 64 行、每行 64 段，并沿整个公式的深度 16、256 节点和 4096 个文字单元预算检查，空段计入节点预算。语义及纯文字以分号分隔各行，不输出对齐标记。统一控制外观保存在原生 `ctrlPr`，全空公式也保留字体、字号和颜色。接受默认行距及 maxDist/objDist 的关闭值；自定义间距、局部/混合外观、对齐文字中的字面量 `&` 和未知元数据继续保护。单个包装内的多个 `oMath`、强制软换行及内部字符光标仍待实现。
 
-读取及保护归 [`omml/math-equation-array.mbt`](../../modules/formats/src/internal/omml/math-equation-array.mbt)，LaTeX 复用 [`latex-matrix.mbt`](../../modules/formats/src/internal/omml/latex-matrix.mbt)，原生写回归 [`markup.mbt`](../../modules/formats/src/internal/omml/markup.mbt)，布局归 [`layout/math-equation-array.mbt`](../../modules/layout/src/math-equation-array.mbt)，类型和传输校验归 [`math.ts`](../../packages/wasm/src/math.ts)。定位依据 [ONLYOFFICE EqArray 度量](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/matrix.js#L1429-L1508)及[对齐偏移](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/mathContent.js#L438-L479)。
+读取及保护归 [`omml/math-equation-array.mbt`](../../modules/formats/src/internal/omml/math-equation-array.mbt)，LaTeX 复用 [`latex-matrix.mbt`](../../modules/formats/src/internal/omml/latex-matrix.mbt)，原生写回归 [`markup.mbt`](../../modules/formats/src/internal/omml/markup.mbt)，布局归 [`layout/math-equation-array.mbt`](../../modules/layout/src/math-equation-array.mbt)，类型和传输校验归 [`math.ts`](../../packages/wasm/src/abi/math.ts)。定位依据 [ONLYOFFICE EqArray 度量](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/matrix.js#L1429-L1508)及[对齐偏移](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/mathContent.js#L438-L479)。
 
 ### DOCX LaTeX 公式编辑
 
@@ -334,7 +334,7 @@ LaTeX 源最多 131072 个 UTF-16 单元，语法嵌套最多 64 层；解析结
 
 输入与源保护复用分数的对象路径。原生片段写回归 [`math-markup.mbt`](../../modules/formats/src/docx/math-markup.mbt)，复制仍参考 [ParaMath.Copy](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Math.js#L594-L612)，不在宿主重建数学源。
 
-创建和参数修改复用 [`math-edit.mbt`](../../modules/formats/src/docx/math-edit.mbt) 的候选与历史，分数和脚标共用 [`DocxMath`](../../packages/ui/src/docx-math.tsx) 表单。结构参数及先后顺序按 [Open XML SDK schema](https://github.com/dotnet/Open-XML-SDK/blob/431ab05cf160248cc3885a4a766026d4f8243792/data/schemas/schemas_openxmlformats_org_officeDocument_2006_math.json#L1055-L1190)核对。
+创建和参数修改复用 [`math-edit.mbt`](../../modules/formats/src/docx/math-edit.mbt) 的候选与历史，分数和脚标共用 [`DocxMath`](../../packages/docx/src/react/docx-math.tsx) 表单。结构参数及先后顺序按 [Open XML SDK schema](https://github.com/dotnet/Open-XML-SDK/blob/431ab05cf160248cc3885a4a766026d4f8243792/data/schemas/schemas_openxmlformats_org_officeDocument_2006_math.json#L1055-L1190)核对。
 
 ### DOCX 根式
 
@@ -356,7 +356,7 @@ LaTeX 源最多 131072 个 UTF-16 单元，语法嵌套最多 64 层；解析结
 
 排版围绕数学轴确定括号高度，读取实际字体的 OpenType `MATH` 垂直变体；高度不足时按连接区拼接部件并均匀重复伸展部件。核心把实际字形轮廓转换为既有向量路径，Canvas/PDF 共用。字体须提供对应字形和足够的变体或拼接数据；缺失时原子拒绝。只读取所选字形的数据，不展开完整数学字体表。每字形最多 128 个变体、64 个部件定义，单括号最多拼接 256 个字形且轮廓少于 8192 段，单公式最多 65536 段；路径仍计入段落缓存。当前 PDF 括号以向量绘制，文字提取使用参数文字；完整线性替代文字由语义层提供。
 
-读取与 LaTeX 分隔归 [`docx/math-delimiter.mbt`](../../modules/formats/src/docx/math-delimiter.mbt)，定位归 [`layout/math-delimiter.mbt`](../../modules/layout/src/math-delimiter.mbt)，字体读取及轮廓归 [`math-font-variants.mbt`](../../modules/layout/src/math-font-variants.mbt) 和 [`math-font-outline.mbt`](../../modules/layout/src/math-font-outline.mbt)。数学轴和参数尺寸参考 [ONLYOFFICE operators.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/operators.js#L3546-L3671)，原生结构按 [Open XML SDK](https://github.com/dotnet/Open-XML-SDK/blob/431ab05cf160248cc3885a4a766026d4f8243792/data/schemas/schemas_openxmlformats_org_officeDocument_2006_math.json#L551-L587)核对，字体变体及连接区按 [OpenType MATH](https://learn.microsoft.com/en-us/typography/opentype/spec/math#mathvariants-table)处理。固定大小、其他定位方式、局部数学格式及更多运算结构继续实施。
+读取与 LaTeX 分隔归 [`docx/math-delimiter.mbt`](../../modules/formats/src/internal/omml/math-delimiter.mbt)，定位归 [`layout/math-delimiter.mbt`](../../modules/layout/src/math-delimiter.mbt)，字体读取及轮廓归 [`math-font-variants.mbt`](../../modules/layout/src/math-font-variants.mbt) 和 [`math-font-outline.mbt`](../../modules/layout/src/math-font-outline.mbt)。数学轴和参数尺寸参考 [ONLYOFFICE operators.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/operators.js#L3546-L3671)，原生结构按 [Open XML SDK](https://github.com/dotnet/Open-XML-SDK/blob/431ab05cf160248cc3885a4a766026d4f8243792/data/schemas/schemas_openxmlformats_org_officeDocument_2006_math.json#L551-L587)核对，字体变体及连接区按 [OpenType MATH](https://learn.microsoft.com/en-us/typography/opentype/spec/math#mathvariants-table)处理。固定大小、其他定位方式、局部数学格式及更多运算结构继续实施。
 
 ### DOCX 行内求和与积分
 
@@ -386,7 +386,7 @@ LaTeX 源最多 131072 个 UTF-16 单元，语法嵌套最多 64 层；解析结
 
 矩阵沿统一公式路径完成结构/尺寸修改、整体外观、周边原生输入、整式删除/替换、富文本复制、精确历史和重开；分数/脚标专用目录跳过独立矩阵。字体、布局、语法、行列或结构预算失败保持文档。接受基本对齐、可见占位、默认间距及完整统一控制外观；隐藏占位、自定义间距、局部格式、未知源属性和其他环境明确保护或拒绝。
 
-原生读取及 LaTeX 归 [`docx/math-matrix.mbt`](../../modules/formats/src/docx/math-matrix.mbt)，布局归 [`layout/math-matrix.mbt`](../../modules/layout/src/math-matrix.mbt)，控制外观和递归写回归 [`math-markup.mbt`](../../modules/formats/src/docx/math-markup.mbt)。定位参考 [ONLYOFFICE matrix.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/matrix.js#L361-L518)及[行列度量](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/matrix.js#L660-L715)，环境参考 [LaTeXParser.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/LaTeXParser.js#L1396-L1510)，原生结构按 [Open XML SDK](https://github.com/dotnet/Open-XML-SDK/blob/431ab05cf160248cc3885a4a766026d4f8243792/data/schemas/schemas_openxmlformats_org_officeDocument_2006_math.json#L10012-L10165)核对。
+原生读取及 LaTeX 归 [`docx/math-matrix.mbt`](../../modules/formats/src/internal/omml/math-matrix.mbt)，布局归 [`layout/math-matrix.mbt`](../../modules/layout/src/math-matrix.mbt)，控制外观和递归写回归 [`math-markup.mbt`](../../modules/formats/src/docx/math-markup.mbt)。定位参考 [ONLYOFFICE matrix.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/matrix.js#L361-L518)及[行列度量](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/matrix.js#L660-L715)，环境参考 [LaTeXParser.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/LaTeXParser.js#L1396-L1510)，原生结构按 [Open XML SDK](https://github.com/dotnet/Open-XML-SDK/blob/431ab05cf160248cc3885a4a766026d4f8243792/data/schemas/schemas_openxmlformats_org_officeDocument_2006_math.json#L10012-L10165)核对。
 
 ### 水平标尺
 
@@ -406,7 +406,7 @@ LaTeX 源最多 131072 个 UTF-16 单元，语法嵌套最多 64 层；解析结
 
 默认标尺支持鼠标拖动、松开提交，Escape/指针取消保持原文档。方向键按上述步长移动，Shift 使用 36 pt，Home/End 移向纸张两端；Alt 关闭吸附。制表位可选择五类对齐后点击空白处新增，Delete/Backspace 或拖离标尺删除。制表位排序后键盘焦点跟随被移动项。UI 只保存指针导线，正文重排和源值由核心提交决定。
 
-实现归 [`ruler.mbt`](../../modules/formats/src/docx/ruler.mbt)，入口归 [`document-page.ts`](../../packages/web/src/document-page.ts)和[默认标尺](../../packages/ui/src/docx-ruler.tsx)。参数与事务参考固定 [ONLYOFFICE Rulers.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/Rulers.js#L2245-L2310)；缩进、制表位及页边距仍使用各自已实现的 OOXML 序列化。当前为水平标尺和磅单位；多节标尺页边距、纵向标尺及通过标尺调整表格列边界未实现。
+实现归 [`ruler.mbt`](../../modules/formats/src/docx/ruler.mbt)，入口归 [`document-page.ts`](../../packages/docx/src/web/document-page.ts)和[默认标尺](../../packages/docx/src/react/docx-ruler.tsx)。参数与事务参考固定 [ONLYOFFICE Rulers.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/Rulers.js#L2245-L2310)；缩进、制表位及页边距仍使用各自已实现的 OOXML 序列化。当前为水平标尺和磅单位；多节标尺页边距、纵向标尺及通过标尺调整表格列边界未实现。
 
 ### 导入超链接文字
 
@@ -491,7 +491,7 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 首次创建把 comments、正文标记、主文档关系和内容类型合为一项有界事务。标记不占正文宽度；输入、格式、链接修改及拆段/合段维护范围，范围替换删除中间段落时丢失的端点收缩到替换后光标。与书签共用已有边界拆分及位置计算。其他结构操作若会破坏锚点，则原子拒绝。删除同时移除正文标记和批注正文，最后一条删除后保留空部件及关系。旧修订、活动候选和包/输出/历史预算失败不提交；保存重开及精确混合撤销重做沿原事务。正文查找、排版和默认静态 PDF 不包含批注文字。
 
-标记与正文属性依据 [ONLYOFFICE Annotations.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Logic/Annotations.cpp#L70-L145)、[RunContent.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Logic/RunContent.cpp#L752-L803)及 [Comments.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Comments.cpp#L281-L291)；跨段端点参考 [Document.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L22584-L22616)。线程格式依据 [Comments.cpp 的扩展属性](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Comments.cpp#L420-L433)、[ReaderClasses.cpp 的末段身份与父关系](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Document/BinReader/ReaderClasses.cpp#L659-L748)及 [BinaryWriterD.cpp 的回复映射](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Document/BinWriter/BinaryWriterD.cpp#L8692-L8738)。高亮与命中参考 [Comments.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Comments.js#L923-L953)及[标记绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Comments.js#L1383-L1421)。未复制上游源码。实现归 [`comments-read.mbt`](../../modules/formats/src/docx/comments-read.mbt)、[`comments-edit.mbt`](../../modules/formats/src/docx/comments-edit.mbt)、[`comments-threads.mbt`](../../modules/formats/src/docx/comments-threads.mbt)、[`comments-range.mbt`](../../modules/formats/src/docx/comments-range.mbt)、[`comments-layout.mbt`](../../modules/formats/src/docx/comments-layout.mbt)及 [`docx-comments.tsx`](../../packages/ui/src/docx-comments.tsx)。其他现代批注兼容归 [P14](roadmap.md#p14-兼容与性能)。
+标记与正文属性依据 [ONLYOFFICE Annotations.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Logic/Annotations.cpp#L70-L145)、[RunContent.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Logic/RunContent.cpp#L752-L803)及 [Comments.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Comments.cpp#L281-L291)；跨段端点参考 [Document.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L22584-L22616)。线程格式依据 [Comments.cpp 的扩展属性](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Comments.cpp#L420-L433)、[ReaderClasses.cpp 的末段身份与父关系](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Document/BinReader/ReaderClasses.cpp#L659-L748)及 [BinaryWriterD.cpp 的回复映射](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Document/BinWriter/BinaryWriterD.cpp#L8692-L8738)。高亮与命中参考 [Comments.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Comments.js#L923-L953)及[标记绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Comments.js#L1383-L1421)。未复制上游源码。实现归 [`comments-read.mbt`](../../modules/formats/src/docx/comments-read.mbt)、[`comments-edit.mbt`](../../modules/formats/src/docx/comments-edit.mbt)、[`comments-threads.mbt`](../../modules/formats/src/docx/comments-threads.mbt)、[`comments-range.mbt`](../../modules/formats/src/docx/comments-range.mbt)、[`comments-layout.mbt`](../../modules/formats/src/docx/comments-layout.mbt)及 [`docx-comments.tsx`](../../packages/docx/src/react/docx-comments.tsx)。其他现代批注兼容归 [P14](roadmap.md#p14-兼容与性能)。
 
 ### DOCX 修订审阅
 
@@ -539,7 +539,7 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 实现归 [revision-cell-format.mbt](../../modules/formats/src/docx/revision-cell-format.mbt)与表/行/格共用的 [tracking-table-format.mbt](../../modules/formats/src/docx/tracking-table-format.mbt)。快照、普通行限制及所属表格记录依据 [ONLYOFFICE 单元格属性修订](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableCell.js#L2640-L2697)与 [CTcPrChange](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Logic/TableProperty.cpp#L1693-L1797)，未复制上游执行代码。
 
-单次文字最多 65536 个 UTF-16 单元，并沿字素边界校验。整表宽度、列和其余结构修改的记录继续实施；不支持的修改由核心拒绝，避免无记录写入。记录中修改其他作者的插入格式保持保护。字段、图形、书签/批注标记、嵌套文字修订或未知源的混合段落继续保护。核心实现归 [tracking.mbt](../../modules/formats/src/docx/tracking.mbt)和 [tracking-text.mbt](../../modules/formats/src/docx/tracking-text.mbt)，默认控件归 [docx-tracking.tsx](../../packages/ui/src/docx-tracking.tsx)。
+单次文字最多 65536 个 UTF-16 单元，并沿字素边界校验。整表宽度、列和其余结构修改的记录继续实施；不支持的修改由核心拒绝，避免无记录写入。记录中修改其他作者的插入格式保持保护。字段、图形、书签/批注标记、嵌套文字修订或未知源的混合段落继续保护。核心实现归 [tracking.mbt](../../modules/formats/src/docx/tracking.mbt)和 [tracking-text.mbt](../../modules/formats/src/docx/tracking-text.mbt)，默认控件归 [docx-tracking.tsx](../../packages/docx/src/react/docx-tracking.tsx)。
 
 `DocumentEditor.showRevision(catalog, id)` 定位目录中的普通文字或属性修订。它复用现有队列，请求当前布局的核心区域，显示首个区域所在页并滚动、高亮；跨页范围返回各页区域，定位时高亮首段所在页。定位不改变正文编辑选区、revision、历史、源或修改状态。高亮是临时覆盖层，其他编辑或页面操作会清除，也不进入导出。同步会话和 `FoundationClient` 提供 `revisionGeometry(revision, layoutId, id)`，返回既有 `{ layoutId, revision, rects }` 结构；底层 `docxRevisionGeometry` 命令使用 `revisionId` 字段，避免与 Worker 消息序号混用。
 
@@ -551,9 +551,9 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 目录最多 4096 项，每项预览最多 32767 UTF-16 单元，总预览最多 1 Mi 单元；作者最多 255，日期及源编号最多 128。提交接受现有 XML、包输出和历史预算，空批次、重复或缺失身份、活动候选及任意受保护项使整批失败。保留选区位于未受影响段落时的原位置；受影响时移至首个可编辑的处理段落。结构删除后改选首个可编辑的幸存段落，找不到时清除选区。
 
-行为依据 [ONLYOFFICE 接受修订](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js#L11139-L11226)及[拒绝修订](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js#L11232-L11340)，属性恢复依据 [Run.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js#L8755-L8771)及 [Paragraph.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L15855-L15865)。旧段落属性排除标记格式依据 [ParagraphProperty.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Logic/ParagraphProperty.cpp#L568-L571)。未复制上游执行代码。实现归 [`revisions.mbt`](../../modules/formats/src/docx/revisions.mbt)、[`revision-properties.mbt`](../../modules/formats/src/docx/revision-properties.mbt)、[`document-review.ts`](../../packages/web/src/document-review.ts)及 [`docx-revisions.tsx`](../../packages/ui/src/docx-revisions.tsx)。
+行为依据 [ONLYOFFICE 接受修订](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js#L11139-L11226)及[拒绝修订](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js#L11232-L11340)，属性恢复依据 [Run.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js#L8755-L8771)及 [Paragraph.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L15855-L15865)。旧段落属性排除标记格式依据 [ParagraphProperty.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Logic/ParagraphProperty.cpp#L568-L571)。未复制上游执行代码。实现归 [`revisions.mbt`](../../modules/formats/src/docx/revisions.mbt)、[`revision-properties.mbt`](../../modules/formats/src/docx/revision-properties.mbt)、[`document-review.ts`](../../packages/docx/src/web/document-review.ts)及 [`docx-revisions.tsx`](../../packages/docx/src/react/docx-revisions.tsx)。
 
-插入下划线和删除线依据 [ONLYOFFICE line-draw-state.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/draw/line-draw-state.js#L665-L695)；范围定位参考 [Document.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L18105-L18134)。当前定位保留编辑选区，使用独立审阅高亮。实现归 [`revision-layout.mbt`](../../modules/formats/src/docx/revision-layout.mbt)、[`flow.mbt`](../../modules/formats/src/docx/flow.mbt)及 [`page-canvas.ts`](../../packages/web/src/page-canvas.ts)。
+插入下划线和删除线依据 [ONLYOFFICE line-draw-state.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/draw/line-draw-state.js#L665-L695)；范围定位参考 [Document.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L18105-L18134)。当前定位保留编辑选区，使用独立审阅高亮。实现归 [`revision-layout.mbt`](../../modules/formats/src/docx/revision-layout.mbt)、[`flow.mbt`](../../modules/formats/src/docx/flow.mbt)及 [`page-canvas.ts`](../../packages/docx/src/web/page-canvas.ts)。
 
 ### DOCX 只读编辑保护
 
@@ -563,7 +563,7 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 核心统一提交入口拒绝受保护文档的正文、格式、表格、资源及其他部件修改；组合输入和图片缩放也在开始候选前检查。格式查询返回限制原因，默认格式控件和原生文字输入进入只读状态。缺少设置部件时，设置、关系及内容类型一并创建；解除只删除已知保护节点，保留其他设置和原部件。保护开关沿现有精确历史撤销/重做，重新打开不创建历史。错误密码、旧 revision、未知源、活动候选及预算失败保留文档和历史。
 
-当前支持只读模式及上述完整 SHA-512 凭据。其他限制类型、格式保护、`cryptAlgorithmSid` 等旧式参数、未知/混合算法、重复节点及节点内注释继续保护，查询给出原因。细分授权和文件加密仍待实现。设置及算法依据 [ONLYOFFICE 设置序列化](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Settings/Settings.cpp#L872-L903)与[密码验证事务](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/api.js#L14372-L14483)。实现归[保护源及事务](../../modules/formats/src/docx/protection.mbt)、[共享散列](../../modules/formats/src/internal/protection/password.mbt)和[默认面板](../../packages/ui/src/docx-protection.tsx)，未复制上游执行代码。
+当前支持只读模式及上述完整 SHA-512 凭据。其他限制类型、格式保护、`cryptAlgorithmSid` 等旧式参数、未知/混合算法、重复节点及节点内注释继续保护，查询给出原因。细分授权和文件加密仍待实现。设置及算法依据 [ONLYOFFICE 设置序列化](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Settings/Settings.cpp#L872-L903)与[密码验证事务](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/api.js#L14372-L14483)。实现归[保护源及事务](../../modules/formats/src/docx/protection.mbt)、[共享散列](../../modules/formats/src/internal/protection/password.mbt)和[默认面板](../../packages/docx/src/react/docx-protection.tsx)，未复制上游执行代码。
 
 ### DOCX 主题颜色
 
@@ -619,7 +619,7 @@ Flow 使用 `spans[].drawing: DrawingFrame | null`。框为 `{ width, height, an
 
 受支持图形段落已接通前后原生/组合输入、字符格式、查找、拆段合段和范围删除。图形占一个逻辑 `U+FFFC`，输入同名字符仍是文字。保留图形源、资源和精确混合历史，删除继续检查独立锁与外部引用。普通文字光标可命中图形边界；绘图命中和句柄同时支持图片与基础图形。图片目录只返回图片。框内文字编辑见下方文本框，纯色艺术字见 [DOCX 基础艺术字](#docx-基础艺术字)；文字描边、主题画笔、渐变、旋转/翻转、箭头、复杂图形和未知扩展继续拒绝输出，保留原始源与历史。HTML/Markdown 的图形转换尚未接通。
 
-实现归 [drawing-frame.mbt](../../modules/layout/src/drawing-frame.mbt)、[drawing.mbt](../../modules/formats/src/docx/drawing.mbt)、[shape-read.mbt](../../modules/formats/src/docx/shape-read.mbt)、[shape-editing.mbt](../../modules/formats/src/docx/shape-editing.mbt)、[shape-insert.mbt](../../modules/formats/src/docx/shape-insert.mbt)、[共享插入事务](../../modules/formats/src/docx/drawing-insert.mbt)、[文字事务](../../modules/formats/src/docx/drawing-text.mbt)及[默认面板](../../packages/ui/src/docx-shapes.tsx)。轮廓复用 [basic-shape.mbt](../../modules/layout/src/basic-shape.mbt)。源结构参考 [ONLYOFFICE Shape 读取](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Shape.cpp#L89-L168)与 [DOCX 写出](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Shape.cpp#L238-L332)，独立锁参考 [CNvSpPr](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/CNvSpPr.cpp#L87-L122)。当前范围归 [P10](../implemented/p10-docx-core.md)。
+实现归 [drawing-frame.mbt](../../modules/layout/src/drawing-frame.mbt)、[drawing.mbt](../../modules/formats/src/docx/drawing.mbt)、[shape-read.mbt](../../modules/formats/src/docx/shape-read.mbt)、[shape-editing.mbt](../../modules/formats/src/docx/shape-editing.mbt)、[shape-insert.mbt](../../modules/formats/src/docx/shape-insert.mbt)、[共享插入事务](../../modules/formats/src/docx/drawing-insert.mbt)、[文字事务](../../modules/formats/src/docx/drawing-text.mbt)及[默认面板](../../packages/docx/src/react/docx-shapes.tsx)。轮廓复用 [basic-shape.mbt](../../modules/layout/src/basic-shape.mbt)。源结构参考 [ONLYOFFICE Shape 读取](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Shape.cpp#L89-L168)与 [DOCX 写出](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Shape.cpp#L238-L332)，独立锁参考 [CNvSpPr](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/CNvSpPr.cpp#L87-L122)。当前范围归 [P10](../implemented/p10-docx-core.md)。
 
 `editShape(revision, { action: "position", id, anchor, target? })` 修改图形定位。图形与图片共用 `DocxDrawingPositionEdit`、核心 `set_drawing_anchor` 和默认定位面板。`anchor` 为 `null` 时恢复行内；浮动框支持前置/后置、两轴基准与偏移/对齐、层次、方形/上下型环绕和四边间距，参数归[图片定位](#图片定位)。图形目录返回当前 `anchor` 及 `positionReason`。
 
@@ -635,7 +635,7 @@ Flow 使用 `spans[].drawing: DrawingFrame | null`。框为 `{ width, height, an
 
 命中使用距真实线段不超过半线宽加 3 pt 的范围，空外接框区域不选择或擦除墨迹。橡皮删除命中的最上层整笔，保留其他图形与未命中的笔画，服从文档保护、删除锁、引用和现有 256 项绘图上限。多条开放线、曲线、压力元数据、未知填充/画笔与扩展几何继续保护；不把不支持的路径转成错误图像。更广导入和压力笔继续实施。
 
-实现归 [ink.mbt](../../modules/formats/src/docx/ink.mbt)、[原生折线读取](../../modules/formats/src/docx/shape-polyline-read.mbt)、[共享命中](../../modules/layout/src/drawing-frame.mbt)、[指针工具](../../packages/web/src/document-ink.ts)和[默认控件](../../packages/ui/src/docx-ink.tsx)。原生开放几何、Word 零原点和无填充参考 [ONLYOFFICE PolyLine](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/PolyLine.js#L180-L300)，未复制上游执行代码。
+实现归 [ink.mbt](../../modules/formats/src/docx/ink.mbt)、[原生折线读取](../../modules/formats/src/docx/shape-polyline-read.mbt)、[共享命中](../../modules/layout/src/drawing-frame.mbt)、[指针工具](../../packages/docx/src/web/document-ink.ts)和[默认控件](../../packages/docx/src/react/docx-ink.tsx)。原生开放几何、Word 零原点和无填充参考 [ONLYOFFICE PolyLine](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/PolyLine.js#L180-L300)，未复制上游执行代码。
 
 ### DOCX 普通图表
 
@@ -655,7 +655,7 @@ Web `DocumentEditor.charts()` 增加 `documentId`，`insertChart(value)` 消费�
 
 复制检查 `noCopy`，剪切另检查 `noDelete`；`noTextEdit` 保留复制、粘贴和相邻文字输入，仍保护图表内容修改。片段最多 2097152 个 UTF-16 单元，图片与图表合计最多 2 MiB 解码资源。未知命名空间/元数据、不透明源、外部图表关系、缓存不一致、字体及预算失败保持文档和历史。资源与片段合为一项事务，源和副本支持精确混合历史与重开。正文浮动图表传递保留已支持的锚点和环绕；浮动图表粘贴到单元格及未知源继续保护。实现归 [图表片段](../../modules/formats/src/docx/chart-fragment.mbt)，独立数据参考 [ONLYOFFICE 图表复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L4959-L4983)。
 
-实现归 [DOCX 图表事务](../../modules/formats/src/docx/chart-edit.mbt)、[共享原生图表](../../modules/formats/src/internal/chart/read.mbt)、[图表排版](../../modules/layout/src/chart-legend.mbt)、[XLSX 数据读取](../../modules/formats/src/xlsx/chart-data.mbt)及[默认面板](../../packages/ui/src/docx-charts.tsx)。源关系和工作簿编辑参考 [ONLYOFFICE Word 图表编辑](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/GraphicObjects/GraphicObjects.js#L1346-L1375)。阶段范围归 [P10](../implemented/p10-docx-core.md)。
+实现归 [DOCX 图表事务](../../modules/formats/src/docx/chart-edit.mbt)、[共享原生图表](../../modules/formats/src/internal/chart/read.mbt)、[图表排版](../../modules/layout/src/chart-legend.mbt)、[XLSX 数据读取](../../modules/formats/src/xlsx/chart-data.mbt)及[默认面板](../../packages/docx/src/react/docx-charts.tsx)。源关系和工作簿编辑参考 [ONLYOFFICE Word 图表编辑](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/GraphicObjects/GraphicObjects.js#L1346-L1375)。阶段范围归 [P10](../implemented/p10-docx-core.md)。
 
 ### DOCX 基础艺术字
 
@@ -687,7 +687,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 `editShape(revision, { action: "textBox", id, properties: { insets, anchor, wrap, clip } })` 修改已有文本框的文字区域。`DocxTextBoxProperties.insets` 为上、右、下、左四边距，单位为 pt，各值范围 0–14400，核心舍入到整数 EMU；预设文字区域扣除边距后必须仍有可用宽高。`anchor` 支持 `t/ctr/b`，`wrap` 控制框内换行，`clip` 同时控制两轴是否裁剪到框边界。默认面板提供对应控件与“应用文本框排版”。
 
-命令只更新原生 `bodyPr` 对应属性，保留其他声明、子节点、注释、框内文字、绘图身份、框尺寸、锚点和选择。缺失 `bodyPr` 时创建普通无自动适配的声明；有效属性相同时不写源、不增加修订或历史。一次实际修改只记一项精确历史，保存重开后保留属性和框内输入能力。`noTextEdit`、`noSelect` 及文档保护阻止该命令；尺寸、移动和删除锁继续各自作用于框操作。提供字体 probe 时沿原布局预检；无效属性、无可用文字区域、缺字体或布局预算失败保留源、选择与历史。实现归 [text-box-properties.mbt](../../modules/formats/src/docx/text-box-properties.mbt)及[默认控件](../../packages/ui/src/docx-text-box-properties.tsx)，语义参考 [ONLYOFFICE 垂直对齐](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L1942-L1968)与[边距修改](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L2037-L2083)。自动适配、多栏、竖排及独立两轴溢出继续实施。
+命令只更新原生 `bodyPr` 对应属性，保留其他声明、子节点、注释、框内文字、绘图身份、框尺寸、锚点和选择。缺失 `bodyPr` 时创建普通无自动适配的声明；有效属性相同时不写源、不增加修订或历史。一次实际修改只记一项精确历史，保存重开后保留属性和框内输入能力。`noTextEdit`、`noSelect` 及文档保护阻止该命令；尺寸、移动和删除锁继续各自作用于框操作。提供字体 probe 时沿原布局预检；无效属性、无可用文字区域、缺字体或布局预算失败保留源、选择与历史。实现归 [text-box-properties.mbt](../../modules/formats/src/docx/text-box-properties.mbt)及[默认控件](../../packages/docx/src/react/docx-text-box-properties.tsx)，语义参考 [ONLYOFFICE 垂直对齐](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L1942-L1968)与[边距修改](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L2037-L2083)。自动适配、多栏、竖排及独立两轴溢出继续实施。
 
 单击文本框内侧进入文字选择，边框仍用于选择整个对象。框内命中、光标、扩选、方向键与 Home/End 使用最终行几何；标尺使用框内可用文字区域。现有原生输入、组合候选/取消/最终提交、字符/段落格式及拆段合段复用同一源事务和精确历史。保存重开后仍可继续输入。查询中的文本节点带独立段落身份；正文与文本框、不同文本框之间的文字范围保持保护，不能把框内偏移当成正文偏移。查找按内容区域分组，框内段落不打断相邻正文段落。
 
@@ -715,7 +715,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 `hitTest(layoutId, page, x, y)` 的 `DocxHit.drawing` 为图片或基础图形的 `DocxSelection` 或 null；`position` 仍是最近文字边缘。核心检查图片两端的逻辑位置和原有保护。默认宿主普通点击使用 drawing 范围，拖选和 Shift 点击沿 position 扩展文字范围。命中只查询当前布局，旧布局及无效坐标仍拒绝。默认面板在手势结束后读取 selected 项，自动切换尺寸/裁剪/删除目标；过期、组合、暂停和替换沿现有屏障，晚到的面板读取不覆盖新文档。
 
-原生 Backspace/Delete 和输入可删除或替换被选图片，撤销恢复原图片及选区；列表和命中不改变源包。屏幕阅读文本将占位字符描述为 [image]。普通单元格复用同一位置与裁剪，结构操作和图片剪切仍保留前述保护。行为参考 [ONLYOFFICE ParaDrawing.select](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/word/Editor/Paragraph/ParaDrawing.js#L2784-L2795) 与 [GraphicObjects.OnMouseDown](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/word/Editor/GraphicObjects/GraphicObjects.js#L1594-L1606) 的图片选择与文字输入分工。本项目通过已有逻辑范围连接两者；实现归 [drawing-selection.mbt](../../modules/formats/src/docx/drawing-selection.mbt) 和 [docx-hit.mbt](../../modules/bridge/src/docx-hit.mbt)。
+原生 Backspace/Delete 和输入可删除或替换被选图片，撤销恢复原图片及选区；列表和命中不改变源包。屏幕阅读文本将占位字符描述为 [image]。普通单元格复用同一位置与裁剪，结构操作和图片剪切仍保留前述保护。行为参考 [ONLYOFFICE ParaDrawing.select](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/word/Editor/Paragraph/ParaDrawing.js#L2784-L2795) 与 [GraphicObjects.OnMouseDown](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/word/Editor/GraphicObjects/GraphicObjects.js#L1594-L1606) 的图片选择与文字输入分工。本项目通过已有逻辑范围连接两者；实现归 [drawing-selection.mbt](../../modules/formats/src/docx/drawing-selection.mbt) 和 [docx-hit.mbt](../../modules/bridge/src/docx/docx-hit.mbt)。
 
 `editPicture(revision, { action: "resize", id, width, height, crop })` 修改已有受支持的正文图片。宿主也显式传入图片列表的 revision，防止读取后改动文档而误用节点身份；默认面板过期后须重新读取。尺寸为 0.1–14400 pt，舍入到整数 EMU；裁剪输入为 0–1 的四个比例，按 1/100000 舍入，两侧之和须小于 1。保持目标框，只裁源图再拉伸至框；重置写四边零值。源图原字节、关系、替代文字、身份和范围外 XML 保持；同时更新行内框及图片变换尺寸。一次命令一项精确历史，保持原文字选择，重复有效值不新增 revision 或废弃布局。
 
@@ -737,7 +737,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 开始要求当前正好选中该绘图对象。缩放通过原尺寸编辑保护；移动通过独立的 `positionReason`、`noMove/noChangeWrap` 和文档保护，`noResize` 单独锁定时仍可移动。`EditState.drawingGestureId` 在普通状态为 null，与 `compositionId` 互斥。候选复用尺寸或定位命令的校验和源补丁；`flow`、布局和返回的 `selection` 展示候选；会话已提交源、选择、revision 和历史保持。更新失败保留最后有效候选；错误身份、过期 revision、未知图片源及资源上限继续拒绝。候选期间其他编辑、文字组合及直接 DOCX/PDF 持久化返回 busy。提交按最终坐标重新准备源，只新增一项历史；有效值未改变则不新增历史。取消恢复原显示和选择，不改变源与历史。图片字节、关系、替代文字、原裁剪及非目标部件保留。
 
-松开提交，Escape、指针取消、捕获丢失及窗口失焦取消。移动目标和缩放手柄的方向键沿对应方向移动 1 pt，Shift 为 10 pt，每次按键产生一项有界编辑。普通命令、保存和暂停先处理末次坐标；`whenIdle()` 只等已接收的候选更新。恢复与销毁会取消未提交候选，已提交历史继续保留。手势使用当前 CSS 比例，DPR 留给原绘制层；图片移动复用视口边缘滚动和翻页；四角缩放仍在当前页进行。核心候选布局和正式布局共用 Canvas/PDF，平台不保存另一份文档树。实现归 [`drawing-gesture.mbt`](../../modules/formats/src/docx/drawing-gesture.mbt)、[`document-drawing-gesture.ts`](../../packages/web/src/document-drawing-gesture.ts)及 [`document-pointer.ts`](../../packages/web/src/document-pointer.ts)。
+松开提交，Escape、指针取消、捕获丢失及窗口失焦取消。移动目标和缩放手柄的方向键沿对应方向移动 1 pt，Shift 为 10 pt，每次按键产生一项有界编辑。普通命令、保存和暂停先处理末次坐标；`whenIdle()` 只等已接收的候选更新。恢复与销毁会取消未提交候选，已提交历史继续保留。手势使用当前 CSS 比例，DPR 留给原绘制层；图片移动复用视口边缘滚动和翻页；四角缩放仍在当前页进行。核心候选布局和正式布局共用 Canvas/PDF，平台不保存另一份文档树。实现归 [`drawing-gesture.mbt`](../../modules/formats/src/docx/drawing-gesture.mbt)、[`document-drawing-gesture.ts`](../../packages/docx/src/web/document-drawing-gesture.ts)及 [`document-pointer.ts`](../../packages/docx/src/web/document-pointer.ts)。
 
 ### 图片定位
 
@@ -843,7 +843,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 默认页面面板共用节选择，提供四边独立启用、单线/双线/虚线/点线样式、颜色、宽度和距离，以及基准、显示页面和前后层次。草稿绑定 revision 和已读取的节；同一修订内切节也重新加载，跨页导航不改变目标。原生输入先沿既有队列提交。核心按 OOXML 顺序写目标 `sectPr/pgBorders`，缺少末节属性时与边框一起创建；保留其他节、正文、选区、待输入格式和其他部件。重复设置不新增历史，移除、背景修改与边框共用精确混合历史和保存重开。页面尺寸变化及边框修改按各节实际纸型验证边框不交叉，失败不提交，并保留待重做项。
 
-核心 `Flow.pageBorders` 为必需结构，无边框时使用空 sides。边框不改变正文分页；缓存复用后派生当前边框，不把装饰写进缓存原页。背面边框位于页面背景之后、正文与表格之前，正面边框通过 `PageFrame.pageBorders` 在正文之后绘制。四边先竖后横，横边覆盖交角；纸张基准的距离量到外缘，正文基准向外留空。Canvas 与 PDF 使用相同填充矩形。几何和顺序依据 [ONLYOFFICE DrawPageBorders](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L5519-L5635)，未复制上游源码；实现归 [`page-borders.mbt`](../../modules/formats/src/docx/page-borders.mbt)、[公共边框布局](../../modules/layout/src/page-borders.mbt)及 [`docx-page-borders.tsx`](../../packages/ui/src/docx-page-borders.tsx)。
+核心 `Flow.pageBorders` 为必需结构，无边框时使用空 sides。边框不改变正文分页；缓存复用后派生当前边框，不把装饰写进缓存原页。背面边框位于页面背景之后、正文与表格之前，正面边框通过 `PageFrame.pageBorders` 在正文之后绘制。四边先竖后横，横边覆盖交角；纸张基准的距离量到外缘，正文基准向外留空。Canvas 与 PDF 使用相同填充矩形。几何和顺序依据 [ONLYOFFICE DrawPageBorders](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L5519-L5635)，未复制上游源码；实现归 [`page-borders.mbt`](../../modules/formats/src/docx/page-borders.mbt)、[公共边框布局](../../modules/layout/src/page-borders.mbt)及 [`docx-page-borders.tsx`](../../packages/docx/src/react/docx-page-borders.tsx)。
 
 双线保留原生 `w:sz` 的每条线宽度，两条等宽线之间留同宽间隙，总占宽为 `3*width`。纸张基准从外线外缘起算；正文基准按总占宽向外留距。内框在相邻双线侧内缩两个线宽，单线侧保留原边界；允许四边混用样式。单线/双线使用同一矩形图元与缓存派生，不改变正文。线型名称依据 [ONLYOFFICE BorderType](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles.js#L10287-L10300)。其页面绘制尚未区分双线，线宽换算与等分采用第二参考 [LibreOffice ConvertBorderWidthFromWord](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/editeng/source/items/borderline.cxx#L205-L238)及 [getWidthImpl](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/editeng/source/items/borderline.cxx#L328-L355)，未复制执行代码。
 
@@ -851,7 +851,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 导入支持单线、双线、虚线、点线、显式 none/nil、RGB、按黑色解释的 auto，以及原生 `themeColor/themeTint/themeShade`。主题色复用文字的槽映射和 HSL 明暗变换，查询返回当前 RGB；主题修改同步更新各节边框及 Canvas/PDF。修改宽度、距离、样式或其他边时，绑定未变的边保留原生缓存颜色、主题槽与明暗属性。完整无操作保留输入字节。
 
-`themeColor` 接受 `dark1/light1/dark2/light2`、`accent1`–`accent6`、`hyperlink/followedHyperlink` 和映射名 `text1/text2/background1/background2`。非空时，核心按当前主题解析颜色，传入 `color` 只需满足 RGB 格式；保持同一绑定时保留已有明暗变换，换到另一绑定时使用其基础色。设为 null 时使用传入 RGB，并解除该边原有的主题及明暗绑定；即使 RGB 与当前显示相同，也会解除绑定。默认四边均提供主题槽和固定 RGB 选择，直接修改颜色也解除绑定。无主题的可编辑文档首次绑定时，边框、默认主题、关系及内容类型合为一项预算内历史；撤销恢复缺主题状态。严格传输在查询中显式输出 `themeColor: null`。类型与校验归 [`docx-page-borders.ts`](../../packages/wasm/src/docx-page-borders.ts)，沿 `docx-format` 的原有导出提供。主题读取依据 [ONLYOFFICE Read_pgBorder](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Serialize2.js#L10086-L10123)，复用 [`theme.mbt`](../../modules/formats/src/docx/theme.mbt)，未复制执行代码。
+`themeColor` 接受 `dark1/light1/dark2/light2`、`accent1`–`accent6`、`hyperlink/followedHyperlink` 和映射名 `text1/text2/background1/background2`。非空时，核心按当前主题解析颜色，传入 `color` 只需满足 RGB 格式；保持同一绑定时保留已有明暗变换，换到另一绑定时使用其基础色。设为 null 时使用传入 RGB，并解除该边原有的主题及明暗绑定；即使 RGB 与当前显示相同，也会解除绑定。默认四边均提供主题槽和固定 RGB 选择，直接修改颜色也解除绑定。无主题的可编辑文档首次绑定时，边框、默认主题、关系及内容类型合为一项预算内历史；撤销恢复缺主题状态。严格传输在查询中显式输出 `themeColor: null`。类型与校验归 [`docx-page-borders.ts`](../../packages/docx/src/core/docx-page-borders.ts)，沿 `docx-format` 的原有导出提供。主题读取依据 [ONLYOFFICE Read_pgBorder](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Serialize2.js#L10086-L10123)，复用 [`theme.mbt`](../../modules/formats/src/docx/theme.mbt)，未复制执行代码。
 
 主题写出同时保留 RGB 缓存和原生颜色引用，依据 [ONLYOFFICE WritePgBorder](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Serialize2.js#L3067-L3097)，未复制执行代码。
 
@@ -885,7 +885,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 修改保留正文、选区、待输入格式和其他部件。距离单独变化时完整保留区域源；文字替换保留未改段落的原始 XML，修改的段落保留段落属性与首个 run 的字符属性，字段按该段原有字段顺序沿用结果字符属性，并写为标准简单域；新增段落沿用最后一段。重复设置不新增历史；开关、部件创建、文字和距离修改共用精确撤销重做及保存重开。默认页面面板提供区域、所属页面、读取、文字/字段、距离和两个开关，可在文字光标处插入当前页码或总页数，并更换字段种类、显式格式或移除，过期草稿须重新读取；应用开关保留尚未提交的文字草稿。
 
-核心 `Flow.headers/footers` 按 `default/first/even` 保存活动区域的段落，配合 `headerDistance/footerDistance/differentFirst/differentEven` 派生各页正文上下空间。`Layout.running` 按页保存页边行，独立于正文光标行。页眉从上边距离开始，页脚在下边距离以上结束；实际行框、段距与正文边距共同确定避让。文字复用既有塑形、定位图元、Canvas/PDF 和语义文本；命中返回 `protected-content:running-area`，不产生正文编辑位置。活动区域的重复行计入原有总行数预算。几何依据 [ONLYOFFICE HeaderFooter](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/HeaderFooter.js#L1735-L1804)。实现归 [`running-read.mbt`](../../modules/formats/src/docx/running-read.mbt)、[`running-edit.mbt`](../../modules/formats/src/docx/running-edit.mbt)、[开关事务](../../modules/formats/src/docx/running-options.mbt)、[页边布局](../../modules/layout/src/running.mbt)及 [`docx-running.tsx`](../../packages/ui/src/docx-running.tsx)。
+核心 `Flow.headers/footers` 按 `default/first/even` 保存活动区域的段落，配合 `headerDistance/footerDistance/differentFirst/differentEven` 派生各页正文上下空间。`Layout.running` 按页保存页边行，独立于正文光标行。页眉从上边距离开始，页脚在下边距离以上结束；实际行框、段距与正文边距共同确定避让。文字复用既有塑形、定位图元、Canvas/PDF 和语义文本；命中返回 `protected-content:running-area`，不产生正文编辑位置。活动区域的重复行计入原有总行数预算。几何依据 [ONLYOFFICE HeaderFooter](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/HeaderFooter.js#L1735-L1804)。实现归 [`running-read.mbt`](../../modules/formats/src/docx/running-read.mbt)、[`running-edit.mbt`](../../modules/formats/src/docx/running-edit.mbt)、[开关事务](../../modules/formats/src/docx/running-options.mbt)、[页边布局](../../modules/layout/src/running.mbt)及 [`docx-running.tsx`](../../packages/docx/src/react/docx-running.tsx)。
 
 分页缓存包含三种活动页的正文空间。后缀复用同时检查当前空间和页序奇偶，首段变动不能把另一类页面的旧位置复用到当前页。普通表格行、纵向合并续页、保留段落链和孤行控制按当前页空间放置；纵向合并组的重复表头仍沿既有整组预留规则，按该组经过页面的最小可用高度判断，逐片段取舍继续完善。
 
@@ -935,7 +935,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 核心按有效大纲级别和正文顺序提取标题，包含普通表格标题，排除已有目录结果。标题取当前编号、文字和字段结果，Tab/软换行转为空格。复用可用的段首书签，缺失时创建独立原生锚点；保留已有 TOC 样式，缺失时复用内置样式预设。写回复杂 TOC、文字链接、点引导符及简单 PAGEREF，右制表位沿首栏宽度。整体更新保留原目录指令、级别和链接开关，重建全部条目；删除保留标题锚点与样式。没有标题时保留可更新的空目录。
 
-生成后按实际分页重新提取标题字段结果，最多八轮收敛，再缓存实际页码。每次操作的正文、样式资源和选择共用一项精确历史，无变化不增加历史；布局、字体、保护或预算失败原子拒绝。最多 4096 条标题，每条标签最多 4096 个 UTF-16 单元，标签合计最多 1 Mi 单元，并沿用历史、包及布局预算。带绘图/数学的标题、含注释/修订/脚注等不可丢失内容的目录结果继续保护。自动更新、复杂控件及表格内目录编辑、富文本条目和其他 TOC 指令继续实施。实现归 [`toc-source.mbt`](../../modules/formats/src/docx/toc-source.mbt)、[`toc-edit.mbt`](../../modules/formats/src/docx/toc-edit.mbt)及[默认控件](../../packages/ui/src/docx-toc.tsx)。标题与制表位依据上述 ONLYOFFICE 目录计算入口，未复制上游执行代码。
+生成后按实际分页重新提取标题字段结果，最多八轮收敛，再缓存实际页码。每次操作的正文、样式资源和选择共用一项精确历史，无变化不增加历史；布局、字体、保护或预算失败原子拒绝。最多 4096 条标题，每条标签最多 4096 个 UTF-16 单元，标签合计最多 1 Mi 单元，并沿用历史、包及布局预算。带绘图/数学的标题、含注释/修订/脚注等不可丢失内容的目录结果继续保护。自动更新、复杂控件及表格内目录编辑、富文本条目和其他 TOC 指令继续实施。实现归 [`toc-source.mbt`](../../modules/formats/src/docx/toc-source.mbt)、[`toc-edit.mbt`](../../modules/formats/src/docx/toc-edit.mbt)及[默认控件](../../packages/docx/src/react/docx-toc.tsx)。标题与制表位依据上述 ONLYOFFICE 目录计算入口，未复制上游执行代码。
 
 ### DOCX 索引
 
@@ -945,7 +945,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 原生 `Session::indexes(revision)` 返回 `{revision, entries, indexes}`。条目含 `id/paragraph/label/reason`，生成索引含 `paragraph/endParagraph/instruction/reason`。`edit_index` 接受 `IndexEdit` 的六项操作。同步/Worker 的 `indexes`、`editIndex` 使用 `DocxIndexes` / `DocxIndexEdit`；命令为 `mark`、`updateEntry`、`deleteEntry`、`insert`、`update`、`delete`。Web 的 `DocumentEditor.indexes()` 附加 `documentId`，`markIndexEntry(label)`、`insertIndex()` 和 `editIndex(source, change)` 校验当前文档与 revision；过期目录报错后可继续输入。查询上限为 4096 个条目、256 个索引；结果最多 4096 段，仍受原有布局和历史预算限制。
 
-已知 `INDEX` 指令接受单栏 `\c 1` 和最多五字符的 `\e` 分隔符；无显式分隔符时使用逗号及空格，新建索引显式使用制表符。其他开关、自动更新、富文本条目、跨段 XE、语言专用排序、索引内部光标和完整导入变体仍待实现。读取归 [`index-read.mbt`](../../modules/formats/src/docx/index-read.mbt)，条目与范围事务归 [`index-edit.mbt`](../../modules/formats/src/docx/index-edit.mbt)，排序/页码归 [`index-source.mbt`](../../modules/formats/src/docx/index-source.mbt)，索引结果复用 [`toc-edit.mbt`](../../modules/formats/src/docx/toc-edit.mbt)，传输归 [`docx-index.ts`](../../packages/wasm/src/docx-index.ts)，界面归 [`docx-index.tsx`](../../packages/ui/src/docx-index.tsx)。原生导出参考 [LibreOffice INDEX](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sw/source/filter/ww8/ww8atr.cxx#L2385-L2427)，术语层级和重复页规则参考 [Microsoft 创建索引](https://support.microsoft.com/en-us/word/create-and-update-an-index)，分隔符参考 [INDEX 指令](https://support.microsoft.com/en-us/word/field-codes-index-field)。未复制上游执行代码。
+已知 `INDEX` 指令接受单栏 `\c 1` 和最多五字符的 `\e` 分隔符；无显式分隔符时使用逗号及空格，新建索引显式使用制表符。其他开关、自动更新、富文本条目、跨段 XE、语言专用排序、索引内部光标和完整导入变体仍待实现。读取归 [`index-read.mbt`](../../modules/formats/src/docx/index-read.mbt)，条目与范围事务归 [`index-edit.mbt`](../../modules/formats/src/docx/index-edit.mbt)，排序/页码归 [`index-source.mbt`](../../modules/formats/src/docx/index-source.mbt)，索引结果复用 [`toc-edit.mbt`](../../modules/formats/src/docx/toc-edit.mbt)，传输归 [`docx-index.ts`](../../packages/docx/src/core/docx-index.ts)，界面归 [`docx-index.tsx`](../../packages/docx/src/react/docx-index.tsx)。原生导出参考 [LibreOffice INDEX](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sw/source/filter/ww8/ww8atr.cxx#L2385-L2427)，术语层级和重复页规则参考 [Microsoft 创建索引](https://support.microsoft.com/en-us/word/create-and-update-an-index)，分隔符参考 [INDEX 指令](https://support.microsoft.com/en-us/word/field-codes-index-field)。未复制上游执行代码。
 
 ### DOCX 资料来源
 
@@ -957,7 +957,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 删除前扫描全部 Word 内容类型部件中的简单、分段复杂 `CITATION` 及 `\m` 合并标签；已引用或无法确认引用归属时拒绝删除。目录逐项返回 `reason/authorReason/deleteReason`。共享或多份来源表、重复标签及未知拥有关系保持保护；最多 512 条来源、64 条 customXml 关系和 32768 个来源 XML 节点，引用扫描最多 1048576 节点、32 层域和 1024 单元指令，另受既有包和历史预算约束。查询及无变化修改不新增历史。来源编辑保留正文、选择和待输入格式，保存不刷新引文缓存。Web 拒绝旧目录和重复标签后可继续编辑。
 
-引文归[DOCX 引文](#docx-引文)，书目归[DOCX 书目](#docx-书目)；完整书目样式、完整多作者编辑及全局来源库继续实施。读取归 [bibliography-source-read.mbt](../../modules/formats/src/docx/bibliography-source-read.mbt)，资源归 [bibliography-source-parts.mbt](../../modules/formats/src/docx/bibliography-source-parts.mbt)，事务归 [bibliography-source-edit.mbt](../../modules/formats/src/docx/bibliography-source-edit.mbt)，接口归 [docx-sources.ts](../../packages/wasm/src/docx-sources.ts)，面板归 [docx-sources.tsx](../../packages/ui/src/docx-sources.tsx)。原生结构依据 [Microsoft 来源 XML](https://learn.microsoft.com/en-us/office/vba/word/concepts/working-with-word/working-with-bibliographies)、[标准 Source](https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.bibliography.source?view=openxml-3.0.1)及 [LibreOffice customXml 保存](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sw/source/filter/ww8/docxexport.cxx#L1860-L1940)。未复制上游执行代码。
+引文归[DOCX 引文](#docx-引文)，书目归[DOCX 书目](#docx-书目)；完整书目样式、完整多作者编辑及全局来源库继续实施。读取归 [bibliography-source-read.mbt](../../modules/formats/src/docx/bibliography-source-read.mbt)，资源归 [bibliography-source-parts.mbt](../../modules/formats/src/docx/bibliography-source-parts.mbt)，事务归 [bibliography-source-edit.mbt](../../modules/formats/src/docx/bibliography-source-edit.mbt)，接口归 [docx-sources.ts](../../packages/docx/src/core/docx-sources.ts)，面板归 [docx-sources.tsx](../../packages/docx/src/react/docx-sources.tsx)。原生结构依据 [Microsoft 来源 XML](https://learn.microsoft.com/en-us/office/vba/word/concepts/working-with-word/working-with-bibliographies)、[标准 Source](https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.bibliography.source?view=openxml-3.0.1)及 [LibreOffice customXml 保存](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sw/source/filter/ww8/docxexport.cxx#L1860-L1940)。未复制上游执行代码。
 
 ### DOCX 引文
 
@@ -971,7 +971,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 片段沿用既有命名空间，以 `citationSource` 属性携带一个原生 Sources XML 的 Base64，导入后移除片段元数据。核心校验所属简单域、标签、来源数量、原生命名空间及资源预算。标准 2006 与旧版 2004 来源可分别转移；混合命名空间、外部资源扩展及复杂域片段保持保护。最多 512 条目标来源和 4096 个所选引文，并沿用片段、包、布局及历史预算。实现归 [bibliography-clipboard.mbt](../../modules/formats/src/docx/bibliography-clipboard.mbt)。
 
-创建与刷新沿单节可编辑正文域边界，结果受既有 4096 个正文域、256 单元指令、包、布局和历史预算限制；合并引文、多作者格式、完整引用样式继续实施，书目归[DOCX 书目](#docx-书目)。原生指令与事务归 [bibliography-citation.mbt](../../modules/formats/src/docx/bibliography-citation.mbt)，缓存读取归 [running-fields.mbt](../../modules/formats/src/docx/running-fields.mbt) 和 [flow.mbt](../../modules/formats/src/docx/flow.mbt)，预览校验归 [preview-fields.ts](../../packages/wasm/src/preview-fields.ts)，严格接口归 [docx-sources.ts](../../packages/wasm/src/docx-sources.ts)，默认控件归 [docx-sources.tsx](../../packages/ui/src/docx-sources.tsx)。原生标签与缓存依据 [Microsoft 来源与引文](https://learn.microsoft.com/en-us/office/vba/word/concepts/working-with-word/working-with-bibliographies)、[LibreOffice CITATION 指令](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sw/source/filter/ww8/ww8atr.cxx#L3221-L3229)及[导出缓存](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sw/source/filter/ww8/docxattributeoutput.cxx#L3390-L3394)。未复制上游执行代码。
+创建与刷新沿单节可编辑正文域边界，结果受既有 4096 个正文域、256 单元指令、包、布局和历史预算限制；合并引文、多作者格式、完整引用样式继续实施，书目归[DOCX 书目](#docx-书目)。原生指令与事务归 [bibliography-citation.mbt](../../modules/formats/src/docx/bibliography-citation.mbt)，缓存读取归 [running-fields.mbt](../../modules/formats/src/docx/running-fields.mbt) 和 [flow.mbt](../../modules/formats/src/docx/flow.mbt)，预览校验归 [preview-fields.ts](../../packages/docx/src/core/preview-fields.ts)，严格接口归 [docx-sources.ts](../../packages/docx/src/core/docx-sources.ts)，默认控件归 [docx-sources.tsx](../../packages/docx/src/react/docx-sources.tsx)。原生标签与缓存依据 [Microsoft 来源与引文](https://learn.microsoft.com/en-us/office/vba/word/concepts/working-with-word/working-with-bibliographies)、[LibreOffice CITATION 指令](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sw/source/filter/ww8/ww8atr.cxx#L3221-L3229)及[导出缓存](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sw/source/filter/ww8/docxattributeoutput.cxx#L3390-L3394)。未复制上游执行代码。
 
 ### DOCX 书目
 
@@ -983,7 +983,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 生成、更新和删除复用目录的资源、布局、选择及精确历史事务。生成结果保持直接输入保护，TOC、INDEX 和书目操作按字段类型校验；无变化更新不新增历史。失败保留包、选择及重做。标题为 1–255 个 UTF-16 单元，来源最多 512 条，书目目录最多 256 项，生成文字总量最多 1048576 单元，并受既有包、历史和布局预算限制。被引来源缺失、归属不明、类型未知或作者不支持时拒绝整项生成，避免静默遗漏。当前创建/更新沿单节普通正文边界。
 
-原生入口与基础文字归 [bibliography-field.mbt](../../modules/formats/src/docx/bibliography-field.mbt)，共用生成事务归 [toc-edit.mbt](../../modules/formats/src/docx/toc-edit.mbt)，控件验证归 [toc-control.mbt](../../modules/formats/src/docx/toc-control.mbt)，宿主命令归 [document-sources.ts](../../packages/web/src/document-sources.ts)，默认控件归 [docx-bibliography.tsx](../../packages/ui/src/docx-bibliography.tsx)。原生结构依据 [LibreOffice 书目导出](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sw/source/filter/ww8/ww8atr.cxx#L2480-L2483)及 [Bibliographies 控件检查](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sw/qa/extras/ooxmlexport/ooxmlfieldexport.cxx#L352-L361)。引用收集另参考 [LibreOffice UpdateAuthorities](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sw/source/core/doc/doctxm.cxx#L1681-L1714)；创建及新增引用后的显式更新与 [Word 书目流程](https://support.microsoft.com/en-us/word/training/create-a-bibliography-citations-and-references)一致。完整引用样式、自动更新及更广导入继续实施。未复制上游执行代码。
+原生入口与基础文字归 [bibliography-field.mbt](../../modules/formats/src/docx/bibliography-field.mbt)，共用生成事务归 [toc-edit.mbt](../../modules/formats/src/docx/toc-edit.mbt)，控件验证归 [toc-control.mbt](../../modules/formats/src/docx/toc-control.mbt)，宿主命令归 [document-sources.ts](../../packages/docx/src/web/document-sources.ts)，默认控件归 [docx-bibliography.tsx](../../packages/docx/src/react/docx-bibliography.tsx)。原生结构依据 [LibreOffice 书目导出](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sw/source/filter/ww8/ww8atr.cxx#L2480-L2483)及 [Bibliographies 控件检查](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sw/qa/extras/ooxmlexport/ooxmlfieldexport.cxx#L352-L361)。引用收集另参考 [LibreOffice UpdateAuthorities](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sw/source/core/doc/doctxm.cxx#L1681-L1714)；创建及新增引用后的显式更新与 [Word 书目流程](https://support.microsoft.com/en-us/word/training/create-a-bibliography-citations-and-references)一致。完整引用样式、自动更新及更广导入继续实施。未复制上游执行代码。
 
 ### DOCX 题注目录
 
@@ -993,7 +993,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 已有 `TableofFigures` 或英文名 `table of figures` 的样式保持原源；没有时创建继承默认正文、段后间距为零的原生样式。生成、显式整体更新、删除、无变化处理、八轮重排、字体/资源预算、选择及精确历史复用目录事务。删除保留原题注与锚点；无匹配项时保留可更新的空题注目录。保存与输出不自动刷新源题注缓存。
 
-读取接受 `\c` 及已有 `\h/\z/\u`，拒绝与 `\o` 混用或重复开关。`\a` 仅说明文字、浮动题注框、混合来源、自定义分隔符和更广内容控件继续实施；生成位置仍沿单节普通正文范围。读取归 [toc-read.mbt](../../modules/formats/src/docx/toc-read.mbt)，条目与原生源归 [toc-source.mbt](../../modules/formats/src/docx/toc-source.mbt)，事务归 [toc-edit.mbt](../../modules/formats/src/docx/toc-edit.mbt)，严格接口归 [docx-toc.ts](../../packages/wasm/src/docx-toc.ts)，默认面板归 [docx-toc.tsx](../../packages/ui/src/docx-toc.tsx)。依据 [ONLYOFFICE 题注收集与目录生成](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L950-L1058)、[原生指令](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexFieldInstruction.js#L485-L491)及[默认样式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles.js#L7024-L7061)。未复制上游执行代码。
+读取接受 `\c` 及已有 `\h/\z/\u`，拒绝与 `\o` 混用或重复开关。`\a` 仅说明文字、浮动题注框、混合来源、自定义分隔符和更广内容控件继续实施；生成位置仍沿单节普通正文范围。读取归 [toc-read.mbt](../../modules/formats/src/docx/toc-read.mbt)，条目与原生源归 [toc-source.mbt](../../modules/formats/src/docx/toc-source.mbt)，事务归 [toc-edit.mbt](../../modules/formats/src/docx/toc-edit.mbt)，严格接口归 [docx-toc.ts](../../packages/docx/src/core/docx-toc.ts)，默认面板归 [docx-toc.tsx](../../packages/docx/src/react/docx-toc.tsx)。依据 [ONLYOFFICE 题注收集与目录生成](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L950-L1058)、[原生指令](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexFieldInstruction.js#L485-L491)及[默认样式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles.js#L7024-L7061)。未复制上游执行代码。
 
 ### 原生目录内容控件
 
@@ -1091,7 +1091,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 `DocxFlow.notes` 是必需数组，每项为 `{ kind, key, paragraph, node, numbering, content }`。numbering 为必需的 `{ format, value, restart, marker }`；value 是布局前的派生序号，marker 标识注释故事中的原生编号节点。原生 start 保持 uint32 上限，连续递增的派生序号可再加此前最多 8191 项引用，使用原有格式化规则。paragraph、node 定位正文引用，content 使用独立的负段落身份和只读区域，避免与正文和页眉页脚源节点混淆。内容面板继续按种类和身份修改文字，画布中的注释区域暂不提供原生光标输入。含注释的页面重排暂不复用整页缓存，段落测量继续复用。最多 8192 项注释，沿用 1024 页、32768 行与字体/XML/输出预算。
 
-当前支持普通文字段落及可整体放置的含脚注表格行组。超高含脚注行组的分片预留、注释内部的表格/对象/域、链接/审阅锚点、自定义引用标记和分隔符均待接入，不能解释时保留诊断或拒绝布局。复杂段落保持规则和完整分隔符保真仍待实现。注释区域光标及内容的富文本编辑继续按 P10 实施，不标记脚注功能或阶段完成。实现归 [`notes-read.mbt`](../../modules/formats/src/docx/notes-read.mbt)、[`notes-edit.mbt`](../../modules/formats/src/docx/notes-edit.mbt)、[`notes-create.mbt`](../../modules/formats/src/docx/notes-create.mbt)、[`notes-remove.mbt`](../../modules/formats/src/docx/notes-remove.mbt)、[`notes-layout.mbt`](../../modules/formats/src/docx/notes-layout.mbt)、[`布局预留与续排`](../../modules/layout/src/notes.mbt)和 [`docx-notes.tsx`](../../packages/ui/src/docx-notes.tsx)。原生内容区域参考 [ONLYOFFICE FootEndnote](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/FootEndnote.js#L49-L69)，跨页续排参考 [ONLYOFFICE Footnotes](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Footnotes.js#L272-L351)，保留所选文字的插入行为参考 [ONLYOFFICE AddFootnote](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L18859-L18904)。
+当前支持普通文字段落及可整体放置的含脚注表格行组。超高含脚注行组的分片预留、注释内部的表格/对象/域、链接/审阅锚点、自定义引用标记和分隔符均待接入，不能解释时保留诊断或拒绝布局。复杂段落保持规则和完整分隔符保真仍待实现。注释区域光标及内容的富文本编辑继续按 P10 实施，不标记脚注功能或阶段完成。实现归 [`notes-read.mbt`](../../modules/formats/src/docx/notes-read.mbt)、[`notes-edit.mbt`](../../modules/formats/src/docx/notes-edit.mbt)、[`notes-create.mbt`](../../modules/formats/src/docx/notes-create.mbt)、[`notes-remove.mbt`](../../modules/formats/src/docx/notes-remove.mbt)、[`notes-layout.mbt`](../../modules/formats/src/docx/notes-layout.mbt)、[`布局预留与续排`](../../modules/layout/src/notes.mbt)和 [`docx-notes.tsx`](../../packages/docx/src/react/docx-notes.tsx)。原生内容区域参考 [ONLYOFFICE FootEndnote](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/FootEndnote.js#L49-L69)，跨页续排参考 [ONLYOFFICE Footnotes](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Footnotes.js#L272-L351)，保留所选文字的插入行为参考 [ONLYOFFICE AddFootnote](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L18859-L18904)。
 
 ### DOCX 题注
 
@@ -1101,9 +1101,9 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 可选 `chapter: { level, separator }` 创建带章节号的题注。`level` 为 1–9 级有效大纲标题，`separator` 是 1–5 个 UTF-16 单元的有效单行文字；默认面板提供级别和五种常用分隔符。例如 `{level:1, separator:"-"}` 生成 `Figure 3-1`，原生源由 `STYLEREF 1 \s`、分隔符和 `SEQ Figure \s 1` 组成。核心按继承后的大纲级别读取最近的同级前置标题；前面没有时使用第一个后置标题。编号沿现有列表定义及实际计数，未编号标题显示 `0`，没有目标标题时显示原生错误文字。插入同时缓存两个新域；标题及列表变化会重算显示，显式正文域刷新才写回其他缓存。
 
-简单域和同段复杂数字级别 `STYLEREF` 可读取并保留原代码，支持可选 `MERGEFORMAT`。题注的周边输入、拆合段、完整域替换、富文本复制/剪切和目标位置重新计算沿既有路径；源、缓存、选择和样式一起精确撤销并保存重开。章节号通过题注参数创建，正文域查询对它返回专属保护原因，不把章节号解释成页码格式。按名称查找样式、其他 STYLEREF 开关、页眉页脚引用及浮动题注框继续实施。原生指令归 [`chapter-reference.mbt`](../../modules/formats/src/docx/chapter-reference.mbt)，结果计算归 [`style-reference.mbt`](../../modules/layout/src/style-reference.mbt)，严格接口归 [`docx-page.ts`](../../packages/wasm/src/docx-page.ts)。语义参考 [ONLYOFFICE 章节题注](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L25786-L25851)及 [STYLEREF 查找](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexFieldInstruction.js#L981-L1170)。
+简单域和同段复杂数字级别 `STYLEREF` 可读取并保留原代码，支持可选 `MERGEFORMAT`。题注的周边输入、拆合段、完整域替换、富文本复制/剪切和目标位置重新计算沿既有路径；源、缓存、选择和样式一起精确撤销并保存重开。章节号通过题注参数创建，正文域查询对它返回专属保护原因，不把章节号解释成页码格式。按名称查找样式、其他 STYLEREF 开关、页眉页脚引用及浮动题注框继续实施。原生指令归 [`chapter-reference.mbt`](../../modules/formats/src/docx/chapter-reference.mbt)，结果计算归 [`style-reference.mbt`](../../modules/layout/src/style-reference.mbt)，严格接口归 [`docx-page.ts`](../../packages/docx/src/core/docx-page.ts)。语义参考 [ONLYOFFICE 章节题注](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L25786-L25851)及 [STYLEREF 查找](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexFieldInstruction.js#L981-L1170)。
 
-文档保护、单节、字体、完整布局、XML、字段数量、资源及历史预算沿现有核心规则。斜体题注预设要求宿主提供对应字体映射；失败保留原包及历史。原生题注目录归[DOCX 题注目录](#docx-题注目录)；自动定位的浮动题注框继续实施。实现归 [`caption.mbt`](../../modules/formats/src/docx/caption.mbt)和 [`docx-caption.tsx`](../../packages/ui/src/docx-caption.tsx)。段落/表格旁插入及 Caption 样式依据 [ONLYOFFICE AddCaption](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L25688-L25828)，交互范围参考 GenOffice 的标签、SEQ 与说明入口。
+文档保护、单节、字体、完整布局、XML、字段数量、资源及历史预算沿现有核心规则。斜体题注预设要求宿主提供对应字体映射；失败保留原包及历史。原生题注目录归[DOCX 题注目录](#docx-题注目录)；自动定位的浮动题注框继续实施。实现归 [`caption.mbt`](../../modules/formats/src/docx/caption.mbt)和 [`docx-caption.tsx`](../../packages/docx/src/react/docx-caption.tsx)。段落/表格旁插入及 Caption 样式依据 [ONLYOFFICE AddCaption](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L25688-L25828)，交互范围参考 GenOffice 的标签、SEQ 与说明入口。
 
 ### 表格创建
 
@@ -1147,15 +1147,15 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 默认表格面板显示所选格数，提供批量底色、清除、顶部/居中/底部对齐与恢复继承。四边边距复用单格及整表的表单，各边分别显示共同数值或留空并提示混合；填齐四边后使用既有 `cellMargins` 命令设置全部所选格。“使用继承边距”移除各目标格的直接覆盖，再按各自样式和整表默认值求有效边距。表单随文档、revision 和原选择重新加载，保留数值校验及选择。混合查询和批量重置依据 [ONLYOFFICE Get_Props](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L472-L494)及[所选格边距修改](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L1094-L1155)。
 
-`value.borders` 按 `top/right/bottom/left` 返回所选主格同名边的共同 `{ kind: "value", value: { style, width, color } }` 或 `{ kind: "mixed" }`。宽度为零仍是共同值；任一合并主格的同一边含不同线段时，该边保持混合。查询沿已有共享边冲突结果，保留单格查询的格式。默认面板复用 [`docx-borders.tsx`](../../packages/ui/src/docx-borders.tsx)，提供单边或各格四边的线型、线宽、RGB、显式移除与恢复继承；范围面板只调用既有 `cellBorders`，整表入口保持独立。每个所选主格的同名边一起修改，不将“各格四边”解释为选区最外框。清除写入无边框覆盖，继承移除指定侧的直接定义；相邻格和表样式仍按[边框冲突规则](#表格边框)求最终线段。源属性和段落不变的范围外格保持。共同/混合比较参考 [ONLYOFFICE 所选格边框查询](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L397-L465)。
+`value.borders` 按 `top/right/bottom/left` 返回所选主格同名边的共同 `{ kind: "value", value: { style, width, color } }` 或 `{ kind: "mixed" }`。宽度为零仍是共同值；任一合并主格的同一边含不同线段时，该边保持混合。查询沿已有共享边冲突结果，保留单格查询的格式。默认面板复用 [`docx-borders.tsx`](../../packages/docx/src/react/docx-borders.tsx)，提供单边或各格四边的线型、线宽、RGB、显式移除与恢复继承；范围面板只调用既有 `cellBorders`，整表入口保持独立。每个所选主格的同名边一起修改，不将“各格四边”解释为选区最外框。清除写入无边框覆盖，继承移除指定侧的直接定义；相邻格和表样式仍按[边框冲突规则](#表格边框)求最终线段。源属性和段落不变的范围外格保持。共同/混合比较参考 [ONLYOFFICE 所选格边框查询](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L397-L465)。
 
-[行跨页开关](#表格行跨页)作用于端点覆盖的实际源行，逐行判断无变化。`value.rowSplit` 返回这些行有效设置的共同布尔值或混合状态，默认面板使用半选复选框显示混合值，点击后统一允许拆分，再次点击统一禁止。同一源行的其他格共享此开关，范围外行保持。属性共用候选布局检查、单项历史及输出预算，保留文字、网格、选区和其他部件；支持精确撤销、重做及保存重开。边距面板归 [`docx-margins.tsx`](../../packages/ui/src/docx-margins.tsx)。
+[行跨页开关](#表格行跨页)作用于端点覆盖的实际源行，逐行判断无变化。`value.rowSplit` 返回这些行有效设置的共同布尔值或混合状态，默认面板使用半选复选框显示混合值，点击后统一允许拆分，再次点击统一禁止。同一源行的其他格共享此开关，范围外行保持。属性共用候选布局检查、单项历史及输出预算，保留文字、网格、选区和其他部件；支持精确撤销、重做及保存重开。边距面板归 [`docx-margins.tsx`](../../packages/docx/src/react/docx-margins.tsx)。
 
 核心 `Session.selection_rects(layout, selection)` 从已有 `cellAreas` 返回完整所选格在各页的覆盖框，Wasm 和 Canvas 沿既有选择几何查询显示，不进入 PDF 或原格式。标尺在文字拖动期间保留当前显示，结束后再查询，避免中断鼠标捕获。参考 [ONLYOFFICE 相交格选择及合并归属](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L15872-L15976)，实现归 [`table-range.mbt`](../../modules/formats/src/docx/table-range.mbt)。
 
 `value.rowHeight` 与 `value.rowHeightRule` 分别返回所选实际源行的共同高度、共同 `atLeast/exact` 模式或混合值。自动高度为 `0/atLeast`。`value.maxRowHeight` 是这些行可统一设置的最小高度上限，单位为 point；核心按纵向合并行组扣除边框、未选行的最小高度和各行边距，不按旧高度逐行独立计算。候选仍须通过整组页面及边距校验。查询不改源或历史。
 
-跨格选择调用既有 `editTable({ action: "rowHeight", value, rule })`，一次修改端点覆盖的实际行及其中未选列的格。单格与跨格共用默认行高表单，混合高度留空、混合模式显示占位，显式填齐后提交。固定值保留完整文字并沿既有规则裁剪；`0/atLeast` 恢复自动。修改保留所有格源内容、跨度、其他行属性、范围外行及原逻辑选择，合为一项精确历史；重复同值不增加历史，任一保护或预算失败整体拒绝。行范围依据 [ONLYOFFICE SetRowHeight](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L19045-L19059)，实现复用 [`table-size.mbt`](../../modules/formats/src/docx/table-size.mbt)；表单归 [`docx-cell-selection.tsx`](../../packages/ui/src/docx-cell-selection.tsx)。
+跨格选择调用既有 `editTable({ action: "rowHeight", value, rule })`，一次修改端点覆盖的实际行及其中未选列的格。单格与跨格共用默认行高表单，混合高度留空、混合模式显示占位，显式填齐后提交。固定值保留完整文字并沿既有规则裁剪；`0/atLeast` 恢复自动。修改保留所有格源内容、跨度、其他行属性、范围外行及原逻辑选择，合为一项精确历史；重复同值不增加历史，任一保护或预算失败整体拒绝。行范围依据 [ONLYOFFICE SetRowHeight](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L19045-L19059)，实现复用 [`table-size.mbt`](../../modules/formats/src/docx/table-size.mbt)；表单归 [`docx-cell-selection.tsx`](../../packages/docx/src/react/docx-cell-selection.tsx)。
 
 字符与段落格式、样式应用、格式复制/应用和列表操作使用所选整格内的全部段落，包括空段落；手势端点位于文字中间时也不截断首尾格。有效格式查询沿相同范围返回共同值或混合值。字符与段落格式可合为一项历史，保留原选择端点、非目标格的源片段和其他部件；恢复后可在空段落继续原生输入。普通段落拆分候选继续按候选文档校验，不查询旧源中的新段落。规则参考 [ONLYOFFICE 所选格文字属性](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L6207-L6263)及[段落对齐](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L7763-L7783)，写回复用既有格式事务。
 
@@ -1444,7 +1444,7 @@ HTML 输入支持 `table`、`caption`、`thead/tbody/tfoot` 行组、`tr`、`td/
 
 ## 通用绘制输出
 
-`@open-document/wasm/drawing` 定义 `DrawingBatch`、`DrawingRegion`、`DrawCommand` 和批量校验。`DrawingBatch.regions` 是绘制区域数组；DOCX 中每个区域对应一页，XLSX 屏幕结果对应一个视口，PPTX 对应当前幻灯片。区域只包含 `width`、`height` 和有序 `commands`，不包含段落或表格模型。区域原点在左上，坐标为 point，x 向右、y 向下。Renderer 使用 `drawRegion`，旧的页字段与方法已删除。
+`@open-document/wasm/abi/drawing` 定义 `DrawingBatch`、`DrawingRegion`、`DrawCommand` 和批量校验。`DrawingBatch.regions` 是绘制区域数组；DOCX 中每个区域对应一页，XLSX 屏幕结果对应一个视口，PPTX 对应当前幻灯片。区域只包含 `width`、`height` 和有序 `commands`，不包含段落或表格模型。区域原点在左上，坐标为 point，x 向右、y 向下。Renderer 使用 `drawRegion`，旧的页字段与方法已删除。
 
 当前指令如下：
 
@@ -1470,7 +1470,7 @@ HTML 输入支持 `table`、`caption`、`thead/tbody/tfoot` 行组、`tr`、`td/
 
 `layout(profile)` 返回 `PageLayout`：绘制批次、会话内 `id`、`revision`、复用计数、字体信息、profile、诊断，以及独立的 `semantics`。语义页按阅读顺序保留行文字、源位置、方向、只读原因与文字边界。宿主用它展示文本并初始化焦点；命中、光标和选区仍查询核心。完整 run、carets、图片布局和表格模型留在内部 `Layout`，供编辑几何及 PDF 使用。
 
-宿主校验有限数值、尺寸、颜色、路径、矩阵、嵌套栈和全部资源引用。每批指令/路径段/glyph 累计最多 1048576 项，栈深度最多 32，数值绝对值最多 1e9；轮廓仍最多 8 MiB。未知指令、无效输出及缺资源明确失败。`@open-document/web/drawing` 的 `CanvasRenderer` 只执行这些指令，并保留独立 `shape()` 探针的绘制入口。
+宿主校验有限数值、尺寸、颜色、路径、矩阵、嵌套栈和全部资源引用。每批指令/路径段/glyph 累计最多 1048576 项，栈深度最多 32，数值绝对值最多 1e9；轮廓仍最多 8 MiB。未知指令、无效输出及缺资源明确失败。`@open-document/web-core/drawing` 的 `CanvasRenderer` 只执行这些指令，并保留独立 `shape()` 探针的绘制入口。
 
 `CanvasSurface` 共用尺寸、DPR、透明覆盖层、绘制身份与资源释放。DOCX 的 `PageCanvas` 继续准备文档图片。相同 `id`、区域、zoom 和 DPR 下，只清除并重画覆盖层；仅像素尺寸变化时重设画布尺寸。缩放与窗口 DPR 变化重新呈现，覆盖层几何须匹配当前布局身份与 revision。
 
@@ -1488,7 +1488,7 @@ Web 宿主 `DocumentEditor.exportPng(scale = 1, outputBytes = 67108864)` 返回�
 
 输出 Canvas 与保留的预览/覆盖层合计最多 16777216 像素，输出字节预算为 1–67108864；尺寸在分配前检查，编码后检查实际字节数，并在成功或失败后释放临时 Canvas。PNG 失败保留源、选择及历史，不停止编辑；下一项成功操作清除 PNG 错误。销毁期间不交付图片。原格式保存与 PDF 继续沿原有恢复规则。
 
-图片输出目标参考 [GenOffice exportImages](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/apps/docs/src/renderer/file-actions.ts#L1463-L1540)。当前复用已有核心绘制和 [Canvas 编码](../../packages/web/src/canvas-surface.ts)，未移植其 Electron/PDF.js 导出路径；队列与入口归 [`document-page.ts`](../../packages/web/src/document-page.ts)及 [`document-output.ts`](../../packages/web/src/document-output.ts)。这是 Chrome/Chromium 的 Web 输出；其他编码和无浏览器图片输出继续实施。
+图片输出目标参考 [GenOffice exportImages](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/apps/docs/src/renderer/file-actions.ts#L1463-L1540)。当前复用已有核心绘制和 [Canvas 编码](../../packages/web-core/src/canvas-surface.ts)，未移植其 Electron/PDF.js 导出路径；队列与入口归 [`document-page.ts`](../../packages/docx/src/web/document-page.ts)及 [`document-output.ts`](../../packages/docx/src/web/document-output.ts)。这是 Chrome/Chromium 的 Web 输出；其他编码和无浏览器图片输出继续实施。
 
 ### DOCX HTML 与 Markdown
 
@@ -1833,7 +1833,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 双击范围依据 [ONLYOFFICE applyFillHandleDoubleClick](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L15248-L15306)及[连续区域扩展](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/autofilters.js#L4528-L4783)。实现归 [`fill-adjacent.mbt`](../../modules/formats/src/xlsx/fill-adjacent.mbt)，以非空行列索引查询边界，避免逐格扫描稀疏工作表；最终范围继续受 4096 格限制。
 
-方向选择参考 [ONLYOFFICE changeSelectionFillHandle](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L14754-L14825)，未复制上游代码。实现归 [`fill-preview.mbt`](../../modules/formats/src/xlsx/fill-preview.mbt) 和 [`spreadsheet-pointer.ts`](../../packages/web/src/spreadsheet-pointer.ts)。
+方向选择参考 [ONLYOFFICE changeSelectionFillHandle](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L14754-L14825)，未复制上游代码。实现归 [`fill-preview.mbt`](../../modules/formats/src/xlsx/fill-preview.mbt) 和 [`spreadsheet-pointer.ts`](../../packages/xlsx/src/web/spreadsheet-pointer.ts)。
 
 ### 数字序列
 
@@ -1889,7 +1889,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 上述存储和引用维护参考 [ONLYOFFICE SortState](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L9742-L10000)、[OOXML 排序定义](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/Test/Applications/DocxFormatCodeGen/codegen/Resource/sml.xsd#L148-L182)及[写入代码](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/XlsxFormat/Table/Autofilter.cpp#L320-L352)，没有复制上游源码。
 
-排序键归一化共享 1048576 次公式工作预算，移动片段累计最多 1 Mi UTF-16，继续使用公式、候选、源和 4 MiB 历史上限。合并区域、未知筛选/排序元数据、绘图、未支持的结构化表操作/透视、未知批注、未知资源或关系、未知单元格/公式标记和工作表保护继续原子拒绝。更广合并/资源支持归 [P14](roadmap.md#p14-兼容与性能)。实现归 [`sort.mbt`](../../modules/formats/src/xlsx/sort.mbt)、[`sort-state.mbt`](../../modules/formats/src/xlsx/sort-state.mbt)、[`sort-source.mbt`](../../modules/formats/src/xlsx/sort-source.mbt)、[`reorder-cells.mbt`](../../modules/formats/src/xlsx/reorder-cells.mbt)及 [`xlsx-sort.tsx`](../../packages/ui/src/xlsx-sort.tsx)。
+排序键归一化共享 1048576 次公式工作预算，移动片段累计最多 1 Mi UTF-16，继续使用公式、候选、源和 4 MiB 历史上限。合并区域、未知筛选/排序元数据、绘图、未支持的结构化表操作/透视、未知批注、未知资源或关系、未知单元格/公式标记和工作表保护继续原子拒绝。更广合并/资源支持归 [P14](roadmap.md#p14-兼容与性能)。实现归 [`sort.mbt`](../../modules/formats/src/xlsx/sort.mbt)、[`sort-state.mbt`](../../modules/formats/src/xlsx/sort-state.mbt)、[`sort-source.mbt`](../../modules/formats/src/xlsx/sort-source.mbt)、[`reorder-cells.mbt`](../../modules/formats/src/xlsx/reorder-cells.mbt)及 [`xlsx-sort.tsx`](../../packages/xlsx/src/react/xlsx-sort.tsx)。
 
 ### 分类汇总
 
@@ -1927,7 +1927,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 源最多 4096 行，原始字段矩形和实际输出矩形均最多 4096 格，实际输出不能越过 XFD 列；输入累计最多 1 Mi UTF-16，每格最多 32767 单元，并受原包、XML、输出和 4 MiB 历史预算约束。分隔符模式的错误引号、非法固定位置、合并格、富文本等既有只读单元格、工作表保护、不透明公式/元数据或验证失败原子拒绝。CSV/TSV 文件导入仍只接受逗号或制表符，原转换选项保持。更广地区化转换和格式组合继续实施。
 
-功能入口参考 GenOffice 单列分列操作，编辑值与文本粘贴事务参考固定 [ONLYOFFICE asc_TextToColumns](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/api.js#L846-L902)及 [getRangeText](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L23563-L23594)。固定宽度参考 [LibreOffice 列宽推进](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sc/source/ui/docshell/impex.cxx#L529-L557)、[段落提取](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sc/source/ui/docshell/impex.cxx#L1490-L1534)及[分列事务](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sc/source/ui/docshell/impex.cxx#L1641-L1689)，补齐字素完整性。本实现默认保留文字，转换需要明确选择，不声称覆盖完整文本导入向导；未复制上游源码。实现归 [`text-columns.mbt`](../../modules/formats/src/xlsx/text-columns.mbt)、[`text-columns-convert.mbt`](../../modules/formats/src/xlsx/text-columns-convert.mbt)、[`text-columns-fixed.mbt`](../../modules/formats/src/xlsx/text-columns-fixed.mbt)、既有 [`delimited.mbt`](../../modules/formats/src/xlsx/delimited.mbt)和 [`xlsx-text-columns.tsx`](../../packages/ui/src/xlsx-text-columns.tsx)。
+功能入口参考 GenOffice 单列分列操作，编辑值与文本粘贴事务参考固定 [ONLYOFFICE asc_TextToColumns](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/api.js#L846-L902)及 [getRangeText](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L23563-L23594)。固定宽度参考 [LibreOffice 列宽推进](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sc/source/ui/docshell/impex.cxx#L529-L557)、[段落提取](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sc/source/ui/docshell/impex.cxx#L1490-L1534)及[分列事务](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sc/source/ui/docshell/impex.cxx#L1641-L1689)，补齐字素完整性。本实现默认保留文字，转换需要明确选择，不声称覆盖完整文本导入向导；未复制上游源码。实现归 [`text-columns.mbt`](../../modules/formats/src/xlsx/text-columns.mbt)、[`text-columns-convert.mbt`](../../modules/formats/src/xlsx/text-columns-convert.mbt)、[`text-columns-fixed.mbt`](../../modules/formats/src/xlsx/text-columns-fixed.mbt)、既有 [`delimited.mbt`](../../modules/formats/src/xlsx/delimited.mbt)和 [`xlsx-text-columns.tsx`](../../packages/xlsx/src/react/xlsx-text-columns.tsx)。
 
 ### 删除重复行
 
@@ -1945,7 +1945,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 选区完整位于一张原生表时，核心将有效范围扩展为整表。`header` 取原生设置，比较列可选整表中的任意列。标题和总计不参加比较，预览的 `range` 和 `resultRange` 包含它们。默认面板显示整表范围并锁定标题开关。删除后保留表/列身份、计算列模板、存活例外和样式，范围按删除数缩小；总计文字、公式和格式迁至新末行，公式沿范围调整规则保持原文。根及筛选内的已知排序范围同步裁剪，保留历史设置，不重新排序。表外普通区域也可去重，保留原生表范围，并重新计算依赖该区域的原生与普通筛选。多来源可见性、手动隐藏、依赖缓存及源变化共用一次历史；没有标题或筛选的表沿相同路径处理。
 
-比较和稳定压紧依据 [ONLYOFFICE setRemoveDuplicates](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L25977-L26181)、[清空单元格](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21142-L21166)及前述 `_sortByArray`；未复制上游源码。实现归 [`duplicates.mbt`](../../modules/formats/src/xlsx/duplicates.mbt)、[`reorder-cells.mbt`](../../modules/formats/src/xlsx/reorder-cells.mbt)及 [`xlsx-duplicates.tsx`](../../packages/ui/src/xlsx-duplicates.tsx)。更多数据工具兼容归 [P14](roadmap.md#p14-兼容与性能)。
+比较和稳定压紧依据 [ONLYOFFICE setRemoveDuplicates](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L25977-L26181)、[清空单元格](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21142-L21166)及前述 `_sortByArray`；未复制上游源码。实现归 [`duplicates.mbt`](../../modules/formats/src/xlsx/duplicates.mbt)、[`reorder-cells.mbt`](../../modules/formats/src/xlsx/reorder-cells.mbt)及 [`xlsx-duplicates.tsx`](../../packages/xlsx/src/react/xlsx-duplicates.tsx)。更多数据工具兼容归 [P14](roadmap.md#p14-兼容与性能)。
 
 ### 值筛选
 
@@ -1961,7 +1961,7 @@ GenOffice 的“高级筛选”入口使用上述同列最多两个自定义条�
 
 保存使用标准 `autoFilter/filterColumn/filters/filter` 或 `customFilters/customFilter`（`and` 与 `operator/val`）、`sheetPr.filterMode` 和行 `hidden`。行高、原属性与非目标部件保留。`autoFilter/extLst` 内的 `urn:open-document:xlsx:filter-state` 扩展记录 `manual` 与 `filtered` 行号，可同时包含同一行；清除筛选只恢复筛选隐藏，手动隐藏继续保留。已有行高/隐藏命令同步手动来源，正行高也不能展开仍被筛选隐藏的行。复制、改名、撤销重做和保存重开保留此来源；扩展与实际隐藏行不一致时拒绝编辑。外部文件只有一个 `hidden` 字段，无法判断同一行是否同时被手动和筛选隐藏；无来源扩展时，将不匹配条件的隐藏行视为筛选隐藏，其余视为手动隐藏。外部程序若丢弃扩展，也会恢复此导入限制。
 
-每项匹配/目录共用 1048576 次公式工作预算，条件文字累计最多 1048576 个 UTF-16 单元，目录数据/标题累计最多 1048576 个单元；继续受包、源和 4 MiB 历史预算约束。未知条件、日历声明、扩展、属性、筛选内注释/处理指令、工作表保护或无法计算的显示值拒绝修改，保留源与历史。保留已知 `hiddenButton/showButton` 标记。已支持条件的排序和整行/整列插删复用候选重算与隐藏来源事务，局部单元格移位仍保护；原生表筛选归[结构化表](#结构化表与引用)；其余交互及复杂组合按 [P14](roadmap.md#p14-兼容与性能) 扩展。实现归 [`filter-model.mbt`](../../modules/formats/src/xlsx/filter-model.mbt)、[`filter-values.mbt`](../../modules/formats/src/xlsx/filter-values.mbt)、[`filter-custom.mbt`](../../modules/formats/src/xlsx/filter-custom.mbt)、[`filter-source.mbt`](../../modules/formats/src/xlsx/filter-source.mbt)、[`filter-edit.mbt`](../../modules/formats/src/xlsx/filter-edit.mbt)及 [`xlsx-filter.tsx`](../../packages/ui/src/xlsx-filter.tsx)。
+每项匹配/目录共用 1048576 次公式工作预算，条件文字累计最多 1048576 个 UTF-16 单元，目录数据/标题累计最多 1048576 个单元；继续受包、源和 4 MiB 历史预算约束。未知条件、日历声明、扩展、属性、筛选内注释/处理指令、工作表保护或无法计算的显示值拒绝修改，保留源与历史。保留已知 `hiddenButton/showButton` 标记。已支持条件的排序和整行/整列插删复用候选重算与隐藏来源事务，局部单元格移位仍保护；原生表筛选归[结构化表](#结构化表与引用)；其余交互及复杂组合按 [P14](roadmap.md#p14-兼容与性能) 扩展。实现归 [`filter-model.mbt`](../../modules/formats/src/xlsx/filter-model.mbt)、[`filter-values.mbt`](../../modules/formats/src/xlsx/filter-values.mbt)、[`filter-custom.mbt`](../../modules/formats/src/xlsx/filter-custom.mbt)、[`filter-source.mbt`](../../modules/formats/src/xlsx/filter-source.mbt)、[`filter-edit.mbt`](../../modules/formats/src/xlsx/filter-edit.mbt)及 [`xlsx-filter.tsx`](../../packages/xlsx/src/react/xlsx-filter.tsx)。
 
 ### 跨年日期筛选
 
@@ -1969,7 +1969,7 @@ Wasm/Web 导出 `XlsxCalendarFilter`，使用 `{ kind: "calendar", column, unit,
 
 核心按当前数值的日期序号匹配月份，使用工作簿的 1900/1904 系统，保留 1900 年虚构闰日。显示格式不影响结果；普通数值和时间小数也按日期序号解释，文字、布尔、错误、空白及日历范围外数值不匹配。公式使用当前计算值，不读取过期缓存。输入后沿原筛选规则保留隐藏结果，显式重新应用再更新。手动隐藏、SUBTOTAL、整行/列结构维护、精确历史及保存重开复用已有事务和工作预算。
 
-源写为标准 `dynamicFilter type="M1"… "M12"` 或 `"Q1"… "Q4"`。导入查询保留原源和按钮标记；有限 `val/maxVal` 缓存只作源校验，重新应用按当前值计算。未知类型、属性和子节点继续保护。依赖当前日期的条件归[相对日期筛选](#相对日期筛选)。月份与季度边界参考 [ONLYOFFICE DynamicFilter.isHideValue](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L11896-L11990)，原生类型名归同文件的 `ToXml_ST_DynamicFilterType`。实现归 [`filter-calendar.mbt`](../../modules/formats/src/xlsx/filter-calendar.mbt)和 [`xlsx-date-filter.tsx`](../../packages/ui/src/xlsx-date-filter.tsx)。
+源写为标准 `dynamicFilter type="M1"… "M12"` 或 `"Q1"… "Q4"`。导入查询保留原源和按钮标记；有限 `val/maxVal` 缓存只作源校验，重新应用按当前值计算。未知类型、属性和子节点继续保护。依赖当前日期的条件归[相对日期筛选](#相对日期筛选)。月份与季度边界参考 [ONLYOFFICE DynamicFilter.isHideValue](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L11896-L11990)，原生类型名归同文件的 `ToXml_ST_DynamicFilterType`。实现归 [`filter-calendar.mbt`](../../modules/formats/src/xlsx/filter-calendar.mbt)和 [`xlsx-date-filter.tsx`](../../packages/xlsx/src/react/xlsx-date-filter.tsx)。
 
 ### 相对日期筛选
 
@@ -1981,7 +1981,7 @@ Wasm/Web 导出 `XlsxRelativeDateFilter`，条件为 `{ kind: "relativeDate", co
 
 保存使用标准 `dynamicFilter type/val/maxVal`。查询和重开保留原窗口、隐藏行和源；跨日、普通输入或撤销重做不自动重新筛选。显式应用或重新应用按当日计算窗口，并与隐藏来源及缓存合为一次精确历史。原生导入按保存的窗口推断未记录的隐藏来源，随后重新应用才采用新日期，避免将昨日筛选隐藏误作手动隐藏。两个缓存都缺省时，计算使用显式会话日期；缺少日期时拒绝需要计算的操作。单边、非有限或倒置缓存及未知期间、属性和子节点继续保护。
 
-区间名称、星期日起始和边界参考 [ONLYOFFICE DynamicFilter.init 的 referenceValues](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L11673-L11700)，匹配沿该文件的 `DynamicFilter.isHideValue`。完整期间按其参考边界构造，不沿用 `_calcDateInterval` 中额外加一的日/月/年终点。实现归 [`filter-relative.mbt`](../../modules/formats/src/xlsx/filter-relative.mbt)、[`xlsx-filter.ts`](../../packages/wasm/src/xlsx-filter.ts)及[默认日期控件](../../packages/ui/src/xlsx-date-filter.tsx)。
+区间名称、星期日起始和边界参考 [ONLYOFFICE DynamicFilter.init 的 referenceValues](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L11673-L11700)，匹配沿该文件的 `DynamicFilter.isHideValue`。完整期间按其参考边界构造，不沿用 `_calcDateInterval` 中额外加一的日/月/年终点。实现归 [`filter-relative.mbt`](../../modules/formats/src/xlsx/filter-relative.mbt)、[`xlsx-filter.ts`](../../packages/xlsx/src/core/xlsx-filter.ts)及[默认日期控件](../../packages/xlsx/src/react/xlsx-date-filter.tsx)。
 
 ### 颜色筛选
 
@@ -1993,7 +1993,7 @@ Wasm/Web 导出 `XlsxColorFilter`，使用 `{ kind: "color", column, cellColor, 
 
 基本文字段的字体、字号、粗斜体、颜色、单下划线、删除线和上下标已进入共同排版，预览、静态 PDF、自动行高及列宽使用相同文字段。空文字段的大字号也参与行高；同文异字号的格重排后，自动尺寸随文字段源重新测量。字体资源由原有 `probe/profile` 提供，重开后沿既有规则重新绑定。文字块保留完整绘制指令，页眉页脚和 PDF 表单沿相同坐标变换消费。双线及会计下划线、未知文字段或注音保留源并给出诊断，受影响的自动测量及输出继续保护。颜色归 [`rich-colors.mbt`](../../modules/formats/src/xlsx/rich-colors.mbt)，文字段归 [`rich-layout.mbt`](../../modules/formats/src/xlsx/rich-layout.mbt)，共同块排版归 [`positioned.mbt`](../../modules/layout/src/positioned.mbt)。任一文字段匹配参考 [ONLYOFFICE ColorFilter.isHideValue](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L12110-L12185)与 [colorFillCmp](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21522-L21538)；未复制上游可执行代码。
 
-比较及存储参考 [ONLYOFFICE ColorFilter](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L12110-L12260)，未复制上游源码。实现归 [`filter-color.mbt`](../../modules/formats/src/xlsx/filter-color.mbt)、已有颜色排序的 [`sort-color.mbt`](../../modules/formats/src/xlsx/sort-color.mbt)及 [`xlsx-color-filter.tsx`](../../packages/ui/src/xlsx-color-filter.tsx)。
+比较及存储参考 [ONLYOFFICE ColorFilter](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L12110-L12260)，未复制上游源码。实现归 [`filter-color.mbt`](../../modules/formats/src/xlsx/filter-color.mbt)、已有颜色排序的 [`sort-color.mbt`](../../modules/formats/src/xlsx/sort-color.mbt)及 [`xlsx-color-filter.tsx`](../../packages/xlsx/src/react/xlsx-color-filter.tsx)。
 
 ### 图标筛选
 
@@ -2001,7 +2001,7 @@ Wasm/Web 导出 `XlsxIconFilter`，使用 `{ kind: "icon", column, iconSet, icon
 
 核心与[图标排序](#区域排序)共用实际显示图案的匹配，保留反转、规则优先级、停止规则、当前公式及文字/空白语义。各列取交集，手动隐藏和其他筛选来源分别保留；SUBTOTAL、整行插删、精确历史与重开沿既有事务。输入后保留现有隐藏结果，显式重新应用再按当前图案筛选。规则、原样式和数据坐标不变，不新增差异样式。
 
-标准 `iconFilter` 写 `iconSet` 和有值的 `iconId`；无图标条件省略 `iconId`。该语义依据 [OOXML IconFilter](https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.spreadsheet.iconfilter?view=openxml-3.0.1)；已检查的 ONLYOFFICE `WorkbookElems.js` 图标筛选字段仍标为待实现，因此复用本项目现有图案求值与筛选事务。未知属性、子节点和自定义 x14 图标继续保护，未复制上游源码。实现归 [`conditional-icon.mbt`](../../modules/formats/src/xlsx/conditional-icon.mbt)、[`filter-values.mbt`](../../modules/formats/src/xlsx/filter-values.mbt)及 [`xlsx-icon-filter.tsx`](../../packages/ui/src/xlsx-icon-filter.tsx)。
+标准 `iconFilter` 写 `iconSet` 和有值的 `iconId`；无图标条件省略 `iconId`。该语义依据 [OOXML IconFilter](https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.spreadsheet.iconfilter?view=openxml-3.0.1)；已检查的 ONLYOFFICE `WorkbookElems.js` 图标筛选字段仍标为待实现，因此复用本项目现有图案求值与筛选事务。未知属性、子节点和自定义 x14 图标继续保护，未复制上游源码。实现归 [`conditional-icon.mbt`](../../modules/formats/src/xlsx/conditional-icon.mbt)、[`filter-values.mbt`](../../modules/formats/src/xlsx/filter-values.mbt)及 [`xlsx-icon-filter.tsx`](../../packages/xlsx/src/react/xlsx-icon-filter.tsx)。
 
 ### 日期组筛选
 
@@ -2011,7 +2011,7 @@ Wasm/Web 导出 `XlsxDateFilter`，使用 `{ kind: "dates", column, groups, valu
 
 每列日期组与普通标签合计最多 4096 项，分别拒绝完全重复项；跨粒度重叠合法。派生区间先排序合并，再有界二分匹配，沿既有 1048576 个求值步骤和文字预算，不按记录数与日期组数做全交叉扫描。值改变后保留现有隐藏结果，重新应用更新筛选隐藏及 SUBTOTAL 缓存；手动隐藏、源格式、选择、精确历史、整行/整列结构同步、工作表复制/改名和保存重开沿同一事务。错误日历、未知源及输出预算失败均不提交部分结果。
 
-标准 `filters/dateGroupItem` 使用 `dateTimeGrouping` 与对应的 `year/month/day/hour/minute/second` 前缀字段，可与普通 `filter` 和 `blank` 共存。读取不改写源；修改保留筛选按钮、排序状态和隐藏来源。未知粒度、缺少前置字段、多余细分字段、`calendarType` 声明及未知属性/子节点继续保护。相对当前日期的 `dynamicFilter` 归[相对日期筛选](#相对日期筛选)；其他日历和本地化解析仍归 P11 后续范围。读取及区间规则参考 [ONLYOFFICE 的日期分组匹配](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L10785-L10835)、[日期类型分流](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/AutoFilters.js#L1288-L1304)及[六种区间构造](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L12769-L12834)。未复制上游源码；实现归 [`filter-date.mbt`](../../modules/formats/src/xlsx/filter-date.mbt)和 [`xlsx-date-filter.tsx`](../../packages/ui/src/xlsx-date-filter.tsx)。
+标准 `filters/dateGroupItem` 使用 `dateTimeGrouping` 与对应的 `year/month/day/hour/minute/second` 前缀字段，可与普通 `filter` 和 `blank` 共存。读取不改写源；修改保留筛选按钮、排序状态和隐藏来源。未知粒度、缺少前置字段、多余细分字段、`calendarType` 声明及未知属性/子节点继续保护。相对当前日期的 `dynamicFilter` 归[相对日期筛选](#相对日期筛选)；其他日历和本地化解析仍归 P11 后续范围。读取及区间规则参考 [ONLYOFFICE 的日期分组匹配](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L10785-L10835)、[日期类型分流](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/AutoFilters.js#L1288-L1304)及[六种区间构造](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L12769-L12834)。未复制上游源码；实现归 [`filter-date.mbt`](../../modules/formats/src/xlsx/filter-date.mbt)和 [`xlsx-date-filter.tsx`](../../packages/xlsx/src/react/xlsx-date-filter.tsx)。
 
 ### 数值排名筛选
 
@@ -2059,7 +2059,7 @@ Wasm/Web 导出 `XlsxDateFilter`，使用 `{ kind: "dates", column, groups, valu
 
 ### 单元格格式编辑
 
-四边支持 `none/thin/medium/thick/double/hair/dotted/dashed/dashDot/dashDotDot/mediumDashed/mediumDashDot/mediumDashDotDot/slantDashDot`。核心统一读取普通样式、条件差异样式和自定义表格样式，沿原有格式、格式刷与片段事务保留源、混合状态和精确历史。`thin/hair/dotted/dashed/dashDot/dashDotDot` 使用 0.75 pt，`medium` 及中等宽度点划线使用 1.5 pt，`thick/double` 使用 2.25 pt；双线保留两条 0.75 pt 细线。虚线和点划线使用有界路径及原生 dash 数组，Canvas/PDF 共用 point 尺寸，网格线先于所有显式边框绘制。`hair` 和 `slantDashDot` 的线宽与节奏按 [ONLYOFFICE BorderProp](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L3862-L3920) 处理，后者显示为中等宽度点划线；未复制上游执行代码。默认格式、条件格式及自定义表格样式面板共用导出的线型目录。未知线型、对角线和其他未支持属性继续保护，未增加独立渲染或平台排版路径。实现归 [`grid-border.mbt`](../../modules/formats/src/xlsx/grid-border.mbt)及 [`xlsx-format.ts`](../../packages/wasm/src/xlsx-format.ts)。
+四边支持 `none/thin/medium/thick/double/hair/dotted/dashed/dashDot/dashDotDot/mediumDashed/mediumDashDot/mediumDashDotDot/slantDashDot`。核心统一读取普通样式、条件差异样式和自定义表格样式，沿原有格式、格式刷与片段事务保留源、混合状态和精确历史。`thin/hair/dotted/dashed/dashDot/dashDotDot` 使用 0.75 pt，`medium` 及中等宽度点划线使用 1.5 pt，`thick/double` 使用 2.25 pt；双线保留两条 0.75 pt 细线。虚线和点划线使用有界路径及原生 dash 数组，Canvas/PDF 共用 point 尺寸，网格线先于所有显式边框绘制。`hair` 和 `slantDashDot` 的线宽与节奏按 [ONLYOFFICE BorderProp](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L3862-L3920) 处理，后者显示为中等宽度点划线；未复制上游执行代码。默认格式、条件格式及自定义表格样式面板共用导出的线型目录。未知线型、对角线和其他未支持属性继续保护，未增加独立渲染或平台排版路径。实现归 [`grid-border.mbt`](../../modules/formats/src/xlsx/grid-border.mbt)及 [`xlsx-format.ts`](../../packages/xlsx/src/core/xlsx-format.ts)。
 
 同步 Wasm 与 Worker 使用 `formatCells(revision, patch)`，宿主使用 `SpreadsheetEditor.formatCells(patch)`。命令作用于队列执行时的选区，宿主先提交单格草稿。`XlsxCellFormat` 从 `wasm/xlsx` 和 `web/xlsx` 导出；省略的属性保持原值。字段为 `family`、`size`、`bold`、`italic`、`underline`、`strike`、`script`、`color`、`fill`、`horizontal`、`vertical`、`wrap`、`shrinkToFit`、`indent`、`textRotation`、`numberFormat` 及 `left/right/top/bottom`。`underline` 为单下划线，`strike` 为删除线，均使用布尔值；`script` 为 `baseline | superscript | subscript`。颜色为六位十六进制，空 `fill` 清除填充；四边使用 `{ style, color }`，`style` 为导出的 `xlsxBorderStyles` 标准值。字号为 1–409 磅，水平对齐为 general/left/center/right/justify/centerContinuous/distributed/fill，垂直对齐为 top/center/bottom/justify/distributed；数字格式限下节已有集合。宿主先验证新字体键存在于字体 profile。
 
@@ -2207,7 +2207,7 @@ Wasm/Web 导出 `XlsxDateFilter`，使用 `{ kind: "dates", column, groups, valu
 
 网格使用 R0 绘制橙色逻辑右上角标，RTL 镜像到左侧，尺寸随缩放变化；空格和合并锚点也可显示。位置与裁剪由核心沿用行列尺寸、隐藏、冻结和合并几何。`XlsxViewport.notes` 返回可见 `{ address, author, text, rect }`，rect 使用 point 的已裁剪画布坐标；跨冻结窗格的合并格可有多个可见片段，源便笺不重复。一次最多 4096 个片段及 5 Mi 文字/作者单元，含最多四窗格重复。仅便笺的远端单元格扩展网格滚动范围，不扩展默认打印区域。未知便笺继续沿既有保护和诊断处理，不暴露部分记录。
 
-Web 复用核心矩形显示悬停或选中便笺的作者与纯文字提示，不改变选区、修订、历史或保存源。键盘选中格关联便笺描述，网格语义也提供作者和文字；Escape 隐藏提示，切换目标可重新显示。长文字可在有界提示中滚动；悬停提示内仍可读取。布局、工作表或修订变化后更新提示，释放实例时解除监听。角标和提示不进入静态 PDF，也不修改 VML 外观。角标参考 [ONLYOFFICE drawCommentCells](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/CellComment.js#L642-L690)，实现归 [`notes-grid.mbt`](../../modules/formats/src/xlsx/notes-grid.mbt)及 [`spreadsheet-notes.ts`](../../packages/web/src/spreadsheet-notes.ts)。
+Web 复用核心矩形显示悬停或选中便笺的作者与纯文字提示，不改变选区、修订、历史或保存源。键盘选中格关联便笺描述，网格语义也提供作者和文字；Escape 隐藏提示，切换目标可重新显示。长文字可在有界提示中滚动；悬停提示内仍可读取。布局、工作表或修订变化后更新提示，释放实例时解除监听。角标和提示不进入静态 PDF，也不修改 VML 外观。角标参考 [ONLYOFFICE drawCommentCells](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/CellComment.js#L642-L690)，实现归 [`notes-grid.mbt`](../../modules/formats/src/xlsx/notes-grid.mbt)及 [`spreadsheet-notes.ts`](../../packages/xlsx/src/web/spreadsheet-notes.ts)。
 
 首次创建把 comments、VML、工作表 `legacyDrawing`、关系和内容类型合为一项精确历史。普通备注框使用标准 `ObjectType="Note"` 及从零开始的 Row/Column、八项 Anchor。导入只有 comments 而无 VML 时，新增便笺会补齐全部现有便笺的框；若已有未解析的 `shapeId`，保护该创建。修改只替换文字正文，保留原作者、其他便笺、外围注释、局部命名空间和 VML 位置/外观。删除移除文字与对应框，最后一条删除后保留空部件和作者列表。每表最多 4096 条、合计 1 Mi 文字单元及 4096 个作者，并继续受包、输出与历史预算约束。
 
@@ -2221,7 +2221,7 @@ Web 复用核心矩形显示悬停或选中便笺的作者与纯文字提示，�
 
 矩形剪切移动复用[单元格剪切移动](#单元格剪切移动)事务。同表便笺沿原地址映射，跨表保留完整富文本、作者及已有 guid，并在目标作者表中匹配或追加作者。VML 框及所用形状类型带原外观和命名空间迁入，分配目标内未占用的身份，同步 `shapeId`、`ref` 与 Row/Column；原 Anchor、偏移和外观保持。目标缺少 comments/VML 时创建独立部件与关系，只有文字资源的导入便笺按已有创建规则补齐框。目标范围内的旧便笺被覆盖，范围外原节点保持；源端保留空部件、作者与关系。已移入的便笺可继续修改、删除或移回。身份冲突、无法匹配的原 `shapeId`、未知/共享资源及预算失败整体拒绝，文字和框源的迁移合计最多 2 Mi UTF-16 单元，其他便笺及事务预算继续生效。归属依据 [ONLYOFFICE moveRangeComments](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/CellComment.js#L562-L586)，实现归 [`move-notes.mbt`](../../modules/formats/src/xlsx/move-notes.mbt)及共用的 [`notes-import.mbt`](../../modules/formats/src/xlsx/notes-import.mbt)。
 
-部件及锚点格式参考 [ONLYOFFICE VmlDrawing.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/VmlDrawing.cpp#L295-L410)。实现独立使用已有 XML 编辑、单元格地址、关系及历史事务，归 [`notes-read.mbt`](../../modules/formats/src/xlsx/notes-read.mbt)、[`notes-vml.mbt`](../../modules/formats/src/xlsx/notes-vml.mbt)、[`notes-create.mbt`](../../modules/formats/src/xlsx/notes-create.mbt)、[`notes-edit.mbt`](../../modules/formats/src/xlsx/notes-edit.mbt)及 [`xlsx-format.tsx`](../../packages/ui/src/xlsx-format.tsx)。线程回复/解决归[单元格线程批注](#单元格线程批注)；便笺外观编辑和其他资源变换兼容归 [P14](roadmap.md#p14-兼容与性能)。
+部件及锚点格式参考 [ONLYOFFICE VmlDrawing.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/VmlDrawing.cpp#L295-L410)。实现独立使用已有 XML 编辑、单元格地址、关系及历史事务，归 [`notes-read.mbt`](../../modules/formats/src/xlsx/notes-read.mbt)、[`notes-vml.mbt`](../../modules/formats/src/xlsx/notes-vml.mbt)、[`notes-create.mbt`](../../modules/formats/src/xlsx/notes-create.mbt)、[`notes-edit.mbt`](../../modules/formats/src/xlsx/notes-edit.mbt)及 [`xlsx-format.tsx`](../../packages/xlsx/src/react/xlsx-format.tsx)。线程回复/解决归[单元格线程批注](#单元格线程批注)；便笺外观编辑和其他资源变换兼容归 [P14](roadmap.md#p14-兼容与性能)。
 
 ### 单元格线程批注
 
@@ -2517,7 +2517,7 @@ DEVSQ 已真实求值，接入名称、共享公式、跨表、稀疏引用及�
 
 `editSheet({ action: "tableStyle", id, style })` 修改所属表的原生样式。`style` 为 `XlsxTableStyle`，包含 `name: string | null` 和显式布尔字段 `firstColumn/lastColumn/rowStripes/columnStripes`。名称支持 `TableStyleLight1`–`TableStyleLight21`、`TableStyleMedium1`–`TableStyleMedium28` 和 `TableStyleDark1`–`TableStyleDark11`，共 60 种，以及工作簿中已有的受支持自定义样式。名称查找由核心执行，自定义名称按目录中的大小写保存。null 清除样式，保留数据、模板、筛选和直接格式。查询的 `style` 返回名称或 null，四个布尔字段另行返回。
 
-缺失的原生节点按需创建，相同设置不增加修订或历史。未知元数据、保护及预算失败整体拒绝。自定义定义与内置名称相同时，以已有自定义定义为准；未知定义仍保护。默认面板、同步 Wasm 和 Worker 使用同一命令。样式源与自动尺寸变化合为精确历史，公式缓存、calcChain 和无关部件保持。实现归 [`table-style-edit.mbt`](../../modules/formats/src/xlsx/table-style-edit.mbt)和 [`xlsx-table-style.tsx`](../../packages/ui/src/xlsx-table-style.tsx)。
+缺失的原生节点按需创建，相同设置不增加修订或历史。未知元数据、保护及预算失败整体拒绝。自定义定义与内置名称相同时，以已有自定义定义为准；未知定义仍保护。默认面板、同步 Wasm 和 Worker 使用同一命令。样式源与自动尺寸变化合为精确历史，公式缓存、calcChain 和无关部件保持。实现归 [`table-style-edit.mbt`](../../modules/formats/src/xlsx/table-style-edit.mbt)和 [`xlsx-table-style.tsx`](../../packages/xlsx/src/react/xlsx-table-style.tsx)。
 
 自定义样式沿标准 `tableStyles/tableStyle/tableStyleElement` 与 `dxfs/dxf` 读取。`query.tableStyles: XlsxTableStyleChoice[]` 返回 `{ name, readOnlyReason, elements }` 目录，默认面板列出可用项并禁用未知项；最多 256 个定义，每个名称最多 255 个 UTF-16 单元，首尾空白和控制字符拒绝。每个定义最多 13 类非重复区域：全表、两组行/列条纹、首末列、标题/总计行及四个角格。条纹尺寸为 1–1048576；按全表、列条纹、行条纹、末列、首列、标题、总计和角格顺序叠加。字体族/大小/粗斜体/颜色、纯色填充、数字格式、对齐/换行及已支持边框复用差异格式解析，内部横竖边按区域几何映射。直接属性逐项优先，条件格式随后覆盖；字体变体沿现有 4096 字体键和 1048576 工作预算收集。未知区域、缺失 dxf、复杂图案和对角线保持诊断与保护，不替换成内置外观。应用只改所属表的样式引用和标记，原样式定义、dxf 和其他部件保持。实现归 [`table-custom-style.mbt`](../../modules/formats/src/xlsx/table-custom-style.mbt)，区域优先级依据 [ONLYOFFICE CTableStyle.initStyle](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Serialize.js#L14218-L14290)。
 
@@ -2525,7 +2525,7 @@ DEVSQ 已真实求值，接入名称、共享公式、跨表、稀疏引用及�
 
 `editSheet({ action: "deleteTableStyle", name, replacement })` 删除定义。`replacement: string | null` 显式选择已有可用自定义/内置样式，或清除引用。定义修改影响使用它的全部表；改名和删除同步各工作表的引用及默认表样式，保留表标记、数据、公式和其他部件。任一受影响表受保护时整项拒绝。仍被默认透视样式使用的定义不能删除，透视样式编辑继续实施。
 
-核心复用差异样式池，仅为变更区域派生 dxf，未变区域保留原身份及主题/索引色关联。删除不回收共享 dxf 或数字格式。缺少样式部件时创建原生部件、关系和内容类型；源、资源与自动尺寸合为一次精确历史。相同有效定义不新增历史，名称冲突、过期、未知源标记及输出预算失败原子拒绝。单个样式部件的编辑候选最多 2097152 个 UTF-16 单元，另受原有 XML 字节及 4 MiB 历史预算约束。默认面板提供新建、区域格式、条纹尺寸、改名和显式替代删除，先提交原生草稿。字体或引用变化使用旧、候选各自的表定义比较并重排行高；两次比较共用计算预算。实现归 [`table-style-definition.mbt`](../../modules/formats/src/xlsx/table-style-definition.mbt)、[`autofit-reflow.mbt`](../../modules/formats/src/xlsx/autofit-reflow.mbt)和 [`xlsx-table-style-definition.tsx`](../../packages/ui/src/xlsx-table-style-definition.tsx)。
+核心复用差异样式池，仅为变更区域派生 dxf，未变区域保留原身份及主题/索引色关联。删除不回收共享 dxf 或数字格式。缺少样式部件时创建原生部件、关系和内容类型；源、资源与自动尺寸合为一次精确历史。相同有效定义不新增历史，名称冲突、过期、未知源标记及输出预算失败原子拒绝。单个样式部件的编辑候选最多 2097152 个 UTF-16 单元，另受原有 XML 字节及 4 MiB 历史预算约束。默认面板提供新建、区域格式、条纹尺寸、改名和显式替代删除，先提交原生草稿。字体或引用变化使用旧、候选各自的表定义比较并重排行高；两次比较共用计算预算。实现归 [`table-style-definition.mbt`](../../modules/formats/src/xlsx/table-style-definition.mbt)、[`autofit-reflow.mbt`](../../modules/formats/src/xlsx/autofit-reflow.mbt)和 [`xlsx-table-style-definition.tsx`](../../packages/xlsx/src/react/xlsx-table-style-definition.tsx)。
 
 内置样式复用已有主题及 tint 解析。各组保留原生定义的差异：
 
@@ -2551,7 +2551,7 @@ Dark8–11 未声明的正文文字色和边框沿用正常单元格格式。字
 
 当前接通区域创建、范围调整、导入、查询、普通数据编辑、表/列改名、计算列创作/重填、总计设置、整行/列插删同步、工作表资源操作、含表工作簿的名称创作及原生表筛选。筛选中的范围及整轴结构同步已接通；表内行排序已接通；原生表保持整行排序，自定义样式定义创作沿上述命令；其余格式覆盖继续实施。未修改的样式定义保留；只有已支持的表定义和样式才解除 `tableParts` 未呈现诊断，其余仍保护打印。未知表筛选继续保护计算修改并保留源。
 
-结构化引用依据 [ONLYOFFICE cStrucTable](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L2352-L2628)的行段、列身份、当前行及转义行为。实现归 [`table.mbt`](../../modules/formats/src/xlsx/table.mbt)、[`structured-reference.mbt`](../../modules/formats/src/xlsx/structured-reference.mbt)、[`table-rename.mbt`](../../modules/formats/src/xlsx/table-rename.mbt)及 [`xlsx-tables.tsx`](../../packages/ui/src/xlsx-tables.tsx)，复用既有事务和绘制模型。
+结构化引用依据 [ONLYOFFICE cStrucTable](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L2352-L2628)的行段、列身份、当前行及转义行为。实现归 [`table.mbt`](../../modules/formats/src/xlsx/table.mbt)、[`structured-reference.mbt`](../../modules/formats/src/xlsx/structured-reference.mbt)、[`table-rename.mbt`](../../modules/formats/src/xlsx/table-rename.mbt)及 [`xlsx-tables.tsx`](../../packages/xlsx/src/react/xlsx-tables.tsx)，复用既有事务和绘制模型。
 
 ### 冻结窗格
 
@@ -2578,7 +2578,7 @@ Dark8–11 未声明的正文文字色和边框沿用正常单元格格式。字
 
 折叠隐藏全部明细；展开显示组内手动隐藏项，保留仍折叠的内组及筛选隐藏。清除分组同样显示明细并保留筛选结果，遵循 [ONLYOFFICE 分组展开](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L24846-L24938)与[清除大纲](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L25323-L25415)。行隐藏复用[筛选来源记录](#值筛选)，`SUBTOTAL` 缓存随可见性重算并与折叠合为一项历史。网格、命中、语义单元格及 PDF 复用相同尺寸，隐藏内容仍保存在源单元格中。
 
-整行/整列插删同步分组级别和汇总位置，插入项继承前项的分组级别，并在所在组折叠时保持隐藏；筛选来源和缓存共同提交。删除后仍存在的组保留折叠状态；没有合法汇总位置时原子拒绝。取消分组只减少级别，不自行显示原隐藏项。复制、改名、保存重开与精确混合历史保留分组；保护设置与更广导入变体继续实施。实现归 [`outline.mbt`](../../modules/formats/src/xlsx/outline.mbt)、[`outline-edit.mbt`](../../modules/formats/src/xlsx/outline-edit.mbt)、[`outline-axis.mbt`](../../modules/formats/src/xlsx/outline-axis.mbt)及 [`xlsx-outline.tsx`](../../packages/ui/src/xlsx-outline.tsx)。
+整行/整列插删同步分组级别和汇总位置，插入项继承前项的分组级别，并在所在组折叠时保持隐藏；筛选来源和缓存共同提交。删除后仍存在的组保留折叠状态；没有合法汇总位置时原子拒绝。取消分组只减少级别，不自行显示原隐藏项。复制、改名、保存重开与精确混合历史保留分组；保护设置与更广导入变体继续实施。实现归 [`outline.mbt`](../../modules/formats/src/xlsx/outline.mbt)、[`outline-edit.mbt`](../../modules/formats/src/xlsx/outline-edit.mbt)、[`outline-axis.mbt`](../../modules/formats/src/xlsx/outline-axis.mbt)及 [`xlsx-outline.tsx`](../../packages/xlsx/src/react/xlsx-outline.tsx)。
 
 ### 工作表网格线与标题
 
@@ -2652,7 +2652,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `SpreadsheetEditor.copyCells()` 先提交原生草稿，再将片段及普通 TSV 写入系统剪贴板。`pasteCells(mode = "all", transpose = false)` 读取相同载荷，沿队列检查字体、revision 和生命周期后提交；默认面板提供四种模式和转置开关。载荷类型为 Chromium 的 `web application/x-open-document-cells`。普通原生粘贴及 `paste(text)` 保持上述 TSV 语义；普通 `copy()` 也先提交已接受草稿。读取/写入权限失败保留源，晚到读取不能修改已关闭的编辑器。
 
-片段最多 4096 格、1024 个合并范围、1048576 UTF-16 单元的值/公式文字；每格文字最多 32767 单元，公式最多 8192 单元。Web 写入的 JSON 最多 4194304 UTF-16 单元，读取最多 8 MiB。Wasm、Worker 和核心分别校验载荷，现有样式、历史、源、字体及输出预算继续生效。实现归 [`cell-fragment.mbt`](../../modules/formats/src/xlsx/cell-fragment.mbt)、[`clipboard-transpose.mbt`](../../modules/formats/src/xlsx/clipboard-transpose.mbt)及 [`spreadsheet-clipboard.ts`](../../packages/web/src/spreadsheet-clipboard.ts)。
+片段最多 4096 格、1024 个合并范围、1048576 UTF-16 单元的值/公式文字；每格文字最多 32767 单元，公式最多 8192 单元。Web 写入的 JSON 最多 4194304 UTF-16 单元，读取最多 8 MiB。Wasm、Worker 和核心分别校验载荷，现有样式、历史、源、字体及输出预算继续生效。实现归 [`cell-fragment.mbt`](../../modules/formats/src/xlsx/cell-fragment.mbt)、[`clipboard-transpose.mbt`](../../modules/formats/src/xlsx/clipboard-transpose.mbt)及 [`spreadsheet-clipboard.ts`](../../packages/xlsx/src/web/spreadsheet-clipboard.ts)。
 
 ### 单元格剪切移动
 
@@ -2686,7 +2686,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 同步 `XlsxSession` 和异步 `XlsxClient` 提供 `captureDrawing(revision, sheet, id, profile)`，返回 `{ fragment, text }`；`pasteDrawing(revision, sheet, fragment, profile)` 导入片段。`drawingFragmentImage(revision, fragment)` 返回核心校验后的压缩图片或 `null`，供宿主沿现有图片入口预解码。默认编辑宿主自动完成预检、解码和提交。核心验证解码尺寸后，才把绘图、资源、关系和选择合为一次精确历史。失败保留文稿，撤销、重做、重开输入及 Canvas/PDF 继续共用既有管线。
 
-片段最多 4 Mi UTF-16 单元，原生框源最多 1 Mi 单元，单图最多 2 MiB；平台读取 Blob 最多 8 MiB。JSON 使用标准库有界解析，XML 深度、像素、累计图片、256 对象、历史及包输出沿既有预算。字段、资源、复制/选择锁、工作表保护、宏/绑定、外链、不支持的原生结构或越界失败原子拒绝。图表含附加关系、源注释或内容内处理指令时继续保护；同表独立复制和同工作簿剪切沿相邻合同。实现归 [`drawing-fragment.mbt`](../../modules/formats/src/xlsx/drawing-fragment.mbt)、[`drawing-paste.mbt`](../../modules/formats/src/xlsx/drawing-paste.mbt)及 [`spreadsheet-clipboard-host.ts`](../../packages/web/src/spreadsheet-clipboard-host.ts)。图形复制和源外观保留参考 [ONLYOFFICE Shape.copy](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L2829-L2858)及 [saveSourceFormatting](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L7639-L7659)；未复制执行代码。
+片段最多 4 Mi UTF-16 单元，原生框源最多 1 Mi 单元，单图最多 2 MiB；平台读取 Blob 最多 8 MiB。JSON 使用标准库有界解析，XML 深度、像素、累计图片、256 对象、历史及包输出沿既有预算。字段、资源、复制/选择锁、工作表保护、宏/绑定、外链、不支持的原生结构或越界失败原子拒绝。图表含附加关系、源注释或内容内处理指令时继续保护；同表独立复制和同工作簿剪切沿相邻合同。实现归 [`drawing-fragment.mbt`](../../modules/formats/src/xlsx/drawing-fragment.mbt)、[`drawing-paste.mbt`](../../modules/formats/src/xlsx/drawing-paste.mbt)及 [`spreadsheet-clipboard-host.ts`](../../packages/xlsx/src/web/spreadsheet-clipboard-host.ts)。图形复制和源外观保留参考 [ONLYOFFICE Shape.copy](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L2829-L2858)及 [saveSourceFormatting](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L7639-L7659)；未复制执行代码。
 
 ### 工作表绘图剪切
 
@@ -2696,7 +2696,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 图片沿用原媒体字节，目标绘图复用已有关系或新建独立关系，不重复同一内容类型声明。图表沿用原部件，目标获得关系并移除旧绘图的关系。跨表搬移把无表名引用限定到原来源表，显式外表引用保持；不会改读目标表的同坐标。移动后的来源输入仍同步缓存和绘制，后续整表复制继续使用独立图表规则。源移除、目标插入、新建绘图、关系、引用和选择合为一项精确历史；失败不留下部分资源。
 
-源/目标工作表保护、选择/移动锁、未知身份和关系扩展、越界、256 对象或历史/包预算失败均原子拒绝。需要改写的不透明锚点文字、图表引用或关系源继续保护；复制锁不阻止搬移。图片、基础图形和普通图表系统复制归[绘图剪贴板复制](#工作表绘图剪贴板复制)；跨工作簿剪切及更广原生变体继续实施。实现归 [`drawing-move.mbt`](../../modules/formats/src/xlsx/drawing-move.mbt)、[`drawing-transfer-source.mbt`](../../modules/formats/src/xlsx/drawing-transfer-source.mbt)及 [`spreadsheet-clipboard.ts`](../../packages/web/src/spreadsheet-clipboard.ts)。延后删除及同文档剪切归属参考 [ONLYOFFICE Clipboard.copy](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/clipboard.js#L434-L441)和 [_checkCutBefore](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/clipboard.js#L2119-L2153)；未复制执行代码。
+源/目标工作表保护、选择/移动锁、未知身份和关系扩展、越界、256 对象或历史/包预算失败均原子拒绝。需要改写的不透明锚点文字、图表引用或关系源继续保护；复制锁不阻止搬移。图片、基础图形和普通图表系统复制归[绘图剪贴板复制](#工作表绘图剪贴板复制)；跨工作簿剪切及更广原生变体继续实施。实现归 [`drawing-move.mbt`](../../modules/formats/src/xlsx/drawing-move.mbt)、[`drawing-transfer-source.mbt`](../../modules/formats/src/xlsx/drawing-transfer-source.mbt)及 [`spreadsheet-clipboard.ts`](../../packages/xlsx/src/web/spreadsheet-clipboard.ts)。延后删除及同文档剪切归属参考 [ONLYOFFICE Clipboard.copy](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/clipboard.js#L434-L441)和 [_checkCutBefore](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/clipboard.js#L2119-L2153)；未复制执行代码。
 
 ### 工作表图片
 
@@ -2710,7 +2710,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `noCrop` 锁阻止改变裁剪，原有对象选择/尺寸锁继续生效。未知裁剪属性、子内容、注释和处理指令保护源；裁剪展开后的每轴尺寸最多 1e9 pt。无效值、舍入后为空或预算失败整体拒绝；相同裁剪、位置、尺寸及文字不新增历史。实现归 [`picture-crop.mbt`](../../modules/formats/src/xlsx/picture-crop.mbt)，复用 DOCX 裁剪精度与现有图片事务。比例解释参考 [ONLYOFFICE 图片裁剪系数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Image.js#L947-L959)，原生顺序沿 [BlipFill 序列化](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Fills/BlipFill.cpp#L159-L173)。
 
-每表图片和基础图形合计最多 256 项，压缩图片源合计最多 16 MiB；新输入最多 2 MiB，尺寸为 0.1–14400 pt。字体、RGBA、历史及包输出继续沿用共享预算。工作表保护、对象锁、未知锚点及复杂图形、旋转/翻转、外链及不支持的绘图样式保持保护并返回原因。`twoCellAnchor` 的其他 `editAs` 变体和复杂图形继续实施；其余资源迁移沿现有保护。实现归 [`picture-read.mbt`](../../modules/formats/src/xlsx/picture-read.mbt)、[`picture-edit.mbt`](../../modules/formats/src/xlsx/picture-edit.mbt)、[`picture-reflow.mbt`](../../modules/formats/src/xlsx/picture-reflow.mbt)及 [`spreadsheet-canvas.ts`](../../packages/web/src/spreadsheet-canvas.ts)。
+每表图片和基础图形合计最多 256 项，压缩图片源合计最多 16 MiB；新输入最多 2 MiB，尺寸为 0.1–14400 pt。字体、RGBA、历史及包输出继续沿用共享预算。工作表保护、对象锁、未知锚点及复杂图形、旋转/翻转、外链及不支持的绘图样式保持保护并返回原因。`twoCellAnchor` 的其他 `editAs` 变体和复杂图形继续实施；其余资源迁移沿现有保护。实现归 [`picture-read.mbt`](../../modules/formats/src/xlsx/picture-read.mbt)、[`picture-edit.mbt`](../../modules/formats/src/xlsx/picture-edit.mbt)、[`picture-reflow.mbt`](../../modules/formats/src/xlsx/picture-reflow.mbt)及 [`spreadsheet-canvas.ts`](../../packages/xlsx/src/web/spreadsheet-canvas.ts)。
 
 普通图片随整表复制、改名及删除，沿现有 `editSheet` 命令和默认表管理按钮操作。复制创建独立绘图 XML 与关系，保留三种锚点、图层、文字、裁剪及部件内图片身份；不可变 PNG/JPEG 字节共用。副本图片可单独修改，源图片保持；同表便笺和结构化表继续各自建立副本。改名沿原有引用事务保留绘图归属。删除移除该表的绘图 XML、关系及内容类型，保留可能共享的图片字节。源与副本的编辑、删除及输入共用精确历史；保存重开后可继续编辑。
 
@@ -2722,7 +2722,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 画布图片可以选择、拖动及四角等比缩放。图片覆盖范围和可见手柄由核心按冻结窗格裁剪，重叠图片沿源顺序命中；方向键以 1 pt 操作，Shift 改为 10 pt，Delete 删除对象。核心保留图片选择，普通单元格选择结束图片选择；原生事务及撤销/重做同步恢复它。候选完整网格沿同一 Canvas 绘制，抬笔只提交一项历史。Escape、失焦、捕获丢失、滚动及过期几何取消候选。保存及常规修改入口先取消候选；其他命令改变几何后也会取消过期候选。只读查询保留候选。
 
-`XlsxSession/XlsxClient.selectDrawing(revision, layout, objectId)` 绑定当前网格选择图片或基础图形，null 清除选择。`drawingGesture(revision, layout, { handle, dx, dy, commit }, profile)` 返回 `{ query, drawing, selection }`。handle 为移动 0，或屏幕左上/右上/右下/左下 1–4；增量为屏幕方向的 point，核心处理 RTL。commit=false 返回候选网格及 null query，保留源、revision 和历史；commit=true 沿已有原生位置事务写入，返回 query 及 null drawing。候选只分配新的绘制身份，不能据此确认保存。手势增量每轴限 ±14400 pt，沿用原生尺寸、位置、锁定、资源及历史预算。缩放固定对角；图片保留当前比例，图形自由调整宽高，noChangeAspect 锁要求等比。翻转继续实施。实现归 [`drawing-pointer.mbt`](../../modules/formats/src/xlsx/drawing-pointer.mbt)及 [`spreadsheet-drawing-pointer.ts`](../../packages/web/src/spreadsheet-drawing-pointer.ts)，参考 [ONLYOFFICE 缩放候选及比例保护](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/ResizeTracks.js#L634-L678)。
+`XlsxSession/XlsxClient.selectDrawing(revision, layout, objectId)` 绑定当前网格选择图片或基础图形，null 清除选择。`drawingGesture(revision, layout, { handle, dx, dy, commit }, profile)` 返回 `{ query, drawing, selection }`。handle 为移动 0，或屏幕左上/右上/右下/左下 1–4；增量为屏幕方向的 point，核心处理 RTL。commit=false 返回候选网格及 null query，保留源、revision 和历史；commit=true 沿已有原生位置事务写入，返回 query 及 null drawing。候选只分配新的绘制身份，不能据此确认保存。手势增量每轴限 ±14400 pt，沿用原生尺寸、位置、锁定、资源及历史预算。缩放固定对角；图片保留当前比例，图形自由调整宽高，noChangeAspect 锁要求等比。翻转继续实施。实现归 [`drawing-pointer.mbt`](../../modules/formats/src/xlsx/drawing-pointer.mbt)及 [`spreadsheet-drawing-pointer.ts`](../../packages/xlsx/src/web/spreadsheet-drawing-pointer.ts)，参考 [ONLYOFFICE 缩放候选及比例保护](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/ResizeTracks.js#L634-L678)。
 
 绘图拖动及四角缩放复用现有指针调度器，在视口边缘持续滚动。可选 `gesture.viewport = { originX, originY, scrollX, scrollY }` 使用 point：origin 是开始时相对原网格画布的屏幕坐标，scroll 是当前绝对滚动量，两轴均非负，RTL 水平量也为正。核心从原布局换算冻结/滚动区域及 RTL 位移，候选网格和对象选框使用当前滚动位置。候选保留源、revision 和历史，抬笔只提交一项位置事务；Escape、手动滚动、保存和释放实例沿已有取消屏障恢复原对象。起点必须位于原视口内，滚动量每轴最多 10⁹ pt，换算后的总增量继续受 ±14400 pt 限制。宿主按候选网格更新滚动范围，保留原手势布局身份；外部视口变化仍取消手势。坐标依据参考 [ONLYOFFICE 绘图区域偏移换算](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/DrawingObjects.js#L4172-L4193)。
 
@@ -2738,7 +2738,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 相同属性不新增历史；修改、层次、行列插入、复制、删除与普通输入共用精确历史，保存后可继续编辑。核心手势区分图形自由缩放与图片等比缩放，候选保留源及历史；默认画布控件支持选择、拖动、四角缩放、方向键、Shift 大步移动及 Delete 删除；图片和图形按各自原生事务处理。选择、移动、尺寸、比例、文字和形状类型锁分别保护对应修改。未知属性、扩展、注释、处理指令、复杂文字、旋转/翻转及复杂几何受保护，候选资源或输出超限整体拒绝。这里只覆盖普通统一文字图形，尚不代表完整 DrawingML 支持。
 
-实现归 [`shape-read.mbt`](../../modules/formats/src/xlsx/shape-read.mbt)、[`shape-edit.mbt`](../../modules/formats/src/xlsx/shape-edit.mbt)、[`shape-preserve.mbt`](../../modules/formats/src/xlsx/shape-preserve.mbt)、[`shape-paint.mbt`](../../modules/formats/src/xlsx/shape-paint.mbt)及 [`xlsx-shapes.ts`](../../packages/wasm/src/xlsx-shapes.ts)。椭圆文字矩形参考 [ONLYOFFICE CreateGeometry](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L3100-L3117)，锁定分类参考 [GraphicObjectBase](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GraphicObjectBase.js#L166-L183)。
+实现归 [`shape-read.mbt`](../../modules/formats/src/xlsx/shape-read.mbt)、[`shape-edit.mbt`](../../modules/formats/src/xlsx/shape-edit.mbt)、[`shape-preserve.mbt`](../../modules/formats/src/xlsx/shape-preserve.mbt)、[`shape-paint.mbt`](../../modules/formats/src/xlsx/shape-paint.mbt)及 [`xlsx-shapes.ts`](../../packages/xlsx/src/core/xlsx-shapes.ts)。椭圆文字矩形参考 [ONLYOFFICE CreateGeometry](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L3100-L3117)，锁定分类参考 [GraphicObjectBase](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GraphicObjectBase.js#L166-L183)。
 
 ### 工作表图表
 
@@ -2780,7 +2780,7 @@ MoonBit 维护原生 `graphicFrame`、图表 XML、关系、内容类型及系�
 
 每个数据区域最多 256 格，每图 1–8 个系列，每表绘图合计最多 256 项；框至少 180×150 pt，每轴不超过 14400 pt，位置沿工作表边界校验。引用最多 1024 个字符；文字、字体、计算工作和历史沿共用预算。当前只编辑共用模型能完整识别的普通图表。`plotVisOnly=0`、其他缓存结构、共享图表部件、复杂样式、旋转/翻转和未知原生变体保持保护。带源注释或处理指令的图表不进行整图及缓存改写，带这些内容的姿态或锚点不重写；源仍保留。普通图片及图表已有局部单元格插删，跨工作簿图表复制沿[绘图剪贴板合同](#工作表绘图剪贴板复制)保存独立数据；跨工作簿剪切继续实施。
 
-实现归 [`chart-bindings.mbt`](../../modules/formats/src/xlsx/chart-bindings.mbt)、[`chart-edit.mbt`](../../modules/formats/src/xlsx/chart-edit.mbt)、[`chart-range.mbt`](../../modules/formats/src/xlsx/chart-range.mbt)、[`worksheet.mbt`](../../modules/formats/src/internal/chart/worksheet.mbt)及 [`xlsx-charts.ts`](../../packages/wasm/src/xlsx-charts.ts)。引用和缓存检查参考 [ONLYOFFICE 系列来源](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L2390-L2435)及[工作表与缓存比较](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L2495-L2540)。未复制上游执行代码。
+实现归 [`chart-bindings.mbt`](../../modules/formats/src/xlsx/chart-bindings.mbt)、[`chart-edit.mbt`](../../modules/formats/src/xlsx/chart-edit.mbt)、[`chart-range.mbt`](../../modules/formats/src/xlsx/chart-range.mbt)、[`worksheet.mbt`](../../modules/formats/src/internal/chart/worksheet.mbt)及 [`xlsx-charts.ts`](../../packages/xlsx/src/core/xlsx-charts.ts)。引用和缓存检查参考 [ONLYOFFICE 系列来源](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L2390-L2435)及[工作表与缓存比较](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L2495-L2540)。未复制上游执行代码。
 
 ### 单元格迷你图
 
@@ -2846,7 +2846,7 @@ filters 为 0–8 项 `{ field, report, values }`，三项均必需。field 使�
 
 原生切片器绘图已接通 Canvas 与静态 PDF。核心按名称连接工作表控件，读取固定、随单元格移动及随单元格缩放三类锚点，并解析 `a14` 的 `mc:AlternateContent/Choice`，保留原 fallback。Light1–6、Dark1–6 与 Other1–2 共 14 种内置样式已显示普通选中/未选中、有数据/无数据状态；Other2 的普通状态和全部内置悬停状态使用原生垂直渐变。标题、列数、行高和首个显示项沿原生设置，文字使用工作簿默认字体与同一布局探针。锚点、裁剪、冻结/滚动视口和打印沿既有绘图通道。实现归 [`slicer-drawing-read.mbt`](../../modules/formats/src/xlsx/slicer-drawing-read.mbt)、[`slicer-palette.mbt`](../../modules/formats/src/xlsx/slicer-palette.mbt)和 [`slicer-paint.mbt`](../../modules/formats/src/xlsx/slicer-paint.mbt)；几何与样式事实参考 [ONLYOFFICE SlicerView](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/SlicerView.js)和 [ReadDefSlicerStyles](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Serialize.js)，未复制上游源码。画布成员、标题的多选/清除按钮、滚轮及键盘滚动已接通；滚动条滑块已有原生行位置和默认垂直控件；成员拖选沿下述核心候选入口处理；原生成员悬停沿下述临时视口参数处理。自定义/未知样式、未解析控件或未知兼容分支保护打印；框属性编辑及画布手势沿下述协调入口；普通绘图复制与层次入口继续保护切片器。行列尺寸变化可同步修改坐标一致、无旋转及变换注释的平面形状 fallback，保留其余源字节；其他后备结构保护修改。新建控件使用该兼容结构，允许继续输入引起的自动行高变化。实现归 [`slicer-reflow.mbt`](../../modules/formats/src/xlsx/slicer-reflow.mbt)。
 
-`viewport({ ..., slicerHover: { object, index } })` 临时指定原生绘图身份和成员索引（0–4095）；省略参数恢复普通配色。核心按选中及有数据状态选择内置 DXF，悬停参与视口缓存。参数不写源、选择、历史或打印结果；未知或不可见成员不产生悬停绘制。默认宿主从既有可见按钮传递指针事件，在原有有界队列中只更新画布，不发布忙碌状态或提交输入；移出、滚动、取消及换表清除悬停，拖选期间沿原候选绘制。键盘焦点保留既有轮廓，触摸不生成悬停。实现复用 [`slicer-palette.mbt`](../../modules/formats/src/xlsx/slicer-palette.mbt)、[`slicer-paint.mbt`](../../modules/formats/src/xlsx/slicer-paint.mbt)及 [`spreadsheet-slicers.ts`](../../packages/web/src/spreadsheet-slicers.ts)；配色及渐变角度来自固定 [ONLYOFFICE ReadDefSlicerStyles](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Serialize.js#L14681)，未复制上游执行代码。
+`viewport({ ..., slicerHover: { object, index } })` 临时指定原生绘图身份和成员索引（0–4095）；省略参数恢复普通配色。核心按选中及有数据状态选择内置 DXF，悬停参与视口缓存。参数不写源、选择、历史或打印结果；未知或不可见成员不产生悬停绘制。默认宿主从既有可见按钮传递指针事件，在原有有界队列中只更新画布，不发布忙碌状态或提交输入；移出、滚动、取消及换表清除悬停，拖选期间沿原候选绘制。键盘焦点保留既有轮廓，触摸不生成悬停。实现复用 [`slicer-palette.mbt`](../../modules/formats/src/xlsx/slicer-palette.mbt)、[`slicer-paint.mbt`](../../modules/formats/src/xlsx/slicer-paint.mbt)及 [`spreadsheet-slicers.ts`](../../packages/xlsx/src/web/spreadsheet-slicers.ts)；配色及渐变角度来自固定 [ONLYOFFICE ReadDefSlicerStyles](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Serialize.js#L14681)，未复制上游执行代码。
 
 `SpreadsheetEditor.setSlicerFrame(id, frame)` 修改当前表的原生切片器框。`XlsxSession` 与 Worker `XlsxClient` 使用 `setSlicerFrame(revision, sheet, id, frame, profile)`；MoonBit 入口为 `Session::set_slicer_frame`。frame 仅含 `anchor/x/y/width/height`，anchor 为 `fixed/move/size`，对应固定、随单元格移动和随单元格缩放。坐标与尺寸使用磅，位置非负且受工作表边界限制，宽高为 0.1–14400。当前框从已测量视口的 `object.slicer.frame` 读取，不向无字体的成员目录加入绘图布局。导入的折叠框可读取零尺寸；提交仍要求有效正尺寸。默认成员面板提供锚定、位置、宽高及应用按钮，沿原生草稿屏障和串行队列提交。
 
@@ -2854,17 +2854,17 @@ filters 为 0–8 项 `{ field, report, values }`，三项均必需。field 使�
 
 画布切片器复用 `selectDrawing` 与 `drawingGesture` 的选择、移动和四角缩放。核心 `slicer.move` 返回至多四个窗格的标题命中区域，避开多选、清除和成员按钮；隐藏标题时提供 3.6 磅顶边。控件位置锁、选择锁或未知兼容变换会隐藏拖动区域，其他绘图锁在具体手势中校验。选中后的四角使用完整原生框，缩放默认分别改变宽高，比例锁沿原生 `graphicFrameLocks` 或形状锁处理。成员和标题按钮的独立分派参考 [ONLYOFFICE SlicerView.onMouseDown](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/SlicerView.js#L958-L984)。
 
-拖动候选保留文档字节、revision、单元格选择及历史，抬笔沿框事务只提交一项变化；冻结、RTL 与边缘滚动共用既有绘图坐标换算。候选显示期间隐藏旧成员命中层，提交或取消后恢复当前区域。Escape 取消，方向键移动 1 磅，Shift 方向键移动 10 磅；手柄聚焦时方向键沿原手柄改变尺寸。Delete 使用协调的 `deleteSlicer`，清理视图并保留筛选缓存，撤销恢复完整资源。普通绘图复制、剪切和层次修改继续保护切片器。实现复用 [`drawing-pointer.mbt`](../../modules/formats/src/xlsx/drawing-pointer.mbt)、[`spreadsheet-drawing-pointer.ts`](../../packages/web/src/spreadsheet-drawing-pointer.ts)及 [`spreadsheet-slicers.ts`](../../packages/web/src/spreadsheet-slicers.ts)。
+拖动候选保留文档字节、revision、单元格选择及历史，抬笔沿框事务只提交一项变化；冻结、RTL 与边缘滚动共用既有绘图坐标换算。候选显示期间隐藏旧成员命中层，提交或取消后恢复当前区域。Escape 取消，方向键移动 1 磅，Shift 方向键移动 10 磅；手柄聚焦时方向键沿原手柄改变尺寸。Delete 使用协调的 `deleteSlicer`，清理视图并保留筛选缓存，撤销恢复完整资源。普通绘图复制、剪切和层次修改继续保护切片器。实现复用 [`drawing-pointer.mbt`](../../modules/formats/src/xlsx/drawing-pointer.mbt)、[`spreadsheet-drawing-pointer.ts`](../../packages/xlsx/src/web/spreadsheet-drawing-pointer.ts)及 [`spreadsheet-slicers.ts`](../../packages/xlsx/src/web/spreadsheet-slicers.ts)。
 
 `XlsxViewport.objects` 的 `slicer` 项携带核心计算的 `slicer` 视图：`name/caption/frame/move/start/maximum/page`、可见成员 `buttons`，以及 `clear/multi/previous/next/scroll` 的裁剪区域。start 与 maximum 是零基滚动行位置和末行，page 是完整可见行数；多列成员的索引仍只在按钮中返回。scroll 使用避开两端箭头的完整轨道及各窗格裁剪，不从 DOM 推断文档几何。每个按钮返回原生成员 `index`、标签、选择/数据状态和 `regions`；视口滚动、冻结与 RTL 沿同一坐标换算。`editSheet({ action: "selectSlicer", layout, id, index, additive })` 使用当前视口 ID 和绘图 ID；index 为原生成员索引，null 表示可见标题的清除按钮，并要求 additive 为 false。普通点击只选当前项，Ctrl/Cmd 或标题多选模式切换单项；取消最后一项保持原状态，沿至少一项的既有合同。隐藏成员、其他工作表、旧布局及受保护源保持原子拒绝。
 
-`editSheet({ action: "scrollSlicer", layout, id, position })` 设置绝对零基行位置。position 为 0–4095 的整数，核心裁剪到末行，再按原生列数定位首个成员；每会话最多保留 4096 个控件偏移。滚动只改核心视图状态，保留文档字节、revision、选择、历史和重做；打印使用当前可见成员，保存重开恢复原生 `startItem`。默认画布使用核心区域放置具名按钮和 `aria-pressed`，支持 Tab、Enter/Space、多选、清除、滚动箭头和滚轮；方向上下、PageUp/PageDown 与 Home/End 在控件内滚动；垂直滑块沿同一入口实时定位，保留当前滑块焦点并提供行位置说明。Escape 返回原单元格输入。被替换或禁用的焦点回到可见成员，支持默认 UI 的 Shadow DOM。实现归 [`slicer-pointer.mbt`](../../modules/formats/src/xlsx/slicer-pointer.mbt)、[`xlsx-slicer-view.ts`](../../packages/wasm/src/xlsx-slicer-view.ts)和 [`spreadsheet-slicers.ts`](../../packages/web/src/spreadsheet-slicers.ts)。
+`editSheet({ action: "scrollSlicer", layout, id, position })` 设置绝对零基行位置。position 为 0–4095 的整数，核心裁剪到末行，再按原生列数定位首个成员；每会话最多保留 4096 个控件偏移。滚动只改核心视图状态，保留文档字节、revision、选择、历史和重做；打印使用当前可见成员，保存重开恢复原生 `startItem`。默认画布使用核心区域放置具名按钮和 `aria-pressed`，支持 Tab、Enter/Space、多选、清除、滚动箭头和滚轮；方向上下、PageUp/PageDown 与 Home/End 在控件内滚动；垂直滑块沿同一入口实时定位，保留当前滑块焦点并提供行位置说明。Escape 返回原单元格输入。被替换或禁用的焦点回到可见成员，支持默认 UI 的 Shadow DOM。实现归 [`slicer-pointer.mbt`](../../modules/formats/src/xlsx/slicer-pointer.mbt)、[`xlsx-slicer-view.ts`](../../packages/xlsx/src/core/xlsx-slicer-view.ts)和 [`spreadsheet-slicers.ts`](../../packages/xlsx/src/web/spreadsheet-slicers.ts)。
 
 `XlsxSession/XlsxClient.slicerGesture(revision, layout, id, gesture, profile)` 预览或提交成员拖选，核心入口为 `Session::slicer_gesture`。`XlsxSlicerGesture` 包含原生首项身份 first、绝对滚动行 position、视口磅坐标 x/y、additive 和 commit。首项须在原始布局可见，末项按核心裁剪区域定位，区间采用实际显示顺序，不把成员身份当成排序位置。普通拖动选中整个区间；Ctrl/Cmd 或标题多选模式反转区间内原有状态。反选后没有成员时保持原筛选。
 
 预览复用已有缓存筛选与布局，只生成独立候选，保留源字节、revision、单元格选择、历史、重做和原视图。松开后沿既有协调筛选提交一项历史，并保留候选滚动行；不刷新待处理源数据。字体在提交前预检。切片器与时间线手势共用 `XlsxAnalysisPreview`，仅 query 或 drawing 一项非空，传输验证归绘图模块。
 
-默认成员按钮复用既有指针捕获与队列。按住时在上下边缘滚动候选，Ctrl/Cmd 可实时切换区间反选；Escape、失去捕获、窗口失焦或视口变化取消。预览期间不把派生文字交给 TypeScript 保存。松开或取消后刷新控件并聚焦可见成员，键盘单项选择沿原入口。范围、缓存、资源及历史上限沿已有切片器合同，未知源、过期布局和缺字体保持拒绝。实现归 [`slicer-gesture.mbt`](../../modules/formats/src/xlsx/slicer-gesture.mbt)与 [`spreadsheet-slicer-pointer.ts`](../../packages/web/src/spreadsheet-slicer-pointer.ts)。范围与反选依据 [ONLYOFFICE 成员拖选](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/SlicerView.js#L2220-L2268)，未复制上游执行代码。
+默认成员按钮复用既有指针捕获与队列。按住时在上下边缘滚动候选，Ctrl/Cmd 可实时切换区间反选；Escape、失去捕获、窗口失焦或视口变化取消。预览期间不把派生文字交给 TypeScript 保存。松开或取消后刷新控件并聚焦可见成员，键盘单项选择沿原入口。范围、缓存、资源及历史上限沿已有切片器合同，未知源、过期布局和缺字体保持拒绝。实现归 [`slicer-gesture.mbt`](../../modules/formats/src/xlsx/slicer-gesture.mbt)与 [`spreadsheet-slicer-pointer.ts`](../../packages/xlsx/src/web/spreadsheet-slicer-pointer.ts)。范围与反选依据 [ONLYOFFICE 成员拖选](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/SlicerView.js#L2220-L2268)，未复制上游执行代码。
 
 预览的 columnMembers 按列组合返回 `{ members, formats, subtotal }`，columnTotals 为每个列组合的值字段总计。每项 rows.values 按“列组合、值字段”展平，rows.total 是该行全部记录的总计；根 total 是筛选后源记录的总计。没有列轴时 columnMembers 为空、columnTotals 只含根总计，rows.values 仍按值字段排列。缺少记录的交叉格为空。行列边际直接累积源记录，平均值和样本统计不会对显示聚合值二次聚合。预览只截断行，全部有界列组仍受结果格数及 JSON 文字预算约束。
 
@@ -2878,7 +2878,7 @@ filters 为 0–8 项 `{ field, report, values }`，三项均必需。field 使�
 
 `baseItem` 为必需的 `XlsxPivotBaseItem | null`。三种基项比较模式必须提供 `previous`、`next` 或类型化 `CellValue`，其他模式必须为 null；`xlsxPivotCompareModes` 返回这三种模式。`difference` 计算当前聚合减基项聚合，`percent` 计算当前聚合除以基项聚合，`percentDiff` 计算差值除以基项聚合。比较固定其余成员及小计层级，基准以上的小计和该轴总计留空。前后项按实际成员顺序比较；两端没有邻项时，差值和百分比差异留空，基项百分比对有效数值按自身比例计算。明确选择的基项自身也按此规则处理。差值把缺失交叉项视为 0；两种百分比的缺失当前交叉项返回 `#NULL!`，缺失基项交叉项留空，零基项返回 `#DIV/0!`。基项成员在当前分组内不存在时返回 `#N/A`。错误规则沿 [ONLYOFFICE 基项比较](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L11769-L11970)，不把源错误改写成数值。
 
-指定成员按类型和值保存；文字沿缓存的大小写合并规则，数字与文字数字不混用。普通轴会在缓存中保留已选但消失的成员，刷新后重新映射原生 baseItem 索引，缺少该成员的交叉结果为 `#N/A`。重建分组后已选标签不再存在时，刷新拒绝并保留原结果，用户先选择其他基项。预览新增必需的 baseItems，与 values 等长；每项为当前比较基准的 `{ value, label }` 候选，非比较模式返回空数组。每组最多 4096 项，JSON 仍受 1 Mi UTF-16 上限约束；默认面板先预览加载候选，再选择并重新预览确认。类型化成员及保留成员共用原共享项文字预算。`dataField@baseItem` 保存缓存索引，前一项/后一项分别保存 1048828/1048829；上述三种比较模式使用标准 `showDataAs`。实现归 [`pivot-base-item.mbt`](../../modules/formats/src/xlsx/pivot-base-item.mbt)、[`pivot-compare.mbt`](../../modules/formats/src/xlsx/pivot-compare.mbt)和 [`xlsx-pivot-base-item.tsx`](../../packages/ui/src/xlsx-pivot-base-item.tsx)。
+指定成员按类型和值保存；文字沿缓存的大小写合并规则，数字与文字数字不混用。普通轴会在缓存中保留已选但消失的成员，刷新后重新映射原生 baseItem 索引，缺少该成员的交叉结果为 `#N/A`。重建分组后已选标签不再存在时，刷新拒绝并保留原结果，用户先选择其他基项。预览新增必需的 baseItems，与 values 等长；每项为当前比较基准的 `{ value, label }` 候选，非比较模式返回空数组。每组最多 4096 项，JSON 仍受 1 Mi UTF-16 上限约束；默认面板先预览加载候选，再选择并重新预览确认。类型化成员及保留成员共用原共享项文字预算。`dataField@baseItem` 保存缓存索引，前一项/后一项分别保存 1048828/1048829；上述三种比较模式使用标准 `showDataAs`。实现归 [`pivot-base-item.mbt`](../../modules/formats/src/xlsx/pivot-base-item.mbt)、[`pivot-compare.mbt`](../../modules/formats/src/xlsx/pivot-compare.mbt)和 [`xlsx-pivot-base-item.tsx`](../../packages/xlsx/src/react/xlsx-pivot-base-item.tsx)。
 
 `percentOfParent` 以 baseField 所在层级作为指定父级，分母为该前缀与另一轴当前成员的原始记录聚合；隐藏小计也计算分母。当前层级不包含基准字段时留空，当前值已在所选层级时相对自身。父级聚合继续受既有工作及保留值预算约束，原生设置使用 x14 扩展并携带 baseField，不使用 baseItem。依据 [ONLYOFFICE 指定父级百分比](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L11736-L11764)，复用现有 [`pivot-parent-values.mbt`](../../modules/formats/src/xlsx/pivot-parent-values.mbt)，未复制上游源码。
 
@@ -2922,7 +2922,7 @@ subtotals 是需要自动小计的外层行/列字段索引集合，空数组关
 
 aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`product`、`stdDev`、`stdDevp`、`var` 和 `varp`。count 统计非空记录，countNums 只统计数值。文字与布尔值不加入数值聚合，错误值沿数值结果传播；平均值和样本/总体统计按有效数值数目处理。规则依据 [ONLYOFFICE 聚合状态](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/databaseFunctions.js#L51-L220)、[类型与大小写缓存](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L3075-L3184)和[原生行列项](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L5289-L5620)。
 
-源最多 64 列、65536 个数据格，共享项及输出文字各最多 1 Mi UTF-16；行/值字段各为 1–8 项，列字段为 0–8 项，两轴各最多 4096 个明细/小计项，输出最多 32768 格。新建总数最多 16 项；导入目录读取最多 64 项。聚合及普通事务检查各受 1048576 项工作量、4 MiB 历史及包预算约束。输出与源、合并或结构化区域相交时拒绝，扩张时也保护便笺和链接。支持的刷新范围是原生普通区域行列轴、固定或自动数值边界分组、单级或多级日期分组及纵向报表筛选定义；横向或换行分页字段、手动成员顺序、扩展头部、未知源标记及属性继续保护。源标题变更需要字段映射，当前拒绝刷新；不能解析的源范围保护单元格编辑。样式及更广导入兼容继续实施，共享缓存范围沿上述协调事务。布局归 [`pivot-layout.mbt`](../../modules/formats/src/xlsx/pivot-layout.mbt)，其余实现归 [`pivot-cache.mbt`](../../modules/formats/src/xlsx/pivot-cache.mbt)、[`pivot.mbt`](../../modules/formats/src/xlsx/pivot.mbt)、[`pivot-refresh.mbt`](../../modules/formats/src/xlsx/pivot-refresh.mbt)、[`pivot-protection.mbt`](../../modules/formats/src/xlsx/pivot-protection.mbt)、[传输校验](../../packages/wasm/src/xlsx-pivot.ts)和[默认面板](../../packages/ui/src/xlsx-pivot.tsx)。
+源最多 64 列、65536 个数据格，共享项及输出文字各最多 1 Mi UTF-16；行/值字段各为 1–8 项，列字段为 0–8 项，两轴各最多 4096 个明细/小计项，输出最多 32768 格。新建总数最多 16 项；导入目录读取最多 64 项。聚合及普通事务检查各受 1048576 项工作量、4 MiB 历史及包预算约束。输出与源、合并或结构化区域相交时拒绝，扩张时也保护便笺和链接。支持的刷新范围是原生普通区域行列轴、固定或自动数值边界分组、单级或多级日期分组及纵向报表筛选定义；横向或换行分页字段、手动成员顺序、扩展头部、未知源标记及属性继续保护。源标题变更需要字段映射，当前拒绝刷新；不能解析的源范围保护单元格编辑。样式及更广导入兼容继续实施，共享缓存范围沿上述协调事务。布局归 [`pivot-layout.mbt`](../../modules/formats/src/xlsx/pivot-layout.mbt)，其余实现归 [`pivot-cache.mbt`](../../modules/formats/src/xlsx/pivot-cache.mbt)、[`pivot.mbt`](../../modules/formats/src/xlsx/pivot.mbt)、[`pivot-refresh.mbt`](../../modules/formats/src/xlsx/pivot-refresh.mbt)、[`pivot-protection.mbt`](../../modules/formats/src/xlsx/pivot-protection.mbt)、[传输校验](../../packages/xlsx/src/core/xlsx-pivot.ts)和[默认面板](../../packages/xlsx/src/react/xlsx-pivot.tsx)。
 
 ### 原生时间线目录
 
@@ -2932,7 +2932,7 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 核心校验工作表/工作簿扩展、原生关系与内容类型、缓存角色、源字段和同源透视连接。日期缓存可从工作簿的 `timelineCachePivotCaches` 扩展目录解析，与结果表缓存分开；原生 `timelineData` 标志不能互换。缓存和视图名称按大小写无关身份连接。重复或失联引用、外部/OLAP 源、未知元数据、角色/来源冲突或非法日期返回原因与空目录；资源超限继续抛错。每表最多 64 个视图，每类部件引用最多 64 项，每缓存最多 16 个连接、最多 80 个缓存字段，视图及时间线缓存 XML 合计限 1 Mi UTF-16 单元，目录输出同限。名称、标题及样式最多 255 单元。日期沿既有日历解析，接受可选 Z 和小数秒；时区偏移和日历下界之前的日期继续保护。
 
-读取依据 [ONLYOFFICE Timeline.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/XlsxFormat/Timelines/Timeline.cpp)、[工作簿扩展](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/e29966e2-5baa-4fcf-84c9-082025e1be13)、[缓存角色](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/d49705e6-4e25-4573-9b14-6b666a6e0bb1)和 [CT_Timeline](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/0d578770-103b-4d74-8920-6636997b6424)。实现归 [`timeline-source.mbt`](../../modules/formats/src/xlsx/timeline-source.mbt)、[`timeline.mbt`](../../modules/formats/src/xlsx/timeline.mbt)及 [`xlsx-timelines.tsx`](../../packages/ui/src/xlsx-timelines.tsx)。未复制上游源码。
+读取依据 [ONLYOFFICE Timeline.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/XlsxFormat/Timelines/Timeline.cpp)、[工作簿扩展](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/e29966e2-5baa-4fcf-84c9-082025e1be13)、[缓存角色](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/d49705e6-4e25-4573-9b14-6b666a6e0bb1)和 [CT_Timeline](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/0d578770-103b-4d74-8920-6636997b6424)。实现归 [`timeline-source.mbt`](../../modules/formats/src/xlsx/timeline-source.mbt)、[`timeline.mbt`](../../modules/formats/src/xlsx/timeline.mbt)及 [`xlsx-timelines.tsx`](../../packages/xlsx/src/react/xlsx-timelines.tsx)。未复制上游源码。
 
 原生 `timeslicer` 绘图已接入 R0 Canvas 和打印/PDF。核心读取固定、随单元格移动及随单元格缩放三类锚点，也读取 a15 兼容分支，保留原生后备。按 `level` 绘制年、季度、月或日刻度，使用原生日期范围、滚动位置及连续选区；月份按真实日历划分，保留小数秒。标题、选区文字、粒度和滚动条分别遵循原显示开关。沿工作簿普通/粗体字体测量，每个控件最多绘制 512 个可见日期段，不遍历整个日期跨度。绘制、目录查询及保存重开不增加文档历史。
 
@@ -2980,15 +2980,15 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 `SpreadsheetEditor.setTimelineFrame(id, frame)` 修改原生时间线框；同步 `XlsxSession` 与 Worker `XlsxClient` 使用 `setTimelineFrame(revision, sheet, id, frame, profile)`，核心为 `Session::set_timeline_frame`。与切片器共用 `XlsxDrawingFrame`：仅含 `anchor/x/y/width/height`，三种锚定和坐标、尺寸边界同切片器。当前框从已测量视口的 `object.timeline.frame` 读取，折叠框可读零尺寸；提交要求有效正尺寸。默认时间线面板提供数值编辑，沿输入屏障和串行队列应用。
 
-框编辑只修改绘图，保留时间线身份、日期状态、缓存、记录、透视结果和待刷新源。原生框与已校验的平面兼容后备同步变换，保留 clientData；直接原生框也可编辑。一项历史精确恢复资源，相同框不增加历史。绘图锁、受保护或隐藏工作表、未知后备、变换/锚点注释和缺失字体保护原包与重做。实现复用 [`analysis-frame.mbt`](../../modules/formats/src/xlsx/analysis-frame.mbt) 和 [`xlsx-analysis-frame.tsx`](../../packages/ui/src/xlsx-analysis-frame.tsx)。画布标题拖动与四角缩放复用 `selectDrawing`、`drawingGesture` 及上述框事务。核心返回最多四个窗格的 `move` 区域，排除右侧日期粒度及下方日期条；隐藏标题时使用 3.6 磅顶边。选择锁、未知后备或变换注释隐藏拖动区；具体移动、缩放和比例锁继续在核心校验。
+框编辑只修改绘图，保留时间线身份、日期状态、缓存、记录、透视结果和待刷新源。原生框与已校验的平面兼容后备同步变换，保留 clientData；直接原生框也可编辑。一项历史精确恢复资源，相同框不增加历史。绘图锁、受保护或隐藏工作表、未知后备、变换/锚点注释和缺失字体保护原包与重做。实现复用 [`analysis-frame.mbt`](../../modules/formats/src/xlsx/analysis-frame.mbt) 和 [`xlsx-analysis-frame.tsx`](../../packages/xlsx/src/react/xlsx-analysis-frame.tsx)。画布标题拖动与四角缩放复用 `selectDrawing`、`drawingGesture` 及上述框事务。核心返回最多四个窗格的 `move` 区域，排除右侧日期粒度及下方日期条；隐藏标题时使用 3.6 磅顶边。选择锁、未知后备或变换注释隐藏拖动区；具体移动、缩放和比例锁继续在核心校验。
 
-指针候选不改文档、revision、单元格选择或历史，抬笔提交一项变化，Escape 取消并恢复原画布。冻结、RTL 和边缘滚动共用既有坐标换算；方向键移动 1 磅，Shift 方向键移动 10 磅，角点聚焦时调整该角尺寸。Delete 使用协调的 `deleteTimeline`，保留缓存和筛选，撤销恢复完整视图资源。复制、剪切和层次调整继续保护。宿主复用 [`spreadsheet-drawing-pointer.ts`](../../packages/web/src/spreadsheet-drawing-pointer.ts)，日期条交互见下文。
+指针候选不改文档、revision、单元格选择或历史，抬笔提交一项变化，Escape 取消并恢复原画布。冻结、RTL 和边缘滚动共用既有坐标换算；方向键移动 1 磅，Shift 方向键移动 10 磅，角点聚焦时调整该角尺寸。Delete 使用协调的 `deleteTimeline`，保留缓存和筛选，撤销恢复完整视图资源。复制、剪切和层次调整继续保护。宿主复用 [`spreadsheet-drawing-pointer.ts`](../../packages/xlsx/src/web/spreadsheet-drawing-pointer.ts)，日期条交互见下文。
 
 画布日期条支持单周期点击、连续拖选，以及 Enter/Space 键盘选择。`periods` 包含核心生成的 `{ index, label, selected, regions }`，最多 512 个可见日期段，每段最多四个窗格区域。年、季度、月、日沿同一绘制与命中几何；标识由调用方原样回传，不自行推算日期。选择锁隐藏日期按钮，受保护的缓存状态继续在筛选事务中拒绝。
 
 同步 `XlsxSession` 与 Worker `XlsxClient` 使用 `timelineGesture(revision, layout, id, gesture, profile)`；gesture 为 `{ handle, first, position, x, y, commit }`；handle 为 0 时选择范围，1/2 时调整开始/结束端点，first 固定为按下时可见起始段或端点的周期标识。position 使用导航元数据中的首周期标识，须在 minimum–maximum 内，点使用当前视口坐标。核心验证 revision、布局和目标，终点取 position 对应候选窗口中最近的可见段，支持反向拖选及跨窗口保留原起点。范围按整周期与原生 bounds 相交，排除下一周期的零点并保留可表示的小数秒。候选返回 `{ query: null, drawing }`，不改原包、选择、revision、历史或重做；释放返回 `{ query, drawing: null }`，筛选、结果和目标视图的 `selectionLevel` 合为一项历史。其他视图保留自己的显示及选取粒度。
 
-核心入口为 `Session::timeline_gesture`，与 `Session::filter_timeline` 共用内部筛选事务。共享视图与所有原生连接使用已有缓存，保留待刷新源；空周期产生空结果，相同范围及粒度不增加历史。Escape、失焦或视口滚动取消候选，返回当前画布；日期交互期间隐藏框手柄。宿主提供提交后的 `aria-pressed` 状态和返回网格的 Escape。实现归 [`timeline-pointer.mbt`](../../modules/formats/src/xlsx/timeline-pointer.mbt) 及 [`spreadsheet-slicers.ts`](../../packages/web/src/spreadsheet-slicers.ts)。`selectionLevel` 含义沿上述 CT_Timeline 合同；日期条和两个端点在边缘停留时每 120 毫秒滚动一个周期，到原生边界停止；计时器不堆积请求。候选滚动与筛选保持隔离，抬笔合为一项历史，Escape、失焦及宿主滚动取消并停止计时。宿主日期手势归 [`spreadsheet-timeline-pointer.ts`](../../packages/web/src/spreadsheet-timeline-pointer.ts)；端点、粒度和滚动设置见下文。
+核心入口为 `Session::timeline_gesture`，与 `Session::filter_timeline` 共用内部筛选事务。共享视图与所有原生连接使用已有缓存，保留待刷新源；空周期产生空结果，相同范围及粒度不增加历史。Escape、失焦或视口滚动取消候选，返回当前画布；日期交互期间隐藏框手柄。宿主提供提交后的 `aria-pressed` 状态和返回网格的 Escape。实现归 [`timeline-pointer.mbt`](../../modules/formats/src/xlsx/timeline-pointer.mbt) 及 [`spreadsheet-slicers.ts`](../../packages/xlsx/src/web/spreadsheet-slicers.ts)。`selectionLevel` 含义沿上述 CT_Timeline 合同；日期条和两个端点在边缘停留时每 120 毫秒滚动一个周期，到原生边界停止；计时器不堆积请求。候选滚动与筛选保持隔离，抬笔合为一项历史，Escape、失焦及宿主滚动取消并停止计时。宿主日期手势归 [`spreadsheet-timeline-pointer.ts`](../../packages/xlsx/src/web/spreadsheet-timeline-pointer.ts)；端点、粒度和滚动设置见下文。
 
 `editSheet({ action: "setTimelineLevel", name, level })` 修改目标视图的显示粒度，0–3 对应年、季度、月、日。默认时间线面板与画布下拉框沿现有输入屏障和队列提交。保留绝对 `scrollPosition`、日期筛选及 `selectionLevel`；共享视图继续使用自己的显示设置。
 
@@ -2996,7 +2996,7 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 `navigation` 包含 `{ level, minimum, maximum, position, label, levelRegions, scrollRegions }`。核心按原生开关及选择锁返回最多四个窗格区域；宿主用完整框和裁剪区放置原生下拉框及滑块，滑块以 label 提供可读日期说明。拖动释放或键盘改变位置后提交一项历史；日期选择、缓存、待刷新源、其他视图及工作表内容保持。保护/隐藏工作表、只读计算状态、旧 revision、非法粒度与位置原子拒绝。保存、撤销和重开保留视图设置，随后日期选择继续使用当前布局；滑块拖动中不创建文档候选。具有可见滚动区的时间线按横/纵滚轮的主方向逐次移动一个周期，队列在执行时读取当前位置；到边界不增加历史或消耗重做。滚轮取消日期候选，保留日期条件、缓存及待刷新源；日期按钮离开窗口时，焦点留在控件内。Ctrl+滚轮沿平台行为，隐藏滚动区及选择锁不拦截。
 
-端点调整已接入核心和默认宿主，指针拖动、取消及键盘定位已有定向检查。`handles` 返回可见端点的 `{ handle, index, value, regions }`。指针按当前粒度调整端点并保留另一端的精确时间；键盘沿 `editSheet({ action: "setTimelineEndpoint", name, handle, level, position })` 调整，核心入口为 `Session::set_timeline_endpoint`。键盘跨窗口定位及指针边缘停留均沿核心调整滚动位置，与筛选共用一项历史。同周期操作保留原时间串及历史。刷新缩小 bounds 后，调整一端可保留另一端未改变的原生时间串；普通范围入口仍要求两端位于 bounds 内。相关实现归 [`timeline-endpoint.mbt`](../../modules/formats/src/xlsx/timeline-endpoint.mbt) 和 [`spreadsheet-timeline-endpoints.ts`](../../packages/web/src/spreadsheet-timeline-endpoints.ts)。
+端点调整已接入核心和默认宿主，指针拖动、取消及键盘定位已有定向检查。`handles` 返回可见端点的 `{ handle, index, value, regions }`。指针按当前粒度调整端点并保留另一端的精确时间；键盘沿 `editSheet({ action: "setTimelineEndpoint", name, handle, level, position })` 调整，核心入口为 `Session::set_timeline_endpoint`。键盘跨窗口定位及指针边缘停留均沿核心调整滚动位置，与筛选共用一项历史。同周期操作保留原时间串及历史。刷新缩小 bounds 后，调整一端可保留另一端未改变的原生时间串；普通范围入口仍要求两端位于 bounds 内。相关实现归 [`timeline-endpoint.mbt`](../../modules/formats/src/xlsx/timeline-endpoint.mbt) 和 [`spreadsheet-timeline-endpoints.ts`](../../packages/xlsx/src/web/spreadsheet-timeline-endpoints.ts)。
 
 ### 打印与资源边界
 
@@ -3058,7 +3058,7 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 编辑 Canvas 已支持拖动。已选对象及其尺寸手柄优先，其他位置按 4 个屏幕像素的容差查找辅助线；交叉或重叠时选择源顺序最后的一条。`beginGuidePptx` 接收 `{ revision, x, y, tolerance }`，核心未命中或辅助线隐藏时返回无候选的当前查询；命中则返回既有 `candidateId`。后续使用 `dragPptx` 的相对指针位移和 `handle: 0`，只改变水平线的纵坐标或垂直线的横坐标，在页面边缘按原生精度取整。横向移动水平线、纵向移动垂直线以及零位移均不改位置。
 
-拖动预览只更新候选及 `guides.items`，保持 revision、原生源和历史。`cancelPptx` 或默认输入的 Escape/指针取消恢复原值；`finishPptx` 复用既有提交、预算和精确历史，成功移动只新增一项。活动候选期间，保存、结构修改及其他编辑继续沿既有保护。普通数值面板仍提供键盘可操作入口。移动与边界规则参考 [ONLYOFFICE CGuideTrack](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/MoveTracks.js#L954-L1025)。候选实现归 [`guide-gesture.mbt`](../../modules/formats/src/pptx/guide-gesture.mbt)，平台指针队列归 [`presentation-pointer.ts`](../../packages/web/src/presentation-pointer.ts)。
+拖动预览只更新候选及 `guides.items`，保持 revision、原生源和历史。`cancelPptx` 或默认输入的 Escape/指针取消恢复原值；`finishPptx` 复用既有提交、预算和精确历史，成功移动只新增一项。活动候选期间，保存、结构修改及其他编辑继续沿既有保护。普通数值面板仍提供键盘可操作入口。移动与边界规则参考 [ONLYOFFICE CGuideTrack](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/MoveTracks.js#L954-L1025)。候选实现归 [`guide-gesture.mbt`](../../modules/formats/src/pptx/guide-gesture.mbt)，平台指针队列归 [`presentation-pointer.ts`](../../packages/pptx/src/web/presentation-pointer.ts)。
 
 对象移动和角点缩放已支持吸附辅助线及其他对象。移动按各叶对象的四个变换后角点与中心计算，整组使用成员点，多选使用全部所选点。缩放使用所拖角点；组内对象和多选框沿同一世界坐标计算，再回到原有父坐标变换。目标取当前源部件的未选叶对象，同样使用变换后四角与中心；所选组的全部成员排除，普通视图不使用继承的母版/版式对象。旋转、翻转、嵌套组和无宽/高直线沿已有几何。两个轴各取容差内绝对距离最小的修正，等距保留先遇到的移动点，再按目标源顺序保留；对象目标先于等距辅助线。目标排序并二分查找，避免多选逐点全配对。某轴位移为零时保持该轴，最小尺寸、文字适配和资源限制继续生效。
 
@@ -3068,7 +3068,7 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 取点与最近距离依据 [ONLYOFFICE calculateSnapArrays](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GraphicObjectBase.js#L733-L746)、[最近点](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L10510-L10557)及[移动轴修正](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/States.js#L1633-L1736)。实现归 [`object-snap.mbt`](../../modules/formats/src/pptx/object-snap.mbt)。默认辅助线列表有高度上限并可滚动，避免大量条目占满编辑区。
 
-位置换算及新增规则参考 [ONLYOFFICE ViewPr](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/ViewPr.js#L441-L452)、[新增](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/ViewPr.js#L576-L618)及[缩放](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/ViewPr.js#L774-L781)；原生部件结构参考 [ONLYOFFICE CSldViewPr](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/ViewProps/CSldViewPr.cpp)。实现归 [`guides.mbt`](../../modules/formats/src/pptx/guides.mbt)与 [`pptx-guides.tsx`](../../packages/ui/src/pptx-guides.tsx)。母版/版式的扩展辅助线及备注辅助线继续实施。
+位置换算及新增规则参考 [ONLYOFFICE ViewPr](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/ViewPr.js#L441-L452)、[新增](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/ViewPr.js#L576-L618)及[缩放](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/ViewPr.js#L774-L781)；原生部件结构参考 [ONLYOFFICE CSldViewPr](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/ViewProps/CSldViewPr.cpp)。实现归 [`guides.mbt`](../../modules/formats/src/pptx/guides.mbt)与 [`pptx-guides.tsx`](../../packages/pptx/src/react/pptx-guides.tsx)。母版/版式的扩展辅助线及备注辅助线继续实施。
 
 ### 动态对齐标记
 
@@ -3076,7 +3076,7 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 核心沿已选叶对象的四角/中心及活动缩放角点取目标，保留与最终吸附修正在原生 EMU 精度内一致的对象位置；等距目标仍按原有规则选择。每个方向去重并最多保留 64 条，顺序沿移动源点采样。返回前核对实际候选的世界坐标，最小尺寸或其他预览约束使对象未到达目标时隐藏该线。来源为已有辅助线或网格的吸附不额外生成对象标记，零位移轴保持无标记。多选、整组、旋转及嵌套成员沿同一规则。
 
-后续拖动样本重新计算标记；明确数值变换、取消、提交、撤销重做及重开不保留它们。布局身份与现有选择几何共用，Web 只执行核心返回的位置，不重算吸附。源及历史继续使用原有候选事务，放映和静态输出沿内容布局。取点、同位移目标及辅助线排除依据 [ONLYOFFICE MoveState](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/States.js#L1633-L1774)，显示入口依据 [DrawVerAnchor/DrawHorAnchor](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/DrawingDocument.js#L2793-L2832)。实现归 [object-snap.mbt](../../modules/formats/src/pptx/object-snap.mbt)、[hit.mbt](../../modules/formats/src/pptx/hit.mbt)及 [presentation-canvas.ts](../../packages/web/src/presentation-canvas.ts)。
+后续拖动样本重新计算标记；明确数值变换、取消、提交、撤销重做及重开不保留它们。布局身份与现有选择几何共用，Web 只执行核心返回的位置，不重算吸附。源及历史继续使用原有候选事务，放映和静态输出沿内容布局。取点、同位移目标及辅助线排除依据 [ONLYOFFICE MoveState](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/States.js#L1633-L1774)，显示入口依据 [DrawVerAnchor/DrawHorAnchor](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/DrawingDocument.js#L2793-L2832)。实现归 [object-snap.mbt](../../modules/formats/src/pptx/object-snap.mbt)、[hit.mbt](../../modules/formats/src/pptx/hit.mbt)及 [presentation-canvas.ts](../../packages/pptx/src/web/presentation-canvas.ts)。
 
 ### 等间距吸附与提示
 
@@ -3084,7 +3084,7 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 `PptxGeometry.snapSpacing` 返回零至四项 `PptxSpacing`：`{ axis: "x" | "y", from, to, at }`。横向箭头从 `(from, at)` 到 `(to, at)`，纵向从 `(at, from)` 到 `(at, to)`；坐标为页面磅值，每轴成对显示。返回前用实际候选外框重查相等间距，量化、约束或页面外位置不符合时隐藏箭头。默认 Canvas 只在选择覆盖层绘制双向箭头，源、内容布局、放映和静态输出沿原路径。
 
-等间距沿 `snapToObjects` 开关。角点缩放、零位移轴、Alt/`tolerance: 0` 和明确数值变换不使用该吸附；取消、提交、历史操作和重开清理提示。没有新增命令或保存设置。外框和间隔沿已有分布几何，参考 [ONLYOFFICE distributeHor/distributeVer](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L9484-L9585)。交互依据本地 GenOffice 的 `snap.ts` 与 `SlideCanvas.tsx`；核心独立实现有界邻居扫描，不复制其引擎。实现归 [spacing-snap.mbt](../../modules/formats/src/pptx/spacing-snap.mbt)、[object-snap.mbt](../../modules/formats/src/pptx/object-snap.mbt)及 [presentation-canvas.ts](../../packages/web/src/presentation-canvas.ts)。同尺寸提示归[缩放同尺寸吸附与提示](#缩放同尺寸吸附与提示)，扩展辅助线仍按 P12 实施。
+等间距沿 `snapToObjects` 开关。角点缩放、零位移轴、Alt/`tolerance: 0` 和明确数值变换不使用该吸附；取消、提交、历史操作和重开清理提示。没有新增命令或保存设置。外框和间隔沿已有分布几何，参考 [ONLYOFFICE distributeHor/distributeVer](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L9484-L9585)。交互依据本地 GenOffice 的 `snap.ts` 与 `SlideCanvas.tsx`；核心独立实现有界邻居扫描，不复制其引擎。实现归 [spacing-snap.mbt](../../modules/formats/src/pptx/spacing-snap.mbt)、[object-snap.mbt](../../modules/formats/src/pptx/object-snap.mbt)及 [presentation-canvas.ts](../../packages/pptx/src/web/presentation-canvas.ts)。同尺寸提示归[缩放同尺寸吸附与提示](#缩放同尺寸吸附与提示)，扩展辅助线仍按 P12 实施。
 
 ### 比例缩放手势
 
@@ -3092,7 +3092,7 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 低层 `dragPptx` 增加可选布尔值 `shift`，缺省为 `false`；MoonBit 使用 `Session.drag(..., shift=true)`。指针合并预览和最终释放各自传递当前修饰键。比例约束优先于全部吸附，清理临时对齐线、间距箭头和同尺寸标记；Alt 关闭吸附并启用[从中心缩放](#从中心缩放)，不取消比例约束。移动、连接线端点和明确数值变换继续使用既有操作规则。没有新增文稿设置，取消、单次提交、精确历史与重开沿原候选事务。
 
-缩放系数取两个尺寸绝对值系数中的较大值，依据 [ONLYOFFICE ResizeTrackShapeImage.resize](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/ResizeTracks.js#L634-L689)。图片默认比例和比例优先于吸附的交互对照本地 GenOffice `SlideCanvas.tsx` 的 `ratioLocked` 与 `boundBoxFunc`。实现归 [object-snap.mbt](../../modules/formats/src/pptx/object-snap.mbt)、[object-selection.mbt](../../modules/formats/src/pptx/object-selection.mbt)及 [presentation-pointer.ts](../../packages/web/src/presentation-pointer.ts)。中心手势归[从中心缩放](#从中心缩放)，跨边方向归[跨边缩放与翻转](#跨边缩放与翻转)。
+缩放系数取两个尺寸绝对值系数中的较大值，依据 [ONLYOFFICE ResizeTrackShapeImage.resize](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/ResizeTracks.js#L634-L689)。图片默认比例和比例优先于吸附的交互对照本地 GenOffice `SlideCanvas.tsx` 的 `ratioLocked` 与 `boundBoxFunc`。实现归 [object-snap.mbt](../../modules/formats/src/pptx/object-snap.mbt)、[object-selection.mbt](../../modules/formats/src/pptx/object-selection.mbt)及 [presentation-pointer.ts](../../packages/pptx/src/web/presentation-pointer.ts)。中心手势归[从中心缩放](#从中心缩放)，跨边方向归[跨边缩放与翻转](#跨边缩放与翻转)。
 
 ### 从中心缩放
 
@@ -3102,7 +3102,7 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 独立使用 `center=true` 且保留容差时，对象尺寸匹配按活动边的屏幕位移判断；完整宽高改变量为边位移的两倍。匹配后继续固定中心，其他轴复用原有网格/边缘/辅助线规则。实际几何仍由核心复核；比例约束优先于全部吸附。没有新增文稿设置或保存状态。
 
-位移系数与中心位置依据 [ONLYOFFICE resizeRelativeCenter](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/ResizeTracks.js#L1019-L1120)。默认修饰键对照本地 GenOffice `SlideCanvas.tsx` 的 `centeredScaling` 与 Alt/Option 交互。实现归 [object-snap.mbt](../../modules/formats/src/pptx/object-snap.mbt)、[object-selection.mbt](../../modules/formats/src/pptx/object-selection.mbt)、[size-snap.mbt](../../modules/formats/src/pptx/size-snap.mbt)及 [presentation-pointer.ts](../../packages/web/src/presentation-pointer.ts)。跨边方向归[跨边缩放与翻转](#跨边缩放与翻转)。
+位移系数与中心位置依据 [ONLYOFFICE resizeRelativeCenter](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/ResizeTracks.js#L1019-L1120)。默认修饰键对照本地 GenOffice `SlideCanvas.tsx` 的 `centeredScaling` 与 Alt/Option 交互。实现归 [object-snap.mbt](../../modules/formats/src/pptx/object-snap.mbt)、[object-selection.mbt](../../modules/formats/src/pptx/object-selection.mbt)、[size-snap.mbt](../../modules/formats/src/pptx/size-snap.mbt)及 [presentation-pointer.ts](../../packages/pptx/src/web/presentation-pointer.ts)。跨边方向归[跨边缩放与翻转](#跨边缩放与翻转)。
 
 ### 跨边缩放与翻转
 
@@ -3120,7 +3120,7 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 `PptxGeometry.snapSize` 返回零至 64 项 `PptxSizeMatch`：`{ object, width, height, outline }`。`object` 为目标身份；两个布尔值说明哪些原生尺寸与实际候选相等，至少一项为真；`outline` 是目标四角的页面坐标。相同目标合并成一项，按源顺序保留。核心在返回前重新检查实际尺寸，量化或预览约束不再匹配时隐藏提示。Canvas 仅在选择覆盖层描绘目标的虚线外框，不重算匹配和几何。
 
-尺寸匹配沿 `snapToObjects` 开关；Alt/`tolerance: 0`、明确数值变换及候选结束清理标记，取消、提交、历史和重开保留原有源事务。没有新增命令或保存设置；提示不进入文稿内容、放映或静态输出。比例手势归[比例缩放手势](#比例缩放手势)，更广旋转/组内尺寸匹配继续实施。坐标转换和固定点沿 [ONLYOFFICE getResizeCoefficients](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GraphicObjectBase.js#L2212-L2312)及既有核心变换；交互对照本地 GenOffice `SlideCanvas.tsx` 的同尺寸边框提示。实现归 [size-snap.mbt](../../modules/formats/src/pptx/size-snap.mbt)、[object-snap.mbt](../../modules/formats/src/pptx/object-snap.mbt)、[pptx-view.ts](../../packages/wasm/src/pptx-view.ts)及 [presentation-canvas.ts](../../packages/web/src/presentation-canvas.ts)。
+尺寸匹配沿 `snapToObjects` 开关；Alt/`tolerance: 0`、明确数值变换及候选结束清理标记，取消、提交、历史和重开保留原有源事务。没有新增命令或保存设置；提示不进入文稿内容、放映或静态输出。比例手势归[比例缩放手势](#比例缩放手势)，更广旋转/组内尺寸匹配继续实施。坐标转换和固定点沿 [ONLYOFFICE getResizeCoefficients](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GraphicObjectBase.js#L2212-L2312)及既有核心变换；交互对照本地 GenOffice `SlideCanvas.tsx` 的同尺寸边框提示。实现归 [size-snap.mbt](../../modules/formats/src/pptx/size-snap.mbt)、[object-snap.mbt](../../modules/formats/src/pptx/object-snap.mbt)、[pptx-view.ts](../../packages/pptx/src/core/pptx-view.ts)及 [presentation-canvas.ts](../../packages/pptx/src/web/presentation-canvas.ts)。
 
 ### 网格与吸附设置
 
@@ -3160,7 +3160,7 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 `PptxQuery.themeColors` 返回十二个 `PptxThemeColor`，每项含 `slot/color/reason`。全部使用中主题的有效颜色相同时返回 RGB，混合时返回 `null`；不能安全编辑时给出原因。类型从 `wasm/pptx` 和 `web/pptx` 导出。支持普通 `srgbClr` 和 `sysClr.lastClr`；选择新颜色时写为显式 sRGB，相同有效值保持原系统颜色源。含颜色变换、未知属性/子节点、注释或处理指令的目标色项仍保护；一处受保护即拒绝整次修改。其他色项、字体、额外配色、扩展及未改部件原样保留。
 
-核心重新解析所有依赖页，背景、形状、描边、文字和列表的主题引用继续使用原颜色映射及明暗变换；直接 RGB 覆盖、对象身份、几何和文字选择保持。原生文字草稿先独立提交；主题部件和派生页面共用一次有界历史。撤销/重做重新派生依赖颜色，不只恢复 XML。相同颜色无操作，旧 revision、活动候选、输出/历史预算及保护失败原子拒绝。保存重开和 Canvas/PDF 沿相同布局路径。主题字体见下节；主题包应用、母版/版式直接编辑及复合对象仍按 P12 后续批次实施。实现归 [`theme-edit.mbt`](../../modules/formats/src/pptx/theme-edit.mbt)及 [`pptx-theme.tsx`](../../packages/ui/src/pptx-theme.tsx)。
+核心重新解析所有依赖页，背景、形状、描边、文字和列表的主题引用继续使用原颜色映射及明暗变换；直接 RGB 覆盖、对象身份、几何和文字选择保持。原生文字草稿先独立提交；主题部件和派生页面共用一次有界历史。撤销/重做重新派生依赖颜色，不只恢复 XML。相同颜色无操作，旧 revision、活动候选、输出/历史预算及保护失败原子拒绝。保存重开和 Canvas/PDF 沿相同布局路径。主题字体见下节；主题包应用、母版/版式直接编辑及复合对象仍按 P12 后续批次实施。实现归 [`theme-edit.mbt`](../../modules/formats/src/pptx/theme-edit.mbt)及 [`pptx-theme.tsx`](../../packages/pptx/src/react/pptx-theme.tsx)。
 
 ### 主题字体
 
@@ -3291,7 +3291,7 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 最多 256 章，名称最多 255 UTF-16 单元；创建/改名要求非空有效 XML 文字。章节与关联页序合为一项有界历史，可与页操作和原生输入混合精确撤销。重名允许，身份按 GUID 区分。相同名称/位置不新增历史。未知章节属性/子项、非连续/重复/悬空引用和修改保护明确拒绝，不删掉未知源来开放编辑。非目标部件、已有章节外标签及页引用周围源内容保留；未知无关扩展可随章节改名保留，但仍保护页序修改。保存重开及 PDF 使用提交后的页序。默认面板提供新增、选择、改名、保留页面移除、一次移除所有章节、前后移动及删除章节和页面。
 
-默认页列表按 `query.sections` 的稳定身份分组，保留未分章的前缀、全稿页码、空章和隐藏页标记。章节标题显示名称与页数，按钮用 `aria-expanded` 和 `aria-controls` 关联成员页；Enter/Space 切换，另有全部折叠/展开。折叠隐藏该章的页按钮，当前画布及核心选择不变；活动页所在的折叠章由标题标识，外部页导航会自动展开目标章。改名和整章重排保持折叠状态；已移除的章清理状态，新章初始展开。更换/重开文档时初始全部展开。无可用章节时继续显示平面页列表。折叠是默认 UI 的会话视图状态，不写入 PPTX、不增加文档历史，不改变保存/PDF 页序和页数。参考 [GenOffice 章节视图状态](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/apps/slides/src/renderer/App.tsx#L2247-L2259)，实现归 [`pptx-slides.tsx`](../../packages/ui/src/pptx-slides.tsx)。
+默认页列表按 `query.sections` 的稳定身份分组，保留未分章的前缀、全稿页码、空章和隐藏页标记。章节标题显示名称与页数，按钮用 `aria-expanded` 和 `aria-controls` 关联成员页；Enter/Space 切换，另有全部折叠/展开。折叠隐藏该章的页按钮，当前画布及核心选择不变；活动页所在的折叠章由标题标识，外部页导航会自动展开目标章。改名和整章重排保持折叠状态；已移除的章清理状态，新章初始展开。更换/重开文档时初始全部展开。无可用章节时继续显示平面页列表。折叠是默认 UI 的会话视图状态，不写入 PPTX、不增加文档历史，不改变保存/PDF 页序和页数。参考 [GenOffice 章节视图状态](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/apps/slides/src/renderer/App.tsx#L2247-L2259)，实现归 [`pptx-slides.tsx`](../../packages/pptx/src/react/pptx-slides.tsx)。
 
 `sectionRemoveAll` 一次移除全部章节，保留全部页、页序、对象、选择及其他部件。章节元数据以一项有界历史移除，可精确撤销/重做和保存重开；没有章节时不修改 revision 或历史。UI 无章节时禁用入口。损坏或未知章节继续保护；其他扩展、外层属性、注释和处理指令保留，只在外层扩展列表没有其他内容时一并移除该空容器。操作目标参考 [GenOffice removeAllSections](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/apps/slides/src/renderer/slide-actions.ts#L182-L189)，沿用已有标准 p14 写回和核心事务。
 
@@ -3319,6 +3319,8 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 删除参数为 `{ action: "delete" }`，复制为 `{ action: "duplicate", dx, dy }`。两者要求对象模式；空选区不修改文档。删除作用于整个集合，先校验全部成员，再提交一项历史；任一保护失败不删除其他成员。复制作用于整个集合，包括受支持的嵌套组；副本按原源顺序放到所属父容器的最上层。保留非变换源内容、页面几何、命名空间与图片/超链接关系，为副本及其全部成员分配会话内尚未使用的新 `cNvPr.id`，域身份同样更新。副本内部对象引用重映射；引用集合外对象而需联动的结构明确拒绝。副本选择保留原选择顺序及对应活动对象。一次复制合为一项历史，任一成员、字体、几何或预算失败不创建副本、不消耗身份。原对象的页面姿态、非变换内容、其他部件及资源保持；组内原生坐标可随边界重算归一化。一次复制的 XML 片段及继承命名空间合计最多 2 Mi UTF-16 单元，在拼接前检查；最终包和历史继续受原有预算约束。删除清空选择；撤销/重做精确恢复源 XML 与选择。`PptxObject.deleteReason/duplicateReason` 返回操作保护原因，空串表示可用。继承/跨父组选择/未知对象继续保护；复制占位符及未知扩展、删除锁定或带连接/计时引用的对象仍拒绝，含未支持所属关系的页面也保护删除。资源和关系不做清理。默认 UI 提供插入面板、复制/删除按钮；对象输入支持 Delete/Backspace 与 Ctrl/Cmd+D，默认复制偏移各 18 pt。
 
+原对象或组合成员已有的文字/表格溢出随副本保留为布局诊断，不阻止保持原框的复制。字体测量、资源、几何及事务预算继续校验；新增文字和修改文字框沿各自原有容量保护。实现归 [`object-copy.mbt`](../../modules/formats/src/pptx/object-copy.mbt)。
+
 ### PPTX 对象剪贴板
 
 对象模式的 `copyPptx` 返回 `{ text, fragment, reason }`。本地顶层形状、PNG/JPEG 图片、普通表格、普通图表、嵌入音视频及完整组合可生成独立原生快照。复制保留源位置、层次、几何、旋转/翻转、图片裁剪、填充、描边、文字及点击/悬停外链和导航动作；主题字体、颜色和线性渐变写为明确源外观。继承占位符沿用既有复制保护；未选对象和其他源资源不进入快照。源文稿修改或关闭后仍可重复粘贴。
@@ -3345,7 +3347,7 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 默认 Copy/Cut 同时写 `text/plain` 和 Chromium 自定义类型 `web application/x-open-document-pptx-text`。`PresentationEditor.pasteClipboard()`、文字输入的 Ctrl/Meta+V 和默认“按源格式粘贴”读取原生片段；外部普通文字沿既有范围输入。异步读写后核对会话、revision 和选择。剪切仅在系统写入成功后删除源。显式 `paste(text)` 和原生纯文本粘贴事件继续接受普通文字。
 
-片段最多 1 Mi UTF-16、256 段及 256 个不同链接目标；链接地址和单项元数据各不超过 2048 UTF-16。粘贴后的整个对象文字最多 32767 UTF-16。跨格复制保留既有 TSV；字段、公式、具体幻灯片目标、文字透明度和不支持的文字源返回 `fragment: null` 及原因，保留普通文字复制。具体幻灯片链接须先具备目标页转移，避免误指向另一文稿的同名路径。跨格富文本和更广文字格式继续实施。实现归 [`text-clipboard.mbt`](../../modules/formats/src/pptx/text-clipboard.mbt)、[`text-fragment-paste.mbt`](../../modules/formats/src/pptx/text-fragment-paste.mbt)及 [`clipboard-input.ts`](../../packages/web/src/clipboard-input.ts)。解析后冻结源字体/主题色参考 [ONLYOFFICE 源格式捕获](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L7837-L7846)；未复制上游执行代码。
+片段最多 1 Mi UTF-16、256 段及 256 个不同链接目标；链接地址和单项元数据各不超过 2048 UTF-16。粘贴后的整个对象文字最多 32767 UTF-16。跨格复制保留既有 TSV；字段、公式、具体幻灯片目标、文字透明度和不支持的文字源返回 `fragment: null` 及原因，保留普通文字复制。具体幻灯片链接须先具备目标页转移，避免误指向另一文稿的同名路径。跨格富文本和更广文字格式继续实施。实现归 [`text-clipboard.mbt`](../../modules/formats/src/pptx/text-clipboard.mbt)、[`text-fragment-paste.mbt`](../../modules/formats/src/pptx/text-fragment-paste.mbt)及 [`clipboard-input.ts`](../../packages/docx/src/web/clipboard-input.ts)。解析后冻结源字体/主题色参考 [ONLYOFFICE 源格式捕获](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L7837-L7846)；未复制上游执行代码。
 
 ### 更改形状类型
 
@@ -3447,7 +3449,7 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 预览只更新派生几何；提交从候选原生源重读坐标，并与原操作共用一项修订和历史，撤销/重做精确恢复源。顶层组整体变换、顶层复制与顶层新建组合不强制归一化；组内成员集合变化更新现有祖先组边界。只有当前编辑的源部件被改写，其继承对象保持；母版/版式源视图使用同一边界事务。未知同组成员、原生坐标及输出/历史预算失败原子拒绝。主题字体与页码自动适配沿同一坐标写回，避免重复除以组缩放。
 
-页面增量与组内原生坐标换算参考 [ONLYOFFICE MoveShapeImageTrack](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/MoveTracks.js#L95-L145)及[组缩放写回](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/MoveTracks.js#L301-L315)。独立父组权限及受支持的本地组边界为 SDK 实施范围；母版、版式组编辑仍待实现。实现归 [`member-geometry.mbt`](../../modules/formats/src/pptx/member-geometry.mbt)、[`object-selection.mbt`](../../modules/formats/src/pptx/object-selection.mbt)和[`变换面板`](../../packages/ui/src/pptx-arrange.tsx)。
+页面增量与组内原生坐标换算参考 [ONLYOFFICE MoveShapeImageTrack](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/MoveTracks.js#L95-L145)及[组缩放写回](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/MoveTracks.js#L301-L315)。独立父组权限及受支持的本地组边界为 SDK 实施范围；母版、版式组编辑仍待实现。实现归 [`member-geometry.mbt`](../../modules/formats/src/pptx/member-geometry.mbt)、[`object-selection.mbt`](../../modules/formats/src/pptx/object-selection.mbt)和[`变换面板`](../../packages/pptx/src/react/pptx-arrange.tsx)。
 
 组成员外观复用下列原命令和默认面板。支持形状纯色/无填充、线性渐变、图片填充、描边/端点/线型及不透明度，支持预设调节值；独立图片成员支持替换、裁剪、拉伸/平铺、不透明度与拉伸目标内缩。形状批量外观仍原子提交，图片属性要求唯一对象选择。纯外观修改保留所有成员与父组原生变换，不触发组边界归一化；调节值引起的自动适配沿已有框事务更新边界。图片替换新建资源及关系，其他共用旧资源的对象保持。
 
@@ -3505,7 +3507,7 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 尺寸使用有效线宽的 2/3/5 倍，细线以 1.875 pt 为最低基准。该值将上游的 2.5 px 最小尺寸固定到源坐标，预览缩放与 DPR 不改变 PDF 几何。三角、凹尾和开放箭头朝外，菱形与椭圆以端点为中心；端点沿实际首末非零线段或曲线切线方向、旋转、翻转和既有组矩阵绘制；支持普通直线及已知折线/曲线连接线。轮廓参与核心命中，使用边框颜色和不透明度，保持主体虚线而以实线绘制端点。Canvas/PDF 复用相同路径。零长度线不派生端点轮廓，保留原源。
 
-导入读取局部、版式/母版及主题声明，缺省为无端点和中尺寸。编辑只替换指定节点，保留线宽、颜色、几何、文字、身份及其他部件；多选共享原子事务、精确历史和保存重开。重复直接值不增加历史。`noChangeArrowheads` 锁、只读/继承/组内对象、未知类型/尺寸/属性/子节点、重复声明、端点内注释及预算失败继续保护。连接线端点拖动及目标联动见[连接线](#连接线)。尺寸参考 [ONLYOFFICE EndArrow](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L7331-L7400)，轮廓参考 [DrawLineEnd](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L51-L500)；未复制上游源码。实现归 [`line-end.mbt`](../../modules/formats/src/pptx/line-end.mbt)、[`line-end-edit.mbt`](../../modules/formats/src/pptx/line-end-edit.mbt)及 [`pptx-line-ends.tsx`](../../packages/ui/src/pptx-line-ends.tsx)。
+导入读取局部、版式/母版及主题声明，缺省为无端点和中尺寸。编辑只替换指定节点，保留线宽、颜色、几何、文字、身份及其他部件；多选共享原子事务、精确历史和保存重开。重复直接值不增加历史。`noChangeArrowheads` 锁、只读/继承/组内对象、未知类型/尺寸/属性/子节点、重复声明、端点内注释及预算失败继续保护。连接线端点拖动及目标联动见[连接线](#连接线)。尺寸参考 [ONLYOFFICE EndArrow](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L7331-L7400)，轮廓参考 [DrawLineEnd](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L51-L500)；未复制上游源码。实现归 [`line-end.mbt`](../../modules/formats/src/pptx/line-end.mbt)、[`line-end-edit.mbt`](../../modules/formats/src/pptx/line-end-edit.mbt)及 [`pptx-line-ends.tsx`](../../packages/pptx/src/react/pptx-line-ends.tsx)。
 
 主题颜色支持 sRGB、带 `lastClr` 的系统色、主题/颜色映射以及 tint、shade、lumMod、lumOff。支持无填充、纯色填充、实线及标准预设虚线、主题填充/边框/背景引用和无效果样式。未知颜色变换、填充或可见效果保留源并诊断，不静默宣称完整。占位符依类型/索引匹配，当前属性按具体声明覆盖继承值；写回不修改共享主题、母版或版式。
 
@@ -3638,7 +3640,7 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，已
 
 有连接的线通过画布端点或面板修改，直接变换继续保护。连接线与全部引用目标同时选择时可组合或复制；整个组可复制，副本的原生引用映射到副本目标。同一直接父容器中的闭合图形支持组内端点编辑/吸附、成员移动/旋转、组缩放/旋转/翻转、嵌套及取消/再次组合。核心逆变换页面端点并写整数 EMU，复用既有组边界归一化，候选与提交保持一致。重复原生端点及连接关系不增加历史。默认列表选择连接线时进入对象模式。拆散引用的组合/复制、仍被外部引用的目标删除、跨父容器连接、框外导引、自定义或未知预设连接点继续保护。未知连接元数据、非整数或越界索引、失去目标、锁定和输出预算失败保留源与历史；受保护连接线也阻止其目标发生无法写回的几何变化。沿用对象数量、坐标、XML、历史和输出预算。
 
-连接点计算归 [`connection-sites.mbt`](../../modules/formats/src/pptx/connection-sites.mbt)。三角形及箭头等点坐标依据 [ONLYOFFICE CreateGeometry](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L8525-L8620) 的原生导引。实现归 [`connector.mbt`](../../modules/formats/src/pptx/connector.mbt)、[`connector-edit.mbt`](../../modules/formats/src/pptx/connector-edit.mbt)、[`connector-gesture.mbt`](../../modules/formats/src/pptx/connector-gesture.mbt)及 [`pptx-connectors.tsx`](../../packages/ui/src/pptx-connectors.tsx)。吸附规则参考 [ONLYOFFICE ResizeTrackShapeImage](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/ResizeTracks.js#L370-L450)及 [Geometry.findConnector](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Geometry.js#L1174-L1187)。组内连接重算及父组逆变换参考 [ONLYOFFICE CnxShape](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CnxShape.js#L624-L684)。原生点顺序参考 ONLYOFFICE `CreateGeometry` 的[矩形](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L6741)、[椭圆](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L3100)、[圆角矩形](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L7195)和[直线连接线](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L8272)，未复制上游执行代码。
+连接点计算归 [`connection-sites.mbt`](../../modules/formats/src/pptx/connection-sites.mbt)。三角形及箭头等点坐标依据 [ONLYOFFICE CreateGeometry](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L8525-L8620) 的原生导引。实现归 [`connector.mbt`](../../modules/formats/src/pptx/connector.mbt)、[`connector-edit.mbt`](../../modules/formats/src/pptx/connector-edit.mbt)、[`connector-gesture.mbt`](../../modules/formats/src/pptx/connector-gesture.mbt)及 [`pptx-connectors.tsx`](../../packages/pptx/src/react/pptx-connectors.tsx)。吸附规则参考 [ONLYOFFICE ResizeTrackShapeImage](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/ResizeTracks.js#L370-L450)及 [Geometry.findConnector](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Geometry.js#L1174-L1187)。组内连接重算及父组逆变换参考 [ONLYOFFICE CnxShape](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CnxShape.js#L624-L684)。原生点顺序参考 ONLYOFFICE `CreateGeometry` 的[矩形](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L6741)、[椭圆](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L3100)、[圆角矩形](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L7195)和[直线连接线](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L8272)，未复制上游执行代码。
 
 ### 基础艺术字
 
@@ -3718,7 +3720,7 @@ MoonBit 使用 `InsertDiagram(DiagramSettings)` 计算布局，生成矩形、�
 
 默认面板提供三种模板及逐行标签，位置和大小使用现有对象输入，并说明保存为可编辑形状和连接线。一次插入一项历史，成功后选中新组。文字放不进节点、缺字体、身份耗尽、资源或输出预算失败时整项拒绝，保留源和选择，不消耗身份。画布、重开及 PDF 共用已有图元。原生 SmartArt 导入及更广模板兼容归 P14。
 
-实现归 [`diagram.mbt`](../../modules/formats/src/pptx/diagram.mbt)、[`object-markup.mbt`](../../modules/formats/src/pptx/object-markup.mbt)及 [`pptx-diagram.tsx`](../../packages/ui/src/pptx-diagram.tsx)。模板布局是 SDK 的简化规则；底层对象参考 [ONLYOFFICE SmartArt 形状生成](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/SmartArts/SmartArtTree.js#L1838-L1864)，未复制其执行代码。连接点规则归[连接线](#连接线)。
+实现归 [`diagram.mbt`](../../modules/formats/src/pptx/diagram.mbt)、[`object-markup.mbt`](../../modules/formats/src/pptx/object-markup.mbt)及 [`pptx-diagram.tsx`](../../packages/pptx/src/react/pptx-diagram.tsx)。模板布局是 SDK 的简化规则；底层对象参考 [ONLYOFFICE SmartArt 形状生成](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/SmartArts/SmartArtTree.js#L1838-L1864)，未复制其执行代码。连接点规则归[连接线](#连接线)。
 
 ### 对象超链接
 
@@ -3774,7 +3776,7 @@ MoonBit 使用 `InsertDiagram(DiagramSettings)` 计算布局，生成矩形、�
 
 模态视图位于所属编辑器内，容器全屏兼容 Shadow DOM。支持方向键、PageUp/PageDown、Home/End、页面点击、显式条目跳转和 Escape；原生选择及颜色控件保留自身按键。演讲者开关显示下一页与普通备注；演讲已用时间继续累计，pause/resume 冻结/继续切换及自动换页计时。退出恢复原生焦点和选择；文件替换、宿主 setPaused(true) 和释放结束放映，清理画布、帧请求、监听器和计时器。对象与文字点击链接已有核心命中和键盘入口，范围归[放映链接](#放映链接)。临时画笔及手动媒体归下文；独立窗口仍待实现，源元数据保留。
 
-页序规则参考 [ONLYOFFICE 可见页导航](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L4641-L4742)和[显式跳页](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L4978-L5003)。实现归 [`slideshow.mbt`](../../modules/formats/src/pptx/slideshow.mbt)、[`show-state.mbt`](../../modules/formats/src/pptx/show-state.mbt)及 [`presentation-show.ts`](../../packages/web/src/presentation-show.ts)。
+页序规则参考 [ONLYOFFICE 可见页导航](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L4641-L4742)和[显式跳页](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L4978-L5003)。实现归 [`slideshow.mbt`](../../modules/formats/src/pptx/slideshow.mbt)、[`show-state.mbt`](../../modules/formats/src/pptx/show-state.mbt)及 [`presentation-show.ts`](../../packages/pptx/src/web/presentation-show.ts)。
 
 ### 媒体播放属性
 
@@ -3812,7 +3814,7 @@ MoonBit 使用 `InsertDiagram(DiagramSettings)` 计算布局，生成矩形、�
 
 每笔最多 4096 点，整次放映最多 256 笔、32768 点；正在输入的草稿计入点数检查。每批最多 64 点，宽度为 0.5–24 pt，坐标须为页内有限值。Web 待发送样本最多 4096 点，超限取消当前草稿并显示错误，已完成笔迹保留。橡皮擦、激光笔、曲线平滑及压感继续实施。
 
-实现归 [`show-ink.mbt`](../../modules/formats/src/pptx/show-ink.mbt)、[`show-ink-save.mbt`](../../modules/formats/src/pptx/show-ink-save.mbt)、[`polyline.mbt`](../../modules/formats/src/pptx/polyline.mbt)及 [`presentation-show-ink.ts`](../../packages/web/src/presentation-show-ink.ts)。开放无填充路径和边界参考 [ONLYOFFICE PolyLine](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/PolyLine.js#L180-L262)，当前保留采样折线，不引入曲线拟合。临时页级笔迹、取消和显式写入源的分离参考 [ONLYOFFICE SlideShowAnnotations](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/SlideShowAnnotations.js#L53-L193)。未复制上游执行代码。
+实现归 [`show-ink.mbt`](../../modules/formats/src/pptx/show-ink.mbt)、[`show-ink-save.mbt`](../../modules/formats/src/pptx/show-ink-save.mbt)、[`polyline.mbt`](../../modules/formats/src/pptx/polyline.mbt)及 [`presentation-show-ink.ts`](../../packages/pptx/src/web/presentation-show-ink.ts)。开放无填充路径和边界参考 [ONLYOFFICE PolyLine](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/PolyLine.js#L180-L262)，当前保留采样折线，不引入曲线拟合。临时页级笔迹、取消和显式写入源的分离参考 [ONLYOFFICE SlideShowAnnotations](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/SlideShowAnnotations.js#L53-L193)。未复制上游执行代码。
 
 ### 放映链接
 
@@ -3828,7 +3830,7 @@ MoonBit 使用 `InsertDiagram(DiagramSettings)` 计算布局，生成矩形、�
 
 每帧最多 4096 个链接，ID 上限 4095；标签最多 1024、诊断最多 8192 个 UTF-16 单元，标签/诊断/外链总量最多 1 Mi 单元。宏、文件地址、未知动作及扩展链接保持源并显示诊断，点击拒绝执行。已知链接在只读对象和文稿中仍可播放。静态 PDF/图片不增加交互链接注释；自定义放映动作、悬停与其他动作继续实施。
 
-命中后优先处理链接、未命中再换页的依据是 [ONLYOFFICE 放映点击路径](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L5357-L5445)；动作与外部宿主分派参考[链接回调](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/api.js#L7243-L7283)。实现归 [`show-links.mbt`](../../modules/formats/src/pptx/show-links.mbt)、[`show-animation.mbt`](../../modules/formats/src/pptx/show-animation.mbt)和 [`presentation-show.ts`](../../packages/web/src/presentation-show.ts)。
+命中后优先处理链接、未命中再换页的依据是 [ONLYOFFICE 放映点击路径](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L5357-L5445)；动作与外部宿主分派参考[链接回调](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/api.js#L7243-L7283)。实现归 [`show-links.mbt`](../../modules/formats/src/pptx/show-links.mbt)、[`show-animation.mbt`](../../modules/formats/src/pptx/show-animation.mbt)和 [`presentation-show.ts`](../../packages/pptx/src/web/presentation-show.ts)。
 
 ### 放映设置
 
@@ -3840,7 +3842,7 @@ MoonBit 使用 `InsertDiagram(DiagramSettings)` 计算布局，生成矩形、�
 
 源采用标准 `presProps/p:showPr` 的 `sldAll/sldRg/custShow` 和 useTimings/showAnimation/loop。首次编辑可创建属性部件、关系及内容类型，连同源历史一起撤销和重做；相同设置不改字节或新增历史。只修改变化的属性和选择片段，保留 showNarration、显示模式、画笔颜色和其他未改源内容。叙述、窗口模式、默认画笔颜色及更广媒体计时仍待实现。媒体命令和临时画笔归各自合同；保存与静态输出继续使用完整文稿，不按默认放映范围裁剪。
 
-字段和序列化依据 [ONLYOFFICE ShowPr](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/ShowPr/PresentationPr.cpp#L48-L128)及[页码范围](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/ShowPr/SldRg.cpp#L42-L78)。重排与删页的数字范围规则是当前 SDK 合同，未声称由上游运行结果验证。实现归 [`show-settings.mbt`](../../modules/formats/src/pptx/show-settings.mbt)、[`show-settings-create.mbt`](../../modules/formats/src/pptx/show-settings-create.mbt)和 [`pptx-show-settings.tsx`](../../packages/ui/src/pptx-show-settings.tsx)；沿用现有编辑队列及播放状态。
+字段和序列化依据 [ONLYOFFICE ShowPr](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/ShowPr/PresentationPr.cpp#L48-L128)及[页码范围](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/ShowPr/SldRg.cpp#L42-L78)。重排与删页的数字范围规则是当前 SDK 合同，未声称由上游运行结果验证。实现归 [`show-settings.mbt`](../../modules/formats/src/pptx/show-settings.mbt)、[`show-settings-create.mbt`](../../modules/formats/src/pptx/show-settings-create.mbt)和 [`pptx-show-settings.tsx`](../../packages/pptx/src/react/pptx-show-settings.tsx)；沿用现有编辑队列及播放状态。
 
 ### 自定义放映
 
@@ -3850,7 +3852,7 @@ MoonBit 使用 `InsertDiagram(DiagramSettings)` 计算布局，生成矩形、�
 
 源写入标准 `p:custShowLst/p:custShow[@name,@id]/p:sldLst/p:sld[@r:id]`，复用 presentation 的 slide 关系。未修改的定义保留源片段，读写、历史和预算沿用既有事务。扩展定义、未知属性、注释、失效关系及重复身份保护修改和自定义开始，普通放映仍可运行。默认放映选择已接通读取、编辑和播放，范围归[放映设置](#放映设置)；自定义动作链接继续实施。
 
-已核对 [ONLYOFFICE 的自定义放映模型与序列化](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Presentation/PresentationChildElements.cpp#L411-L531)，该快照的名称/身份和列表输出不完整；标准结构依据 [Open XML SDK 的 CustomShow、SlideList 与 SlideListEntry](https://github.com/dotnet/Open-XML-SDK/blob/431ab05cf160248cc3885a4a766026d4f8243792/generated/DocumentFormat.OpenXml/DocumentFormat.OpenXml.Generator/DocumentFormat.OpenXml.Generator.OpenXmlGenerator/schemas_openxmlformats_org_presentationml_2006_main.g.cs#L12165-L12319)。隐藏页规则参考 [LibreOffice 自定义放映](https://books.libreoffice.org/en/IG70/IG7009-SlideShowsPhotoAlbums.html)。实现归 [`custom-shows.mbt`](../../modules/formats/src/pptx/custom-shows.mbt)与 [`pptx-show.tsx`](../../packages/ui/src/pptx-show.tsx)。
+已核对 [ONLYOFFICE 的自定义放映模型与序列化](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Presentation/PresentationChildElements.cpp#L411-L531)，该快照的名称/身份和列表输出不完整；标准结构依据 [Open XML SDK 的 CustomShow、SlideList 与 SlideListEntry](https://github.com/dotnet/Open-XML-SDK/blob/431ab05cf160248cc3885a4a766026d4f8243792/generated/DocumentFormat.OpenXml/DocumentFormat.OpenXml.Generator/DocumentFormat.OpenXml.Generator.OpenXmlGenerator/schemas_openxmlformats_org_presentationml_2006_main.g.cs#L12165-L12319)。隐藏页规则参考 [LibreOffice 自定义放映](https://books.libreoffice.org/en/IG70/IG7009-SlideShowsPhotoAlbums.html)。实现归 [`custom-shows.mbt`](../../modules/formats/src/pptx/custom-shows.mbt)与 [`pptx-show.tsx`](../../packages/pptx/src/react/pptx-show.tsx)。
 
 ### 页面切换
 
@@ -3862,7 +3864,7 @@ MoonBit 使用 `InsertDiagram(DiagramSettings)` 计算布局，生成矩形、�
 
 自动等待从入场结束后开始；单击提前结束入场时从该时刻开始。暂停保留剩余时间。迟到帧按源页序有界追赶，跳过隐藏页，到末页退出；源、编辑选择和历史保持。presProps 中 showPr/useTimings=false 禁用自动换页，保留页设置和显式导航；整稿开关通过[放映设置](#放映设置)编辑。规则参考 [ONLYOFFICE 入场后计时](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L4486-L4504)、[单击设置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L5418-L5445)及[整稿计时开关](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L2115-L2134)，实现归 [`slide-advance.mbt`](../../modules/formats/src/pptx/slide-advance.mbt)。
 
-方向与速度参考 [ONLYOFFICE 源方向映射](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/apiCommon.js#L429-L450)、[速度缺省](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L4440-L4467)和[整页合成](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L442-L770)。未复制上游源码。实现归 [`slide-transition.mbt`](../../modules/formats/src/pptx/slide-transition.mbt)和 [`pptx-transition.tsx`](../../packages/ui/src/pptx-transition.tsx)。
+方向与速度参考 [ONLYOFFICE 源方向映射](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/apiCommon.js#L429-L450)、[速度缺省](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L4440-L4467)和[整页合成](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L442-L770)。未复制上游源码。实现归 [`slide-transition.mbt`](../../modules/formats/src/pptx/slide-transition.mbt)和 [`pptx-transition.tsx`](../../packages/pptx/src/react/pptx-transition.tsx)。
 
 ### 对象动画
 
@@ -3888,7 +3890,7 @@ click 开始一组；with 与当前组共享起点，各自保留延迟；after 
 
 当前读取范围为无构建列表的单主序列。缩放/旋转/路径接受不带 attrNameLst 的上述 by 或路径形式，参数精度按上述整数单位限制。分组或段落子目标、同一属性的时间重叠、曲线、交互触发、无限/分数重复及其他未知 timing 继续保护。查询给出原因，修改和开始播放时拒绝，保持源内容；不会把未知动画当作已播放。带 timing 引用的对象仍受原有删除/组合保护，可先移除其已支持的动画。页复制沿用现有目标 ID 重映射。
 
-语义参考 [ONLYOFFICE 点击组](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L9112-L9167)、[可见性行为](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L9931-L9953)及[初始隐藏对象](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L12121-L12155)。未复制上游源码。实现归 [`animation-read.mbt`](../../modules/formats/src/pptx/animation-read.mbt)、[`animation-edit.mbt`](../../modules/formats/src/pptx/animation-edit.mbt)、[`show-animation.mbt`](../../modules/formats/src/pptx/show-animation.mbt)和 [`pptx-animations.tsx`](../../packages/ui/src/pptx-animations.tsx)。
+语义参考 [ONLYOFFICE 点击组](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L9112-L9167)、[可见性行为](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L9931-L9953)及[初始隐藏对象](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L12121-L12155)。未复制上游源码。实现归 [`animation-read.mbt`](../../modules/formats/src/pptx/animation-read.mbt)、[`animation-edit.mbt`](../../modules/formats/src/pptx/animation-edit.mbt)、[`show-animation.mbt`](../../modules/formats/src/pptx/show-animation.mbt)和 [`pptx-animations.tsx`](../../packages/pptx/src/react/pptx-animations.tsx)。
 
 计时与透明度参考 [ONLYOFFICE 组间延迟](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L9086-L9110)、[属性合成](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L12860-L12940)和[透明度绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L12950-L12970)。XML 定义参考 Microsoft 的[开始条件](https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.presentation.condition)与[动画属性名](https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.presentation.attributename)。实现归 [`animation-timing.mbt`](../../modules/formats/src/pptx/animation-timing.mbt)与 [`animation-xml.mbt`](../../modules/formats/src/pptx/animation-xml.mbt)。
 
@@ -3916,7 +3918,7 @@ click 开始一组；with 与当前组共享起点，各自保留延迟；after 
 
 `PresentationEditor.exportJpeg(scale = 1, outputBytes = 67108864)` 导出当前页，`exportPageImages(scale, outputBytes, hidden, "jpeg")` 导出页面集合。返回输出的 `format` 为 `jpeg`。两者复用上述布局、页面选择、尺寸、像素/总字节预算、队列、源与历史保护及失败恢复。单页保留已有诊断的显示结果，集合沿打印范围保护未知可见内容。
 
-JPEG 使用白色底图和固定 `0.92` 编码质量，属于有损输出，不保留透明通道。平台检查编码 Blob 的实际 MIME；编码失败或浏览器回退其他格式时拒绝交付。默认文件菜单提供“当前页 JPEG”和“全部幻灯片 JPEG”；回调收到 `.jpg` 或按页补零的 `-01.jpg` 名称，没有回调时按 `image/jpeg` 下载。逐页保存失败保留已完成进度，重试按当前修订重新生成；JPEG 输出不能确认原格式保存。实现归 [`canvas-surface.ts`](../../packages/web/src/canvas-surface.ts)及 [`presentation-output.ts`](../../packages/web/src/presentation-output.ts)。
+JPEG 使用白色底图和固定 `0.92` 编码质量，属于有损输出，不保留透明通道。平台检查编码 Blob 的实际 MIME；编码失败或浏览器回退其他格式时拒绝交付。默认文件菜单提供“当前页 JPEG”和“全部幻灯片 JPEG”；回调收到 `.jpg` 或按页补零的 `-01.jpg` 名称，没有回调时按 `image/jpeg` 下载。逐页保存失败保留已完成进度，重试按当前修订重新生成；JPEG 输出不能确认原格式保存。实现归 [`canvas-surface.ts`](../../packages/web-core/src/canvas-surface.ts)及 [`presentation-output.ts`](../../packages/pptx/src/web/presentation-output.ts)。
 
 ### 日期与页脚编辑
 
@@ -3928,7 +3930,7 @@ JPEG 使用白色底图和固定 `0.92` 编码质量，属于有损输出，不�
 
 全部目标页完成文字布局、字体、适配和包/输出检查后一次提交。单个页边对象生成的 XML 最多 1,048,576 UTF-16 单元，事务仍受 4 MiB 历史预算约束；任何目标失败均保留原源、选择和身份分配状态。原生草稿先独立提交。只有单段、单个受支持日期域的本地日期占位符可查询并修改自动设置；混合文字/字段、重复/分组页边对象、未知或带注释的文本源、无法解析的模板和关系、删除锁/外部对象引用、缺字体、越界及旧 revision 继续保护。当前操作修改本地页面，不改写共享版式或母版，也不为以后新增的空白页建立全稿默认值。
 
-默认面板提供日期、页脚、编号开关及应用到当前页/全部页。日期可切换固定文字和自动更新，自动模式可选择三种语言及十三种格式；选项以固定日期示例显示，不由 TypeScript 格式化文档日期。草稿在正文输入期间保持，切页和文档替换后按当前页重新加载。结构及内容替换参考 [ONLYOFFICE setHFProperties](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L1182-L1318)，实现归 [`footer-read.mbt`](../../modules/formats/src/pptx/footer-read.mbt)、[`footer-content.mbt`](../../modules/formats/src/pptx/footer-content.mbt)、[`footer-edit.mbt`](../../modules/formats/src/pptx/footer-edit.mbt)及 [`pptx-footer.tsx`](../../packages/ui/src/pptx-footer.tsx)。母版编辑继续实施，导入与刷新见[动态日期域显示与刷新](#动态日期域显示与刷新)。
+默认面板提供日期、页脚、编号开关及应用到当前页/全部页。日期可切换固定文字和自动更新，自动模式可选择三种语言及十三种格式；选项以固定日期示例显示，不由 TypeScript 格式化文档日期。草稿在正文输入期间保持，切页和文档替换后按当前页重新加载。结构及内容替换参考 [ONLYOFFICE setHFProperties](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L1182-L1318)，实现归 [`footer-read.mbt`](../../modules/formats/src/pptx/footer-read.mbt)、[`footer-content.mbt`](../../modules/formats/src/pptx/footer-content.mbt)、[`footer-edit.mbt`](../../modules/formats/src/pptx/footer-edit.mbt)及 [`pptx-footer.tsx`](../../packages/pptx/src/react/pptx-footer.tsx)。母版编辑继续实施，导入与刷新见[动态日期域显示与刷新](#动态日期域显示与刷新)。
 
 ### 动态日期域显示与刷新
 
@@ -3940,7 +3942,7 @@ Wasm/Worker 的 `openPptx`、`createPptx` 接受可选 `dateTime`。平台缺省
 
 源编辑、页面复制、主题/尺寸/版式变化及撤销重做沿当前时间重新解析日期。历史页面记录其计算时间，恢复旧快照时只重新解析过期页面，防止“撤销复制、刷新日期、重做复制”恢复旧值。可显示的版式/母版普通文字及组内日期域同样参与刷新预检；模板占位符仍沿既有版式实例化规则。
 
-格式与地区映射依据 [ONLYOFFICE PresentationField](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/PresentationField.js#L61-L78)、[类型索引](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/PresentationField.js#L286-L365)及[地区格式表](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/commonDefines.js#L4625-L4656)。中文沿其格式表和 [Word 字段解析](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/NumFormat.js#L991-L1033)保留现有结果：`datetime4/6` 中的 `W` 是字面文字，`datetime5` 使用时分秒，`datetime13` 的后备格式在 AM/PM 前保留冒号。已有缓存的独立显式写回、更多语言及备注字段继续实施。实现归 [`date-fields.mbt`](../../modules/formats/src/pptx/date-fields.mbt)及 [`pptx-clock.ts`](../../packages/wasm/src/pptx-clock.ts)。
+格式与地区映射依据 [ONLYOFFICE PresentationField](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/PresentationField.js#L61-L78)、[类型索引](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/PresentationField.js#L286-L365)及[地区格式表](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/commonDefines.js#L4625-L4656)。中文沿其格式表和 [Word 字段解析](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/NumFormat.js#L991-L1033)保留现有结果：`datetime4/6` 中的 `W` 是字面文字，`datetime5` 使用时分秒，`datetime13` 的后备格式在 AM/PM 前保留冒号。已有缓存的独立显式写回、更多语言及备注字段继续实施。实现归 [`date-fields.mbt`](../../modules/formats/src/pptx/date-fields.mbt)及 [`pptx-clock.ts`](../../packages/pptx/src/core/pptx-clock.ts)。
 
 ### 幻灯片编号字段
 
@@ -3998,7 +4000,7 @@ Wasm/Worker 的 `openPptx`、`createPptx` 接受可选 `dateTime`。平台缺省
 
 `merge` 要求范围内至少两个主格，按原生行列顺序把各格段落及字符/段落属性移入起始主格，清空其他主格，并写回标准跨度。合并后的文字整体选中。所涉单元格的局部列表默认值必须为空，段落合计最多 256；其他属性、未选格及部件保留。`unmerge` 要求选中一个合并格，恢复物理单元格；文字留在原生起始主格，其余格为空并保留原框及文字格式。每个物理格的边距必须留下正文字宽度，否则先调整边距或列宽。两项操作均共用行高适配和一项精确历史。行为依据 [ONLYOFFICE MergeTableCells](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L9466-L9602)，实现归 [`table-merge.mbt`](../../modules/formats/src/pptx/table-merge.mbt)。行列操作允许在跨度边界插入、整体移动合并格或删除完整跨度，切穿其他跨度时受保护。逐项操作保护归 [`table-operations.mbt`](../../modules/formats/src/pptx/table-operations.mbt)。
 
-`editObjects({ action: "splitTableCell", rows, columns })` 拆分一个主格；`table.splitReason` 返回选择或结构保护原因。行列数为整数，分别接受 1–1000、1–63，乘积最多 4096；1×1 不改源、选择或历史。普通格可增加行，跨行合并格要求新行数不超过原跨度且整除跨度。列按主格总宽的整数 EMU 等分，保留原有网格边界；全表物理列数可能大于请求的逻辑列数。其他格调整跨度，保留文字、框属性和源间隙。原文字留在左上格，新逻辑格继承原格首段文字/段落及框格式。新延续格不复制其他格的链接内容。拆分与必要的行高增长合为一项历史，随后光标定位左上格。模板身份/资源链接、受影响列节点的未知元数据、宽度及预算失败原子拒绝。行为依据 [ONLYOFFICE SplitTableCells](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L9609-L9989)，实现归 [`table-split.mbt`](../../modules/formats/src/pptx/table-split.mbt)。默认控件归 [`pptx-cells.tsx`](../../packages/ui/src/pptx-cells.tsx)。单格文字链接复用[文字链接合同](#对象超链接)；表格查找替换复用上述字面匹配及事务合同。
+`editObjects({ action: "splitTableCell", rows, columns })` 拆分一个主格；`table.splitReason` 返回选择或结构保护原因。行列数为整数，分别接受 1–1000、1–63，乘积最多 4096；1×1 不改源、选择或历史。普通格可增加行，跨行合并格要求新行数不超过原跨度且整除跨度。列按主格总宽的整数 EMU 等分，保留原有网格边界；全表物理列数可能大于请求的逻辑列数。其他格调整跨度，保留文字、框属性和源间隙。原文字留在左上格，新逻辑格继承原格首段文字/段落及框格式。新延续格不复制其他格的链接内容。拆分与必要的行高增长合为一项历史，随后光标定位左上格。模板身份/资源链接、受影响列节点的未知元数据、宽度及预算失败原子拒绝。行为依据 [ONLYOFFICE SplitTableCells](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L9609-L9989)，实现归 [`table-split.mbt`](../../modules/formats/src/pptx/table-split.mbt)。默认控件归 [`pptx-cells.tsx`](../../packages/pptx/src/react/pptx-cells.tsx)。单格文字链接复用[文字链接合同](#对象超链接)；表格查找替换复用上述字面匹配及事务合同。
 
 普通表格已接通组合、组整体变换、成员移动及完整组原生/系统复制。读取按本地原生框验证网格，显示和候选预览按父组缩放派生格尺寸，保留合并、文字、字号、边距与边框。组内原生文字输入按实际宽度排版；行高换回本地坐标并逐行取整，外框使用同一原生行高之和，沿一项历史更新祖先边界。取消组合保留页面姿态，把缩放后的网格及继承旋转/翻转写回原生框，随后可继续输入和改表结构。完整组系统复制沿既有独立表样式快照，重复副本可分别改文字；组内可直接改格填充、边框、边距、锚定、字符/段落格式及表样式；排版、行高和祖先边界沿同一事务更新。格外观与表样式查询使用各自保护原因，文字/选择锁及动画子目标保护继续生效；行列尺寸控件使用独立的 sizeReason，可直接编辑组内表格；组内插删行列、合并/取消合并与拆格已沿原结构控件接通。核心先将祖先组与成员网格归一到有效点值，再复用原生网格写回、文字适配和组边界更新；归一化与编辑合为一项精确历史，失败保留原包，1×1 拆格不改源。结构和显式尺寸共用组成员变换保护，组锁定时保留独立样式/格式原因。导入的极小缩放无法容纳边距时保留源并诊断，复制或相关输出继续保护。表格组合由本项目既有组矩阵和网格缩放实现；ONLYOFFICE 的[直接表格入口](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GraphicFrame.js#L542-L549)不允许组合或直接旋转。
 
@@ -4026,7 +4028,7 @@ Wasm/Worker 的 `openPptx`、`createPptx` 接受可选 `dateTime`。平台缺省
 
 备注归属必须唯一并正确回链。共享/外部备注、多个正文占位符、字段或未知正文节点/属性、被改范围内注释/处理指令、修改保护、旧 revision、活动候选及预算失败原子拒绝。保护性查询返回空 `text` 和明确 `reason`，不把未知正文当作可修改文本。页面复制沿已有部件闭包创建独立备注并重映射回链；删除仅回收独占备注，精确历史与保存重开共用同一事务。
 
-默认面板提供多行输入、应用和清空，正文草稿在应用后进入文档；切页按当前备注更新面板。备注不加入幻灯片文字、字体/图像资源准备、查找或静态 PDF，不改变幻灯片 Canvas。日期/页脚归[对应合同](#日期与页脚编辑)，同页演讲者界面归[放映](#放映与演讲者视图)；备注富文本控件及备注母版/打印布局兼容归 [P14](roadmap.md#p14-兼容与性能)。批注归下节。实现归 [`slide-notes.mbt`](../../modules/formats/src/pptx/slide-notes.mbt)、[`notes-read.mbt`](../../modules/formats/src/pptx/notes-read.mbt)、[`notes-create.mbt`](../../modules/formats/src/pptx/notes-create.mbt)及 [`pptx-page.tsx`](../../packages/ui/src/pptx-page.tsx)。
+默认面板提供多行输入、应用和清空，正文草稿在应用后进入文档；切页按当前备注更新面板。备注不加入幻灯片文字、字体/图像资源准备、查找或静态 PDF，不改变幻灯片 Canvas。日期/页脚归[对应合同](#日期与页脚编辑)，同页演讲者界面归[放映](#放映与演讲者视图)；备注富文本控件及备注母版/打印布局兼容归 [P14](roadmap.md#p14-兼容与性能)。批注归下节。实现归 [`slide-notes.mbt`](../../modules/formats/src/pptx/slide-notes.mbt)、[`notes-read.mbt`](../../modules/formats/src/pptx/notes-read.mbt)、[`notes-create.mbt`](../../modules/formats/src/pptx/notes-create.mbt)及 [`pptx-page.tsx`](../../packages/pptx/src/react/pptx-page.tsx)。
 
 ### 本地批注与回复
 
@@ -4049,13 +4051,13 @@ Wasm/Worker 的 `openPptx`、`createPptx` 接受可选 `dateTime`。平台缺省
 
 首次创建把批注、作者、两处关系、幻灯片原生批注入口扩展和内容类型合为一项有界历史。删除最后一项保留空批注部件和作者。已有 XML 的外围注释、局部命名空间、日期、位置，以及已知 `threadingInfo`/`presenceInfo` 保持。页面复制为传统批注分配新索引、同步作者 `lastIdx` 并重映射父索引；现代批注和回复分配新 GUID，保留嵌套关系并复用作者。删除页仅回收独占批注，保留全稿作者。共享/外部部件、同页混合或不一致的格式声明、未知文字节点/属性、未知扩展、旧 revision、活动候选和包/输出/历史预算失败原子拒绝。所有操作复用现有页面编辑队列、部件事务及精确撤销重做。
 
-传统回复格式依据 [ONLYOFFICE core Comments.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Comments.cpp#L659-L722) 的 `p15:threadingInfo/p15:parentCm`，作者及根/回复索引依据 [Presentation.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L11145-L11230)。现代格式依据 [Comments.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Comments.cpp#L763-L819)、[CommentAuthors.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/CommentAuthors.cpp#L42-L96) 和 [FileTypes.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/FileTypes.cpp#L63-L75)。未复制上游源码。更广现代文字、提及、协作服务和画布批注标记继续实施。实现归 [`comments-read.mbt`](../../modules/formats/src/pptx/comments-read.mbt)、[`comments-create.mbt`](../../modules/formats/src/pptx/comments-create.mbt)、[`comments-edit.mbt`](../../modules/formats/src/pptx/comments-edit.mbt)、[`comments-modern-read.mbt`](../../modules/formats/src/pptx/comments-modern-read.mbt)、[`comments-modern-edit.mbt`](../../modules/formats/src/pptx/comments-modern-edit.mbt)及 [`pptx-comments.tsx`](../../packages/ui/src/pptx-comments.tsx)。
+传统回复格式依据 [ONLYOFFICE core Comments.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Comments.cpp#L659-L722) 的 `p15:threadingInfo/p15:parentCm`，作者及根/回复索引依据 [Presentation.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L11145-L11230)。现代格式依据 [Comments.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Comments.cpp#L763-L819)、[CommentAuthors.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/CommentAuthors.cpp#L42-L96) 和 [FileTypes.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/FileTypes.cpp#L63-L75)。未复制上游源码。更广现代文字、提及、协作服务和画布批注标记继续实施。实现归 [`comments-read.mbt`](../../modules/formats/src/pptx/comments-read.mbt)、[`comments-create.mbt`](../../modules/formats/src/pptx/comments-create.mbt)、[`comments-edit.mbt`](../../modules/formats/src/pptx/comments-edit.mbt)、[`comments-modern-read.mbt`](../../modules/formats/src/pptx/comments-modern-read.mbt)、[`comments-modern-edit.mbt`](../../modules/formats/src/pptx/comments-modern-edit.mbt)及 [`pptx-comments.tsx`](../../packages/pptx/src/react/pptx-comments.tsx)。
 
 默认面板为现代根提供解决/重新打开，并显示已解决或已关闭状态；传统根不显示状态命令。同值不新增历史。页面入口使用 `{6950BFC3-D8DA-4A85-94F7-54DA5524770B}` 扩展中的 `commentRel`，必须与当前页关系一致；缺失、孤立或不一致入口拒绝批注编辑。页面锚点必须指向当前页，未知锚点和锚点内的注释继续保护。依据 [ONLYOFFICE Slide.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Slide.cpp#L224-L230)、[Microsoft 原生批注示例](https://learn.microsoft.com/en-us/office/open-xml/presentation/how-to-add-a-comment-to-a-slide-in-a-presentation)、[状态定义](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-pptx/bd806e3a-96cf-43aa-9618-81b317c34c61)和[作者字段定义](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-pptx/aaddcddb-47d6-434f-ab9c-9feca81ff776)。实现归 [`comments-modern-source.mbt`](../../modules/formats/src/pptx/comments-modern-source.mbt)；既有批注事务、队列和恢复规则保持。
 
 ## PDF 输入与文档操作
 
-`@open-document/wasm/pdf` 的 `PdfSession` 与 `@open-document/web/pdf` 的 `PdfClient` 共用类型化 `execute(command)`。同步入口由 `loadEngine(wasm).openPdf()` 创建，Worker 入口为 `PdfClient.open(wasm, workerUrl)`。字体使用 `addFont(bytes, identity)`。一个 UI 独占一个 client；低层调用方逐条 await 请求。
+`@open-document/pdf/core/pdf` 的 `PdfSession` 与 `@open-document/pdf/web/pdf` 的 `PdfClient` 共用类型化 `execute(command)`。同步入口由 `openPdf(engine)` 创建，Worker 入口为 `PdfClient.open(engine, workerUrl)`。字体使用 `addFont(bytes, identity)`。一个 UI 独占一个 client；低层调用方逐条 await 请求。
 
 | 命令 | 输入与结果 |
 | --- | --- |
@@ -4082,13 +4084,13 @@ Wasm/Worker 的 `openPptx`、`createPptx` 接受可选 `dateTime`。平台缺省
 
 ### Web 嵌入与生命周期
 
-`@open-document/web/pdf-viewer` 提供 `PdfViewer.create(root, client, profile?, signal?)`；`@open-document/web/pdf-editor` 提供相同所有权规则的 `PdfEditor.create`。先由调用者打开 client、供应文件和字体：
+`@open-document/pdf/web/pdf-viewer` 提供 `PdfViewer.create(root, client, profile?, signal?)`；`@open-document/pdf/web/pdf-editor` 提供相同所有权规则的 `PdfEditor.create`。先由调用者打开 client、供应文件和字体：
 
 ```ts
-import { PdfEditor } from "@open-document/web/pdf-editor";
-import { PdfClient } from "@open-document/web/pdf";
+import { PdfEditor } from "@open-document/pdf/web/pdf-editor";
+import { PdfClient } from "@open-document/pdf/web/pdf";
 
-const client = await PdfClient.open(wasm, workerUrl);
+const client = await PdfClient.open(engine, workerUrl);
 await client.execute({ operation: "openPdf", bytes, budget: await client.defaultBudget() });
 await client.addFont(fontBytes, "regular");
 const editor = await PdfEditor.create(container, client, { form: "regular" });

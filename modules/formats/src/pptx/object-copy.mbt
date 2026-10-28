@@ -241,26 +241,16 @@ fn Session::duplicate_objects(
   let candidate = candidate
     .group_bounds(candidate.changed_group_members(original))
     .connector_bounds(original)
+  // Measure fonts and budgets; a duplicate retains its source overflow diagnostics.
   for id in copied.identities {
     let object = candidate.object(id)
     if object.chart is Some(chart) {
       let geometry = object.geometry.unwrap()
       ignore(chart.paint(geometry.width, geometry.height, probe, profile))
     } else if object.table is Some(_) {
-      let (_, _, warnings, _) = object.paint_table(probe, profile)
-      guard warnings.is_empty() else {
-        @failure.reject("layout-overflow", warnings.join("; "))
-      }
+      ignore(object.paint_table(probe, profile))
     } else {
-      let (_, _, diagnostic, _) = fit_text(
-        object,
-        object.geometry.unwrap(),
-        probe,
-        profile,
-      )
-      guard diagnostic.is_empty() else {
-        @failure.reject("layout-overflow", diagnostic)
-      }
+      ignore(fit_text(object, object.geometry.unwrap(), probe, profile))
     }
   }
   self.commit_page(

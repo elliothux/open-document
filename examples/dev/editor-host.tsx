@@ -3,12 +3,12 @@ import {
   mountEditor,
   type EditorOptions,
   type MountedEditor,
-} from "@open-document/ui";
+} from "./formats.js";
 import "../../packages/ui/src/styles/ui.css?inline";
 
 // Keep the mounted session while React refreshes the SDK's UI components.
 if (import.meta.hot) {
-  import.meta.hot.accept("@open-document/ui", () => {});
+  import.meta.hot.accept("./formats.js", () => {});
   import.meta.hot.accept(
     "../../packages/ui/src/styles/ui.css?inline",
     (module) => {

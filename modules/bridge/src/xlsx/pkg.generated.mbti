@@ -1,0 +1,31 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "open_document/bridge/xlsx"
+
+import {
+  "open_document/layout",
+}
+
+// Values
+pub fn add_font(Context, String, String) -> String
+
+pub fn call(Context, String) -> String
+
+pub fn close(Context) -> Unit
+
+pub fn new_context() -> Context
+
+// Errors
+
+// Types and methods
+pub struct Context {
+  probe : @layout.TextProbe
+  mut xlsx : @open_document/formats/xlsx.Session?
+  mut closed : Bool
+  images : @layout.Images
+  mut layout_id : Int
+  mut xlsx_print : (@layout.PositionedDocument, Int, Int)?
+}
+
+// Type aliases
+
+// Traits

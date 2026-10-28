@@ -5,11 +5,6 @@ import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import type { OwnedFile } from "./types.js";
 import { Icon } from "./icons.js";
-import {
-  pasteDocxSelection,
-  type DocxPasteMode,
-} from "@open-document/web/foundation";
-
 export function Command({
   label,
   action,
@@ -97,12 +92,12 @@ export function FileMenu({
             align="start"
           >
             <Menu.Popup className="od-menu">
-              {controller.options.format !== "pdf" && (
+              {controller.product.canCreate && (
                 <Menu.Item
                   className="od-menu-item"
                   disabled={unavailable}
                   onClick={() => {
-                    setName(`Untitled.${controller.options.format}`);
+                    setName(`Untitled.${controller.product.format}`);
                     setAction("new");
                   }}
                 >
@@ -134,118 +129,19 @@ export function FileMenu({
               >
                 {t.printDocument}
               </Menu.Item>
-              {state.file?.format !== "pdf" && (
-                <>
-                  <Menu.Item
-                    className="od-menu-item"
-                    disabled={unavailable}
-                    onClick={() => controller.run(() => controller.exportPdf())}
-                  >
-                    {state.file?.format === "pptx"
-                      ? t.exportAll
-                      : state.file?.format === "xlsx"
-                        ? t.exportWorkbook
-                        : t.exportPdf}
-                  </Menu.Item>
-                  {(state.file?.format === "pptx" ||
-                    state.file?.format === "xlsx") && (
-                    <Menu.Item
-                      className="od-menu-item"
-                      disabled={unavailable}
-                      onClick={() =>
-                        controller.run(() => controller.exportPdf(false))
-                      }
-                    >
-                      {state.file?.format === "xlsx"
-                        ? t.exportCurrentSheet
-                        : t.exportCurrent}
-                    </Menu.Item>
-                  )}
-                </>
-              )}
-              {state.file?.format === "docx" &&
-                (["html", "markdown"] as const).map((format) => (
-                  <Menu.Item
-                    key={format}
-                    title={
-                      format === "markdown" ? t.markdownExportHint : undefined
-                    }
-                    className="od-menu-item"
-                    disabled={unavailable}
-                    onClick={() =>
-                      controller.run(() => controller.exportMarkup(format))
-                    }
-                  >
-                    {format === "html" ? t.exportHtml : t.exportMarkdown}
-                  </Menu.Item>
-                ))}
-              {(state.file?.format === "pptx" ||
-                state.file?.format === "docx") && (
+              {controller.product.outputs.map((output) => (
                 <Menu.Item
+                  key={output.kind}
                   className="od-menu-item"
                   disabled={unavailable}
-                  onClick={() => controller.run(() => controller.exportPng())}
-                >
-                  {state.file.format === "docx" ? t.exportPagePng : t.exportPng}
-                </Menu.Item>
-              )}
-              {(state.file?.format === "docx" ||
-                state.file?.format === "pptx") && (
-                <Menu.Item
-                  className="od-menu-item"
-                  disabled={unavailable}
+                  title={output.title ? t[output.title] : undefined}
                   onClick={() =>
-                    controller.run(() => controller.exportImages())
+                    controller.run(() => controller.exportOutput(output.kind))
                   }
                 >
-                  {state.file.format === "pptx"
-                    ? t.exportSlideImages
-                    : t.exportPageImages}
+                  {t[output.label]}
                 </Menu.Item>
-              )}
-              {state.file?.format === "pptx" && (
-                <>
-                  <Menu.Item
-                    className="od-menu-item"
-                    disabled={unavailable}
-                    onClick={() =>
-                      controller.run(() => controller.exportJpeg())
-                    }
-                  >
-                    {t.exportJpeg}
-                  </Menu.Item>
-                  <Menu.Item
-                    className="od-menu-item"
-                    disabled={unavailable}
-                    onClick={() =>
-                      controller.run(() => controller.exportImages("jpeg"))
-                    }
-                  >
-                    {t.exportSlideJpegs}
-                  </Menu.Item>
-                </>
-              )}
-              {state.file?.format === "xlsx" && (
-                <>
-                  <p>{t.csvNotice}</p>
-                  <Menu.Item
-                    className="od-menu-item"
-                    disabled={unavailable}
-                    onClick={() => controller.run(() => controller.exportCsv())}
-                  >
-                    {t.exportCsv}
-                  </Menu.Item>
-                  <Menu.Item
-                    className="od-menu-item"
-                    disabled={unavailable}
-                    onClick={() =>
-                      controller.run(() => controller.exportCsv(true))
-                    }
-                  >
-                    {t.exportCsvSelection}
-                  </Menu.Item>
-                </>
-              )}
+              ))}
               <Menu.Item
                 className="od-menu-item"
                 disabled={unavailable}
@@ -271,19 +167,12 @@ export function FileMenu({
         ref={input}
         type="file"
         hidden
-        accept={
-          controller.options.format === "xlsx"
-            ? ".xlsx,.csv,.tsv"
-            : `.${controller.options.format}`
-        }
+        accept={controller.product.accept}
         onChange={(event) => {
           const file = event.currentTarget.files?.[0];
           event.currentTarget.value = "";
           if (!file) return;
-          if (
-            controller.options.format === "xlsx" &&
-            /\.(csv|tsv)$/i.test(file.name)
-          ) {
+          if (controller.product.delimited && /\.(csv|tsv)$/i.test(file.name)) {
             setFile(file);
             setConversions({ numbers: false, dates: false, formulas: false });
             setAction("import");
@@ -445,54 +334,19 @@ export function ClipboardGroup({
   disabled: boolean;
 }) {
   const t = messages(state.locale);
-  const textMode =
-    file.format !== "pptx" || file.editor.query.selection.mode === "text";
-  const copiedObjects =
-    file.format === "pptx"
-      ? file.editor.query.objects.filter((object) =>
-          file.editor.query.selection.objects.includes(object.id),
-        )
-      : [];
-  const canCopy =
-    textMode ||
-    (copiedObjects.length > 0 &&
-      copiedObjects.every(
-        (object) =>
-          !object.parent &&
-          ["shape", "image", "group", "table", "chart"].includes(object.kind) &&
-          !object.duplicateReason &&
-          object.equations.length === 0 &&
-          (!object.media || (!object.media.reason && !!object.media.poster)),
-      ));
+  const actions = file.clipboard();
+  const textMode = actions.textMode,
+    canCopy = actions.canCopy;
   const pasteDisabled =
-    disabled ||
-    !!state.document?.readOnlyReason ||
-    (textMode &&
-      file.format === "pptx" &&
-      !!file.editor.query.objects.find(
-        (object) => object.id === file.editor.query.selection.object,
-      )?.textReadOnlyReason);
-  const writeDisabled =
-    disabled ||
-    !canCopy ||
-    !!state.document?.readOnlyReason ||
-    (textMode &&
-      file.format === "pptx" &&
-      !!file.editor.query.objects.find(
-        (object) => object.id === file.editor.query.selection.object,
-      )?.textReadOnlyReason);
+    disabled || !!state.document?.readOnlyReason || actions.readOnly;
+  const writeDisabled = pasteDisabled || !canCopy;
   const [open, setOpen] = useState(false),
     [text, setText] = useState(""),
     [pasteFormat, setPasteFormat] = useState("plain"),
-    [pasteMode, setPasteMode] = useState<DocxPasteMode>("source");
+    [pasteMode, setPasteMode] = useState<"source" | "merge" | "text">("source");
   const field = useRef<HTMLTextAreaElement>(null);
   const paste = async () => {
-    if (file.format === "pdf") return;
-    if (file.format === "docx" && pasteFormat === "html")
-      await file.editor.pasteHtml(text, pasteMode);
-    else if (file.format === "docx" && pasteFormat === "markdown")
-      await file.editor.pasteMarkdown(text, pasteMode);
-    else await file.editor.paste(text);
+    await actions.paste?.(text, pasteFormat, pasteMode);
     setOpen(false);
     setText("");
     file.editor.focus();
@@ -506,16 +360,16 @@ export function ClipboardGroup({
       >
         <Icon name="copy" />
       </Command>
-      {(file.format === "docx" || file.format === "pptx") && (
+      {!!actions.cut && (
         <Command
           label={t.cut}
           disabled={writeDisabled}
-          action={() => controller.run(() => file.editor.copy(true))}
+          action={() => controller.run(() => actions.cut?.())}
         >
           <Icon name="cut" />
         </Command>
       )}
-      {file.format !== "pdf" && (
+      {!!actions.paste && (
         <Dialog.Root open={open} onOpenChange={setOpen}>
           <Dialog.Trigger className="od-command" disabled={pasteDisabled}>
             <Icon name="paste" />
@@ -525,22 +379,20 @@ export function ClipboardGroup({
             <Dialog.Backdrop className="od-backdrop" />
             <Dialog.Popup className="od-dialog" initialFocus={field}>
               <Dialog.Title className="od-dialog-title">
-                {file.format === "docx" && pasteFormat !== "plain"
+                {actions.richText && pasteFormat !== "plain"
                   ? pasteFormat === "html"
                     ? t.pasteHtml
                     : t.pasteMarkdown
                   : t.rangePaste}
               </Dialog.Title>
               <Dialog.Description>{t.pasteHint}</Dialog.Description>
-              {(file.format === "docx" || file.format === "pptx") && (
+              {!!actions.pasteClipboard && (
                 <button
                   type="button"
                   disabled={pasteDisabled}
                   onClick={() =>
                     controller.run(async () => {
-                      if (file.format === "docx")
-                        await pasteDocxSelection(file.editor);
-                      else await file.editor.pasteClipboard();
+                      await actions.pasteClipboard?.();
                       setOpen(false);
                       file.editor.focus();
                     })
@@ -550,7 +402,7 @@ export function ClipboardGroup({
                 </button>
               )}
               <label className="od-paste-label">
-                {file.format === "docx" && pasteFormat !== "plain"
+                {actions.richText && pasteFormat !== "plain"
                   ? pasteFormat === "html"
                     ? "HTML"
                     : "Markdown"
@@ -562,7 +414,7 @@ export function ClipboardGroup({
                   onChange={(event) => setText(event.currentTarget.value)}
                 />
               </label>
-              {file.format === "docx" && (
+              {actions.richText && (
                 <label>
                   {t.pasteFormat}
                   <select
@@ -577,7 +429,7 @@ export function ClipboardGroup({
                   </select>
                 </label>
               )}
-              {file.format === "docx" && pasteFormat !== "plain" && (
+              {actions.richText && pasteFormat !== "plain" && (
                 <label>
                   {t.pasteMode}
                   <select

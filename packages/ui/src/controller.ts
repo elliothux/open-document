@@ -1,7 +1,7 @@
-import { downloadBytes } from "@open-document/web/download";
-import type { XlsxDelimitedOptions } from "@open-document/web/xlsx";
-import type { EditorOutput } from "@open-document/web/editor-state";
-import { prepareFile, readFile } from "./file.js";
+import { downloadBytes } from "@open-document/web-core/download";
+import type { DelimitedOptions, EditorHost, Product } from "./types.js";
+import type { EditorOutput } from "@open-document/web-core/editor-state";
+import { readFile } from "./file.js";
 import { messages } from "./messages.js";
 import { PdfPrinter } from "./print.js";
 import { mime } from "./types.js";
@@ -20,8 +20,8 @@ export interface LeaveDialog {
   readonly kind: "draft" | "unsaved";
   readonly canSave: boolean;
 }
-export interface UiSnapshot {
-  readonly file: OwnedFile | undefined;
+export interface UiSnapshot<E extends EditorHost = EditorHost> {
+  readonly file: OwnedFile<E> | undefined;
   readonly document: MountedSnapshot | undefined;
   readonly name: string;
   readonly saving: boolean;
@@ -34,24 +34,26 @@ export interface UiSnapshot {
 }
 
 /** Coordinates file ownership; document commands stay in each editor's queue. */
-export class EditorController {
-  private value: UiSnapshot;
+export class EditorController<E extends EditorHost = EditorHost> {
+  private value: UiSnapshot<E>;
   private readonly listeners = new Set<() => void>();
   private unsubscribe: (() => void) | undefined;
   private saving:
     { kind: string; name: string; promise: Promise<SavedDocument> } | undefined;
   private changing: Promise<boolean> | undefined;
-  private candidate: Promise<OwnedFile> | undefined;
+  private candidate: Promise<OwnedFile<E>> | undefined;
   private candidateAbort: AbortController | undefined;
-  private prepared: OwnedFile | undefined;
+  private prepared: OwnedFile<E> | undefined;
   private answer: ((choice: LeaveChoice) => void) | undefined;
   private cleanup: Promise<void> | undefined;
   private disposed = false;
+  private errorVersion = 0;
   private newDocumentId: string | undefined;
   private readonly printer: PdfPrinter;
 
   constructor(
     readonly options: EditorOptions,
+    readonly product: Product<E>,
     readonly host: HTMLElement,
     readonly surfaces: HTMLElement,
     private readonly releaseUi: () => void,
@@ -72,7 +74,7 @@ export class EditorController {
     this.host.dataset.theme = this.value.theme;
   }
 
-  readonly getUiSnapshot = (): UiSnapshot => this.value;
+  readonly getUiSnapshot = (): UiSnapshot<E> => this.value;
   readonly getSnapshot = (): MountedSnapshot => {
     if (!this.value.document) throw new Error("Editor is not mounted");
     return this.value.document;
@@ -85,7 +87,7 @@ export class EditorController {
     };
   };
 
-  private publish(fields: Partial<UiSnapshot> = {}): void {
+  private publish(fields: Partial<UiSnapshot<E>> = {}): void {
     const value = { ...this.value, ...fields };
     if (value.file) {
       const snapshot = value.file.editor.getSnapshot();
@@ -122,7 +124,7 @@ export class EditorController {
   private assertOpen(): void {
     if (this.disposed) throw new Error("Editor is disposed");
   }
-  private current(): OwnedFile {
+  private current(): OwnedFile<E> {
     this.assertOpen();
     if (!this.value.file) throw new Error("Editor is not mounted");
     return this.value.file;
@@ -147,11 +149,10 @@ export class EditorController {
     }
   }
 
-  private async prepare(document: OfficeDocument): Promise<OwnedFile> {
+  private async prepare(document: OfficeDocument): Promise<OwnedFile<E>> {
     if (this.candidate) throw new Error("A file is already opening");
     this.candidateAbort ??= new AbortController();
-    this.candidate = prepareFile(
-      this.options,
+    this.candidate = this.product.prepare(
       document,
       this.surfaces,
       this.candidateAbort.signal,
@@ -176,12 +177,10 @@ export class EditorController {
     );
   }
 
-  private install(file: OwnedFile, name: string, isNew = false): void {
+  private install(file: OwnedFile<E>, name: string, isNew = false): void {
     this.printer.cancel();
-    if (file.format === "xlsx" && /\.(csv|tsv)$/i.test(name)) {
-      name = name.replace(/\.(csv|tsv)$/i, ".xlsx");
-      isNew = true;
-    }
+    name = file.originalName;
+    isNew ||= file.imported;
     this.newDocumentId = isNew
       ? file.editor.getSnapshot().documentId
       : undefined;
@@ -213,9 +212,9 @@ export class EditorController {
       )
     )
       throw new Error("A valid file name is required");
-    return name.toLowerCase().endsWith(`.${this.options.format}`)
+    return name.toLowerCase().endsWith(`.${this.product.format}`)
       ? name
-      : `${name}.${this.options.format}`;
+      : `${name}.${this.product.format}`;
   }
   exportPdf(all = true): Promise<SavedDocument> {
     return this.output(all ? "pdf" : "pdf-current");
@@ -235,6 +234,9 @@ export class EditorController {
   }
   exportImages(format: "png" | "jpeg" = "png"): Promise<void> {
     return this.output(format === "jpeg" ? "jpegs" : "images").then(() => {});
+  }
+  exportOutput(kind: string): Promise<SavedDocument> {
+    return this.output(kind);
   }
   private output(
     kind: string,
@@ -270,19 +272,8 @@ export class EditorController {
                     : ".pdf");
     const operation = async (): Promise<SavedDocument> => {
       if (kind === "images" || kind === "jpegs") {
-        if (file.format !== "docx" && file.format !== "pptx")
-          throw new Error("Page images require a document or presentation");
-        if (kind === "jpegs" && file.format !== "pptx")
-          throw new Error("JPEG export requires a presentation");
-        const pages =
-          file.format === "pptx"
-            ? await file.editor.exportPageImages(
-                1,
-                67108864,
-                false,
-                kind === "jpegs" ? "jpeg" : "png",
-              )
-            : await file.editor.exportPageImages();
+        if (!file.pageImages) throw new Error("Page images are unavailable");
+        const pages = await file.pageImages(kind === "jpegs" ? "jpeg" : "png");
         const prefix = targetName.replace(/\.[^.]*$/, "");
         const digits = Math.max(2, String(pages.length).length);
         let result: SavedDocument | undefined;
@@ -309,42 +300,7 @@ export class EditorController {
         if (!result) throw new Error("The document has no page images");
         return result;
       }
-      let output: EditorOutput;
-      if (kind === "original")
-        output = await (file.format === "docx"
-          ? file.editor.saveDocx()
-          : file.editor.save());
-      else if (kind === "png") {
-        if (file.format !== "pptx" && file.format !== "docx")
-          throw new Error("PNG export requires a document or presentation");
-        output = await file.editor.exportPng();
-      } else if (kind === "jpeg") {
-        if (file.format !== "pptx")
-          throw new Error("JPEG export requires a presentation");
-        output = await file.editor.exportJpeg();
-      } else if (kind === "html" || kind === "markdown") {
-        if (file.format !== "docx")
-          throw new Error("Markup export requires a document");
-        output =
-          kind === "html"
-            ? await file.editor.exportHtml()
-            : await file.editor.exportMarkdown();
-      } else if (kind.startsWith("csv")) {
-        if (file.format !== "xlsx")
-          throw new Error("CSV export requires a workbook");
-        output = await file.editor.exportCsv(kind === "csv-selection");
-      } else if (file.format === "pdf") {
-        if (kind !== "print")
-          throw new Error("PDF is already the original format");
-        output = await file.editor.save();
-      } else
-        output = await (file.format === "pptx"
-          ? file.editor.exportPdf(kind !== "pdf-current")
-          : file.format === "xlsx"
-            ? file.editor.exportPdf(
-                kind === "pdf-current" ? null : { sheets: "visible" },
-              )
-            : file.editor.exportPdf());
+      const output = await file.output(kind);
       if (kind === "print") {
         this.assertOpen();
         await this.printer.print(output.bytes, name);
@@ -372,7 +328,7 @@ export class EditorController {
     output: EditorOutput,
     name: string,
     kind: string,
-    file: OwnedFile,
+    file: OwnedFile<E>,
   ): Promise<SavedDocument> {
     this.assertOpen();
     const result = Object.freeze({ ...output, name });
@@ -413,7 +369,7 @@ export class EditorController {
     answer?.(choice);
   }
 
-  private async canLeave(file: OwnedFile): Promise<boolean> {
+  private async canLeave(file: OwnedFile<E>): Promise<boolean> {
     let snapshot = file.editor.getSnapshot();
     if (snapshot.composition || snapshot.dragging) {
       this.publish({ message: messages(this.value.locale).compositionText });
@@ -428,14 +384,13 @@ export class EditorController {
     if (snapshot.draft) {
       const choice = await this.ask({
         kind: "draft",
-        canSave: file.format === "xlsx",
+        canSave: file.draftCanSave,
       });
       this.assertOpen();
       if (choice === "cancel") return false;
       if (choice === "save") {
         leavingOutput = await this.output("original", true);
-      } else if (file.format === "pdf" || file.format === "xlsx")
-        file.editor.cancelDraft();
+      } else if (file.cancelDraft) file.cancelDraft();
       else return false;
     }
     if (
@@ -466,20 +421,20 @@ export class EditorController {
   readonly open = (document: OfficeDocument): Promise<boolean> =>
     this.change(() => this.replace(document));
   create(document: { readonly name: string }): Promise<boolean> {
-    if (this.options.format === "pdf")
+    if (!this.product.canCreate)
       return Promise.reject(new Error("Blank creation is unavailable for PDF"));
     return this.open({ name: this.fileName(document.name), blank: true });
   }
-  openFile(file: File, delimited?: XlsxDelimitedOptions): Promise<boolean> {
+  openFile(file: File, delimited?: DelimitedOptions): Promise<boolean> {
     return this.change(() => this.replace(file, delimited));
   }
   private async replace(
     source: OfficeDocument | File,
-    delimited?: XlsxDelimitedOptions,
+    delimited?: DelimitedOptions,
   ): Promise<boolean> {
     const previous = this.current();
     const inputLimit =
-      this.options.format === "xlsx" && /\.(csv|tsv)$/i.test(source.name)
+      this.product.delimited && /\.(csv|tsv)$/i.test(source.name)
         ? Math.min(previous.inputLimit, 4194304)
         : previous.inputLimit;
     if (
@@ -572,16 +527,20 @@ export class EditorController {
     this.publish({ locale });
   }
   report(error: unknown): void {
-    if (!this.disposed)
+    if (!this.disposed) {
+      this.errorVersion++;
       this.publish({
         error: error instanceof Error ? error.message : String(error),
       });
+    }
   }
   run(operation: () => unknown | Promise<unknown>): void {
+    const errorVersion = this.errorVersion;
     try {
       void Promise.resolve(operation()).then(
         () => {
-          if (!this.disposed) this.publish({ error: "" });
+          if (!this.disposed && this.errorVersion === errorVersion)
+            this.publish({ error: "" });
         },
         (error: unknown) => this.report(error),
       );
@@ -599,7 +558,7 @@ export class EditorController {
     this.unsubscribe?.();
     this.cleanup = (async () => {
       const failures: unknown[] = [];
-      let candidate: OwnedFile | undefined;
+      let candidate: OwnedFile<E> | undefined;
       try {
         candidate = await this.candidate;
       } catch {

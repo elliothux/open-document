@@ -1,0 +1,741 @@
+///|
+fn page_setup_format(
+  request : Json,
+) -> @layout.PageSetup raise @failure.Failure {
+  guard request is { "page": Object(fields), .. } &&
+    fields.length() >= 7 &&
+    fields.length() <= 10 &&
+    fields
+    .keys()
+    .all(key => {
+      [
+        "section", "width", "height", "top", "right", "bottom", "left", "orientation",
+        "startType", "footnotesAt",
+      ].contains(key)
+    }) else {
+    @failure.reject("invalid-operation", "Invalid page setup fields")
+  }
+  fn number(
+    fields : Map[String, Json],
+    name : String,
+  ) -> Double raise @failure.Failure {
+    guard fields.get(name) is Some(Number(value, ..)) else {
+      @failure.reject("invalid-operation", "Invalid page setup number")
+    }
+    value
+  }
+  {
+    width: number(fields, "width"),
+    height: number(fields, "height"),
+    top: number(fields, "top"),
+    right: number(fields, "right"),
+    bottom: number(fields, "bottom"),
+    left: number(fields, "left"),
+  }
+}
+
+///|
+fn page_orientation(request : Json) -> String? raise @failure.Failure {
+  if request is { "page": Object(fields) as page, .. } &&
+    fields.contains("orientation") {
+    Some(field_string(page, "orientation"))
+  } else {
+    None
+  }
+}
+
+///|
+fn page_border_format(
+  request : Json,
+) -> @layout.PageBorders? raise @failure.Failure {
+  guard request is { "borders": raw, .. } else {
+    @failure.reject("invalid-operation", "Page borders are required")
+  }
+  if raw is Null {
+    return None
+  }
+  guard raw is Object(fields) &&
+    fields
+    .keys()
+    .all(k => ["offsetFrom", "display", "zOrder", "sides"].contains(k)) &&
+    fields.get("sides") is Some(Array(sides)) &&
+    sides.length() <= 4 else {
+    @failure.reject("invalid-operation", "Invalid page border fields")
+  }
+  Some({
+    offsetFrom: field_string(raw, "offsetFrom"),
+    display: field_string(raw, "display"),
+    zOrder: field_string(raw, "zOrder"),
+    sides: sides.map(side => {
+      guard side is Object(fields) &&
+        fields
+        .keys()
+        .all(k => {
+          ["side", "style", "color", "themeColor", "width", "space"].contains(k)
+        }) else {
+        @failure.reject("invalid-operation", "Unknown page border side field")
+      }
+      {
+        side: field_string(side, "side"),
+        style: field_string(side, "style"),
+        color: field_string(side, "color"),
+        themeColor: match fields.get("themeColor") {
+          Some(Null) => None
+          Some(String(slot)) => Some(slot)
+          _ =>
+            @failure.reject(
+              "invalid-operation", "Invalid page border theme color",
+            )
+        },
+        width: field_number(side, "width"),
+        space: field_number(side, "space"),
+      }
+    }),
+  })
+}
+
+///|
+fn running_content(
+  request : Json,
+) -> Array[@model.RunningContent] raise @failure.Failure {
+  guard request is { "content": Array(content), .. } && content.length() <= 256 else {
+    @failure.reject(
+      "invalid-operation", "Running content requires at most 256 items",
+    )
+  }
+  content.map(item => {
+    guard item is Object(fields) &&
+      (fields.length() == 1 || fields.length() == 2) else {
+      @failure.reject("invalid-operation", "Invalid running content item")
+    }
+    match item {
+      { "text": String(text), "target": String(target), .. } if fields.length() ==
+        2 => @model.RunningContent::Link(text, target)
+      { "field": String(code), "format": String(format), .. } if fields.length() ==
+        2 => @model.RunningContent::FormattedField(code, format)
+      { "text": String(text), .. } if fields.length() == 1 =>
+        @model.RunningContent::Text(text)
+      { "field": String(code), .. } if fields.length() == 1 =>
+        @model.RunningContent::Field(code)
+      _ => @failure.reject("invalid-operation", "Invalid running content item")
+    }
+  })
+}
+
+///|
+fn Context::docx_page(
+  self : Context,
+  session : @model.Session,
+  operation : String,
+  request : Json,
+) -> Json raise @failure.Failure {
+  let revision = field_int(request, "revision")
+  if operation == "docxSources" {
+    return session.bibliography_sources(revision)
+  }
+  if operation == "docxIndexes" {
+    return session.indexes(revision)
+  }
+  if operation == "docxTableOfContents" {
+    return session.table_of_contents(revision)
+  }
+  if operation == "documentProtection" {
+    return session.document_protection(revision)
+  }
+  if operation == "bodyPageField" {
+    return session.body_page_field(revision, field_selection(request))
+  }
+  if operation == "runningArea" {
+    return session.running_area(
+      revision,
+      field_int(request, "section"),
+      field_string(request, "kind"),
+      field_string(request, "variant"),
+    )
+  }
+  if operation == "pageSetup" {
+    return session.page_setup(revision, section=field_int(request, "section"))
+  }
+  let result = match operation {
+    "setCoverPage" => {
+      let (title, subtitle) = match request {
+        { "cover": Null, .. } => (None, "")
+        { "cover": Object(fields) as cover, .. } if fields.length() == 2 &&
+          fields.keys().all(key => ["title", "subtitle"].contains(key)) =>
+          (Some(field_string(cover, "title")), field_string(cover, "subtitle"))
+        _ => @failure.reject("invalid-operation", "Invalid cover page fields")
+      }
+      session.set_cover_page(
+        revision,
+        title,
+        subtitle,
+        probe=self.probe,
+        profile=font_profile(request),
+        images=self.images,
+      )
+    }
+    "setDocumentProtection" => {
+      let salt = field_string(request, "passwordSalt")
+      guard salt.length() <= 32 else {
+        @failure.reject("invalid-operation", "Invalid document protection salt")
+      }
+      let salt = @base64.decode(salt[:]) catch {
+        _ =>
+          @failure.reject(
+            "invalid-operation", "Invalid document protection salt",
+          )
+      }
+      session.set_document_protection(
+        revision,
+        field_boolean(request, "enabled"),
+        field_string(request, "password"),
+        salt,
+      )
+    }
+    "editDocxTableOfContents" => {
+      guard request is { "change": Object(fields) as change, .. } &&
+        fields.length() == 2 else {
+        @failure.reject(
+          "invalid-operation", "Invalid table of contents command",
+        )
+      }
+      let action = field_string(change, "action")
+      let edit = match action {
+        "insert" if fields.contains("levels") =>
+          @model.TocEdit::InsertToc(field_int(change, "levels"))
+        "insertCaptions" if fields.contains("sequence") =>
+          @model.TocEdit::InsertCaptionToc(field_string(change, "sequence"))
+        "update" if fields.contains("paragraph") =>
+          @model.TocEdit::UpdateToc(field_int(change, "paragraph"))
+        "delete" if fields.contains("paragraph") =>
+          @model.TocEdit::DeleteToc(field_int(change, "paragraph"))
+        _ =>
+          @failure.reject(
+            "invalid-operation", "Invalid table of contents fields",
+          )
+      }
+      session.edit_table_of_contents(
+        revision,
+        edit,
+        probe=self.probe,
+        profile=font_profile(request),
+        images=self.images,
+      )
+    }
+    "editDocxBibliography" => {
+      guard request is { "change": Object(fields) as change, .. } &&
+        fields.length() == 2 else {
+        @failure.reject("invalid-operation", "Invalid bibliography command")
+      }
+      let edit = match field_string(change, "action") {
+        "insert" if fields.contains("title") =>
+          @model.BibliographyFieldEdit::InsertBibliography(
+            field_string(change, "title"),
+          )
+        "update" if fields.contains("paragraph") =>
+          @model.BibliographyFieldEdit::UpdateBibliography(
+            field_int(change, "paragraph"),
+          )
+        "delete" if fields.contains("paragraph") =>
+          @model.BibliographyFieldEdit::DeleteBibliography(
+            field_int(change, "paragraph"),
+          )
+        _ => @failure.reject("invalid-operation", "Invalid bibliography fields")
+      }
+      session.edit_bibliography(
+        revision,
+        edit,
+        probe=self.probe,
+        profile=font_profile(request),
+        images=self.images,
+      )
+    }
+    "editDocxCitation" => {
+      guard request is { "change": Object(fields) as change, .. } else {
+        @failure.reject("invalid-operation", "Invalid citation command")
+      }
+      match field_string(change, "action") {
+        "insert" if fields.length() == 2 && fields.contains("tag") =>
+          session.insert_citation(
+            revision,
+            field_string(change, "tag"),
+            probe=self.probe,
+            profile=font_profile(request),
+            images=self.images,
+          )
+        "update" if fields.length() == 1 =>
+          session.update_citations(
+            revision,
+            probe=self.probe,
+            profile=font_profile(request),
+            images=self.images,
+          )
+        _ => @failure.reject("invalid-operation", "Invalid citation fields")
+      }
+    }
+    "editDocxSource" => {
+      guard request is { "change": Object(fields) as change, .. } &&
+        fields.length() == 2 else {
+        @failure.reject("invalid-operation", "Invalid source command")
+      }
+      let action = field_string(change, "action")
+      let edit = if action == "delete" && fields.contains("tag") {
+        @model.BibliographyEdit::DeleteSource(field_string(change, "tag"))
+      } else {
+        guard ["create", "update"].contains(action) &&
+          fields.get("source") is Some(Object(data) as value) &&
+          data.length() == 7 &&
+          data
+          .keys()
+          .all(key => {
+            ["tag", "kind", "author", "title", "year", "publisher", "url"].contains(
+              key,
+            )
+          }) else {
+          @failure.reject("invalid-operation", "Invalid source fields")
+        }
+        let source : @model.BibliographySource = {
+          tag: field_string(value, "tag"),
+          kind: field_string(value, "kind"),
+          author: field_string(value, "author"),
+          title: field_string(value, "title"),
+          year: field_string(value, "year"),
+          publisher: field_string(value, "publisher"),
+          url: field_string(value, "url"),
+        }
+        if action == "create" {
+          @model.BibliographyEdit::CreateSource(source)
+        } else {
+          @model.BibliographyEdit::UpdateSource(source)
+        }
+      }
+      session.edit_bibliography_source(revision, edit)
+    }
+    "editDocxIndex" => {
+      guard request is { "change": Object(fields) as change, .. } else {
+        @failure.reject("invalid-operation", "Invalid index command")
+      }
+      let action = field_string(change, "action")
+      let edit = match action {
+        "mark" if fields.length() == 2 && fields.contains("label") =>
+          @model.IndexEdit::MarkIndexEntry(field_string(change, "label"))
+        "updateEntry" if fields.length() == 3 &&
+          fields.contains("id") &&
+          fields.contains("label") =>
+          @model.IndexEdit::UpdateIndexEntry(
+            field_int(change, "id"),
+            field_string(change, "label"),
+          )
+        "deleteEntry" if fields.length() == 2 && fields.contains("id") =>
+          @model.IndexEdit::DeleteIndexEntry(field_int(change, "id"))
+        "insert" if fields.length() == 1 => @model.IndexEdit::InsertIndex
+        "update" if fields.length() == 2 && fields.contains("paragraph") =>
+          @model.IndexEdit::UpdateIndex(field_int(change, "paragraph"))
+        "delete" if fields.length() == 2 && fields.contains("paragraph") =>
+          @model.IndexEdit::DeleteIndex(field_int(change, "paragraph"))
+        _ =>
+          @failure.reject("invalid-operation", "Invalid index command fields")
+      }
+      session.edit_index(
+        revision,
+        edit,
+        probe=self.probe,
+        profile=font_profile(request),
+        images=self.images,
+      )
+    }
+    "insertDocxCaption" => {
+      guard request is { "caption": Object(fields) as caption, .. } &&
+        fields.length() >= 3 &&
+        fields.length() <= 5 &&
+        fields
+        .keys()
+        .all(key => {
+          ["label", "text", "position", "format", "chapter"].contains(key)
+        }) else {
+        @failure.reject("invalid-operation", "Invalid caption fields")
+      }
+      let position = field_string(caption, "position")
+      guard ["before", "after"].contains(position) else {
+        @failure.reject("invalid-operation", "Invalid caption position")
+      }
+      let (chapterLevel, separator) = if fields.contains("chapter") {
+        guard fields["chapter"] is Object(chapter) &&
+          chapter.length() == 2 &&
+          chapter.keys().all(key => ["level", "separator"].contains(key)) else {
+          @failure.reject("invalid-operation", "Invalid caption chapter fields")
+        }
+        let level = field_int(fields["chapter"], "level")
+        guard level >= 1 && level <= 9 else {
+          @failure.reject("invalid-operation", "Invalid caption chapter level")
+        }
+        (level, field_string(fields["chapter"], "separator"))
+      } else {
+        (0, "-")
+      }
+      session.insert_caption(
+        revision,
+        field_string(caption, "label"),
+        field_string(caption, "text"),
+        position == "before",
+        if fields.contains("format") {
+          field_string(caption, "format")
+        } else {
+          ""
+        },
+        probe=self.probe,
+        profile=font_profile(request),
+        images=self.images,
+        chapterLevel~,
+        separator~,
+      )
+    }
+    "insertSectionBreak" =>
+      session.insert_section_break(
+        revision,
+        field_string(request, "kind"),
+        probe=self.probe,
+        profile=font_profile(request),
+        images=self.images,
+      )
+    "insertBodyPageField" | "editBodyPageField" => {
+      guard request is { "field": item, .. } else {
+        @failure.reject("invalid-operation", "Page field is required")
+      }
+      let text_reference = item is { "field": "REF", .. }
+      let note_reference = item is { "field": "NOTEREF", .. }
+      let reference = text_reference ||
+        note_reference ||
+        item is { "field": "PAGEREF", .. }
+      let sequence = item is { "field": "SEQ", .. }
+      let item = if reference || sequence {
+        guard item is Object(fields) &&
+          fields.length() >= 2 &&
+          fields.length() <=
+          (if sequence { 7 } else if text_reference { 6 } else { 5 }) &&
+          fields
+          .keys()
+          .all(key => {
+            (if sequence {
+              [
+                "field", "sequence", "format", "restart", "repeat", "headingLevel",
+                "hidden",
+              ]
+            } else if text_reference {
+              [
+                "field", "bookmark", "hyperlink", "numbering", "relative", "separator",
+              ]
+            } else if note_reference {
+              ["field", "bookmark", "hyperlink", "relative", "superscript"]
+            } else {
+              ["field", "bookmark", "format", "hyperlink", "relative"]
+            }).contains(key)
+          }) else {
+          @failure.reject("invalid-operation", "Invalid page reference fields")
+        }
+        let value : Map[String, Json] = { "field": "PAGE" }
+        if fields.get("format") is Some(format) {
+          value["format"] = format
+        }
+        Json(value)
+      } else {
+        item
+      }
+      let field = running_content({ "content": [item] })[0]
+      let code = match field {
+        @model.RunningContent::Field(code) => code
+        @model.RunningContent::FormattedField(code, format) =>
+          code + ":" + format
+        _ => @failure.reject("invalid-operation", "Expected a page field")
+      }
+      let code = if sequence {
+        guard request is { "field": original, .. } else {
+          abort("Missing field")
+        }
+        let repeat = original is Object(fields) &&
+          fields.contains("repeat") &&
+          field_boolean(original, "repeat")
+        let restart = if original is Object(fields) &&
+          fields.contains("restart") {
+          let value = field_number(original, "restart")
+          guard !repeat &&
+            value >= 0 &&
+            value <= 2147483647 &&
+            value.floor() == value else {
+            @failure.reject("invalid-operation", "Invalid sequence restart")
+          }
+          ":restart=" + value.to_int().to_string()
+        } else {
+          ""
+        }
+        "SEQ:" +
+        field_string(original, "sequence") +
+        code[4:].to_owned() +
+        (if repeat { ":repeat" } else { restart }) +
+        (if original is Object(fields) && fields.contains("headingLevel") {
+          let level = field_number(original, "headingLevel")
+          guard level >= 1 && level <= 9 && level.floor() == level else {
+            @failure.reject(
+              "invalid-operation", "Invalid sequence heading level",
+            )
+          }
+          ":heading=" + level.to_int().to_string()
+        } else {
+          ""
+        }) +
+        (if original is Object(fields) &&
+          fields.contains("hidden") &&
+          field_boolean(original, "hidden") {
+          ":hidden"
+        } else {
+          ""
+        })
+      } else if reference {
+        guard request is { "field": original, .. } else {
+          abort("Missing field")
+        }
+        (if text_reference {
+          "REF:"
+        } else if note_reference {
+          "NOTEREF:"
+        } else {
+          "PAGEREF:"
+        }) +
+        field_string(original, "bookmark") +
+        code[4:].to_owned() +
+        (if note_reference &&
+          original is Object(fields) &&
+          fields.contains("superscript") &&
+          field_boolean(original, "superscript") {
+          ":superscript"
+        } else {
+          ""
+        }) +
+        (if text_reference &&
+          original is Object(fields) &&
+          fields.contains("numbering") {
+          match field_string(original, "numbering") {
+            "noContext" => ":number"
+            "relative" => ":numberRelative"
+            "fullContext" => ":numberFull"
+            _ =>
+              @failure.reject(
+                "invalid-operation", "Invalid reference numbering mode",
+              )
+          }
+        } else {
+          ""
+        }) +
+        (if original is Object(fields) &&
+          fields.contains("hyperlink") &&
+          field_boolean(original, "hyperlink") {
+          ":hyperlink"
+        } else {
+          ""
+        }) +
+        (if original is Object(fields) &&
+          fields.contains("relative") &&
+          field_boolean(original, "relative") {
+          ":relative"
+        } else {
+          ""
+        }) +
+        (if text_reference &&
+          original is Object(fields) &&
+          fields.contains("separator") {
+          ":separator=" + field_string(original, "separator")
+        } else {
+          ""
+        })
+      } else {
+        code
+      }
+      if operation == "editBodyPageField" {
+        session.edit_body_page_field(
+          revision,
+          field_selection(request),
+          code,
+          probe=self.probe,
+          profile=font_profile(request),
+          images=self.images,
+        )
+      } else {
+        session.insert_body_page_field(
+          revision,
+          code,
+          probe=self.probe,
+          profile=font_profile(request),
+          images=self.images,
+        )
+      }
+    }
+    "updateBodyPageFields" =>
+      session.update_body_page_fields(
+        revision,
+        probe=self.probe,
+        profile=font_profile(request),
+        images=self.images,
+      )
+    "setPageColumns" => {
+      guard request is { "columns": columns, .. } else {
+        @failure.reject("invalid-operation", "Column settings are required")
+      }
+      let value = match columns {
+        Null => None
+        Object(fields) if fields.length() == 4 &&
+          fields
+          .keys()
+          .all(key => ["count", "gap", "separator", "custom"].contains(key)) =>
+          Some(
+            @layout.Columns::new(
+              count=field_int(columns, "count"),
+              gap=field_number(columns, "gap"),
+              separator=field_boolean(columns, "separator"),
+              custom=match fields.get("custom") {
+                Some(Array(items)) if items.length() <= 12 =>
+                  items.map(item => {
+                    guard item is Object(values) &&
+                      values.length() == 2 &&
+                      values.keys().all(key => ["width", "gap"].contains(key)) else {
+                      @failure.reject(
+                        "invalid-operation", "Invalid custom column",
+                      )
+                    }
+                    @layout.Column::{
+                      width: field_number(item, "width"),
+                      gap: field_number(item, "gap"),
+                    }
+                  })
+                _ =>
+                  @failure.reject(
+                    "invalid-operation", "Invalid custom column list",
+                  )
+              },
+            ),
+          )
+        _ => @failure.reject("invalid-operation", "Invalid column settings")
+      }
+      session.set_page_columns(
+        revision,
+        field_int(request, "section"),
+        value,
+        probe=self.probe,
+        profile=font_profile(request),
+        images=self.images,
+      )
+    }
+    "setPageNumbering" => {
+      guard request is { "numbering": numbering, .. } else {
+        @failure.reject("invalid-operation", "Page numbering is required")
+      }
+      let value = match numbering {
+        Null => None
+        Object(fields) if fields.length() == 2 &&
+          fields.keys().all(k => ["start", "format"].contains(k)) => {
+          let start = if fields.get("start") is Some(Null) {
+            None
+          } else {
+            let start = field_number(numbering, "start")
+            guard start >= 0 && start <= 4294967295 && start.floor() == start else {
+              @failure.reject(
+                "invalid-operation", "Invalid page numbering start",
+              )
+            }
+            Some(start.to_int64())
+          }
+          Some(@model.SectionNumbering::{
+            start,
+            format: field_string(numbering, "format"),
+          })
+        }
+        _ => @failure.reject("invalid-operation", "Invalid page numbering")
+      }
+      session.set_page_numbering(
+        revision,
+        field_int(request, "section"),
+        value,
+        probe=self.probe,
+        profile=font_profile(request),
+        images=self.images,
+      )
+    }
+    "setRunningLink" =>
+      session.set_running_link(
+        revision,
+        field_int(request, "section"),
+        field_string(request, "kind"),
+        field_string(request, "variant"),
+        field_boolean(request, "linked"),
+        probe=self.probe,
+        profile=font_profile(request),
+        images=self.images,
+      )
+    "setRunningOptions" =>
+      session.set_running_options(
+        revision,
+        field_int(request, "section"),
+        field_boolean(request, "first"),
+        field_boolean(request, "even"),
+        probe=self.probe,
+        profile=font_profile(request),
+        images=self.images,
+      )
+    "setRunningArea" =>
+      session.set_running_area(
+        revision,
+        field_int(request, "section"),
+        field_string(request, "kind"),
+        field_string(request, "variant"),
+        running_content(request),
+        field_number(request, "distance"),
+        probe=self.probe,
+        profile=font_profile(request),
+        images=self.images,
+      )
+    "setPageSetup" =>
+      session.set_page_setup(
+        revision,
+        match request {
+          { "page": page, .. } => field_int(page, "section")
+          _ => @failure.reject("invalid-operation", "Missing page setup")
+        },
+        page_setup_format(request),
+        orientation=page_orientation(request),
+        startType=match request {
+          { "page": Object(fields) as page, .. } if fields.contains("startType") =>
+            Some(field_string(page, "startType"))
+          _ => None
+        },
+        footnotesAt=match request {
+          { "page": Object(fields) as page, .. } if fields.contains(
+              "footnotesAt",
+            ) => Some(field_string(page, "footnotesAt"))
+          _ => None
+        },
+      )
+    "setPageBackground" =>
+      session.set_page_background(revision, page_background_color(request))
+    "watermark" => session.watermark(revision, field_int(request, "section"))
+    "setWatermark" =>
+      session.set_watermark(
+        revision,
+        field_int(request, "section"),
+        text_watermark_value(request),
+        probe=self.probe,
+        profile=font_profile(request),
+        images=self.images,
+      )
+    "setPageBorders" =>
+      session.set_page_borders(
+        revision,
+        field_int(request, "section"),
+        page_border_format(request),
+      )
+    _ => @failure.reject("invalid-operation", "Unknown document page command")
+  }
+  if result is { "revision": Number(current, ..), .. } &&
+    current != revision.to_double() {
+    self.layout = None
+  }
+  result
+}

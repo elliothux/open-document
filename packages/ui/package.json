@@ -5,26 +5,55 @@
   "license": "Apache-2.0",
   "type": "module",
   "files": [
-    "dist",
     "src",
-    "NOTICE"
+    "dist",
+    "NOTICE",
+    "UNICODE-LICENSE"
   ],
   "exports": {
     ".": {
       "types": "./dist/types/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./*": {
+      "types": "./dist/types/*.d.ts",
+      "default": "./dist/*.js"
+    },
+    "./controls": {
+      "types": "./dist/types/controls.d.ts",
+      "default": "./dist/controls.js"
+    },
+    "./panels": {
+      "types": "./dist/types/panels.d.ts",
+      "default": "./dist/panels.js"
+    },
+    "./chart-fields": {
+      "types": "./dist/types/chart-fields.d.ts",
+      "default": "./dist/chart-fields.js"
+    },
+    "./word-art": {
+      "types": "./dist/types/word-art.d.ts",
+      "default": "./dist/word-art.js"
+    },
+    "./icons": {
+      "types": "./dist/types/icons.d.ts",
+      "default": "./dist/icons.js"
+    },
+    "./shell": {
+      "types": "./dist/types/shell.d.ts",
+      "default": "./dist/shell.js"
     }
   },
   "dependencies": {
-    "@open-document/web": "workspace:*",
+    "@open-document/wasm": "0.0.1",
+    "@open-document/web-core": "0.0.1",
     "@base-ui/react": "1.9.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json"
   },
   "peerDependencies": {
     "react": "19.3.1",
     "react-dom": "19.3.1"
-  },
-  "scripts": {
-    "build": "tailwindcss -i src/styles/ui.css -o dist/styles.css --minify && bun build src/index.ts --target browser --outdir dist --external react --external 'react-dom/*' --external '@base-ui/react/*' --external '@open-document/web/*' && rm -rf dist/types && tsc --project tsconfig.json --declaration --emitDeclarationOnly --noEmit false --outDir dist/types && cp ../../LICENSE dist/LICENSE",
-    "typecheck": "tsc --project tsconfig.json"
   }
 }

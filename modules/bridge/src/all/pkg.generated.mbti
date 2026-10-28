@@ -1,0 +1,52 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "open_document/bridge/all"
+
+import {
+  "open_document/bridge/docx",
+  "open_document/bridge/pdf",
+  "open_document/bridge/pptx",
+  "open_document/bridge/xlsx",
+}
+
+// Values
+pub fn abi_version() -> Int
+
+pub fn docx_add_font(@docx.Context, String, String) -> String
+
+pub fn docx_call(@docx.Context, String) -> String
+
+pub fn docx_close(@docx.Context) -> Unit
+
+pub fn docx_new() -> @docx.Context
+
+pub fn pdf_add_font(@pdf.Context, String, String) -> String
+
+pub fn pdf_call(@pdf.Context, String) -> String
+
+pub fn pdf_close(@pdf.Context) -> Unit
+
+pub fn pdf_new() -> @pdf.Context
+
+pub fn pptx_add_font(@pptx.Context, String, String) -> String
+
+pub fn pptx_call(@pptx.Context, String) -> String
+
+pub fn pptx_close(@pptx.Context) -> Unit
+
+pub fn pptx_new() -> @pptx.Context
+
+pub fn xlsx_add_font(@xlsx.Context, String, String) -> String
+
+pub fn xlsx_call(@xlsx.Context, String) -> String
+
+pub fn xlsx_close(@xlsx.Context) -> Unit
+
+pub fn xlsx_new() -> @xlsx.Context
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

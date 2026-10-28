@@ -1,28 +1,27 @@
 import { createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
-import css from "../dist/styles.css" with { type: "text" };
+import css from "../dist/styles.js";
 import { EditorController } from "./controller.js";
 import { EditorShell } from "./shell.js";
-import type { EditorOptions, MountedEditor } from "./types.js";
-
-export type {
-  EditorDocument,
-  OfficeDocument,
+import type {
   EditorOptions,
-  EditorResources,
-  Locale,
-  MountedEditor,
-  MountedSnapshot,
-  SavedDocument,
-  Theme,
+  EditorHost,
+  Product,
+  MountedMethods,
 } from "./types.js";
 
-/** Append one editor without replacing the caller's DOM or ShadowRoot. */
-export async function mountEditor(
+export type * from "./types.js";
+export async function mountProduct<E extends EditorHost>(
   container: HTMLElement,
   options: EditorOptions,
-): Promise<MountedEditor> {
+  product: Product<E>,
+): Promise<
+  MountedMethods & {
+    readonly editor: E;
+    create(document: { readonly name: string }): Promise<boolean>;
+  }
+> {
   options.signal?.throwIfAborted();
   const document = container.ownerDocument;
   const host = document.createElement("div");
@@ -40,13 +39,19 @@ export async function mountEditor(
   shadow.append(style, reactContainer, portal);
   container.append(host);
   const root = createRoot(reactContainer);
-  const controller = new EditorController(options, host, surfaces, () => {
-    try {
-      root.unmount();
-    } finally {
-      host.remove();
-    }
-  });
+  const controller = new EditorController(
+    options,
+    product,
+    host,
+    surfaces,
+    () => {
+      try {
+        root.unmount();
+      } finally {
+        host.remove();
+      }
+    },
+  );
   try {
     flushSync(() =>
       root.render(createElement(EditorShell, { controller, portal })),
@@ -72,56 +77,13 @@ export async function mountEditor(
     setTheme: (theme: "light" | "dark") => controller.setTheme(theme),
     setLocale: (locale: "en-US" | "zh-CN") => controller.setLocale(locale),
   };
-  switch (options.format) {
-    case "docx":
-      return {
-        ...methods,
-        format: "docx",
-        create: (document: { readonly name: string }) =>
-          controller.create(document),
-        get editor() {
-          const file = controller.getUiSnapshot().file;
-          if (file?.format !== "docx")
-            throw new Error("DOCX editor is unavailable");
-          return file.editor;
-        },
-      };
-    case "xlsx":
-      return {
-        ...methods,
-        create: (document: { readonly name: string }) =>
-          controller.create(document),
-        format: "xlsx",
-        get editor() {
-          const file = controller.getUiSnapshot().file;
-          if (file?.format !== "xlsx")
-            throw new Error("XLSX editor is unavailable");
-          return file.editor;
-        },
-      };
-    case "pptx":
-      return {
-        ...methods,
-        create: (document: { readonly name: string }) =>
-          controller.create(document),
-        format: "pptx",
-        get editor() {
-          const file = controller.getUiSnapshot().file;
-          if (file?.format !== "pptx")
-            throw new Error("PPTX editor is unavailable");
-          return file.editor;
-        },
-      };
-    case "pdf":
-      return {
-        ...methods,
-        format: "pdf",
-        get editor() {
-          const file = controller.getUiSnapshot().file;
-          if (file?.format !== "pdf")
-            throw new Error("PDF editor is unavailable");
-          return file.editor;
-        },
-      };
-  }
+  return {
+    ...methods,
+    create: (document) => controller.create(document),
+    get editor() {
+      const file = controller.getUiSnapshot().file;
+      if (!file) throw new Error("Editor is unavailable");
+      return file.editor;
+    },
+  };
 }

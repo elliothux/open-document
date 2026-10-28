@@ -1,0 +1,670 @@
+import { DocumentSourcesEditor } from "./document-sources.js";
+import { checkInkTool, type DocxInkTool } from "../core/foundation.js";
+import type {
+  DocxTocEdit,
+  DocxTableOfContents,
+  DocxIndexes,
+  DocxIndexEdit,
+} from "../core/foundation.js";
+export type DocumentTableOfContents = DocxTableOfContents & {
+  documentId: string;
+};
+export type DocumentIndexes = DocxIndexes & { documentId: string };
+import { decodeImage } from "@open-document/web-core/image";
+import type {
+  DocxCharts,
+  DocxWatermark,
+  DocxSectionBreak,
+  DocxChartValue,
+  DocxChartUpdate,
+  DocxMathFractions,
+  DocxMathExpressions,
+  DocxMathValue,
+  DocxFractionValue,
+  DocxMathScripts,
+  DocxScriptValue,
+} from "../core/foundation.js";
+export type DocumentCharts = DocxCharts & { documentId: string };
+export type DocumentMathFractions = DocxMathFractions & { documentId: string };
+export type DocumentMathExpressions = DocxMathExpressions & {
+  documentId: string;
+};
+export type DocumentMathScripts = DocxMathScripts & { documentId: string };
+import type { DocxRuler, DocxRulerEdit } from "../core/foundation.js";
+export type DocumentRuler = DocxRuler & { documentId: string };
+import { DocumentError, type DocxPageSetup } from "../core/foundation.js";
+import type { DocxPageBorders } from "../core/foundation.js";
+import type { DocxPageNumbering } from "../core/foundation.js";
+import type { DocxColumns } from "../core/foundation.js";
+import type { EditorOutput } from "@open-document/web-core/editor-state";
+import type {
+  DocxRunningKind,
+  DocxCoverPage,
+  DocxCaption,
+  DocxRunningVariant,
+  DocxRunningContent,
+  DocxBodyField,
+  DocxBodyPageField,
+  DocxSelection,
+  DocxProtection,
+  DocxShapeEdit,
+} from "../core/foundation.js";
+export type DocumentBodyPageField = DocxBodyPageField & { documentId: string };
+export type DocumentProtection = DocxProtection & { documentId: string };
+
+/** Document-wide page commands use the editor's existing read and edit queues. */
+export abstract class DocumentPage extends DocumentSourcesEditor {
+  protected inkOptions: DocxInkTool = {
+    tool: "select",
+    color: "174CA0",
+    width: 2,
+  };
+  setInkTool(options: DocxInkTool): Promise<void> {
+    checkInkTool(options);
+    const value = { ...options };
+    return this.review.edit(async () => {
+      this.inkOptions = value;
+      return this.review.client.editState();
+    });
+  }
+  indexes(): Promise<DocumentIndexes> {
+    return this.review.read(async () => ({
+      ...(await this.review.client.indexes(this.review.snapshot().revision)),
+      documentId: this.review.snapshot().documentId,
+    }));
+  }
+  markIndexEntry(label: string): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.editIndex(
+        this.review.snapshot().revision,
+        { action: "mark", label },
+        this.profile,
+      ),
+    );
+  }
+  insertIndex(): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.editIndex(
+        this.review.snapshot().revision,
+        { action: "insert" },
+        this.profile,
+      ),
+    );
+  }
+  editIndex(
+    source: DocumentIndexes,
+    change: Exclude<DocxIndexEdit, { action: "mark" | "insert" }>,
+  ): Promise<void> {
+    return this.review.edit(() => {
+      const current = this.review.snapshot();
+      const item =
+        "id" in change
+          ? source.entries.find((item) => item.id === change.id)
+          : source.indexes.find((item) => item.paragraph === change.paragraph);
+      if (
+        source.documentId !== current.documentId ||
+        source.revision !== current.revision ||
+        !item ||
+        item.reason
+      )
+        throw new DocumentError(
+          "stale-index",
+          item?.reason || "Index catalog is stale",
+          "",
+          -1,
+        );
+      return this.review.client.editIndex(
+        source.revision,
+        change,
+        this.profile,
+      );
+    });
+  }
+  insertSectionBreak(kind: DocxSectionBreak): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.insertSectionBreak(
+        this.review.snapshot().revision,
+        kind,
+        this.profile,
+      ),
+    );
+  }
+  tableOfContents(): Promise<DocumentTableOfContents> {
+    return this.review.read(async () => ({
+      ...(await this.review.client.tableOfContents(
+        this.review.snapshot().revision,
+      )),
+      documentId: this.review.snapshot().documentId,
+    }));
+  }
+  insertTableOfContents(levels = 3): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.editTableOfContents(
+        this.review.snapshot().revision,
+        { action: "insert", levels },
+        this.profile,
+      ),
+    );
+  }
+  insertTableOfFigures(sequence: string): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.editTableOfContents(
+        this.review.snapshot().revision,
+        { action: "insertCaptions", sequence },
+        this.profile,
+      ),
+    );
+  }
+  editTableOfContents(
+    source: DocumentTableOfContents,
+    change: Extract<DocxTocEdit, { action: "update" | "delete" }>,
+  ): Promise<void> {
+    return this.review.edit(() => {
+      const current = this.review.snapshot(),
+        item = source.items.find((item) => item.paragraph === change.paragraph);
+      if (
+        source.documentId !== current.documentId ||
+        source.revision !== current.revision ||
+        !item ||
+        item.reason
+      )
+        throw new DocumentError(
+          "stale-toc",
+          item?.reason || "Table of contents catalog is stale",
+          "",
+          -1,
+        );
+      return this.review.client.editTableOfContents(
+        source.revision,
+        change,
+        this.profile,
+      );
+    });
+  }
+  charts(): Promise<DocumentCharts> {
+    return this.review.read(async () => ({
+      ...(await this.review.client.charts(this.review.snapshot().revision)),
+      documentId: this.review.snapshot().documentId,
+    }));
+  }
+  insertChart(value: DocxChartValue): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.editChart(
+        this.review.snapshot().revision,
+        { ...value, action: "insert" },
+        this.profile,
+      ),
+    );
+  }
+  editChart(
+    source: DocumentCharts,
+    id: number,
+    value: DocxChartUpdate | null,
+  ): Promise<void> {
+    return this.review.edit(() => {
+      const current = this.review.snapshot(),
+        item = source.items.find((item) => item.id === id);
+      const reason =
+        value === null
+          ? item?.deleteReason
+          : "action" in value
+            ? value.action === "position"
+              ? item?.positionReason
+              : item?.sizeReason
+            : item?.reason;
+      if (
+        source.documentId !== current.documentId ||
+        source.revision !== current.revision ||
+        !item ||
+        reason
+      )
+        throw new Error(reason || "Chart catalog is stale");
+      return this.review.client.editChart(
+        source.revision,
+        value === null
+          ? { action: "delete", id }
+          : "action" in value
+            ? { ...value, id }
+            : { ...value, action: "update", id },
+        this.profile,
+      );
+    });
+  }
+  mathExpressions(): Promise<DocumentMathExpressions> {
+    return this.review.read(async () => ({
+      ...(await this.review.client.mathExpressions(
+        this.review.snapshot().revision,
+      )),
+      documentId: this.review.snapshot().documentId,
+    }));
+  }
+  insertMath(value: DocxMathValue, display = false): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.editMath(
+        this.review.snapshot().revision,
+        { ...value, action: "insert", display },
+        this.profile,
+      ),
+    );
+  }
+  editMath(
+    source: DocumentMathExpressions,
+    id: number,
+    value: DocxMathValue | null,
+  ): Promise<void> {
+    return this.review.edit(() => {
+      const current = this.review.snapshot(),
+        item = source.items.find((item) => item.id === id);
+      if (
+        source.documentId !== current.documentId ||
+        source.revision !== current.revision ||
+        !item ||
+        item.reason
+      )
+        throw new Error(item?.reason || "Math catalog is stale");
+      return this.review.client.editMath(
+        source.revision,
+        value === null
+          ? { action: "delete", id }
+          : { ...value, action: "update", id },
+        this.profile,
+      );
+    });
+  }
+  mathScripts(): Promise<DocumentMathScripts> {
+    return this.review.read(async () => ({
+      ...(await this.review.client.mathScripts(
+        this.review.snapshot().revision,
+      )),
+      documentId: this.review.snapshot().documentId,
+    }));
+  }
+  insertMathScript(value: DocxScriptValue): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.editMathScript(
+        this.review.snapshot().revision,
+        { ...value, action: "insert" },
+        this.profile,
+      ),
+    );
+  }
+  editMathScript(
+    source: DocumentMathScripts,
+    id: number,
+    value: DocxScriptValue | null,
+  ): Promise<void> {
+    return this.review.edit(() => {
+      const current = this.review.snapshot(),
+        item = source.items.find((item) => item.id === id);
+      if (
+        source.documentId !== current.documentId ||
+        source.revision !== current.revision ||
+        !item ||
+        item.reason
+      )
+        throw new Error(item?.reason || "Script catalog is stale");
+      return this.review.client.editMathScript(
+        source.revision,
+        value === null
+          ? { action: "delete", id }
+          : { ...value, action: "update", id },
+        this.profile,
+      );
+    });
+  }
+  mathFractions(): Promise<DocumentMathFractions> {
+    return this.review.read(async () => ({
+      ...(await this.review.client.mathFractions(
+        this.review.snapshot().revision,
+      )),
+      documentId: this.review.snapshot().documentId,
+    }));
+  }
+  insertMathFraction(value: DocxFractionValue): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.editMathFraction(
+        this.review.snapshot().revision,
+        { ...value, action: "insert" },
+        this.profile,
+      ),
+    );
+  }
+  editMathFraction(
+    source: DocumentMathFractions,
+    id: number,
+    value: DocxFractionValue | null,
+  ): Promise<void> {
+    return this.review.edit(() => {
+      const current = this.review.snapshot(),
+        item = source.items.find((item) => item.id === id);
+      if (
+        source.documentId !== current.documentId ||
+        source.revision !== current.revision ||
+        !item ||
+        item.reason
+      )
+        throw new Error(item?.reason || "Fraction catalog is stale");
+      return this.review.client.editMathFraction(
+        source.revision,
+        value === null
+          ? { action: "delete", id }
+          : { ...value, action: "update", id },
+        this.profile,
+      );
+    });
+  }
+  shapes() {
+    return this.review.read(() =>
+      this.review.client.shapes(this.review.snapshot().revision),
+    );
+  }
+  editShape(revision: number, shape: DocxShapeEdit): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.editShape(revision, shape, this.profile),
+    );
+  }
+  documentProtection(): Promise<DocumentProtection> {
+    return this.review.read(async () => ({
+      ...(await this.review.client.documentProtection(
+        this.review.snapshot().revision,
+      )),
+      documentId: this.review.snapshot().documentId,
+    }));
+  }
+  setDocumentProtection(
+    source: DocumentProtection,
+    enabled: boolean,
+    password = "",
+  ): Promise<void> {
+    return this.review.edit(() => {
+      const current = this.review.snapshot();
+      if (
+        source.documentId !== current.documentId ||
+        source.revision !== current.revision
+      )
+        throw new Error("Document protection state is stale");
+      return this.review.client.setDocumentProtection(
+        source.revision,
+        enabled,
+        password,
+      );
+    });
+  }
+  protected abstract selection(): DocxSelection;
+  bodyPageField(): Promise<DocumentBodyPageField> {
+    return this.review.read(async () => {
+      const state = this.review.snapshot();
+      return {
+        ...(await this.review.client.bodyPageField(
+          state.revision,
+          this.selection(),
+        )),
+        documentId: state.documentId,
+      };
+    });
+  }
+  editBodyPageField(
+    source: DocumentBodyPageField,
+    field: DocxBodyField,
+  ): Promise<void> {
+    return this.review.edit(() => {
+      const current = this.review.snapshot();
+      if (
+        source.documentId !== current.documentId ||
+        source.revision !== current.revision ||
+        JSON.stringify(source.selection) !== JSON.stringify(this.selection())
+      )
+        throw new Error("Document or field selection changed");
+      return this.review.client.editBodyPageField(
+        source.revision,
+        source.selection,
+        field,
+        this.profile,
+      );
+    });
+  }
+  insertBodyPageField(field: DocxBodyField): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.insertBodyPageField(
+        this.review.snapshot().revision,
+        field,
+        this.profile,
+      ),
+    );
+  }
+  insertCaption(caption: DocxCaption): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.insertCaption(
+        this.review.snapshot().revision,
+        caption,
+        this.profile,
+      ),
+    );
+  }
+  updateBodyPageFields(): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.updateBodyPageFields(
+        this.review.snapshot().revision,
+        this.profile,
+      ),
+    );
+  }
+  protected abstract downloadOutput(
+    output: EditorOutput,
+    filename: string,
+  ): void;
+  async downloadPdf(
+    filename = "document.pdf",
+    outputBytes = 67108864,
+  ): Promise<void> {
+    this.downloadOutput(await this.exportPdf(outputBytes), filename);
+  }
+  async downloadDocx(filename = "document.docx"): Promise<void> {
+    this.downloadOutput(await this.saveDocx(), filename);
+  }
+  ruler(): Promise<DocumentRuler> {
+    return this.review.read(async () => ({
+      ...(await this.review.client.ruler(this.review.snapshot().revision)),
+      documentId: this.review.snapshot().documentId,
+    }));
+  }
+  editRuler(source: DocumentRuler, change: DocxRulerEdit): Promise<void> {
+    return this.review.edit(() => {
+      if (source.documentId !== this.review.snapshot().documentId)
+        throw new Error("Ruler belongs to another document");
+      return this.review.client.editRuler(source, change);
+    });
+  }
+  setPageColumns(section: number, columns: DocxColumns | null): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.setPageColumns(
+        this.review.snapshot().revision,
+        section,
+        columns,
+        this.profile,
+      ),
+    );
+  }
+  setPageNumbering(
+    section: number,
+    numbering: DocxPageNumbering | null,
+  ): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.setPageNumbering(
+        this.review.snapshot().revision,
+        section,
+        numbering,
+        this.profile,
+      ),
+    );
+  }
+  setRunningLink(
+    section: number,
+    kind: DocxRunningKind,
+    variant: DocxRunningVariant,
+    linked: boolean,
+  ): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.setRunningLink(
+        this.review.snapshot().revision,
+        section,
+        kind,
+        variant,
+        linked,
+        this.profile,
+      ),
+    );
+  }
+  runningArea(
+    section: number,
+    kind: DocxRunningKind,
+    variant: DocxRunningVariant,
+  ) {
+    return this.review.read(() =>
+      this.review.client.runningArea(
+        this.review.snapshot().revision,
+        section,
+        kind,
+        variant,
+      ),
+    );
+  }
+  setRunningArea(
+    section: number,
+    kind: DocxRunningKind,
+    variant: DocxRunningVariant,
+    content: DocxRunningContent[],
+    distance: number,
+  ): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.setRunningArea(
+        this.review.snapshot().revision,
+        section,
+        kind,
+        variant,
+        content,
+        distance,
+        this.profile,
+      ),
+    );
+  }
+  protected abstract outputs(
+    format: "docx" | "pdf" | "png" | "images" | "html" | "markdown",
+    outputBytes?: number,
+    scale?: number,
+  ): Promise<readonly EditorOutput[]>;
+  /** A barrier: later input cannot change the returned revision or bytes. */
+  async saveDocx(): Promise<EditorOutput> {
+    return (await this.outputs("docx"))[0]!;
+  }
+  async exportPdf(outputBytes = 67108864): Promise<EditorOutput> {
+    return (await this.outputs("pdf", outputBytes))[0]!;
+  }
+  async exportHtml(outputBytes = 67108864): Promise<EditorOutput> {
+    return (await this.outputs("html", outputBytes))[0]!;
+  }
+  async exportMarkdown(outputBytes = 67108864): Promise<EditorOutput> {
+    return (await this.outputs("markdown", outputBytes))[0]!;
+  }
+  /** Exports the current page at pixels per point, independent of preview zoom and DPR. */
+  async exportPng(scale = 1, outputBytes = 67108864): Promise<EditorOutput> {
+    return (await this.outputs("png", outputBytes, scale))[0]!;
+  }
+  /** Exports all pages in order at one revision, with a shared byte budget. */
+  exportPageImages(
+    scale = 1,
+    outputBytes = 67108864,
+  ): Promise<readonly EditorOutput[]> {
+    return this.outputs("images", outputBytes, scale);
+  }
+  setPageBorders(
+    section: number,
+    borders: DocxPageBorders | null,
+  ): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.setPageBorders(
+        this.review.snapshot().revision,
+        section,
+        borders,
+      ),
+    );
+  }
+  setRunningOptions(
+    section: number,
+    first: boolean,
+    even: boolean,
+  ): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.setRunningOptions(
+        this.review.snapshot().revision,
+        section,
+        first,
+        even,
+        this.profile,
+      ),
+    );
+  }
+  pageSetup(section = 0) {
+    return this.review.read(() =>
+      this.review.client.pageSetup(this.review.snapshot().revision, section),
+    );
+  }
+  setPageSetup(page: DocxPageSetup): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.setPageSetup(this.review.snapshot().revision, page),
+    );
+  }
+  setPageBackground(color: string | null): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.setPageBackground(
+        this.review.snapshot().revision,
+        color,
+      ),
+    );
+  }
+  watermark(section: number) {
+    return this.review.read(async () => {
+      const current = this.review.snapshot();
+      return {
+        ...(await this.review.client.watermark(current.revision, section)),
+        documentId: current.documentId,
+      };
+    });
+  }
+  setWatermark(section: number, value: DocxWatermark | null): Promise<void> {
+    return this.review.edit(async () => {
+      const current = this.review.snapshot();
+      const prepared =
+        value?.kind === "picture" && value.image instanceof Uint8Array
+          ? { ...value, image: value.image.slice() }
+          : value;
+      if (
+        prepared?.kind === "picture" &&
+        prepared.image instanceof Uint8Array
+      ) {
+        const { bitmap } = await decodeImage(prepared.image);
+        bitmap.close();
+        if (
+          this.review.snapshot().documentId !== current.documentId ||
+          this.review.snapshot().revision !== current.revision
+        )
+          throw new Error("Watermark source changed during image preparation");
+      }
+      return this.review.client.setWatermark(
+        current.revision,
+        section,
+        prepared,
+        this.profile,
+      );
+    });
+  }
+  setCoverPage(cover: DocxCoverPage | null): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.setCoverPage(
+        this.review.snapshot().revision,
+        cover,
+        this.profile,
+      ),
+    );
+  }
+}

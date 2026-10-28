@@ -79,7 +79,7 @@ Web 可采用 Canvas 缓存、动画帧调度、Transferable 或 OffscreenCanvas
 
 - [核心绘制输出](../../modules/layout/src/drawing.mbt)生成矩形、字形批次、图片及裁剪。轮廓和图片资源与区域分开，重复轮廓共用一份数据。
 - Bridge 返回绘制批次与独立语义页。命中、选区和 PDF 继续使用内部 `Layout`。WASM 与主线程客户端校验指令、资源及布局身份。
-- [CanvasRenderer](../../packages/web/src/drawing.ts)执行指令。旧的 TS 页面/行/run 遍历绘制路径已删除；预览和编辑共用 [PageCanvas](../../packages/web/src/page-canvas.ts)。
+- [CanvasRenderer](../../packages/web-core/src/drawing.ts)执行指令。旧的 TS 页面/行/run 遍历绘制路径已删除；预览和编辑共用 [PageCanvas](../../packages/docx/src/web/page-canvas.ts)。
 - 内容按布局身份、页码、缩放和 DPR 复用。编辑覆盖层单独清除和绘制，不截获指针事件。只有像素尺寸变化时重设画布尺寸；覆盖层计入原总预算。
 - 图片资源身份绑定尺寸与像素。浏览器仍负责图片解码，关闭时释放位图、路径和画布。未知指令、缺资源和过期几何明确失败。
 - 编辑队列、IME 候选、撤销、保存屏障和恢复保持。DOCX 保存读取核心文档，PDF 保留字体嵌入、文字映射、图片和裁剪。

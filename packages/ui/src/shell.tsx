@@ -10,25 +10,16 @@ import {
   LeaveConfirmation,
   NativeSlot,
 } from "./controls.js";
-import {
-  Details,
-  FormatCommands,
-  Navigation,
-  PageList,
-  Properties,
-  Sheets,
-  Zoom,
-} from "./panels.js";
+import { Details, Zoom } from "./panels.js";
 import { messages } from "./messages.js";
 import { Icon } from "./icons.js";
-import { XlsxFormula, XlsxStatistics } from "./xlsx-formula.js";
-import { DocxRuler } from "./docx-ruler.js";
+import type { EditorHost } from "./types.js";
 
-export function EditorShell({
+export function EditorShell<E extends EditorHost>({
   controller,
   portal,
 }: {
-  controller: EditorController;
+  controller: EditorController<E>;
   portal: HTMLElement;
 }) {
   const state = useSyncExternalStore(
@@ -51,15 +42,12 @@ export function EditorShell({
   const editDisabled =
     disabled || !!snapshot?.stopped || !!snapshot?.readOnlyReason;
   const panel = file ? { controller, state, file, disabled } : undefined;
-  const recover = () =>
-    controller.run(() =>
-      file?.format === "docx" ? file.editor.resume() : file?.editor.refresh(),
-    );
+  const recover = () => controller.run(() => file?.recover());
   return (
     <CSPProvider nonce={controller.options.styleNonce}>
       <section
         className="od-root"
-        aria-label={`${controller.options.format.toUpperCase()} editor`}
+        aria-label={`${controller.product.format.toUpperCase()} editor`}
         onKeyDown={(event) => {
           if (
             event.defaultPrevented ||
@@ -162,10 +150,10 @@ export function EditorShell({
             <FileMenu controller={controller} state={state} portal={portal} />
             <Tabs.List className="flex" aria-label={t.edit}>
               <Tabs.Tab value="edit">
-                {file?.format === "pdf" ? t.read : t.edit}
+                {controller.product.readLabel ? t.read : t.edit}
               </Tabs.Tab>
               <Tabs.Tab value="view">{t.view}</Tabs.Tab>
-              {controller.options.format === "pdf" && (
+              {controller.product.extraTabs && (
                 <>
                   <Tabs.Tab value="pages">{t.pages}</Tabs.Tab>
                   <Tabs.Tab value="annotations">{t.annotations}</Tabs.Tab>
@@ -209,22 +197,19 @@ export function EditorShell({
                     <Icon name="redo" />
                   </Command>
                 </Group>
-                <FormatCommands
-                  {...panel}
-                  disabled={
-                    file.format === "pptx"
-                      ? disabled || !!snapshot?.stopped
-                      : editDisabled
-                  }
-                  tab="edit"
-                />
+                {controller.product.render("edit", {
+                  ...panel,
+                  disabled: controller.product.editReadOnly
+                    ? editDisabled
+                    : disabled || !!snapshot?.stopped,
+                })}
               </Tabs.Panel>
               <Tabs.Panel value="view" className="od-ribbon">
-                {file.format !== "xlsx" && <Navigation {...panel} />}
+                {controller.product.render("navigation", panel)}
                 <Group label={t.zoom}>
                   <Zoom {...panel} />
                 </Group>
-                <FormatCommands {...panel} tab="view" />
+                {controller.product.render("view", panel)}
                 <Group label={t.refresh}>
                   <Command
                     label={snapshot?.stopped ? t.recover : t.refresh}
@@ -233,21 +218,19 @@ export function EditorShell({
                   />
                 </Group>
               </Tabs.Panel>
-              {file.format === "pdf" && (
+              {controller.product.extraTabs && (
                 <>
                   <Tabs.Panel value="pages" className="od-ribbon">
-                    <FormatCommands
-                      {...panel}
-                      disabled={editDisabled}
-                      tab="pages"
-                    />
+                    {controller.product.render("pages", {
+                      ...panel,
+                      disabled: editDisabled,
+                    })}
                   </Tabs.Panel>
                   <Tabs.Panel value="annotations" className="od-ribbon">
-                    <FormatCommands
-                      {...panel}
-                      disabled={editDisabled}
-                      tab="annotations"
-                    />
+                    {controller.product.render("annotations", {
+                      ...panel,
+                      disabled: editDisabled,
+                    })}
                   </Tabs.Panel>
                 </>
               )}
@@ -283,26 +266,13 @@ export function EditorShell({
             </p>
           )}
         <div className="od-workbench">
-          {panel && <PageList {...panel} />}
+          {panel && controller.product.render("pages-list", panel)}
           <div className="od-workspace">
-            {file?.format === "docx" && (
-              <DocxRuler
-                key={snapshot?.documentId}
-                controller={controller}
-                state={state}
-                editor={file.editor}
-                disabled={editDisabled}
-              />
-            )}
-            {file?.format === "xlsx" && (
-              <XlsxFormula
-                key={snapshot?.documentId}
-                controller={controller}
-                state={state}
-                editor={file.editor}
-                disabled={disabled || !!snapshot?.stopped}
-              />
-            )}
+            {panel &&
+              controller.product.render("before-surface", {
+                ...panel,
+                disabled: editDisabled,
+              })}
             <NativeSlot node={controller.surfaces} className="od-surfaces" />
             {state.loading && (
               <div className="od-loading" role="status">
@@ -318,13 +288,11 @@ export function EditorShell({
               </div>
             )}
           </div>
-          {panel && <Properties key={snapshot?.documentId} {...panel} />}
+          {panel && controller.product.render("properties", panel)}
         </div>
-        {panel && <Sheets {...panel} />}
+        {panel && controller.product.render("after-surface", panel)}
         <footer className="od-status" aria-label={t.ready}>
-          {file?.format === "xlsx" && (
-            <XlsxStatistics state={state} editor={file.editor} />
-          )}
+          {panel && controller.product.render("status", panel)}
           <span role="status">
             {state.loading
               ? t.loading
@@ -336,7 +304,7 @@ export function EditorShell({
           </span>
           {snapshot?.draft && <span>{t.draftTitle}</span>}
           <span>
-            {file?.format === "xlsx"
+            {controller.product.addressStatus
               ? `${t.address} ${snapshot?.selection ?? ""}`
               : `${(snapshot?.page ?? 0) + 1} / ${snapshot?.pageCount ?? 0}`}
           </span>

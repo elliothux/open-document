@@ -11,38 +11,26 @@
     "UNICODE-LICENSE"
   ],
   "exports": {
-    "./pdf": {
-      "types": "./src/pdf.ts",
-      "default": "./dist/pdf.js"
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "default": "./dist/index.js"
     },
-    "./pptx": {
-      "types": "./src/pptx.ts",
-      "default": "./dist/pptx.js"
+    "./*": {
+      "types": "./dist/types/*.d.ts",
+      "default": "./dist/*.js"
     },
-    "./xlsx": {
-      "types": "./src/xlsx.ts",
-      "default": "./dist/xlsx.js"
+    "./abi/*": {
+      "types": "./dist/types/abi/*.d.ts",
+      "default": "./dist/abi/*.js"
     },
-    "./drawing": {
-      "types": "./src/drawing.ts",
-      "default": "./dist/drawing.js"
-    },
-    "./preview": {
-      "types": "./src/preview.ts",
-      "default": "./dist/preview.js"
-    },
-    "./foundation": {
-      "types": "./src/foundation.ts",
-      "default": "./dist/foundation.js"
-    },
-    "./engine": {
-      "types": "./src/engine.ts",
-      "default": "./dist/engine.js"
-    },
-    "./engine.wasm": "./dist/engine.wasm"
+    "./engine.wasm": "./dist/engine.wasm",
+    "./engine-source": {
+      "types": "./dist/engine-source.d.ts",
+      "default": "./dist/engine-source.js"
+    }
   },
+  "dependencies": {},
   "scripts": {
-    "build": "bun build src/engine.ts src/foundation.ts src/docx-clipboard.ts src/docx-protection.ts src/protection-password.ts src/docx-page.ts src/docx-sections.ts src/docx-toc.ts src/docx-index.ts src/docx-sources.ts src/docx-watermark.ts src/docx-ruler.ts src/docx-columns.ts src/docx-format.ts src/docx-page-borders.ts src/docx-cell-selection.ts src/docx-picture.ts src/docx-shape.ts src/docx-tracking.ts src/docx-math.ts src/docx-ink.ts src/docx-selection.ts src/preview-shape.ts src/docx-chart.ts src/chart.ts src/docx-hit.ts src/docx-theme.ts src/docx-list.ts src/docx-list-level.ts src/docx-search.ts src/docx-overview.ts src/docx-comments.ts src/docx-revisions.ts src/docx-notes.ts src/docx-table.ts src/preview.ts src/preview-fields.ts src/preview-numbering.ts src/preview-notes.ts src/math.ts src/drawing.ts src/validation.ts src/session.ts src/xlsx.ts src/xlsx-comments.ts src/xlsx-pictures.ts src/xlsx-shapes.ts src/xlsx-drawings.ts src/xlsx-drawing-frame.ts src/xlsx-drawing-clipboard.ts src/xlsx-charts.ts src/xlsx-drawing-pointer.ts src/xlsx-pivot.ts src/xlsx-slicer.ts src/xlsx-slicer-view.ts src/xlsx-timeline.ts src/xlsx-query.ts src/xlsx-protection.ts src/xlsx-grid.ts src/xlsx-fill.ts src/xlsx-geometry.ts src/xlsx-sheet.ts src/xlsx-sparkline.ts src/xlsx-outline.ts src/xlsx-tables.ts src/xlsx-sort.ts src/xlsx-duplicates.ts src/xlsx-consolidate.ts src/xlsx-subtotal.ts src/xlsx-delimited.ts src/xlsx-statistics.ts src/xlsx-names.ts src/xlsx-filter.ts src/xlsx-validation.ts src/xlsx-conditional.ts src/xlsx-print.ts src/xlsx-format.ts src/xlsx-clipboard.ts src/xlsx-search.ts src/pptx.ts src/pptx-view.ts src/pptx-output.ts src/pptx-show.ts src/pptx-show-ink.ts src/pptx-show-media.ts src/pptx-media.ts src/pptx-show-settings.ts src/pptx-command.ts src/pptx-import.ts src/pptx-objects.ts src/pptx-object-edit.ts src/pptx-chart.ts src/pptx-math.ts src/pptx-connectors.ts src/pptx-table-style.ts src/pptx-format.ts src/pptx-search.ts src/pptx-slides.ts src/pptx-background.ts src/pptx-layouts.ts src/pptx-placeholder.ts src/pptx-footer.ts src/pptx-clock.ts src/pptx-theme.ts src/pdf.ts --no-bundle --target browser --root src --outdir dist && cp ../../LICENSE dist/LICENSE",
     "typecheck": "tsc --project tsconfig.json"
   }
 }

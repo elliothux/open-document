@@ -74,7 +74,7 @@ Rust、Zig、Go 不作为当前核心主语言。选择 MoonBit 不意味着为�
 
 ### 默认 Web UI：现有能力已接入
 
-`packages/ui` 使用 React + open Shadow DOM + Tailwind CSS + [Base UI](https://base-ui.com/react/overview/quick-start)，接通四类格式已有操作。`packages/web` 保持框架无关，拥有原生输入、语义节点、Canvas 和操作队列；已移出四类编辑宿主的旧工具栏。
+各领域的 `react` 入口使用 React + open Shadow DOM + Tailwind CSS + [Base UI](https://base-ui.com/react/overview/quick-start)，接通本格式已有操作。`packages/ui` 提供共用外壳和控件；领域的 `web` 入口保持框架无关。`packages/web-core` 复用连接、原生输入、Renderer、Canvas 和快照，领域宿主保留各自的编辑队列。
 
 交付与检查边界见 [P9](../implemented/p9-web-sdk-ui.md)。挂载、状态、保存/关闭与资源所有权归[格式合同](formats.md#默认-ui-与编辑宿主)，实际入口与普通 JS 示例归[开发说明](development.md#默认-web-ui)。新建和缺失格式操作继续按 P10–P13 实施。
 
@@ -136,6 +136,8 @@ UI 与交互以 `references/genoffice` 源码为第一参考。GenOffice App 仅
 - 不引入 Tiptap、Univer 等第二套编辑模型来临时承担核心语义；如需借鉴它们，提取规则和验证样本，而不是维持双向模型同步作为最终架构。
 
 [R0 通用渲染架构](../implemented/r0-renderer-foundation.md)细化本节的绘制职责，统一各格式核心与平台 Renderer 的数据、资源和更新设计。DOCX、XLSX、PPTX 与 PDF 已接入 Web，后续格式与宿主沿用同一合同。
+
+[R1 领域拆包与共享 Wasm 加载](../implemented/r1-domain-packages-shared-wasm.md)提供四格式的 `core`、`web`、`react`、`worker` 入口，继续共用一个 Wasm 产物。公共 Loader 按绝对 URL 与构建身份复用获取/编译结果；每文档独立创建 Instance、Worker 和资源集合。公共前端层不反向导入领域包，React 入口由宿主按需加载。当前产物仍包含全格式核心，不代表已分发单格式 Wasm。
 
 ### 调用边界
 

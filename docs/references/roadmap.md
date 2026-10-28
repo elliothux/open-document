@@ -47,11 +47,13 @@
 
 实施顺序为 P9 → P10 → P11 → P12 → P13 → P14 → P15 → P16，跨宿主作为最后一项需求。阶段内部每个完整操作可以独立交付。跨格式只等待实际依赖，不要求前一格式达到全部兼容才开始后一格式。P10–P12 已完成最低范围，当前下一项是 P13。
 
+跨格式工程重构 [R1 领域拆包与共享 Wasm 加载](../implemented/r1-domain-packages-shared-wasm.md)已完成。四格式有独立 package 和前端入口，共用唯一 Wasm 与公共 Loader；工程迁移不新增 P 阶段或改变已交付功能范围。
+
 ### P9 Web SDK 与默认 UI（已完成）
 
 用户结果：宿主加载公开构建产物，用普通 JS 挂载和释放编辑器。用户能通过默认 UI 完成当前已有的打开、编辑、撤销、缩放、保存和输出，明确看到不支持或只读的原因。
 
-交付与足够检查归 [P9](../implemented/p9-web-sdk-ui.md)。UI 使用 React + open Shadow DOM + Tailwind CSS + Base UI（`@base-ui/react`），放入独立 `packages/ui`；`packages/web` 保留框架无关的编辑宿主、输入与薄 Renderer。已完成 G3 C01–C05 的现有能力接入，Office 新建与核心创作已由 P10–P12 交付，PDF 扩展归 P13。
+交付与足够检查归 [P9](../implemented/p9-web-sdk-ui.md)。UI 使用 React + open Shadow DOM + Tailwind CSS + Base UI（`@base-ui/react`）。R1 后，领域 React 面板与编辑宿主归各格式包，共用外壳归 `packages/ui`，输入和薄 Renderer 归 `packages/web-core`。已完成 G3 C01–C05 的现有能力接入，Office 新建与核心创作已由 P10–P12 交付，PDF 扩展归 P13。
 
 ### P10–P12 Office 核心功能（已完成）
 
