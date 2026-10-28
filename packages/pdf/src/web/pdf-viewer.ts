@@ -1,34 +1,32 @@
-import type { PdfLayout, PdfQuery, PdfSelection } from "../core/pdf.js";
+import type {
+  PdfLayout,
+  PdfQuery,
+  PdfSelection,
+  PdfRangeSelection,
+} from "../core/pdf.js";
 import type { PdfClient } from "./pdf.js";
 import { PdfCanvas } from "./pdf-canvas.js";
-import { bindClipboard } from "@open-document/web-core/clipboard";
+import { PdfReading, readingPoint } from "./pdf-reading.js";
+import { bindPdfKeyboard } from "./pdf-keyboard.js";
 import {
   EditorState,
   type EditorOutput,
   type EditorSnapshot,
 } from "@open-document/web-core/editor-state";
 
-export interface PdfMatch {
-  page: string;
-  start: number;
-  end: number;
-}
-export interface PdfEditorData {
-  readonly query: PdfQuery;
-  readonly matches: readonly PdfMatch[];
-  readonly matchIndex: number;
-  readonly searching: boolean;
-  readonly searchPage: number;
-  readonly property: string;
-  readonly propertyReason: string;
-  readonly applying: boolean;
-}
+import type { PdfMatch, PdfEditorData } from "./pdf-viewer-state.js";
+export type { PdfMatch, PdfEditorData } from "./pdf-viewer-state.js";
 
-/** A single visible page, with text and geometry supplied by the core. */
+/** Bounded reading views, with text and geometry supplied by the core. */
 export class PdfViewer {
   readonly element = document.createElement("section");
   readonly viewport = document.createElement("div");
-  protected readonly surface = new PdfCanvas();
+  private singleSurface = new PdfCanvas();
+  protected surface = this.singleSurface;
+  private reading: PdfReading | undefined;
+  private readingMode: "single" | "continuous" | "double" = "single";
+  private rangeSelection: PdfRangeSelection | undefined;
+  private anchorPage = "";
   protected state: PdfQuery;
   protected layout: PdfLayout | undefined;
   protected readonly profile: Record<string, string>;
@@ -48,6 +46,7 @@ export class PdfViewer {
   private readonly events = new AbortController();
   private tail: Promise<unknown> = Promise.resolve();
   private pending = 0;
+  private backgroundPending = 0;
   private searchId = 0;
   private matches: PdfMatch[] = [];
   private matchIndex = -1;
@@ -56,7 +55,15 @@ export class PdfViewer {
   private anchor = 0;
   private dragging = false;
   private moving = false;
-  private latestPoint: { x: number; y: number; gesture: number } | undefined;
+  private latestPoint:
+    | {
+        x: number;
+        y: number;
+        gesture: number;
+        page?: string;
+        layoutId?: number;
+      }
+    | undefined;
 
   protected constructor(
     protected readonly client: PdfClient,
@@ -76,6 +83,7 @@ export class PdfViewer {
       readOnlyReason: state.readOnlyReason,
       diagnostics: state.diagnostics,
       data: {
+        readingMode: "single",
         query: state,
         matches: [],
         matchIndex: -1,
@@ -188,6 +196,7 @@ export class PdfViewer {
     const old = this.observable.getSnapshot().data;
     const data =
       old.query === this.state &&
+      old.readingMode === this.readingMode &&
       old.matches === this.matches &&
       old.matchIndex === this.matchIndex &&
       old.searching === this.searching &&
@@ -197,6 +206,7 @@ export class PdfViewer {
       old.applying === input.applying
         ? old
         : {
+            readingMode: this.readingMode,
             query: this.state,
             matches: this.matches,
             matchIndex: this.matchIndex,
@@ -213,14 +223,15 @@ export class PdfViewer {
       page: this.state.pages.findIndex((page) => page.id === this.state.page),
       pageCount: this.state.pages.length,
       zoom: this.zoom,
-      selection:
-        this.selection.anchor === this.selection.focus
+      selection: this.rangeSelection
+        ? "pages"
+        : this.selection.anchor === this.selection.focus
           ? ""
           : `${this.selection.anchor}:${this.selection.focus}`,
       composition: input.composition,
       dragging: this.dragging,
       draft: input.draft,
-      busy: this.pending,
+      busy: this.pending - this.backgroundPending,
       paused: this.paused,
       stopped: this.stopped,
       closed: this.closed,
@@ -247,7 +258,11 @@ export class PdfViewer {
       }
     });
   }
-  protected enqueue<T>(action: () => Promise<T>, output = false): Promise<T> {
+  protected enqueue<T>(
+    action: () => Promise<T>,
+    output = false,
+    background = false,
+  ): Promise<T> {
     if (this.closed || this.closing)
       return Promise.reject(new Error("PDF viewer is closed"));
     if (this.paused && !output)
@@ -255,8 +270,12 @@ export class PdfViewer {
     if (this.pending >= 128)
       return Promise.reject(new Error("PDF input queue exceeds budget"));
     this.pending++;
+    if (background) this.backgroundPending++;
     this.publish();
-    this.element.setAttribute("aria-busy", "true");
+    this.element.setAttribute(
+      "aria-busy",
+      String(this.pending > this.backgroundPending),
+    );
     const result = this.tail.then(action).catch((error) => {
       this.errorMessage =
         error instanceof Error ? error.message : String(error);
@@ -267,9 +286,13 @@ export class PdfViewer {
       .catch(() => {})
       .finally(() => {
         this.pending--;
+        if (background) this.backgroundPending--;
         this.publish();
         if (!this.closed)
-          this.element.setAttribute("aria-busy", String(this.pending > 0));
+          this.element.setAttribute(
+            "aria-busy",
+            String(this.pending > this.backgroundPending),
+          );
       });
     return result;
   }
@@ -291,11 +314,32 @@ export class PdfViewer {
     this.matchIndex = -1;
   }
   protected async paint(page = this.state.page): Promise<void> {
+    this.rangeSelection = undefined;
     this.gesture++;
     this.dragging = false;
     this.latestPoint = undefined;
     this.selection = { anchor: 0, focus: 0 };
     try {
+      if (this.reading) {
+        const view = await this.reading.update(this.state, page, this.zoom);
+        this.layout = view.layout;
+        this.surface = view.surface;
+        this.scale = view.scale;
+        await this.client.execute({
+          operation: "selectPdf",
+          layoutId: view.layout.id,
+          anchor: 0,
+          focus: 0,
+        });
+        this.state = { ...this.state, page };
+        this.semantics.textContent = view.layout.text;
+        this.pageDiagnostics = view.layout.diagnostics;
+        this.stopped = false;
+        this.errorMessage = "";
+        this.stateChanged();
+        return;
+      }
+      const previous = this.layout;
       const layout = await this.client.execute({
         operation: "renderPdfPage",
         revision: this.state.revision,
@@ -303,6 +347,11 @@ export class PdfViewer {
         profile: this.profile,
       });
       if (this.closing || this.closed) return;
+      if (previous && previous.id !== layout.id)
+        await this.client.execute({
+          operation: "releasePdfView",
+          layoutId: previous.id,
+        });
       this.state = { ...this.state, page: layout.page };
       this.layout = layout;
       await this.surface.prepare(this.client, layout);
@@ -330,7 +379,16 @@ export class PdfViewer {
   }
   async refresh(): Promise<void> {
     this.checkDraft();
-    return this.enqueue(() => this.paint());
+    return this.enqueue(async () => {
+      const state = await this.client.execute({ operation: "queryPdf" });
+      if (state.revision !== this.state.revision) {
+        this.matches = [];
+        this.matchIndex = -1;
+        this.cancelSearch();
+      }
+      this.state = state;
+      await this.paint();
+    });
   }
   async goToPage(page: string): Promise<void> {
     this.checkDraft();
@@ -363,6 +421,7 @@ export class PdfViewer {
     anchor?: number,
     focus?: number,
   ): Promise<PdfSelection> {
+    this.rangeSelection = undefined;
     const layout = this.layout;
     if (!layout) throw new Error("PDF page is not displayed");
     const selection = await this.client.execute({
@@ -382,6 +441,14 @@ export class PdfViewer {
   }
   async selectedText(): Promise<string> {
     return this.enqueue(async () => {
+      if (this.rangeSelection)
+        return (
+          await this.client.execute({
+            operation: "selectedPdfRange",
+            revision: this.state.revision,
+            profile: this.profile,
+          })
+        ).text;
       if (!this.layout) throw new Error("PDF page is not displayed");
       return (
         await this.client.execute({
@@ -400,6 +467,72 @@ export class PdfViewer {
         profile: this.profile,
       }),
     );
+  }
+  async navigation() {
+    return this.enqueue(() =>
+      this.client.execute({ operation: "pdfNavigation" }),
+    );
+  }
+  async setReadingMode(
+    mode: "single" | "continuous" | "double",
+  ): Promise<void> {
+    this.checkDraft();
+    if (!["single", "continuous", "double"].includes(mode))
+      throw new Error("Unknown PDF reading mode");
+    return this.enqueue(async () => {
+      if (mode === this.readingMode) return;
+      await this.reading?.dispose();
+      if (this.readingMode === "single") this.singleSurface.dispose();
+      this.reading = undefined;
+      this.readingMode = mode;
+      if (mode === "single") {
+        this.singleSurface = new PdfCanvas();
+        this.surface = this.singleSurface;
+        this.viewport.replaceChildren(
+          this.surface.canvas,
+          this.surface.overlay,
+        );
+      } else {
+        this.reading = new PdfReading(
+          this.client,
+          this.viewport,
+          this.profile,
+          mode,
+          (action) => this.enqueue(action),
+        );
+      }
+      await this.paint();
+    });
+  }
+  async selectRange(
+    anchorPage: string,
+    anchor: number,
+    focusPage: string,
+    focus: number,
+  ): Promise<PdfRangeSelection> {
+    return this.enqueue(() =>
+      this.rangeNow(anchorPage, anchor, focusPage, focus),
+    );
+  }
+  private async rangeNow(
+    anchorPage: string,
+    anchor: number,
+    focusPage: string,
+    focus: number,
+  ): Promise<PdfRangeSelection> {
+    const result = await this.client.execute({
+      operation: "selectPdfRange",
+      revision: this.state.revision,
+      anchorPage,
+      anchor,
+      focusPage,
+      focus,
+      profile: this.profile,
+    });
+    this.rangeSelection = result;
+    this.reading?.selection(result.pages);
+    this.publish();
+    return result;
   }
   cancelSearch(): void {
     this.searchId++;
@@ -484,12 +617,14 @@ export class PdfViewer {
     });
   }
   private point(event: PointerEvent) {
-    const bounds = this.surface.canvas.getBoundingClientRect();
-    return {
-      x: (event.clientX - bounds.left) / this.scale,
-      y: (event.clientY - bounds.top) / this.scale,
-      gesture: this.gesture,
-    };
+    return readingPoint(
+      this.reading,
+      this.layout,
+      this.surface,
+      this.scale,
+      this.gesture,
+      event,
+    );
   }
   private movePointer(): void {
     if (this.moving) return;
@@ -503,11 +638,21 @@ export class PdfViewer {
           if (!layout || point.gesture !== this.gesture) continue;
           const hit = await this.client.execute({
             operation: "hitTestPdf",
-            layoutId: layout.id,
+            layoutId: point.layoutId ?? layout.id,
             x: point.x,
             y: point.y,
           });
-          await this.updateSelection(this.anchor, hit.offset);
+          if (
+            point.page &&
+            (point.page !== this.anchorPage || this.rangeSelection)
+          )
+            await this.rangeNow(
+              this.anchorPage,
+              this.anchor,
+              point.page,
+              hit.offset,
+            );
+          else await this.updateSelection(this.anchor, hit.offset);
         }
       }).finally(() => {
         this.moving = false;
@@ -519,6 +664,13 @@ export class PdfViewer {
     this.viewport.addEventListener(
       "pointerdown",
       (event) => {
+        const page = this.reading?.at(event.clientX, event.clientY);
+        if (page) {
+          this.layout = page.layout;
+          this.surface = page.surface;
+          this.scale = page.scale;
+          this.state = { ...this.state, page: page.layout.page };
+        }
         if (
           event.button !== 0 ||
           !this.layout ||
@@ -543,6 +695,7 @@ export class PdfViewer {
               y: point.y,
             });
             this.anchor = hit.offset;
+            this.anchorPage = this.layout.page;
             await this.updateSelection(hit.offset, hit.offset);
           }),
         );
@@ -579,46 +732,14 @@ export class PdfViewer {
       },
       { signal },
     );
-    bindClipboard(
-      this.viewport,
+    bindPdfKeyboard(
+      this,
       signal,
-      (cut) =>
-        this.perform(async () => {
-          if (cut) throw new Error("PDF body text is read-only");
-          await this.copy();
-        }),
-      () => {
-        this.errorMessage = "PDF body text is read-only";
+      (action) => this.perform(action),
+      (message) => {
+        this.errorMessage = message;
         this.publish();
       },
-      (error) => {
-        this.errorMessage = error.message;
-        this.publish();
-      },
-      () => false,
-    );
-    this.viewport.addEventListener(
-      "keydown",
-      (event) => {
-        if (event.defaultPrevented || event.isComposing || this.paused) return;
-        if (event.key === "PageDown" || event.key === "PageUp") {
-          event.preventDefault();
-          this.perform(() =>
-            this.navigatePage(event.key === "PageDown" ? 1 : -1),
-          );
-        } else if (event.key === "F3") {
-          event.preventDefault();
-          this.perform(() => this.nextMatch(event.shiftKey ? -1 : 1));
-        } else if (
-          (event.ctrlKey || event.metaKey) &&
-          event.key.toLowerCase() === "a" &&
-          this.layout
-        ) {
-          event.preventDefault();
-          this.perform(() => this.selectText(0, this.layout?.text.length ?? 0));
-        }
-      },
-      { signal },
     );
   }
   async close(): Promise<void> {
@@ -637,6 +758,15 @@ export class PdfViewer {
   }
   copy(): Promise<void> {
     return this.enqueue(async () => {
+      if (this.rangeSelection) {
+        const selection = await this.client.execute({
+          operation: "selectedPdfRange",
+          revision: this.state.revision,
+          profile: this.profile,
+        });
+        await navigator.clipboard.writeText(selection.text);
+        return;
+      }
       if (!this.layout) throw new Error("PDF page is not displayed");
       const { text } = await this.client.execute({
         operation: "selectedPdfText",
@@ -655,8 +785,9 @@ export class PdfViewer {
     this.observable.close();
     this.cleanup = this.tail
       .then(() => {})
-      .finally(() => {
-        this.surface.dispose();
+      .finally(async () => {
+        await this.reading?.dispose();
+        this.singleSurface.dispose();
         this.element.remove();
         this.layout = undefined;
         this.matches = [];

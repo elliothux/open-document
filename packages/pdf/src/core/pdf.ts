@@ -1,207 +1,34 @@
 import { WasmSession, encodeBytes } from "@open-document/wasm/abi/session";
 import { record } from "@open-document/wasm/abi/validation";
-import {
-  drawingBatch,
-  type DrawingBatch,
-} from "@open-document/wasm/abi/drawing";
+import { drawingBatch } from "@open-document/wasm/abi/drawing";
 
-export interface PdfBudget {
-  fileBytes: number;
-  objects: number;
-  objectNumber: number;
-  pages: number;
-  revisions: number;
-  depth: number;
-  streamBytes: number;
-  decodedBytes: number;
-  steps: number;
-  outputBytes: number;
-}
-export interface PdfPage {
-  id: string;
-  object: number;
-  generation: number;
-  width: number;
-  height: number;
-  rotate: number;
-}
-export interface PdfAnnotation {
-  id: string;
-  page: string;
-  kind: string;
-  text: string;
-  readOnlyReason: string;
-}
-export interface PdfField {
-  id: string;
-  name: string;
-  kind: "text" | "checkbox" | "unsupported";
-  value: string | boolean | null;
-  readOnlyReason: string;
-  multiline: boolean;
-  maxLength: number;
-  widgets: { id: string; page: string }[];
-}
-export interface PdfQuery {
-  revision: number;
-  page: string;
-  pages: PdfPage[];
-  annotations: PdfAnnotation[];
-  fields: PdfField[];
-  readOnlyReason: string;
-  pageOrderReason: string;
-  canUndo: boolean;
-  canRedo: boolean;
-  historyBytes: number;
-  modified: boolean;
-  diagnostics: string[];
-}
-export interface PdfTextSpan {
-  start: number;
-  end: number;
-  text: string;
-  quad: number[];
-  source: string;
-  mapped: boolean;
-  invisible: boolean;
-}
-export interface PdfText {
-  page: string;
-  revision: number;
-  text: string;
-  spans: PdfTextSpan[];
-  complete: boolean;
-  diagnostics: string[];
-}
-export interface PdfLayout extends DrawingBatch {
-  id: number;
-  page: string;
-  revision: number;
-  text: string;
-  spans: PdfTextSpan[];
-  textComplete: boolean;
-  displayComplete: boolean;
-  diagnostics: string[];
-}
-export interface PdfSearch {
-  page: string;
-  revision: number;
-  complete: boolean;
-  hits: { start: number; end: number; quads: number[][] }[];
-  diagnostics: string[];
-}
-export interface PdfSelection {
-  page: string;
-  layoutId: number;
-  revision: number;
-  anchor: number;
-  focus: number;
-  quads: number[][];
-}
-export interface PdfHit {
-  page: string;
-  layoutId: number;
-  revision: number;
-  offset: number;
-}
-export interface PdfImage {
-  kind: "rgba" | "jpeg";
-  bytes: Uint8Array;
-  width: number;
-  height: number;
-}
-type PageRequest = {
-  revision: number;
-  page: string;
-  profile: Record<string, string>;
-};
-export type PdfCommand =
-  | { operation: "defaultPdfBudget" }
-  | { operation: "openPdf"; bytes: Uint8Array; budget: PdfBudget }
-  | { operation: "queryPdf" }
-  | ({ operation: "renderPdfPage" | "extractPdfText" } & PageRequest)
-  | ({ operation: "searchPdfPage"; query: string } & PageRequest)
-  | { operation: "hitTestPdf"; layoutId: number; x: number; y: number }
-  | { operation: "selectPdf"; layoutId: number; anchor: number; focus: number }
-  | { operation: "selectedPdfText"; layoutId: number }
-  | { operation: "imagePdf"; layoutId: number; key: string }
-  | {
-      operation: "decodedImagePdf";
-      layoutId: number;
-      key: string;
-      width: number;
-      height: number;
-      bytes: Uint8Array;
-    }
-  | {
-      operation: "reorderPdfPages" | "deletePdfPages";
-      revision: number;
-      pages: string[];
-    }
-  | {
-      operation: "rotatePdfPages";
-      revision: number;
-      pages: string[];
-      degrees: number;
-    }
-  | {
-      operation: "addPdfNote";
-      revision: number;
-      page: string;
-      x: number;
-      y: number;
-      text: string;
-    }
-  | { operation: "highlightPdfText"; revision: number; layoutId: number }
-  | {
-      operation: "updatePdfAnnotation";
-      revision: number;
-      page: string;
-      annotation: string;
-      text: string;
-    }
-  | {
-      operation: "deletePdfAnnotation";
-      revision: number;
-      page: string;
-      annotation: string;
-    }
-  | {
-      operation: "setPdfFieldValue";
-      revision: number;
-      field: string;
-      value: string | boolean;
-      profile: Record<string, string>;
-    }
-  | { operation: "undoPdf" | "redoPdf"; revision: number }
-  | { operation: "savePdf"; revision: number };
-
-type Result<O extends PdfCommand["operation"]> = O extends "defaultPdfBudget"
-  ? PdfBudget
-  : O extends "renderPdfPage"
-    ? PdfLayout
-    : O extends "extractPdfText"
-      ? PdfText
-      : O extends "searchPdfPage"
-        ? PdfSearch
-        : O extends "hitTestPdf"
-          ? PdfHit
-          : O extends "selectPdf"
-            ? PdfSelection
-            : O extends "selectedPdfText"
-              ? { text: string }
-              : O extends "imagePdf" | "decodedImagePdf"
-                ? PdfImage
-                : O extends "savePdf"
-                  ? { revision: number; bytes: Uint8Array }
-                  : PdfQuery;
-export type PdfResult<C extends PdfCommand> = Result<C["operation"]>;
+import type { PdfBudget, PdfCommand, PdfResult } from "./pdf-types.js";
+export type * from "./pdf-types.js";
 
 const operations: ReadonlySet<string> = new Set([
   "defaultPdfBudget",
   "openPdf",
+  "createPdf",
   "queryPdf",
+  "pdfObjects",
+  "addPdfText",
+  "replacePdfText",
+  "addPdfImage",
+  "movePdfObject",
+  "deletePdfObject",
+  "selectPdfRange",
+  "selectedPdfRange",
+  "cropPdfPage",
+  "resizePdfPage",
+  "pdfNavigation",
+  "insertPdfPages",
+  "replacePdfPages",
+  "insertBlankPdfPage",
+  "extractPdfPages",
+  "pdfMetadata",
+  "setPdfMetadata",
   "renderPdfPage",
+  "releasePdfView",
   "extractPdfText",
   "searchPdfPage",
   "hitTestPdf",
@@ -349,6 +176,95 @@ export function pdfResult<C extends PdfCommand>(
 ): PdfResult<C> {
   const object = record(value);
   switch (command.operation) {
+    case "pdfObjects":
+      if (
+        integer(object.revision) !== command.revision ||
+        text(object.page, 256) !== command.page
+      )
+        throw new Error("Stale PDF objects");
+      for (const entry of array(object.objects, 4096)) {
+        const item = record(entry);
+        bool(item.foreground);
+        text(item.id, 4096);
+        if (!["text", "image", "unsupported"].includes(String(item.kind)))
+          throw new Error("Invalid PDF object kind");
+        const placement = record(item.placement);
+        for (const key of ["x", "y", "width", "height", "rotation"]) {
+          const coordinate = placement[key];
+          if (
+            typeof coordinate !== "number" ||
+            !Number.isFinite(coordinate) ||
+            Math.abs(coordinate) > 14400
+          )
+            throw new Error("Invalid PDF placement");
+        }
+        text(item.text, 262144);
+        text(item.font, 256);
+        text(item.color, 6);
+        text(item.role, 64);
+        text(item.readOnlyReason);
+        if (
+          typeof item.size !== "number" ||
+          !Number.isFinite(item.size) ||
+          item.size < 0 ||
+          item.size > 14400
+        )
+          throw new Error("Invalid PDF font size");
+      }
+      break;
+    case "selectPdfRange":
+    case "selectedPdfRange":
+      if (integer(object.revision) !== command.revision)
+        throw new Error("Stale PDF range");
+      text(object.text, 1048576);
+      for (const entry of array(object.pages, 1024)) {
+        const page = record(entry);
+        text(page.page, 256);
+        if (integer(page.start, 262144) > integer(page.end, 262144))
+          throw new Error("Invalid PDF range");
+        for (const points of array(page.quads, 1048576)) quad(points);
+      }
+      break;
+    case "pdfNavigation": {
+      integer(object.revision);
+      for (const [key, limit] of [
+        ["outlines", 1024],
+        ["links", 4096],
+      ] as const) {
+        for (const entry of array(object[key], limit)) {
+          const item = record(entry);
+          text(item.id, 256);
+          if (key === "outlines") {
+            text(item.title);
+            integer(item.level, 64);
+          } else {
+            text(item.page, 256);
+            for (const field of ["x", "y", "width", "height"])
+              if (
+                typeof item[field] !== "number" ||
+                !Number.isFinite(item[field]) ||
+                Math.abs(item[field]) > 1e9
+              )
+                throw new Error("Invalid PDF link geometry");
+          }
+          const target = record(item.target);
+          if (!["page", "uri", "blocked"].includes(String(target.kind)))
+            throw new Error("Invalid PDF destination");
+          text(target.page, 256);
+          text(target.uri, 2048);
+          text(target.reason);
+        }
+      }
+      break;
+    }
+    case "pdfMetadata": {
+      integer(object.revision);
+      text(object.readOnlyReason);
+      const fields = record(object.fields);
+      for (const key of ["Title", "Author", "Subject", "Keywords"])
+        text(fields[key]);
+      break;
+    }
     case "defaultPdfBudget": {
       const maxima: PdfBudget = {
         fileBytes: 67108864,
@@ -368,6 +284,7 @@ export function pdfResult<C extends PdfCommand>(
       break;
     }
     case "savePdf":
+    case "extractPdfPages":
       integer(object.revision);
       if (object.revision !== command.revision)
         throw new Error("PDF save revision changed");
@@ -453,11 +370,19 @@ export class PdfSession extends WasmSession {
     let value: unknown;
     if (
       command.operation === "openPdf" ||
+      command.operation === "insertPdfPages" ||
+      command.operation === "replacePdfPages" ||
+      command.operation === "addPdfImage" ||
       command.operation === "decodedImagePdf"
     ) {
       if (
         command.bytes.length >
-        (command.operation === "openPdf" ? command.budget.fileBytes : 16777216)
+        (command.operation === "openPdf"
+          ? command.budget.fileBytes
+          : command.operation === "insertPdfPages" ||
+              command.operation === "replacePdfPages"
+            ? 67108864
+            : 16777216)
       )
         throw new Error("PDF input exceeds budget");
       value = this.call({ ...command, bytes: encodeBytes(command.bytes) });

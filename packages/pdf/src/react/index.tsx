@@ -12,7 +12,7 @@ export async function mountEditor(
 ): Promise<MountedEditor> {
   const product: Product<PdfEditor> = {
     format: "pdf",
-    canCreate: false,
+    canCreate: true,
     delimited: false,
     accept: ".pdf",
     readLabel: true,
@@ -33,9 +33,8 @@ export async function mountEditor(
     },
   };
   const mounted = await mountProduct(container, options, product);
-  const { create: _create, ...methods } = mounted;
   return {
-    ...methods,
+    ...mounted,
     format: "pdf",
     get editor() {
       return mounted.editor;

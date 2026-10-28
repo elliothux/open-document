@@ -43,15 +43,20 @@ fn Context::pdf_operation(
   if operation == "defaultPdfBudget" {
     return @model.PdfBudget::default().to_json()
   }
-  if operation == "openPdf" {
+  if operation == "openPdf" || operation == "createPdf" {
     guard request is { "budget": value, .. } else {
       @failure.reject("invalid-budget", "Explicit PDF budget is required")
     }
     let budget = pdf_budget(value)
-    let candidate = @model.PdfSession::open(
-      input_bytes(request, budget.fileBytes),
-      budget,
-    )
+    let candidate = if operation == "createPdf" {
+      @model.PdfSession::create(
+        field_number(request, "width"),
+        field_number(request, "height"),
+        budget,
+      )
+    } else {
+      @model.PdfSession::open(input_bytes(request, budget.fileBytes), budget)
+    }
     errdefer candidate.close()
     let result = candidate.query()
     if self.pdf is Some(previous) {
@@ -66,6 +71,87 @@ fn Context::pdf_operation(
   }
   match operation {
     "queryPdf" => session.query()
+    "pdfNavigation" => session.navigation()
+    "selectPdfRange" =>
+      session.select_range(
+        field_int(request, "revision"),
+        field_string(request, "anchorPage"),
+        field_int(request, "anchor"),
+        field_string(request, "focusPage"),
+        field_int(request, "focus"),
+        self.probe,
+        font_profile(request),
+      )
+    "selectedPdfRange" =>
+      session.selected_range(
+        field_int(request, "revision"),
+        self.probe,
+        font_profile(request),
+      )
+    "cropPdfPage" =>
+      session.crop_page(
+        field_int(request, "revision"),
+        field_string(request, "page"),
+        field_number(request, "x"),
+        field_number(request, "y"),
+        field_number(request, "width"),
+        field_number(request, "height"),
+      )
+    "resizePdfPage" =>
+      session.resize_page(
+        field_int(request, "revision"),
+        field_string(request, "page"),
+        field_number(request, "width"),
+        field_number(request, "height"),
+        field_boolean(request, "scaleContent"),
+        field_string(request, "anchor"),
+      )
+    "insertPdfPages" =>
+      session.insert_pages(
+        field_int(request, "revision"),
+        input_bytes(request, 67108864),
+        pdf_strings(request, "pages"),
+        field_int(request, "index"),
+      )
+    "replacePdfPages" =>
+      session.insert_pages(
+        field_int(request, "revision"),
+        input_bytes(request, 67108864),
+        pdf_strings(request, "pages"),
+        field_int(request, "index"),
+        replace=pdf_strings(request, "replace"),
+      )
+    "insertBlankPdfPage" =>
+      session.insert_blank(
+        field_int(request, "revision"),
+        field_int(request, "index"),
+        field_number(request, "width"),
+        field_number(request, "height"),
+      )
+    "extractPdfPages" =>
+      {
+        "revision": field_int(request, "revision"),
+        "bytes": @base64.encode(
+          session.extract_pages(
+            field_int(request, "revision"),
+            pdf_strings(request, "pages"),
+          ),
+        ),
+      }
+    "pdfMetadata" => session.metadata()
+    "setPdfMetadata" => {
+      guard request is { "fields": Object(values), .. } else {
+        @failure.reject("invalid-operation", "PDF metadata fields are required")
+      }
+      let fields : Map[String, String] = Map([])
+      for key, value in values {
+        guard value is String(text) else {
+          @failure.reject("invalid-operation", "PDF metadata must be text")
+        }
+        fields[key] = text
+      }
+      session.set_metadata(field_int(request, "revision"), fields)
+    }
     "renderPdfPage" =>
       session.render(
         field_int(request, "revision"),
@@ -73,7 +159,29 @@ fn Context::pdf_operation(
         self.probe,
         font_profile(request),
         self.images,
+        activate=match request {
+          { "activate": True, .. } => true
+          { "activate": False, .. } => false
+          { "activate": _, .. } =>
+            @failure.reject(
+              "invalid-operation", "PDF activation must be boolean",
+            )
+          _ => true
+        },
+        reuse=match request {
+          { "reuse": True, .. } => true
+          { "reuse": False, .. } => false
+          { "reuse": _, .. } =>
+            @failure.reject(
+              "invalid-operation", "PDF view reuse must be boolean",
+            )
+          _ => false
+        },
       )
+    "releasePdfView" => {
+      session.release_view(field_int(request, "layoutId"))
+      session.query()
+    }
     "extractPdfText" =>
       session.extract(
         field_int(request, "revision"),
@@ -203,6 +311,6 @@ fn Context::pdf_operation(
         "height": image.height,
       }
     }
-    _ => @failure.reject("invalid-operation", "Unknown PDF operation")
+    _ => self.pdf_object_operation(operation, request)
   }
 }

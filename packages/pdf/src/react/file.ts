@@ -10,7 +10,6 @@ export async function prepareFile(
   signal: AbortSignal,
 ): Promise<OwnedFile> {
   signal.throwIfAborted();
-  if (document.blank) throw new Error("Blank creation is unavailable for PDF");
   if (document.delimited !== undefined && true)
     throw new Error("Import options require CSV/TSV input in an XLSX editor");
   const surface = parent.ownerDocument.createElement("div");
@@ -36,7 +35,6 @@ export async function prepareFile(
     }
   };
   try {
-    if (!document.bytes) throw new Error("PDF input bytes are required");
     const connection = (client = await PdfClient.open(
       options.resources.engine,
       options.resources.workerUrl,
@@ -44,13 +42,23 @@ export async function prepareFile(
     ));
     const budget = options.budget ?? (await connection.defaultBudget());
     inputLimit = budget.fileBytes;
-    if (document.bytes.length > inputLimit)
+    if (document.bytes && document.bytes.length > inputLimit)
       throw new Error("Document input exceeds budget");
-    await connection.execute({
-      operation: "openPdf",
-      bytes: document.bytes,
-      budget,
-    });
+    if (document.blank)
+      await connection.execute({
+        operation: "createPdf",
+        width: 595,
+        height: 842,
+        budget,
+      });
+    else {
+      if (!document.bytes) throw new Error("PDF input bytes are required");
+      await connection.execute({
+        operation: "openPdf",
+        bytes: document.bytes,
+        budget,
+      });
+    }
     await fonts(connection);
     file = {
       format: "pdf",
@@ -63,7 +71,7 @@ export async function prepareFile(
     return {
       ...opened,
       originalName: document.name,
-      imported: false,
+      imported: document.blank === true,
       draftCanSave: false,
       cancelDraft: () => opened.editor.cancelDraft(),
       navigate: (index) => {

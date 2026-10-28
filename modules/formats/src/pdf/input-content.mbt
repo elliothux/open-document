@@ -1,256 +1,4 @@
 ///|
-priv struct GraphicsState {
-  matrix : @layout.Matrix
-  fill : String
-  stroke : String
-  width : Double
-  style : @layout.DrawStyle
-  text : @pdflite.PdfContentTextState
-  font : SourceFont?
-  clips : Int32
-  fillSpace : String
-  strokeSpace : String
-}
-
-///|
-priv struct MarkedText {
-  replacement : String?
-  span : Int32
-  chunk : Int32
-  offset : Int32
-}
-
-///|
-priv struct ContentContext {
-  session : PdfSession
-  page : SourcePage
-  probe : @layout.TextProbe
-  supplied : @layout.TextProbe
-  profile : Map[String, String]
-  images : @layout.Images
-  commands : Array[@layout.DrawCommand]
-  diagnostics : Array[String]
-  spans : Array[TextSpan]
-  chunks : Array[String]
-  mut units : Int32
-  mut textComplete : Bool
-  mut displayComplete : Bool
-  fonts : Map[String, SourceFont]
-  imageKeys : Array[String]
-  jpeg : Map[String, JpegImage]
-  forms : Map[String, Bool]
-  marked : Array[MarkedText]
-  mut nesting : Int32
-}
-
-///|
-fn matrix(value : @geometry.TransformMatrix) -> @layout.Matrix {
-  { a: value.a, b: value.b, c: value.c, d: value.d, e: value.e, f: value.f, }
-}
-
-///|
-fn geometry_matrix(value : @layout.Matrix) -> @geometry.TransformMatrix {
-  { a: value.a, b: value.b, c: value.c, d: value.d, e: value.e, f: value.f, }
-}
-
-///|
-fn ContentContext::scope(
-  self : ContentContext,
-  command : @layout.DrawCommand,
-) -> Unit raise @failure.Failure {
-  if command is Transform(matrix) {
-    ignore(matrix.inverse())
-  }
-  if command is ClipPath(path, _) {
-    ignore(path_in(path, @layout.Matrix::identity()))
-  }
-  guard self.nesting < 32 else {
-    @failure.reject("limit-exceeded", "PDF drawing stack exceeds budget")
-  }
-  self.commands.push(command)
-  self.nesting += 1
-}
-
-///|
-fn ContentContext::restore(self : ContentContext) -> Unit {
-  self.commands.push(@layout.Restore)
-  self.nesting -= 1
-}
-
-///|
-fn ContentContext::append(
-  self : ContentContext,
-  text : String,
-) -> Unit raise @failure.Failure {
-  guard text.length() <= 262144 - self.units else {
-    @failure.reject("limit-exceeded", "PDF page text exceeds budget")
-  }
-  self.chunks.push(text)
-  self.units += text.length()
-}
-
-///|
-fn path_in(
-  path : Array[@layout.PathSegment],
-  transform : @layout.Matrix,
-) -> Array[@layout.PathSegment] raise @failure.Failure {
-  path.map(segment => {
-    match segment {
-      Move(x, y) => {
-        let (x, y) = checked_point(transform, x, y)
-        @layout.Move(x, y)
-      }
-      Line(x, y) => {
-        let (x, y) = checked_point(transform, x, y)
-        @layout.Line(x, y)
-      }
-      Cubic(x1, y1, x2, y2, x, y) => {
-        let (x1, y1) = checked_point(transform, x1, y1)
-        let (x2, y2) = checked_point(transform, x2, y2)
-        let (x, y) = checked_point(transform, x, y)
-        @layout.Cubic(x1, y1, x2, y2, x, y)
-      }
-      Close => @layout.Close
-    }
-  })
-}
-
-///|
-fn checked_point(
-  matrix : @layout.Matrix,
-  x : Double,
-  y : Double,
-) -> (Double, Double) raise @failure.Failure {
-  let point = matrix.point(x, y)
-  guard [x, y, point.0, point.1].all(value => {
-    !value.is_nan() && !value.is_inf() && value.abs() <= 1000000000
-  }) else {
-    @failure.reject("limit-exceeded", "PDF path coordinates exceed budget")
-  }
-  point
-}
-
-///|
-fn rgb(values : Array[Double]) -> String raise @failure.Failure {
-  let values = if values.length() == 1 {
-    [values[0], values[0], values[0]]
-  } else {
-    values
-  }
-  guard values.length() == 3 else {
-    @failure.reject("unsupported-pdf", "Unsupported PDF color space")
-  }
-  let out = StringBuilder()
-  for value in values {
-    guard !value.is_nan() && !value.is_inf() else {
-      @failure.reject("invalid-pdf", "Invalid PDF color")
-    }
-    out.write_string(
-      (value.max(0).min(1) * 255)
-      .round()
-      .to_int()
-      .to_string(radix=16)
-      .pad_start(2, '0'),
-    )
-  }
-  out.to_string()
-}
-
-///|
-fn ext_state(
-  document : @pdflite.PdfDocument,
-  resources : @syntax.PdfObject,
-  name : @pdfcore.PdfName,
-  state : GraphicsState,
-) -> GraphicsState raise @failure.Failure {
-  let object = get(
-    document,
-    get(document, resources, "ExtGState"),
-    @utf8.decode_lossy(name.bytes())[1:].to_owned(),
-  )
-  guard object is PdfDictionary(entries) else {
-    @failure.reject("invalid-pdf", "Missing ExtGState resource")
-  }
-  let mut style = state.style
-  let mut width = state.width
-  for (key, value) in entries {
-    let value = resolve(document, value)
-    match @utf8.decode_lossy(key.bytes()) {
-      "/Type" => ()
-      "/ca" | "/CA" as key => {
-        let alpha = number(value)
-        guard alpha >= 0 && alpha <= 1 else {
-          @failure.reject("invalid-pdf", "Invalid PDF transparency")
-        }
-        style = if key == "/ca" {
-          { ..style, fillAlpha: alpha, }
-        } else {
-          { ..style, strokeAlpha: alpha, }
-        }
-      }
-      "/BM" => {
-        let value = match value {
-          PdfArray([single]) => single
-          _ => value
-        }
-        guard is_name(value, "Normal") ||
-          is_name(value, "Compatible") ||
-          is_name(value, "Multiply") else {
-          @failure.reject("unsupported-pdf", "Unsupported PDF blend mode")
-        }
-        style = { ..style, multiply: is_name(value, "Multiply"), }
-      }
-      "/LW" => width = number(value)
-      "/LC" => style = { ..style, cap: integer(value), }
-      "/LJ" => style = { ..style, join: integer(value), }
-      "/ML" => style = { ..style, miter: number(value), }
-      "/D" => {
-        guard value is PdfArray([PdfArray(items), offset]) else {
-          @failure.reject("invalid-pdf", "Invalid PDF dash array")
-        }
-        style = {
-          ..style,
-          dash: items.map(number),
-          dashOffset: number(offset),
-        }
-      }
-      "/SMask" if is_name(value, "None") => ()
-      "/AIS" | "/OP" | "/op" if value == @syntax.PdfBoolean(false) => ()
-      "/OPM" if value == @syntax.PdfInteger(0) => ()
-      "/TK" if value == @syntax.PdfBoolean(true) => ()
-      _ =>
-        @failure.reject(
-          "unsupported-pdf", "Unsupported PDF graphics state property",
-        )
-    }
-  }
-  { ..state, style, width, }
-}
-
-///|
-fn check_style(
-  style : @layout.DrawStyle,
-  width : Double,
-) -> Unit raise @failure.Failure {
-  guard !style.dashOffset.is_nan() &&
-    !style.dashOffset.is_inf() &&
-    style.dashOffset.abs() <= 1000000000 &&
-    width >= 0 &&
-    width <= 14400 &&
-    [0, 1, 2].contains(style.cap) &&
-    [0, 1, 2].contains(style.join) &&
-    style.miter >= 1 &&
-    style.miter <= 1000000 &&
-    style.dash.length() <= 256 &&
-    style.dash.all(value => {
-      value >= 0 && value <= 1000000000 && !value.is_nan() && !value.is_inf()
-    }) &&
-    (style.dash.is_empty() || style.dash.any(value => value > 0)) else {
-    @failure.reject("invalid-pdf", "Invalid PDF stroke style")
-  }
-}
-
-///|
 fn interpret(
   context : ContentContext,
   bytes : Bytes,
@@ -258,12 +6,20 @@ fn interpret(
   identity : String,
   initial : GraphicsState,
   depth : Int32,
+  origin~ : PdfSourceOrigin? = None,
 ) -> Unit raise {
   guard depth < 32 else {
     @failure.reject("limit-exceeded", "PDF Form depth exceeds budget")
   }
   let document = context.session.document
   let ops = @pdflite.pdf_parse_content_ops_from_view(bytes)
+  let ranges = if context.collectSource {
+    Some(pdf_operator_ranges(bytes, ops.length())) catch {
+      _ => None
+    }
+  } else {
+    None
+  }
   let stack : Array[GraphicsState] = []
   let mut state = initial
   let path : Array[@layout.PathSegment] = []
@@ -272,7 +28,15 @@ fn interpret(
   let mut clip : Bool? = None
   let mut compatibility = 0
   let marked_start = context.marked.length()
+  let mut textDepth = 0
   for op_index, op in ops {
+    let location = source_location(origin, ranges, op_index, resources)
+    if op is Op_BT {
+      textDepth += 1
+    }
+    if op is Op_ET {
+      textDepth -= 1
+    }
     @pdfcore.sdk_check(1)
     guard context.commands.length() + context.spans.length() + path.length() <=
       1048576 else {
@@ -463,8 +227,59 @@ fn interpret(
           text: state.text.content_apply_text_state_op(op),
         }
       }
-      Op_Tj(_) | Op_TJ(_) | Op_quote(_) | Op_double_quote(_, _, _) =>
+      Op_Tj(_) | Op_TJ(_) | Op_quote(_) | Op_double_quote(_, _, _) => {
+        let start = context.spans.length()
+        let previous = state
         state = show_text(context, state, op, "\{identity}:\{op_index}")
+        if context.collectSource &&
+          context.spans.length() > start &&
+          !(origin is Some({ owned: true, .. })) &&
+          !(location is Some({ owned: true, .. })) {
+          guard context.sources.length() < 4096 else {
+            @failure.reject(
+              "limit-exceeded", "PDF editable objects exceed budget",
+            )
+          }
+          let fontIndex = match previous.font {
+            Some(font) => font.index
+            None => None
+          }
+          let font = previous.font.map(font => font.family).unwrap_or("")
+          context.sources.push({
+            id: source_identity(
+              context.page.id,
+              context.session.revision,
+              location,
+              identity,
+              op_index,
+            ),
+            kind: "text",
+            location,
+            reference: @syntax.PdfNull,
+            matrix: previous.matrix,
+            before: previous.text,
+            after: state.text,
+            spans: context.spans[start:].to_owned(),
+            font,
+            fontIndex,
+            color: previous.fill,
+            reason: if textDepth != 1 {
+              "Text object boundaries are protected"
+            } else if !context.marked.is_empty() {
+              "Marked text requires synchronized replacement data"
+            } else if previous.clips > 0 {
+              "Clipped text requires explicit reconstruction"
+            } else if previous.text.rendering_mode != 0 {
+              "Invisible or non-fill PDF text is protected"
+            } else if fontIndex is None {
+              "An embeddable source font is required"
+            } else {
+              ""
+            },
+            op,
+          })
+        }
+      }
       Op_BT
       | Op_ET
       | Op_Tc(_)
@@ -532,6 +347,40 @@ fn interpret(
             @layout.Image({ key, x: 0, y: 0, width: 1, height: 1, }),
           )
           context.restore()
+          if context.collectSource &&
+            !(origin is Some({ owned: true, .. })) &&
+            !(location is Some({ owned: true, .. })) {
+            guard context.sources.length() < 4096 else {
+              @failure.reject(
+                "limit-exceeded", "PDF source objects exceed budget",
+              )
+            }
+            context.sources.push({
+              id: source_identity(
+                context.page.id,
+                context.session.revision,
+                location,
+                identity,
+                op_index,
+              ),
+              kind: "image",
+              location,
+              reference,
+              matrix: state.matrix,
+              before: state.text,
+              after: state.text,
+              spans: [],
+              font: "",
+              fontIndex: None,
+              color: "",
+              reason: if state.clips > 0 {
+                "Clipped source images require explicit reconstruction"
+              } else {
+                ""
+              },
+              op,
+            })
+          }
         } else {
           guard is_name(raw(object, "Subtype"), "Form") &&
             !context.forms.contains(key) &&
@@ -560,6 +409,43 @@ fn interpret(
           )
           context.forms[key] = true
           let own_resources = get(document, object, "Resources")
+          let taggedText = is_name(raw(object, "ODKind"), "Text")
+          let taggedImage = is_name(raw(object, "ODKind"), "Image")
+          let owned = origin is Some({ owned: true, .. }) ||
+            location is Some({ owned: true, .. })
+          let child = match reference {
+            PdfIndirect(number) => number
+            _ => 0
+          }
+          let sourceOrigin : PdfSourceOrigin = match location {
+            Some(location) if child > 0 => {
+              let path = location.path.copy()
+              path.push({
+                number: location.number,
+                start: location.start,
+                end: location.end,
+                resources,
+                child,
+                clip: form_state.matrix,
+              })
+              {
+                segments: [],
+                number: child,
+                rootIndex: location.rootIndex,
+                path,
+                owned: owned || taggedText || taggedImage,
+              }
+            }
+            _ =>
+              {
+                segments: [],
+                number: 0,
+                rootIndex: 0,
+                path: [],
+                owned: owned || taggedText || taggedImage,
+              }
+          }
+          let spanStart = context.spans.length()
           interpret(
             context,
             stream_bytes(document, object),
@@ -568,12 +454,74 @@ fn interpret(
             } else {
               own_resources
             },
-            key,
+            "\{identity}/do\{op_index}:\{key}",
             form_state,
             depth + 1,
+            origin=Some(sourceOrigin),
           )
           context.forms.remove(key)
           context.restore()
+          if context.collectSource && !owned && (taggedText || taggedImage) {
+            guard context.sources.length() < 4096 else {
+              @failure.reject(
+                "limit-exceeded", "PDF source objects exceed budget",
+              )
+            }
+            let fontIndex = match
+              get(
+                document,
+                if own_resources == @syntax.PdfNull {
+                  resources
+                } else {
+                  own_resources
+                },
+                "Font",
+              ) {
+              PdfDictionary([(_, PdfIndirect(font))]) =>
+                context.fonts
+                .get(font.to_string())
+                .map(font => font.index)
+                .unwrap_or(None)
+              _ => None
+            }
+            context.sources.push({
+              id: source_identity(
+                context.page.id,
+                context.session.revision,
+                location,
+                identity,
+                op_index,
+              ),
+              kind: if taggedText {
+                "text-form"
+              } else {
+                "image-form"
+              },
+              location,
+              reference,
+              matrix: form_state.matrix,
+              before: state.text,
+              after: state.text,
+              spans: context.spans[spanStart:].to_owned(),
+              font: if taggedText {
+                pdf_text_string(raw(object, "ODFont"))
+              } else {
+                ""
+              },
+              fontIndex,
+              color: if taggedText {
+                pdf_text_string(raw(object, "ODColor"))
+              } else {
+                ""
+              },
+              reason: if state.clips > 0 {
+                "Clipped source objects require explicit reconstruction"
+              } else {
+                ""
+              },
+              op,
+            })
+          }
         }
       }
       Op_BMC(tag) => {

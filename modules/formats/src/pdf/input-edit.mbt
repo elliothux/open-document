@@ -3,6 +3,7 @@ priv struct PdfTransaction {
   session : PdfSession
   objects : Map[Int32, @syntax.PdfObject]
   mut next : Int32
+  mut trailer : @syntax.PdfObject
 }
 
 ///|
@@ -14,7 +15,12 @@ fn PdfSession::transaction(
   guard self.readOnlyReason.is_empty() else {
     @failure.reject("protected-content", self.readOnlyReason)
   }
-  { session: self, objects: Map([]), next: self.nextObject, }
+  {
+    session: self,
+    objects: Map([]),
+    next: self.nextObject,
+    trailer: self.document.trailer_dict().deep_copy(),
+  }
 }
 
 ///|
@@ -135,6 +141,8 @@ fn PdfTransaction::commit(
       return session.query()
     }
     let view = document_view(session.document)
+    let beforeTrailer = session.document.trailer_dict().deep_copy()
+    view.set_trailer_dict(self.trailer)
     let numbers = session.generations.copy()
     for change in changes {
       numbers[change.number] = change.generation
@@ -147,6 +155,7 @@ fn PdfTransaction::commit(
     for change in changes {
       validate_value(numbers, change.after, 0)
     }
+    validate_value(numbers, self.trailer, 0)
     let pages = read_pages(view, numbers, session.budget)
     guard pages.any(item => item.id == page) else {
       @failure.reject("invalid-page", "PDF transaction removed the active page")
@@ -174,6 +183,7 @@ fn PdfTransaction::commit(
       session.generations[change.number] = change.generation
     }
     session.document.sdk_clear_events()
+    session.document.set_trailer_dict(self.trailer)
     for entry in session.redo {
       session.historyBytes -= entry.bytes
     }
@@ -183,6 +193,8 @@ fn PdfTransaction::commit(
       session.historyBytes -= session.undo.remove(0).bytes
     }
     session.undo.push({
+      beforeTrailer,
+      afterTrailer: self.trailer,
       changes,
       bytes: size.to_int(),
       beforePage: session.current,
@@ -209,9 +221,11 @@ fn PdfTransaction::commit(
 
 ///|
 pub fn PdfSession::invalidate(self : PdfSession) -> Unit {
-  if self.display is Some(display) {
+  self.textRange = None
+  for _, display in self.views {
     display.probe.close()
   }
+  self.views.clear()
   self.display = None
 }
 
@@ -229,6 +243,8 @@ pub fn PdfSession::undo_edit(
   }
   let entry = source[source.length() - 1]
   let view = document_view(self.document)
+  let trailer = if redo { entry.afterTrailer } else { entry.beforeTrailer }
+  view.set_trailer_dict(trailer)
   let numbers = self.generations.copy()
   for change in entry.changes {
     if redo {
@@ -293,6 +309,7 @@ pub fn PdfSession::undo_edit(
     }
   }
   ignore(source.pop())
+  self.document.set_trailer_dict(trailer)
   self.document.sdk_clear_events()
   target.push(entry)
   self.pages = pages

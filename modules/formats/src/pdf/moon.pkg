@@ -1,5 +1,6 @@
 import {
   "open_document/core/failure",
+  "open_document/core/xml",
   "open_document/layout",
   "moonbitlang/pdflite",
   "moonbitlang/pdflite/core" @pdfcore,
@@ -10,4 +11,5 @@ import {
   "moonbitlang/core/encoding/utf16",
   "moonbitlang/pdflite/subsetter",
   "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/math",
 }

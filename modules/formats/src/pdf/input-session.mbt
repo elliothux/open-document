@@ -25,6 +25,8 @@ fn PdfSession::build_display(
   errdefer probe.close()
   pdf_bound(self.budget, () => {
     let context : ContentContext = {
+      sources: [],
+      collectSource: true,
       session: self,
       page,
       probe,
@@ -76,13 +78,15 @@ fn PdfSession::build_display(
           "unsupported-pdf", "PDF page transparency groups are unsupported",
         )
       }
+      let (bytes, origin) = page_source(self.document, raw(object, "Contents"))
       interpret(
         context,
-        content_bytes(self.document, raw(object, "Contents")),
+        bytes,
         page.resources,
         id,
         state,
         0,
+        origin=Some(origin),
       )
     } catch {
       @failure.Failure(code="limit-exceeded", ..) as error => raise error
@@ -134,8 +138,24 @@ fn PdfSession::build_display(
     let bodyText = context.chunks.join("")
     let bodyComplete = context.textComplete
     context.marked.clear()
+    context.collectSource = false
     render_appearances(context, state)
+    let mut imageBytes : Int64 = 0
+    for key in context.imageKeys {
+      imageBytes += if context.jpeg.get(key) is Some(image) {
+        image.width.to_int64() * image.height.to_int64() * 4
+      } else {
+        images.get(key).rgba.length().to_int64()
+      }
+    }
+    guard imageBytes <= 16777216 else {
+      @failure.reject("limit-exceeded", "PDF page decoded images exceed budget")
+    }
     {
+      sources: context.sources,
+      profile: profile.copy(),
+      resources: images,
+      imageBytes: imageBytes.to_int(),
       page: id,
       id: self.layoutId + 1,
       revision: self.revision,
@@ -157,7 +177,7 @@ fn PdfSession::build_display(
 }
 
 ///|
-/// Render one page; derived resources replace the previous displayed page.
+/// Retain a bounded page view; background rendering preserves active selection.
 pub fn PdfSession::render(
   self : PdfSession,
   revision : Int32,
@@ -165,23 +185,64 @@ pub fn PdfSession::render(
   supplied : @layout.TextProbe,
   profile : Map[String, String],
   images : @layout.Images,
+  activate~ : Bool = true,
+  reuse~ : Bool = false,
 ) -> Json raise @failure.Failure {
   self.check(revision)
+  if reuse {
+    for _, view in self.views {
+      if view.page == page &&
+        view.revision == revision &&
+        profile.length() == view.profile.length() &&
+        profile.iter().all(pair => view.profile.get(pair.0) == Some(pair.1)) {
+        let result = display_json(view, reused=true)
+        if activate {
+          self.display = Some(view)
+          self.current = page
+          self.selection = (0, 0)
+        }
+        return result
+      }
+    }
+  }
   let temporary = @layout.Images::new()
   guard pdf_layout_serial.val < 2147483647 else {
     @failure.reject("limit-exceeded", "PDF drawing identity exhausted")
   }
   let candidate = self.build_display(page, supplied, profile, temporary)
-  let display = { ..candidate, id: pdf_layout_serial.val + 1, }
-  let outlines = display.probe.outline_resources()
-  if self.display is Some(previous) {
-    previous.probe.close()
+  errdefer candidate.probe.close()
+  let mut retained : Int64 = candidate.imageBytes.to_int64()
+  let mut count = 1
+  let mut previous : Int32? = None
+  for id, view in self.views {
+    if view.page == page {
+      previous = Some(id)
+    } else {
+      retained += view.imageBytes.to_int64()
+      count += 1
+    }
   }
-  self.display = Some(display)
+  guard count <= 8 && retained <= 16777216 else {
+    @failure.reject(
+      "limit-exceeded", "Release PDF views before retaining more than eight pages or 16 MiB of images",
+    )
+  }
+  let display = { ..candidate, id: pdf_layout_serial.val + 1, }
+  let result = display_json(display, reused=false)
+  if previous is Some(id) {
+    self.views[id].probe.close()
+    self.views.remove(id)
+  }
+  self.views[display.id] = display
   self.layoutId = display.id
   pdf_layout_serial.val = display.id
-  self.current = page
-  self.selection = (0, 0)
+  if activate {
+    self.display = Some(display)
+    self.current = page
+    self.selection = (0, 0)
+  } else if self.display is Some(active) && active.page == page {
+    self.display = Some(display)
+  }
   images.clear()
   for key in display.images {
     if !display.jpeg.contains(key) {
@@ -189,12 +250,21 @@ pub fn PdfSession::render(
       images.add(key, image.width, image.height, image.rgba)
     }
   }
+  result
+}
+
+///|
+fn display_json(
+  display : PageDisplay,
+  reused~ : Bool,
+) -> Json raise @failure.Failure {
   {
+    "reused": reused,
     "id": display.id,
-    "revision": revision,
-    "page": page,
+    "revision": display.revision,
+    "page": display.page,
     "regions": [display.region],
-    "outlines": outlines,
+    "outlines": display.probe.outline_resources(),
     "images": display.images,
     "text": display.text,
     "spans": display.spans,
@@ -210,7 +280,7 @@ fn PdfSession::current_display(
   id : Int32,
 ) -> PageDisplay raise @failure.Failure {
   self.check(self.revision)
-  guard self.display is Some(display) &&
+  guard self.views.get(id) is Some(display) &&
     display.id == id &&
     display.revision == self.revision else {
     @failure.reject("stale-layout", "PDF geometry requires the displayed page")
@@ -352,6 +422,9 @@ pub fn PdfSession::select_text(
     }
   }
   self.selection = (anchor, focus)
+  self.textRange = None
+  self.display = Some(display)
+  self.current = display.page
   let start = anchor.min(focus)
   let end = anchor.max(focus)
   {
@@ -434,7 +507,7 @@ pub fn PdfSession::image(
   self : PdfSession,
   layout_id : Int32,
   key : String,
-  images : @layout.Images,
+  _images : @layout.Images,
 ) -> (String, Bytes, Int32, Int32) raise @failure.Failure {
   let display = self.current_display(layout_id)
   guard display.images.contains(key) else {
@@ -443,7 +516,7 @@ pub fn PdfSession::image(
   if display.jpeg.get(key) is Some(jpeg) {
     ("jpeg", jpeg.bytes, jpeg.width, jpeg.height)
   } else {
-    let image = images.get(key)
+    let image = display.resources.get(key)
     ("rgba", image.rgba, image.width, image.height)
   }
 }
@@ -475,5 +548,19 @@ pub fn PdfSession::decoded_image(
       decoded_sample(rgba[i], jpeg.decode[c * 2], jpeg.decode[c * 2 + 1])
     }
   })
+  display.resources.add(key, width, height, output)
   images.add(key, width, height, output)
+}
+
+///|
+/// Release a page view and reject subsequent geometry or image requests for it.
+pub fn PdfSession::release_view(self : PdfSession, id : Int32) -> Unit {
+  if self.views.get(id) is Some(view) {
+    view.probe.close()
+    self.views.remove(id)
+    if self.display is Some(active) && active.id == id {
+      self.display = None
+      self.selection = (0, 0)
+    }
+  }
 }

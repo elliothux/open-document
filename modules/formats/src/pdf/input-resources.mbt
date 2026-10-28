@@ -83,6 +83,7 @@ fn content_bytes(
 
 ///|
 priv struct SourceFont {
+  family : String
   font : @pdflite.PdfFont
   index : Int32?
   gidMap : Bytes?
@@ -204,6 +205,7 @@ fn font_resource(
     None
   }
   {
+    family: base,
     font,
     index,
     gidMap: gid_map,

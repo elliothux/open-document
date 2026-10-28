@@ -62,6 +62,10 @@ pub extend TextSpan with ToJson::{to_json}
 
 ///|
 struct PageDisplay {
+  sources : Array[PdfSourceObject]
+  profile : Map[String, String]
+  resources : @layout.Images
+  imageBytes : Int32
   page : String
   id : Int32
   revision : Int32
@@ -95,6 +99,8 @@ priv struct ObjectChange {
 
 ///|
 struct PdfHistory {
+  beforeTrailer : @syntax.PdfObject
+  afterTrailer : @syntax.PdfObject
   changes : Array[ObjectChange]
   bytes : Int32
   beforePage : String
@@ -114,8 +120,10 @@ pub struct PdfSession {
   mut revision : Int32
   mut layoutId : Int32
   mut display : PageDisplay?
+  views : Map[Int32, PageDisplay]
   mut current : String
   mut selection : (Int32, Int32)
+  mut textRange : (String, Int32, String, Int32)?
   mut nextObject : Int32
   mut stateId : Int32
   mut nextState : Int32
@@ -190,9 +198,10 @@ pub fn PdfSession::close(self : PdfSession) -> Unit {
   self.pages = []
   self.undo.clear()
   self.redo.clear()
-  if self.display is Some(display) {
+  for _, display in self.views {
     display.probe.close()
   }
+  self.views.clear()
   self.display = None
   self.document.sdk_clear()
   self.generations.clear()
