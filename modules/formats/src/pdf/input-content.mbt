@@ -126,6 +126,22 @@ fn interpret(
             }),
           )
           context.scope(@layout.Transform(state.matrix))
+          context.extracted_path(
+            path,
+            state,
+            if op is (Op_S | Op_s) {
+              ""
+            } else {
+              state.fill
+            },
+            if op is (Op_f | Op_F | Op_fstar) {
+              ""
+            } else {
+              state.stroke
+            },
+            { ..state.style, evenOdd: op is (Op_fstar | Op_Bstar | Op_bstar), },
+            depth,
+          )
           context.commands.push(
             @layout.Path(
               path_in(path, state.matrix.inverse()),
@@ -230,7 +246,7 @@ fn interpret(
       Op_Tj(_) | Op_TJ(_) | Op_quote(_) | Op_double_quote(_, _, _) => {
         let start = context.spans.length()
         let previous = state
-        state = show_text(context, state, op, "\{identity}:\{op_index}")
+        state = show_text(context, state, op, "\{identity}:\{op_index}", depth)
         if context.collectSource &&
           context.spans.length() > start &&
           !(origin is Some({ owned: true, .. })) &&
@@ -343,6 +359,7 @@ fn interpret(
               state.matrix.then({ a: 1, b: 0, c: 0, d: -1, e: 0, f: 1, }),
             ),
           )
+          context.extracted_image(reference, key, state, depth)
           context.commands.push(
             @layout.Image({ key, x: 0, y: 0, width: 1, height: 1, }),
           )
@@ -446,9 +463,16 @@ fn interpret(
               }
           }
           let spanStart = context.spans.length()
+          let formBytes = stream_bytes(document, object)
+          if context.extraction is Some(data) {
+            data.formScopes.push(simple_image_form(formBytes))
+          }
+          defer (if context.extraction is Some(data) {
+            ignore(data.formScopes.pop())
+          })
           interpret(
             context,
-            stream_bytes(document, object),
+            formBytes,
             if own_resources == @syntax.PdfNull {
               resources
             } else {
@@ -531,6 +555,9 @@ fn interpret(
           )
         }
         context.marked.push({
+          glyph: context.extraction
+          .map(data => data.glyphs.length())
+          .unwrap_or(0),
           replacement: None,
           span: context.spans.length(),
           chunk: context.chunks.length(),
@@ -559,6 +586,9 @@ fn interpret(
         }
         let actual = get(document, properties, "ActualText")
         context.marked.push({
+          glyph: context.extraction
+          .map(data => data.glyphs.length())
+          .unwrap_or(0),
           replacement: if actual == @syntax.PdfNull {
             None
           } else {

@@ -1,0 +1,12 @@
+import {
+  "open_document/formats/pdf",
+  "open_document/formats/docx",
+  "open_document/formats/xlsx",
+  "open_document/formats/pptx",
+  "open_document/formats/internal/image",
+  "open_document/core/archive",
+  "open_document/core/failure",
+  "open_document/layout",
+  "moonbitlang/core/math",
+  "moonbitlang/pdflite/core" @pdfcore,
+}

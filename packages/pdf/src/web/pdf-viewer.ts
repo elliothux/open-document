@@ -37,7 +37,7 @@ export class PdfViewer {
   protected paused = false;
   protected readonly observable: EditorState<PdfEditorData>;
   protected errorMessage = "";
-  private pageDiagnostics: readonly string[] = [];
+  protected pageDiagnostics: readonly string[] = [];
   private searching = false;
   private searchPage = 0;
   private cleanup: Promise<void> | undefined;
@@ -179,6 +179,7 @@ export class PdfViewer {
   protected inputState(): {
     draft: boolean;
     composition: boolean;
+    dragging?: boolean;
     property: string;
     propertyReason: string;
     applying: boolean;
@@ -229,7 +230,7 @@ export class PdfViewer {
           ? ""
           : `${this.selection.anchor}:${this.selection.focus}`,
       composition: input.composition,
-      dragging: this.dragging,
+      dragging: this.dragging || input.dragging === true,
       draft: input.draft,
       busy: this.pending - this.backgroundPending,
       paused: this.paused,

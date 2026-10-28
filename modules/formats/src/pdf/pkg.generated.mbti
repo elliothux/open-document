@@ -8,12 +8,33 @@ import {
 }
 
 // Values
-pub fn write(@layout.PositionedDocument, @layout.TextProbe, @layout.Images, Int32) -> Bytes raise @failure.Failure
+pub fn read_bounds(Array[Double]) -> (Double, Double, Double, Double)
+
+pub fn read_line_in_table(PdfReadLine, PdfReadTable) -> Bool
+
+pub fn read_line_text(PdfReadLine) -> String
+
+pub fn read_tables(Array[PdfExtractedPath], Array[PdfReadLine]) -> Array[PdfReadTable] raise @failure.Failure
+
+pub fn read_text_lines(PdfExtraction, Map[String, String], Array[String], Int32) -> Array[PdfReadLine] raise @failure.Failure
+
+pub fn read_warning(Array[String], String) -> Unit
+
+pub fn write(@layout.PositionedDocument, @layout.TextProbe, @layout.Images, Int32, clean_fonts? : Bool, text_groups? : Array[PdfTextGroup]) -> Bytes raise @failure.Failure
 
 // Errors
 
 // Types and methods
 type PageDisplay
+
+pub(all) struct PdfAnnotationStyle {
+  placement : PdfPlacement
+  color : String
+  opacity : Double
+  border : Double
+  author : String
+  text : String
+}
 
 pub(all) struct PdfBudget {
   fileBytes : Int32
@@ -30,7 +51,130 @@ pub(all) struct PdfBudget {
 pub fn PdfBudget::default() -> Self
 pub fn PdfBudget::to_json(Self) -> Json
 
+pub(all) struct PdfDrawingAnnotation {
+  kind : String
+  placement : PdfPlacement
+  points : Array[Double]
+  color : String
+  opacity : Double
+  border : Double
+  author : String
+  text : String
+  arrow : Bool
+}
+
+pub(all) struct PdfExtractedGlyph {
+  text : String
+  encodedText : String
+  font : String
+  color : String
+  fontIndex : Int32
+  glyph : UInt32
+  size : Double
+  baseline : Array[Double]
+  quad : Array[Double]
+  inkQuad : Array[Double]
+  transform : @layout.Matrix
+  primitive : Int32
+  group : Int32
+  mapped : Bool
+  invisible : Bool
+  substituted : Bool
+  marked : Bool
+  clipped : Bool
+  formDepth : Int32
+  annotation : Bool
+  cleanReason : String
+}
+
+pub(all) struct PdfExtractedImage {
+  key : String
+  pixelWidth : Int32
+  pixelHeight : Int32
+  rgba : Bytes
+  jpeg : Bytes?
+  opacity : Double
+  transform : @layout.Matrix
+  quad : Array[Double]
+  primitive : Int32
+  reference : Int32
+  formDepth : Int32
+  clipped : Bool
+  simpleForm : Bool
+  annotation : Bool
+  cleanReason : String
+}
+
+pub(all) struct PdfExtractedPath {
+  path : Array[@layout.PathSegment]
+  fill : String
+  stroke : String
+  width : Double
+  style : @layout.DrawStyle
+  primitive : Int32
+  clipped : Bool
+  formDepth : Int32
+  annotation : Bool
+  cleanReason : String
+}
+
+pub(all) struct PdfExtraction {
+  page : String
+  revision : Int32
+  width : Double
+  height : Double
+  text : String
+  textComplete : Bool
+  displayComplete : Bool
+  diagnostics : Array[String]
+  glyphs : Array[PdfExtractedGlyph]
+  images : Array[PdfExtractedImage]
+  paths : Array[PdfExtractedPath]
+  primitives : Array[@layout.PositionedPrimitive]
+  probe : @layout.TextProbe
+  resources : @layout.Images
+}
+pub fn PdfExtraction::close(Self) -> Unit
+
+pub(all) struct PdfFieldDesign {
+  name : String
+  tooltip : String
+  kind : String
+  placement : PdfPlacement
+  options : Array[(String, String)]
+  value : Json
+  defaultValue : Json
+  readOnly : Bool
+  required : Bool
+  multiline : Bool
+  multiSelect : Bool
+  maxLength : Int32
+  font : String
+  size : Double
+  color : String
+  background : String
+  border : Double
+}
+
+pub(all) struct PdfFieldWidgetDesign {
+  id : String
+  page : String
+  placement : PdfPlacement
+  border : Double
+  borderColor : String
+  background : String
+  exportValue : String
+} derive(ToJson)
+pub fn PdfFieldWidgetDesign::to_json(Self) -> Json
+
 type PdfHistory
+
+pub(all) struct PdfImageCrop {
+  x : Double
+  y : Double
+  width : Double
+  height : Double
+}
 
 pub(all) struct PdfPlacement {
   x : Double
@@ -40,6 +184,50 @@ pub(all) struct PdfPlacement {
   rotation : Double
 } derive(ToJson)
 pub fn PdfPlacement::to_json(Self) -> Json
+
+pub(all) struct PdfReadCell {
+  row : Int32
+  column : Int32
+  rowSpan : Int32
+  columnSpan : Int32
+  lines : Array[PdfReadLine]
+  fill : String
+}
+
+pub(all) struct PdfReadLine {
+  runs : Array[PdfReadRun]
+  x : Double
+  y : Double
+  width : Double
+  height : Double
+  rotation : Double
+}
+
+pub(all) struct PdfReadRun {
+  text : String
+  font : String
+  identity : String
+  size : Double
+  color : String
+  bold : Bool
+  italic : Bool
+}
+
+pub(all) struct PdfReadTable {
+  xs : Array[Double]
+  ys : Array[Double]
+  cells : Array[PdfReadCell]
+  paths : Array[Int32]
+}
+
+pub(all) struct PdfRedactionRegion {
+  page : String
+  x : Double
+  y : Double
+  width : Double
+  height : Double
+} derive(ToJson)
+pub fn PdfRedactionRegion::to_json(Self) -> Json
 
 pub struct PdfSession {
   document : @pdflite.PdfDocument
@@ -63,20 +251,34 @@ pub struct PdfSession {
   readOnlyReason : String
   mut closed : Bool
 }
-pub fn PdfSession::add_highlight(Self, Int32, Int32) -> Json raise @failure.Failure
+pub fn PdfSession::add_drawing_annotation(Self, Int32, String, PdfDrawingAnnotation, strokes? : Array[Array[Double]], signature? : Bool) -> Json raise @failure.Failure
+pub fn PdfSession::add_highlight(Self, Int32, Int32, kind? : String) -> Json raise @failure.Failure
 pub fn PdfSession::add_image(Self, Int32, String, PdfPlacement, Int32, Int32, Bytes, @layout.TextProbe, Map[String, String], replace? : String) -> Json raise @failure.Failure
 pub fn PdfSession::add_note(Self, Int32, String, Double, Double, String) -> Json raise @failure.Failure
-pub fn PdfSession::add_text(Self, Int32, Array[String], PdfTextSpec, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
+pub fn PdfSession::add_stamp_annotation(Self, Int32, String, PdfAnnotationStyle, Int32, Int32, Bytes, Bool) -> Json raise @failure.Failure
+pub fn PdfSession::add_text(Self, Int32, Array[String], PdfTextSpec, @layout.TextProbe, Map[String, String], replace_numbers? : Bool) -> Json raise @failure.Failure
+pub fn PdfSession::annotation_details(Self, Int32, String, String) -> Json raise @failure.Failure
+pub fn PdfSession::annotation_thread(Self, Int32, String, String) -> Json raise @failure.Failure
 pub fn PdfSession::change_annotation(Self, Int32, String, String, String, Bool) -> Json raise @failure.Failure
 pub fn PdfSession::change_source_object(Self, Int32, String, String, PdfPlacement?, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn PdfSession::close(Self) -> Unit
 pub fn PdfSession::create(Double, Double, PdfBudget) -> Self raise @failure.Failure
+pub fn PdfSession::create_field(Self, Int32, String, PdfFieldDesign, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
+pub fn PdfSession::crop_image(Self, Int32, String, String, PdfImageCrop, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn PdfSession::crop_page(Self, Int32, String, Double, Double, Double, Double) -> Json raise @failure.Failure
 pub fn PdfSession::decoded_image(Self, Int32, String, Int32, Int32, Bytes, @layout.Images) -> Unit raise @failure.Failure
+pub fn PdfSession::delete_annotation_thread(Self, Int32, String, String) -> Json raise @failure.Failure
+pub fn PdfSession::delete_field(Self, Int32, String) -> Json raise @failure.Failure
 pub fn PdfSession::delete_object(Self, Int32, String, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn PdfSession::delete_pages(Self, Int32, Array[String]) -> Json raise @failure.Failure
+pub fn PdfSession::duplicate_field(Self, Int32, String, String, Double, Double) -> Json raise @failure.Failure
+pub fn PdfSession::edit_annotation(Self, Int32, String, String, PdfAnnotationStyle) -> Json raise @failure.Failure
+pub fn PdfSession::export_redaction(Self, Int32, Array[PdfRedactionRegion], @layout.TextProbe, Map[String, String], decoded? : @layout.Images) -> (Bytes, Array[String]) raise @failure.Failure
+pub fn PdfSession::export_text(Self, Int32, Array[String], String, @layout.TextProbe, Map[String, String], decoded? : @layout.Images) -> (Bytes, Array[String]) raise @failure.Failure
 pub fn PdfSession::extract(Self, Int32, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
+pub fn PdfSession::extract_page(Self, Int32, String, @layout.TextProbe, Map[String, String], decoded? : @layout.Images) -> PdfExtraction raise @failure.Failure
 pub fn PdfSession::extract_pages(Self, Int32, Array[String]) -> Bytes raise @failure.Failure
+pub fn PdfSession::field_design(Self, Int32, String) -> Json raise @failure.Failure
 pub fn PdfSession::hit(Self, Int32, Double, Double) -> Json raise @failure.Failure
 pub fn PdfSession::image(Self, Int32, String, @layout.Images) -> (String, Bytes, Int32, Int32) raise @failure.Failure
 pub fn PdfSession::insert_blank(Self, Int32, Int32, Double, Double) -> Json raise @failure.Failure
@@ -85,14 +287,18 @@ pub fn PdfSession::invalidate(Self) -> Unit
 pub fn PdfSession::metadata(Self) -> Json raise @failure.Failure
 pub fn PdfSession::move_object(Self, Int32, String, String, PdfPlacement, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn PdfSession::navigation(Self) -> Json raise @failure.Failure
+pub fn PdfSession::nup_pages(Self, Int32, Array[String], Int32, Int32, Double, Double) -> Json raise @failure.Failure
 pub fn PdfSession::objects(Self, Int32, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn PdfSession::open(Bytes, PdfBudget) -> Self raise @failure.Failure
+pub fn PdfSession::preview_redaction(Self, Int32, Array[PdfRedactionRegion], @layout.TextProbe, Map[String, String], decoded? : @layout.Images) -> Json raise @failure.Failure
 pub fn PdfSession::query(Self) -> Json raise @failure.Failure
 pub fn PdfSession::release_view(Self, Int32) -> Unit
+pub fn PdfSession::rename_field(Self, Int32, String, String) -> Json raise @failure.Failure
 pub fn PdfSession::render(Self, Int32, String, @layout.TextProbe, Map[String, String], @layout.Images, activate? : Bool, reuse? : Bool) -> Json raise @failure.Failure
 pub fn PdfSession::reorder(Self, Int32, Array[String]) -> Json raise @failure.Failure
 pub fn PdfSession::replace_source_text(Self, Int32, String, String, PdfTextSpec, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn PdfSession::replace_text(Self, Int32, String, String, PdfTextSpec, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
+pub fn PdfSession::reply_annotation(Self, Int32, String, String, String, String) -> Json raise @failure.Failure
 pub fn PdfSession::resize_page(Self, Int32, String, Double, Double, Bool, String) -> Json raise @failure.Failure
 pub fn PdfSession::rotate_pages(Self, Int32, Array[String], Int32) -> Json raise @failure.Failure
 pub fn PdfSession::save(Self, Int32) -> Bytes raise @failure.Failure
@@ -103,7 +309,18 @@ pub fn PdfSession::selected_range(Self, Int32, @layout.TextProbe, Map[String, St
 pub fn PdfSession::selected_text(Self, Int32) -> String raise @failure.Failure
 pub fn PdfSession::set_field(Self, Int32, String, Json, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn PdfSession::set_metadata(Self, Int32, Map[String, String]) -> Json raise @failure.Failure
+pub fn PdfSession::split_files(Self, Int32, Array[Array[String]]) -> Array[(String, Bytes)] raise @failure.Failure
+pub fn PdfSession::split_page(Self, Int32, String, Array[PdfPlacement]) -> Json raise @failure.Failure
+pub fn PdfSession::split_page_grid(Self, Int32, String, Int32, Int32) -> Json raise @failure.Failure
 pub fn PdfSession::undo_edit(Self, Int32, Bool) -> Json raise @failure.Failure
+pub fn PdfSession::update_field_design(Self, Int32, String, PdfFieldDesign, Array[PdfFieldWidgetDesign], @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
+
+pub(all) struct PdfTextGroup {
+  page : Int32
+  start : Int32
+  end : Int32
+  text : String
+}
 
 pub(all) struct PdfTextSpec {
   placement : PdfPlacement

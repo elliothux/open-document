@@ -91,14 +91,14 @@ export function ObjectCommands(props: PanelProps) {
           "水印（全部页）",
           "页眉（全部页）",
           "页脚（全部页）",
-          "页码（全部页）",
+          "设置或更新页码（全部页）",
         ]
       : [
           "Insert text box",
           "Watermark (all pages)",
           "Header (all pages)",
           "Footer (all pages)",
-          "Page numbers (all pages)",
+          "Set or update page numbers (all pages)",
         ];
   return (
     <Group label={props.state.locale === "zh-CN" ? "内容" : "Content"}>

@@ -27,7 +27,7 @@ fn PdfSession::xmp_metadata(
     return None
   }
   let bytes = pdf_bound(self.budget, () => stream_bytes(self.document, metadata))
-  let document = @xml.Document::parse(bytes, "PDF XMP", 1048576, 64)
+  let document = @xml.Document::parse(bytes, "PDF XMP", 64, 1048576)
   let nodes : Array[@xml.Node] = document.nodes().iter().collect()
   guard nodes.length() <= 10000 else {
     @failure.reject("limit-exceeded", "XMP metadata has too many nodes")

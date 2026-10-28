@@ -6,7 +6,7 @@ XLSX 的网格、值/公式编辑、保真保存与基础打印见 [P5](../imple
 
 PPTX 已交付限定幻灯片编辑、源保留及静态 PDF，结果与检查依据见 [P6](../implemented/p6-pptx-editing.md)。
 
-PDF 包含 Office 布局输出，以及 [P7](../implemented/p7-pdf-input.md) 的限定输入/查询和 [P8](../implemented/p8-pdf-operations.md) 的页面、批注、普通字段与源对象保存。两种保存入口各自维护源语义。
+PDF 包含 Office 布局输出、[P7](../implemented/p7-pdf-input.md) 的输入/查询、[P8](../implemented/p8-pdf-operations.md) 的源对象保存，以及 [P13](../implemented/p13-pdf-core.md) 已交付的新建、阅读、对象编辑、表单、批注、页面编排与派生输出。当前能力和保护边界归本文；P13 的交付状态与验证仍归阶段方案。
 
 后续实现与测试基准优先使用 ONLYOFFICE core/sdkjs，其次使用 LibreOffice。下文 LibreOffice profile 记录已有实现和证据；对应功能调整时按当前优先级核对，并保留历史结果的真实来源。
 
@@ -30,7 +30,7 @@ DOCX 文字区段的实际宽度和后续起点按固定 LibreOffice 的整数 t
 
 各领域的 `@open-document/<format>/react` 提供 `mountEditor(container, options)`，分别挂载 DOCX、XLSX、PPTX 或 PDF 默认 UI。`container` 由宿主提供可测量的高度。格式由入口确定；`document` 为 `{ name, bytes }`，`resources` 明确提供 `{ engine, workerUrl, fonts, profile }`，可传对应 `budget`、`theme: "light" | "dark"`、`locale: "zh-CN" | "en-US"`、异步 `onSave`、初始 `signal` 和 `styleNonce`。接入代码与普通 JS 示例归[开发说明](development.md#默认-web-ui)。
 
-DOCX、XLSX、PPTX 也接受 `document: { name, blank: true }`，`OfficeDocument` 类型排除同时传入 `bytes`。包与模板由各自 MoonBit 格式模块生成，继续使用现有输入、包与输出预算；字体仍由宿主显式提供。DOCX 的 `FoundationSession/Client.createDocx(budget)` 使用 Letter 页面、一英寸边距、11 pt Times New Roman 和一个空段落。XLSX/PPTX 的具体入口和默认值归下文各格式合同。PDF 仍要求已有文件字节。
+DOCX、XLSX、PPTX 也接受 `document: { name, blank: true }`，`OfficeDocument` 类型排除同时传入 `bytes`。包与模板由各自 MoonBit 格式模块生成，继续使用现有输入、包与输出预算；字体仍由宿主显式提供。DOCX 的 `FoundationSession/Client.createDocx(budget)` 使用 Letter 页面、一英寸边距、11 pt Times New Roman 和一个空段落。XLSX/PPTX 的具体入口和默认值归下文各格式合同。PDF 同样接受空白创建，默认生成一页 595 × 842 point 的 PDF。
 
 返回的 `MountedEditor` 按 `format` 区分，`editor` 是当前文件的对应 Web 编辑宿主，只读属性在替换成功后指向新宿主。旧宿主释放后拒绝操作。实例提供以下方法：
 
@@ -38,7 +38,7 @@ DOCX、XLSX、PPTX 也接受 `document: { name, blank: true }`，`OfficeDocument
 | --- | --- |
 | `open({ name, bytes })` | 只替换同格式文件；处理草稿/未保存修改，暂停新编辑并等待已接受队列；独立候选完成字体和首屏后替换，失败或取消保留旧会话；成功 `true`，用户取消 `false`，失败拒绝 Promise |
 | `save()` | 产生原格式输出，等待 `onSave`；重复调用复用同一在途结果，回调期间可以继续编辑 |
-| Office `create({ name })` / `open({ name, blank: true })` | DOCX、XLSX、PPTX 复用替换确认与独立候选，成功后成为新文件；PDF 没有新建入口 |
+| `create({ name })` / `open({ name, blank: true })` | 四种格式复用替换确认与独立候选，成功后成为新文件 |
 | `saveAs(name)` | 使用新名称产生原格式输出；目标由宿主决定。失败保留旧名称和修改状态；成功后更新名称。不同名称不复用同一个在途输出 |
 | `print()` | 使用当前核心 PDF 请求 Chrome 打印对话框，返回 `Promise<void>`；范围与平台条件见[浏览器打印](#浏览器打印) |
 | `getSnapshot()` / `subscribe(listener)` | 转发当前宿主的稳定快照；外部订阅跨文件替换保持，监听器异常不改变事务 |
@@ -52,7 +52,7 @@ DOCX、XLSX、PPTX 也接受 `document: { name, blank: true }`，`OfficeDocument
 
 框架无关的四类编辑宿主提供 `getSnapshot()`、`subscribe()`、`focus()`、`setPaused()`、`markSaved(output)` 和 `markDownloaded(output)`。快照包含会话身份、revision、导航、缩放、选区摘要、历史、诊断、停止/错误、在途操作及组合/拖动/草稿状态，并附格式当前查询。未变化时保持对象身份；已提交但绘制失败仍发布新 revision，保留保存与恢复入口。低层宿主借用 client，调用者等待宿主释放后另行关闭 client。
 
-编辑宿主的原格式保存、Office PDF、DOCX/PPTX PNG、PPTX JPEG、XLSX CSV 和 DOCX HTML/Markdown 输出统一返回 `EditorOutput = { documentId, revision, format, bytes }`。`format` 另包含 `csv`、`png`、`jpeg`、`html` 和 `markdown`；编辑器输入格式仍为 DOCX/XLSX/PPTX/PDF。默认 UI 另加文件名 `name`。全页图片返回按页序排列的只读 `EditorOutput` 数组，具体合同见[DOCX 页面 PNG](#docx-页面-png)及[PPTX 图片输出](#当前页-png-输出)。此约定不改变原始 Wasm/client 的保存结果。只有该宿主实际产生的原格式输出可以 `markSaved`；旧会话、其他格式和任意裸 revision 都不能确认保存。确认的是输出 revision，其后新编辑仍显示未保存。导航、缩放和 UI 变化不修改文档。
+编辑宿主的原格式保存、Office PDF、DOCX/PPTX PNG、PPTX JPEG、XLSX CSV 和 DOCX HTML/Markdown 输出统一返回 `EditorOutput = { documentId, revision, format, bytes }`。`format` 另包含 `csv`、`png`、`jpeg`、`html` 和 `markdown`；编辑器输入格式仍为 DOCX/XLSX/PPTX/PDF。默认 UI 另加文件名 `name`。PDF 还提供 PNG/JPEG、HTML/Markdown 和原生 Office 转换；选页、分文件和清理副本即使格式仍为 PDF，也不能用 `markSaved` 确认源保存。全页图片返回按页序排列的只读 `EditorOutput` 数组，具体合同见[DOCX 页面 PNG](#docx-页面-png)及[PPTX 图片输出](#当前页-png-输出)。此约定不改变原始 Wasm/client 的保存结果。只有该宿主 `save()` 实际产生的原格式输出可以 `markSaved`；旧会话、其他格式和任意裸 revision 都不能确认保存。确认的是输出 revision，其后新编辑仍显示未保存。导航、缩放和 UI 变化不修改文档。
 
 原格式 `onSave` 成功才确认保存基线；失败保留修改并允许重试。缺省下载只提示“已生成下载”，不确认磁盘持久化，也不清除修改。PDF、PNG 和 CSV 导出不清除 Office 修改。关闭前选择“导出并继续”明确包含放弃内存会话。`dispose` 不等待宿主存储回调，晚到回执不更新已释放实例。
 
@@ -4057,30 +4057,90 @@ Wasm/Worker 的 `openPptx`、`createPptx` 接受可选 `dateTime`。平台缺省
 
 ## PDF 输入与文档操作
 
-`@open-document/pdf/core/pdf` 的 `PdfSession` 与 `@open-document/pdf/web/pdf` 的 `PdfClient` 共用类型化 `execute(command)`。同步入口由 `openPdf(engine)` 创建，Worker 入口为 `PdfClient.open(engine, workerUrl)`。字体使用 `addFont(bytes, identity)`。一个 UI 独占一个 client；低层调用方逐条 await 请求。
+`@open-document/pdf/core/pdf` 的 `PdfSession` 与 `@open-document/pdf/web/pdf` 的 `PdfClient` 共用类型化 `execute(command)`。同步入口由 `openPdf(engine)` 创建，Worker 入口为 `PdfClient.open(engine, workerUrl)`。字体使用 `addFont(bytes, identity)`。一个 UI 独占一个 client；低层调用方逐条 await 请求。公开请求和结果类型归 [`pdf-types.ts`](../../packages/pdf/src/core/pdf-types.ts)。以下是当前实现合同，不表示所有输入组合均已验收。
+
+### 会话、阅读与源保存
 
 | 命令 | 输入与结果 |
 | --- | --- |
-| `defaultPdfBudget` / `openPdf` / `queryPdf` | 默认预算；显式 bytes/budget 打开；查询当前源快照 |
-| `renderPdfPage` | revision、page、profile；当前页 `PdfLayout`、DrawingBatch、文字 spans 与独立完整性/诊断 |
+| `defaultPdfBudget` / `openPdf` / `createPdf` / `queryPdf` | 默认预算；显式 bytes/budget 打开，或以 width/height/budget 创建单页空白文档；查询当前源快照 |
+| `renderPdfPage` / `releasePdfView` | revision、page、profile；返回 `PdfLayout`、DrawingBatch、文字 spans 与独立完整性/诊断。`activate: false` 不切换活动页；`reuse: true` 可复用匹配视图，结果 `reused` 表示复用；按 layoutId 显式释放 |
 | `extractPdfText` / `searchPdfPage` | revision、page、profile；提取或给出 query 的字面命中与 quads，不切换展示页 |
 | `hitTestPdf` / `selectPdf` / `selectedPdfText` | layoutId；point 命中、UTF-16 anchor/focus 选区和复制文字；未知映射明确失败 |
+| `selectPdfRange` / `selectedPdfRange` | revision、两端 page/offset、profile；按文档顺序返回跨页文字和逐页 quads |
 | `imagePdf` / `decodedImagePdf` | layoutId/key；RGBA 或经过核心验证的 JPEG；宿主解码后提交匹配尺寸的 RGBA，核心应用 Decode/SMask |
-| `reorderPdfPages` / `rotatePdfPages` / `deletePdfPages` | revision、稳定 pages；完整排列、degrees 或删除列表；返回新快照 |
-| `addPdfNote` / `highlightPdfText` | revision；page/x/y/text 便笺，或当前 layoutId 的核心选区高亮 |
-| `updatePdfAnnotation` / `deletePdfAnnotation` | revision、page、annotation；更新 text 或删除受支持批注 |
-| `setPdfFieldValue` | revision、field、value、profile；文本或 boolean，同步所有 widget |
-| `undoPdf` / `redoPdf` / `savePdf` | revision；历史操作返回快照，保存返回 `{ revision, bytes }` |
+| `pdfNavigation` / `pdfMetadata` / `setPdfMetadata` | 查询目录、链接和 Title/Author/Subject/Keywords；元数据修改按 revision 提交 |
+| `undoPdf` / `redoPdf` / `savePdf` | revision；历史操作返回快照，原格式保存返回 `{ revision, bytes }` |
 
-`PdfClient.defaultBudget()` 包装 `defaultPdfBudget`；同步 session 为 `defaultPdfBudget()`。page/field/annotation 身份绑定对象号和代数，页序单独返回。revision 单调递增，失败不提交；layoutId 在换页、编辑、字体变化和换文档后失效。`PdfQuery` 包含 pages、annotations、fields、当前 page、历史状态、modified 和 readOnlyReason/pageOrderReason。字段和批注另给各自的只读原因。
+`PdfClient.defaultBudget()` 包装 `defaultPdfBudget`；同步 session 为 `defaultPdfBudget()`。page/field/annotation 身份绑定对象号和代数，页序单独返回。revision 单调递增，失败不提交。保留视图在同 revision 内可跨页共存；编辑、字体变化、换文档或显式释放使相应 layoutId 失效。`PdfQuery` 返回 pages、annotations、fields、当前 page、历史、modified、diagnostics 及 readOnlyReason/pageOrderReason；对象、字段和批注分别提供保护原因。
 
 核心严格读取未加密 PDF 1.0–1.7，不修复损坏引用或回退旧修订。显示支持源坐标 TrueType、基础路径/裁剪、RGB/Gray、常量 alpha/Multiply、限定图片/Form 和 normal appearance。ActualText/ToUnicode/可信编码独立生成语义；未知 Unicode 使用 U+FFFC，不匹配未知范围，含未知范围的复制失败。显示与提取完整性分别返回。
 
-未支持的图形状态、透明组、可选内容、颜色/字体/图片编码明确诊断；已知图片/批注可以局部限制，未知影响使整页预览不完整。完整正向范围和排除项见 [P7](../implemented/p7-pdf-input.md#已交付范围)。签名只读且未验证，非零代数保护改写，不执行脚本或外部资源。
+未支持的图形状态、透明组、可选内容、颜色/字体/图片编码明确诊断；已知图片/批注可以局部限制，未知影响使整页预览不完整。输入范围和排除项见 [P7](../implemented/p7-pdf-input.md#已交付范围)。签名只读且未验证，非零代数保护改写，不执行脚本或外部资源。导航仅返回目标；外部 URI 是否打开由宿主决定。
 
-编辑在原对象图上构造局部候选，检查后原子提交。页面关联、Tagged PDF 批注、锁定/富文本/动作、复杂字段和无法同步的 widget 受保护，范围见 [P8](../implemented/p8-pdf-operations.md#保护规则与限制)。`profile.form` 可指定已供应的可嵌入字体；新字段外观才进行塑形和文本框布局，PDF 正文保持源字距。
+普通编辑在原对象图上构造局部候选，检查后原子提交。普通保存保留非目标字典及 stream 压缩 payload，重建 xref/trailer 并去掉旧增量/线性化声明。无编辑或全部撤销返回原字节。保存不替换基线、不清空历史；输出失败不改源。未引用对象仍保留，普通删除、裁剪、覆盖和保存不提供安全擦除；真正脱敏使用下述独立清理输出。
 
-保存保留非目标字典及 stream 压缩 payload，重建 xref/trailer 并去掉旧增量/线性化声明。无编辑或全部撤销返回原字节。保存不替换基线、不清空历史；输出失败不改源。未引用对象仍保留，删除不能用于安全擦除、涂黑或脱敏。
+### 文字、图片和页面编排
+
+| 命令 | 输入与结果 |
+| --- | --- |
+| `pdfObjects` | revision、page、profile；返回文字/图片对象、placement、内容和 readOnlyReason |
+| `addPdfText` / `replacePdfText` | `PdfTextSpec` 指定 placement、text、font、size、color、role 和 foreground；批量新增到 pages，或替换指定 page/object |
+| `addPdfImage` | page、placement、pixelWidth/pixelHeight 和 RGBA bytes；可用 `replace` 指定替换对象 |
+| `movePdfObject` / `deletePdfObject` | page/object；修改 placement 或移除可隔离的对象 |
+| `cropPdfImage` | revision、page/object、局部 0..1 的 crop 窗口及 profile；按选中的调用路径裁剪图片外观 |
+| `setPdfPageNumbers` | pages、`PdfTextSpec`；使用 `page-number` 角色更新页码对象 |
+| `reorderPdfPages` / `rotatePdfPages` / `deletePdfPages` | 稳定 pages；完整排列、degrees 或删除列表 |
+| `insertPdfPages` / `replacePdfPages` / `insertBlankPdfPage` | 外部 PDF bytes、源 pages 和目标 index；替换另传 replace，空白页传 width/height |
+| `extractPdfPages` / `splitPdfFiles` | 输出选定 pages 的新 PDF，或按 groups 返回多个命名文件；不修改源会话 |
+| `cropPdfPage` / `resizePdfPage` | 当前显示坐标下的区域或新宽高；resize 明确 scaleContent 和 top-left/center anchor |
+| `splitPdfPage` / `splitPdfPageGrid` / `nupPdfPages` | 按 regions 或 rows/columns 拆页；N-up 把指定 pages 排入给定宽高的网格 |
+
+placement 使用页面显示方向的左上角 point 坐标及 rotation。新增文字由宿主供应的字体塑形，作为独立 Form 写入；角色支持正文、水印、页眉、页脚和页码，foreground 控制前景或背景。源正文继续保留原 PDF 字距。对象查询既识别 SDK 对象，也识别可安全隔离的源文字展示操作和图片调用。替换使用明确文字框和字体，不能把任意扫描页当作可编辑段落。不能安全隔离的共享或复杂 Form、未知映射、隐形文字、Tagged PDF、无法分离的源操作、倾斜/镜像及复杂裁剪按对象返回原因或拒绝操作。
+
+图片裁剪以 `{ x, y, width, height }` 指定图片局部保留窗口，核心只复制并改写选中的调用路径及 Form 外观。原像素和 mask 保留，裁剪不能用于脱敏；需要清除像素时使用清理输出。
+
+页面导入、替换、拆分和 N-up 同步受支持的页面引用、批注、widget、字段关系、目录及目的地；无法唯一归属或重映射的关系保护。拆页拒绝横跨分区或不落入任何分区的批注。N-up 使用原生 Form 拼页，保留支持的 appearance 和字段；选择的 widget 必须覆盖完整字段组，源 widget 页须无旋转且使用相同比例。回复/弹出、可选内容、Tagged PDF、固定视图批注标记及未知存活页引用继续保护。它们保留源对象语义；裁掉或未显示的内容不等于被清理。全部修改复用 revision、事务、撤销重做和预算；导出选页及分文件只返回派生字节。
+
+### 表单与批注
+
+| 命令 | 输入与结果 |
+| --- | --- |
+| `createPdfField` / `pdfFieldDesign` / `updatePdfFieldDesign` | `PdfFieldDesign` 与各 widget 的 `PdfFieldWidgetDesign`；创建、查询或原子更新字段设计 |
+| `setPdfFieldValue` | field、value、profile；文本/单选用 string，checkbox 用 boolean，list 用 string[]，同步所有 widget |
+| `renamePdfField` / `duplicatePdfField` / `deletePdfField` | 修改同组内字段名；按 name/dx/dy 复制独立字段，或移除字段及 widget |
+| `addPdfNote` / `markPdfText` | 便笺；对 layoutId 的核心选区写 Highlight/Underline/StrikeOut，`highlightPdfText` 为高亮入口 |
+| `addPdfDrawingAnnotation` / `addPdfInkAnnotation` / `addPdfStampAnnotation` | Square/Circle/Line/Ink；分笔画墨迹或 RGBA 印章；可标为可视签名 |
+| `pdfAnnotation` / `editPdfAnnotation` / `updatePdfAnnotation` / `deletePdfAnnotation` | 查询并修改支持的 geometry/color/opacity/border/author/text，或仅修改 text、删除批注 |
+| `pdfAnnotationThread` / `replyPdfAnnotation` / `deletePdfAnnotationThread` | 查询回复关系、追加文字回复或删除整个线程 |
+
+字段支持 text、checkbox、radio、choice 和 list。设计包含名称、提示、当前/默认值、只读/必填、多行/多选、最大长度、选项及字体/颜色/边框；更新保持字段类型并提交全部现有 widget，不能用设计更新隐式增加或遗漏成员。新字段和更新外观使用明确供应的可嵌入字体；`profile.form` 可指定表单默认字体。选项 export value 与显示 label 分开；不接受未知值或重复选择。
+
+多笔画墨迹和可视签名通过 pointer 采集，拖动期间应用与保存受草稿屏障保护；Escape、pointercancel 或失焦恢复本笔开始前的笔画，完成后显式应用为一次事务。
+
+字段树、页面 Annots、widget Parent/Kids、值和 appearance 必须一致。XFA、动作、计算顺序、未知关系、锁定 widget、受保护嵌入字体和无法完整重建的外观拒绝修改；不执行 JavaScript、计算或提交动作。签名绘制仅生成可视墨迹/印章，不创建数字签名或验证证书。批注编辑保留支持的回复/弹出关系；未知关系、富文本、动作、Tagged PDF 和锁定批注继续保护。
+
+### 真正脱敏与格式转换
+
+`previewPdfRedaction` / `exportPdfRedaction` 接受 revision、regions 和 profile。区域为 `{ page, x, y, width, height }`，必须位于显示页内，最多 4096 个。预览返回 affected、warnings 和 readOnlyReason，显示实际扩大移除的范围；导出返回独立清理 PDF 字节。两者都不修改原文、选区或历史。
+
+清理输出重新写出幸存文字字形、图片像素和受支持路径。相交文字至少移除整个源文字展示或 ActualText 组，使用实际墨迹边界覆盖负 bearing 和斜体；相交路径整项移除。私有图片把相交像素保守清零，透明像素的 RGB 同样清零。相交图片若复用图片/蒙版或处于复杂 Form 中则拒绝清理，相交交互字段也拒绝。所有幸存图片须已解码；幸存文字须有已知映射，全部正文须使用精确源字体。无法安全保留的裁剪/透明/混合状态以及无法解释的页面拒绝清理。单图片简单 Form 在完整解释和边界检查后可处理。
+
+清理副本移除批注、交互字段、链接、元数据、附件及旧修订，自动丢弃隐形文字；不复制原内容流和整份原字体。幸存字形重建为无源提示程序、无自定义字形名和源身份的独立字体，保留必要授权记录；未知嵌入许可拒绝。无法精确重建的字体轮廓也拒绝。输出重新打开核对幸存语义和图片；普通黑框覆盖、删除对象及源保存仍不能代替此入口。
+
+`defaultPdfOfficeBudget` / `convertPdfOffice` 使用目标 Office 包预算。请求指定 revision、pages、docx/xlsx/pptx、profile 和 acceptLoss；返回 status、warnings、reason、源页到目标页映射及可选 bytes。status 为 `success`、`completed-with-loss`、`needs-acceptance` 或 `failed`。默认不接受损失；需接受时不给输出字节，调用方查看逐页警告后显式重试。
+
+DOCX 转为单栏原生段落、明确线框表格及图片，多栏结构拒绝。XLSX 识别具有明确边界的表格，保留合并单元格及严格数值；前导零保留字符串，公式不从 PDF 恢复，表外内容报告损失。PPTX 每源页生成一张幻灯片，使用原生文本框、图片、简单线形/矩形及表格。字体不嵌入目标 Office，边框归一化、混合行样式及绘制顺序变化明确报告损失。转换使用有界源提取，未知 Unicode 和解释失败拒绝；纯扫描页返回需要 OCR 的原因。当前不提供 OCR、原 Office 文件恢复或通用跨格式文档模型。
+
+### PDF 派生输出
+
+`PdfEditor.exportPageImages(format, pages?, scale?, outputBytes?)` 返回逐页 `EditorOutput[]`，format 为 png/jpeg；使用同一 PDF 绘制路径逐页生成。绘制不完整时拒绝。输出页须非空且去重，累积字节受明确预算约束；后台视图按需复用并释放，不切换活动页。PNG/JPEG 是平台栅格结果，文本、字段和批注不再可交互。
+
+`exportPdfText` / `PdfEditor.exportText` 提供结构化 html/markdown，结果包含 bytes 和 warnings。输出按有界字形与路径推断段落、连续且可识别的项目符号/递增编号列表，以及规则线框和合并表格；不猜测标题层级。Markdown 的表格使用 HTML 保留跨度，不猜测表头。受支持图片从已验证 RGBA 重新编码为 PNG data URI；未解码、被裁剪、镜像或斜切的图片省略并给警告。
+
+文字和属性完整转义；链接只允许 http(s)/mailto 及指向选中页的内部锚点，不自动请求外链。HTML 提供限制资源的 CSP。无法关联到完整文字行的链接、非表格矢量、交互行为及精确页面布局不保留，阅读顺序和段落推断也明确警告。未知 Unicode 原子拒绝，文字、图片和输出继续受预算约束。
+
+Office 转换、文字输出、图片输出、选页、分文件及清理输出均不修改源 revision、历史或源保存基线。选页、分文件及清理 PDF 的 `EditorOutput` 只用于派生输出，`markSaved` 明确拒绝；只有原文 `save()` 产物可确认源保存。调用方负责下载或持久化，并查看结果警告。
 
 ### Web 嵌入与生命周期
 
@@ -4101,9 +4161,11 @@ await editor.dispose();
 client.dispose();
 ```
 
-viewer 提供 `snapshot`、`displayedPage`、`refresh`、`goToPage`、`navigatePage`、`setZoom`、`selectText`、`selectedText`、`copy`、`extractText`、`search`、`cancelSearch` 和 `nextMatch`。editor 增加 `movePage`、`rotate`、`deletePage`、`highlight`、`addNote`、`setFieldValue`、`updateAnnotation`、`deleteAnnotation`、`chooseProperty`、`beginNote`、`applyDraft`、`cancelDraft`、`undo`、`redo` 和 `save`。自定义 UI 可以挂入稳定的 `propertyInput`，不另存一份属性草稿；切页/换文档/刷新/输出前应用或取消，组合期间禁止提交。默认 UI 的文件替换使用前述 `MountedEditor.open`。
+viewer 提供 `snapshot`、`displayedPage`、`refresh`、`goToPage`、`navigatePage`、`setZoom`、`setReadingMode`、`selectText`、`selectRange`、`selectedText`、`copy`、`extractText`、`navigation`、`search`、`cancelSearch` 和 `nextMatch`。editor 另外提供对象、页面编排、字段、批注、脱敏、转换及输出操作；`thumbnail(page)` 生成独立缩略图，`setReadingMode` 接受 single/continuous/double；`chooseProperty`、各 `begin…` 入口、`applyDraft` 和 `cancelDraft` 共用属性草稿。自定义 UI 可以挂入稳定的 `propertyInput`，不另存一份属性草稿；切页/换文档/刷新/输出前应用或取消，组合期间禁止提交。默认 UI 的文件替换使用前述 `MountedEditor.open`。
 
-队列最多 128 个已接受意图，保存排在已接受编辑之后。低层 `close()` 校验草稿并等待已接受操作后释放表面；`dispose()` 停止接收新操作和搜索，等待已接受操作后释放表面，两者都保留调用者的 client。呈现失败保留已提交源，停止新编辑，允许保存、刷新或显式撤销。Canvas 与派生资源只保留当前页；取消搜索及关闭后旧回复不能重绘。
+`beginPageGeometry("crop" | "resize" | "scale")` 用原生属性草稿设置页面区域或尺寸；`beginImageCrop()` 使用百分比控件设置图片保留窗口。选中的正文/图片可以用 pointer 框拖动：候选只更新 x/y 输入，松开后等待显式应用，取消或 Escape 还原。拖动期间保存与关闭受屏障保护，应用才提交 `movePdfObject`；图片裁剪同样一次应用形成一项历史。
+
+队列最多 128 个已接受意图，保存排在已接受编辑之后。低层 `close()` 校验草稿并等待已接受操作后释放表面；`dispose()` 停止接收新操作和搜索，等待已接受操作后释放表面，两者都保留调用者的 client。呈现失败保留已提交源，停止新编辑，允许保存、刷新或显式撤销。单页、连续及双页阅读共用绘制器；连续/双页仅保留可见页和有限邻页，最多 8 页 Canvas，合计 64 MiB。核心最多保留 9 个视图，其中一个供缩略图或后台输出临时使用，保留视图的解码图像合计仍限 16 MiB。缩略图和输出不改变活动页或选区；取消搜索及关闭后旧回复不能重绘。
 
 ### PDF 默认预算
 

@@ -3,6 +3,7 @@ priv struct PageImporter {
   source : PdfSession
   tx : PdfTransaction
   mapping : Map[Int32, Int32]
+  overrides : Map[Int32, @syntax.PdfObject]
 }
 
 ///|
@@ -18,7 +19,9 @@ fn PageImporter::copy(
       if self.mapping.get(number) is Some(target) {
         return @syntax.PdfIndirect(target)
       }
-      let original = self.source.document.lookup_object_or_null(number)
+      let original = self.overrides
+        .get(number)
+        .unwrap_or(self.source.document.lookup_object_or_null(number))
       guard !is_name(raw(original, "Type"), "Page") &&
         !is_name(raw(original, "Type"), "Pages") else {
         @failure.reject(
@@ -131,18 +134,18 @@ pub fn PdfSession::insert_pages(
       }
       mapping[page.number] = number
     }
-    let importer : PageImporter = { source, tx, mapping, }
+    let importer : PageImporter = { source, tx, mapping, overrides: Map([]), }
+    importer.prepare_fields(selected)
+    let sourceLabels = source.page_labels()
+    let importedLabels : Map[Int32, @syntax.PdfObject] = Map([])
+    for page in selected {
+      if sourceLabels.get(page.number) is Some(label) {
+        importedLabels[mapping[page.number]] = label.deep_copy()
+      }
+    }
     let imported : Array[SourcePage] = []
     for page in selected {
       let sourceObject = source.document.lookup_object_or_null(page.number)
-      for reference in annotation_refs(source.document, sourceObject) {
-        let annotation = resolve(source.document, reference)
-        guard !is_name(raw(annotation, "Subtype"), "Widget") else {
-          @failure.reject(
-            "protected-content", "Importing form widgets requires the complete field tree",
-          )
-        }
-      }
       let number = mapping[page.number]
       let value = sourceObject
         .deep_copy()
@@ -172,7 +175,7 @@ pub fn PdfSession::insert_pages(
         pages.push(page)
       }
     }
-    self.rebuild_pages(tx, pages)
+    self.rebuild_pages(tx, pages, labels=importedLabels)
     tx.commit(
       if replace.contains(self.current) {
         imported[0].id

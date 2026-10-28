@@ -6,6 +6,8 @@ import {
 }
 
 // Values
+pub fn encode_png(Int32, Int32, Bytes) -> Bytes raise @failure.Failure
+
 pub fn type_info(Bytes) -> (String, String, Int32, Int32) raise @failure.Failure
 
 // Errors

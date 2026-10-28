@@ -1,3 +1,5 @@
 import {
   "open_document/core/failure",
+  "moonbit-community/flate",
+  "moonbit-community/flate/checksum",
 }

@@ -21,6 +21,8 @@
 
 MoonBit workspace 保留 `core`、`layout`、`formats`、`bridge` 四个 module，以真实 package 分工。DOCX/PPTX 的嵌入工作簿继续复用 XLSX 核心，Office PDF 输出继续复用 PDF writer；这不引入其他格式的前端编辑器。公开类型留在其所属公共 package，跨包移动后的接口由 `moon info` 生成。
 
+包构建使用 Moon 工具链自带的 `moon-wasm-opt -Oz`，按目标浏览器支持的特性白名单优化共享引擎，再对实际分发字节计算构建身份。优化后的唯一 `engine.wasm` 同时用于同步核心与 Worker；Chromium 主线程的同步实例化限制为 8 MiB。
+
 一个 Bun workspace 管理 `packages/*`，公开依赖由根 `bun.lock` 固定。领域包对 wasm/web-core 使用精确版本；React、React DOM 和公共 UI 是领域 React 入口的可选 peer。消费 React 入口时显式安装这些固定版本。`core`、`web` 不需要 React。
 
 ## 公开入口与共享加载
@@ -66,7 +68,7 @@ const mounted = await mountEditor(container, {
 });
 ```
 
-URL、字体、profile、容器和保存回调由宿主供应。Office 入口支持 `{ name, blank: true }` 和挂载后的 `create({ name })`；PDF 入口要求文件字节。`core`/`web` 可独立接入，自定义 UI 复用已有编辑器队列。
+URL、字体、profile、容器和保存回调由宿主供应。四种格式入口支持 `{ name, blank: true }` 和挂载后的 `create({ name })`；PDF 核心直接创建空白页树。`core`/`web` 可独立接入，自定义 UI 复用已有编辑器队列。
 
 `mountEditor` 追加实例自己的 open ShadowRoot，不替换宿主 DOM。领域包拥有文件准备、面板和输出动作；共用外壳处理候选替换、保存回调、确认与释放。输入、组合、拖拽和保存屏障仍归编辑宿主。`onSave` 成功后只确认该输出的 revision，浏览器下载不表示宿主已持久化。`close()` 保留未保存和草稿确认，`dispose()` 等待已接受工作后释放。具体合同见[默认 UI 与编辑宿主](formats.md#默认-ui-与编辑宿主)。
 

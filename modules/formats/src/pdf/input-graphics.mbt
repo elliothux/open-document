@@ -14,6 +14,7 @@ priv struct GraphicsState {
 
 ///|
 priv struct MarkedText {
+  glyph : Int32
   replacement : String?
   span : Int32
   chunk : Int32
@@ -22,6 +23,7 @@ priv struct MarkedText {
 
 ///|
 priv struct ContentContext {
+  extraction : PdfExtractionData?
   sources : Array[PdfSourceObject]
   mut collectSource : Bool
   session : PdfSession
@@ -69,12 +71,14 @@ fn ContentContext::scope(
   guard self.nesting < 32 else {
     @failure.reject("limit-exceeded", "PDF drawing stack exceeds budget")
   }
+  self.extraction_scope(command)
   self.commands.push(command)
   self.nesting += 1
 }
 
 ///|
 fn ContentContext::restore(self : ContentContext) -> Unit {
+  self.extraction_restore()
   self.commands.push(@layout.Restore)
   self.nesting -= 1
 }

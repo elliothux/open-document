@@ -39,12 +39,41 @@ fn positioned_path(
 }
 
 ///|
+pub(all) struct PdfTextGroup {
+  page : Int32
+  start : Int32
+  end : Int32
+  text : String
+}
+
+///|
+fn actual_text(text : String) -> @content.PdfContentOp {
+  @content.Op_BDC(
+    name("Span"),
+    dict([
+      (
+        "ActualText",
+        @syntax.PdfString(
+          utf16_bytes(
+            text
+            .replace_all(old="\u000b", new="")
+            .replace_all(old="\u000c", new=""),
+          ),
+        ),
+      ),
+    ]),
+  )
+}
+
+///|
 /// Export the exact preview glyph positions. PDF has no text layout authority.
 pub fn write(
   layout : @layout.PositionedDocument,
   probe : @layout.TextProbe,
   images : @layout.Images,
   output_limit : Int32,
+  clean_fonts~ : Bool = false,
+  text_groups~ : Array[PdfTextGroup] = [],
 ) -> Bytes raise @failure.Failure {
   guard !layout.pages.is_empty() && output_limit > 0 && output_limit <= 67108864 else {
     @failure.reject(
@@ -71,6 +100,8 @@ pub fn write(
               sources[index],
               index,
               layout.fonts[index],
+              clean_fonts~,
+              probe~,
               subset.cids.map(cid => {
                 probe.glyph_width(index, cid.glyph.reinterpret_as_uint())
               }),
@@ -84,13 +115,38 @@ pub fn write(
     let gradients : Map[String, (String, @syntax.PdfObject)] = Map([])
     let gradient_masks : Map[String, @syntax.PdfObject] = Map([])
     let mut content_bytes = 0
-    for frame in layout.pages {
+    for pageIndex, frame in layout.pages {
+      let groups = text_groups.filter(group => group.page == pageIndex)
+      let starts : Map[Int32, PdfTextGroup] = Map([])
+      let ends : Map[Int32, Bool] = Map([])
+      let mut lastEnd = 0
+      for group in groups {
+        guard group.start >= lastEnd &&
+          group.end > group.start &&
+          group.end <= frame.primitives.length() else {
+          @failure.reject(
+            "invalid-drawing", "PDF semantic text groups must be ordered disjoint primitive ranges",
+          )
+        }
+        starts[group.start] = group
+        ends[group.end] = true
+        lastEnd = group.end
+      }
+      let mut grouped = false
       let ops : Array[@content.PdfContentOp] = []
       let image_objects : Array[(String, @syntax.PdfObject)] = []
       let shading_objects : Map[String, @syntax.PdfObject] = Map([])
       let alpha_states : Map[String, (String, @syntax.PdfObject)] = Map([])
       let mut scopes = 0
-      for primitive in frame.primitives {
+      for primitiveIndex, primitive in frame.primitives {
+        if ends.contains(primitiveIndex) {
+          ops.push(@content.Op_EMC)
+          grouped = false
+        }
+        if starts.get(primitiveIndex) is Some(group) {
+          ops.push(actual_text(group.text))
+          grouped = true
+        }
         match primitive {
           GradientRectangle(rect, stops)
           | RadialGradientRectangle(rect, stops) => {
@@ -372,22 +428,13 @@ pub fn write(
             ops.push(@content.Op_Q)
           }
           Text(line) => {
-            if line.text.is_empty() {
+            if line.text.is_empty() &&
+              line.runs.all(run => run.glyphs.is_empty()) {
               continue
             }
-            let actual = dict([
-              (
-                "ActualText",
-                @syntax.PdfString(
-                  utf16_bytes(
-                    line.text
-                    .replace_all(old="\u000b", new="")
-                    .replace_all(old="\u000c", new=""),
-                  ),
-                ),
-              ),
-            ])
-            ops.push(@content.Op_BDC(name("Span"), actual))
+            if !grouped {
+              ops.push(actual_text(line.text))
+            }
             for run in line.runs {
               let color = run.color
               ops.push(
@@ -431,9 +478,14 @@ pub fn write(
                 ops.push(@content.Op_ET)
               }
             }
-            ops.push(@content.Op_EMC)
+            if !grouped {
+              ops.push(@content.Op_EMC)
+            }
           }
         }
+      }
+      if grouped {
+        ops.push(@content.Op_EMC)
       }
       guard scopes == 0 else {
         @failure.reject("invalid-drawing", "Unclosed PDF scope")

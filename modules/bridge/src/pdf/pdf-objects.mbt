@@ -36,6 +36,68 @@ fn Context::pdf_object_operation(
   }
   let revision = field_int(request, "revision")
   match operation {
+    "duplicatePdfField" =>
+      session.duplicate_field(
+        revision,
+        field_string(request, "field"),
+        field_string(request, "name"),
+        field_number(request, "dx"),
+        field_number(request, "dy"),
+      )
+    "renamePdfField" =>
+      session.rename_field(
+        revision,
+        field_string(request, "field"),
+        field_string(request, "name"),
+      )
+    "deletePdfField" =>
+      session.delete_field(revision, field_string(request, "field"))
+    "createPdfField" => {
+      guard request is { "spec": spec, .. } else {
+        @failure.reject("invalid-operation", "PDF field design is required")
+      }
+      session.create_field(
+        revision,
+        field_string(request, "page"),
+        pdf_field_design(spec),
+        self.probe,
+        font_profile(request),
+      )
+    }
+    "addPdfDrawingAnnotation" => {
+      guard request is { "spec": spec, .. } &&
+        spec is { "placement": placement, "points": Array(values), .. } &&
+        values.length() <= 32768 else {
+        @failure.reject(
+          "invalid-operation", "Drawing annotation specification is required",
+        )
+      }
+      let points = values.map(value => {
+        guard value is Number(n, ..) && !n.is_nan() && !n.is_inf() else {
+          @failure.reject(
+            "invalid-operation", "Annotation points must be finite numbers",
+          )
+        }
+        n
+      })
+      session.add_drawing_annotation(revision, field_string(request, "page"), {
+        kind: field_string(spec, "kind"),
+        placement: pdf_placement(placement),
+        points,
+        color: field_string(spec, "color"),
+        opacity: field_number(spec, "opacity"),
+        border: field_number(spec, "border"),
+        author: field_string(spec, "author"),
+        text: field_string(spec, "text"),
+        arrow: field_boolean(spec, "arrow"),
+      })
+    }
+    "markPdfText" =>
+      session.add_highlight(
+        revision,
+        field_int(request, "layoutId"),
+        kind=field_string(request, "kind"),
+      )
     "pdfObjects" =>
       session.objects(
         revision,
@@ -43,19 +105,20 @@ fn Context::pdf_object_operation(
         self.probe,
         font_profile(request),
       )
-    "addPdfText" | "replacePdfText" => {
+    "addPdfText" | "setPdfPageNumbers" | "replacePdfText" => {
       guard request is { "spec": spec, .. } else {
         @failure.reject(
           "invalid-operation", "PDF text specification is required",
         )
       }
-      if operation == "addPdfText" {
+      if operation != "replacePdfText" {
         session.add_text(
           revision,
           pdf_strings(request, "pages"),
           pdf_text_spec(spec),
           self.probe,
           font_profile(request),
+          replace_numbers=operation == "setPdfPageNumbers",
         )
       } else {
         session.replace_text(

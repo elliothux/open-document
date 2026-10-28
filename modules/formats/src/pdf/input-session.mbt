@@ -19,12 +19,18 @@ fn PdfSession::build_display(
   supplied : @layout.TextProbe,
   profile : Map[String, String],
   images : @layout.Images,
+  extract~ : Bool = false,
 ) -> PageDisplay raise @failure.Failure {
   let page = self.page(id)
   let probe = @layout.TextProbe::new()
   errdefer probe.close()
   pdf_bound(self.budget, () => {
     let context : ContentContext = {
+      extraction: if extract {
+        Some(PdfExtractionData::new())
+      } else {
+        None
+      },
       sources: [],
       collectSource: true,
       session: self,
@@ -152,6 +158,7 @@ fn PdfSession::build_display(
       @failure.reject("limit-exceeded", "PDF page decoded images exceed budget")
     }
     {
+      extraction: context.extraction,
       sources: context.sources,
       profile: profile.copy(),
       resources: images,
@@ -222,9 +229,9 @@ pub fn PdfSession::render(
       count += 1
     }
   }
-  guard count <= 8 && retained <= 16777216 else {
+  guard count <= 9 && retained <= 16777216 else {
     @failure.reject(
-      "limit-exceeded", "Release PDF views before retaining more than eight pages or 16 MiB of images",
+      "limit-exceeded", "Release PDF views before retaining more than nine pages or 16 MiB of images",
     )
   }
   let display = { ..candidate, id: pdf_layout_serial.val + 1, }

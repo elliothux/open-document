@@ -10,6 +10,9 @@ pub fn PdfSession::query(self : PdfSession) -> Json raise @failure.Failure {
           self.document.lookup_object_or_null(page.number),
         ) {
         let object = resolve(self.document, reference)
+        if is_name(raw(object, "Subtype"), "Popup") {
+          continue
+        }
         let contents = get(self.document, object, "Contents")
         let id = match reference {
           PdfIndirect(n) => "\{n}:\{self.generations.get(n).unwrap_or(0)}"

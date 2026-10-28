@@ -39,14 +39,14 @@ fn PdfSession::owned_objects(
       is PdfArray([x, y, width, height, rotation]) else {
       @failure.reject("protected-content", "SDK PDF placement is malformed")
     }
-    let placement : PdfPlacement = {
+    let declared : PdfPlacement = {
       x: number(x),
       y: number(y),
       width: number(width),
       height: number(height),
       rotation: number(rotation),
     }
-    check_pdf_placement(placement)
+    check_pdf_placement(declared)
     let form = raw(s.dictionary, "ODObject")
     let target = resolve(self.document, form)
     guard target is PdfStreamObject(targetStream) &&
@@ -75,41 +75,13 @@ fn PdfSession::owned_objects(
         "protected-content", "SDK PDF object content does not match its resource binding",
       )
     }
-    let angle = placement.rotation * 3.141592653589793 / 180
-    let screen : @layout.Matrix = {
-      a: @math.cos(angle),
-      b: @math.sin(angle),
-      c: -@math.sin(angle),
-      d: @math.cos(angle),
-      e: placement.x,
-      f: placement.y,
-    }
     let (bx, by, br, bt) = rectangle(raw(targetStream.dictionary, "BBox"))
-    let sx = placement.width / (br - bx)
-    let sy = placement.height / (bt - by)
-    let expected = page.matrix
-      .inverse()
-      .then(screen)
-      .then({
-        a: sx,
-        b: 0,
-        c: 0,
-        d: -sy,
-        e: -bx * sx,
-        f: placement.height + by * sy,
-      })
-    guard [
-      (transform.a, expected.a),
-      (transform.b, expected.b),
-      (transform.c, expected.c),
-      (transform.d, expected.d),
-      (transform.e, expected.e),
-      (transform.f, expected.f),
-    ].all(pair => (pair.0 - pair.1).abs() <= 0.000001) else {
-      @failure.reject(
-        "protected-content", "SDK PDF placement does not match its native matrix",
-      )
-    }
+    let placement = placement_from_matrix(
+      page.matrix
+      .then(matrix(transform))
+      .then(pdf_object_matrix(raw(targetStream.dictionary, "Matrix")))
+      .then({ a: br - bx, b: 0, c: 0, d: by - bt, e: bx, f: bt, }),
+    )
     let foreground = raw(s.dictionary, "ODForeground") !=
       @syntax.PdfBoolean(false)
     objects.push({

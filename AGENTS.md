@@ -3,7 +3,7 @@
 ## Goal
 
 - Replicate GenOffice's full document, spreadsheet, presentation, and PDF capabilities as an embeddable SDK. Use local `references/genoffice` for the feature inventory and UI interactions; use the App only for visual comparison acceptance and interaction reference. The target and boundaries belong in the [SDK contract](docs/references/sdk.md).
-- This unreleased project has **zero users**. Deliver usable features first. Latest delivered phase is [P12 PPTX core features](docs/implemented/p12-pptx-core.md); follow the [roadmap](docs/references/roadmap.md) for phase status.
+- This unreleased project has **zero users**. Deliver usable features first. Latest delivered phase is [P13 PDF core features](docs/implemented/p13-pdf-core.md); follow the [roadmap](docs/references/roadmap.md) for phase status.
 - Design from Day One for current requirements. Change the lowest affected layer directly. Update affected callers, tests, and docs; remove superseded implementations.
 - Keep compatibility code only for document formats. Do not retain compatibility paths for old APIs, models, configuration, or development data.
 - Build the smallest complete feature. Reuse existing code and add structure for a demonstrated gap. Feature priorities are P0 for core functionality, P1 for broader compatibility and performance, and P2 for secondary integrations such as AI, collaboration, and diff. These priorities are separate from roadmap phase IDs.

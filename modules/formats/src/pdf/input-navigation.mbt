@@ -138,10 +138,7 @@ pub fn PdfSession::navigation(self : PdfSession) -> Json raise @failure.Failure 
       self.document,
       @syntax.PdfIndirect(self.document.root()),
     )
-    walk(
-      get(self.document, get(self.document, catalog, "Outlines"), "First"),
-      0,
-    )
+    walk(raw(get(self.document, catalog, "Outlines"), "First"), 0)
     for page in self.pages {
       for
         index, reference in annotation_refs(

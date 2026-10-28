@@ -62,6 +62,7 @@ pub extend TextSpan with ToJson::{to_json}
 
 ///|
 struct PageDisplay {
+  extraction : PdfExtractionData?
   sources : Array[PdfSourceObject]
   profile : Map[String, String]
   resources : @layout.Images

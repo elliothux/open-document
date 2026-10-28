@@ -1,4 +1,8 @@
-import { WasmSession, encodeBytes } from "@open-document/wasm/abi/session";
+import {
+  WasmSession,
+  encodeBytes,
+  resourceBudget,
+} from "@open-document/wasm/abi/session";
 import { record } from "@open-document/wasm/abi/validation";
 import { drawingBatch } from "@open-document/wasm/abi/drawing";
 
@@ -7,14 +11,26 @@ export type * from "./pdf-types.js";
 
 const operations: ReadonlySet<string> = new Set([
   "defaultPdfBudget",
+  "defaultPdfOfficeBudget",
+  "convertPdfOffice",
+  "previewPdfRedaction",
+  "exportPdfRedaction",
   "openPdf",
   "createPdf",
   "queryPdf",
   "pdfObjects",
   "addPdfText",
+  "setPdfPageNumbers",
+  "createPdfField",
+  "pdfFieldDesign",
+  "updatePdfFieldDesign",
+  "renamePdfField",
+  "deletePdfField",
+  "duplicatePdfField",
   "replacePdfText",
   "addPdfImage",
   "movePdfObject",
+  "cropPdfImage",
   "deletePdfObject",
   "selectPdfRange",
   "selectedPdfRange",
@@ -25,6 +41,11 @@ const operations: ReadonlySet<string> = new Set([
   "replacePdfPages",
   "insertBlankPdfPage",
   "extractPdfPages",
+  "splitPdfFiles",
+  "splitPdfPage",
+  "splitPdfPageGrid",
+  "nupPdfPages",
+  "exportPdfText",
   "pdfMetadata",
   "setPdfMetadata",
   "renderPdfPage",
@@ -41,6 +62,15 @@ const operations: ReadonlySet<string> = new Set([
   "deletePdfPages",
   "addPdfNote",
   "highlightPdfText",
+  "markPdfText",
+  "addPdfDrawingAnnotation",
+  "pdfAnnotation",
+  "pdfAnnotationThread",
+  "editPdfAnnotation",
+  "replyPdfAnnotation",
+  "deletePdfAnnotationThread",
+  "addPdfInkAnnotation",
+  "addPdfStampAnnotation",
   "updatePdfAnnotation",
   "deletePdfAnnotation",
   "setPdfFieldValue",
@@ -70,6 +100,69 @@ function text(value: unknown, max = 32767): string {
 }
 function bool(value: unknown): void {
   if (typeof value !== "boolean") throw new Error("Invalid PDF boolean");
+}
+function bounded(value: unknown, min: number, max: number): number {
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    value < min ||
+    value > max
+  )
+    throw new Error("Invalid PDF number");
+  return value;
+}
+function placement(value: unknown): void {
+  const item = record(value);
+  for (const key of ["x", "y", "rotation"]) bounded(item[key], -14400, 14400);
+  for (const key of ["width", "height"])
+    if (!bounded(item[key], 0, 14400)) throw new Error("Invalid PDF placement");
+}
+function rgb(value: unknown, empty = false): void {
+  const color = text(value, 6);
+  if ((!empty || color !== "") && !/^[0-9a-fA-F]{6}$/.test(color))
+    throw new Error("Invalid PDF color");
+}
+function fieldDesign(value: unknown): void {
+  const spec = record(value);
+  for (const key of ["name", "tooltip"]) text(spec[key]);
+  if (
+    !["text", "checkbox", "radio", "choice", "list"].includes(String(spec.kind))
+  )
+    throw new Error("Invalid field design kind");
+  for (const key of ["readOnly", "required", "multiline", "multiSelect"])
+    bool(spec[key]);
+  placement(spec.placement);
+  text(spec.font, 256);
+  bounded(spec.size, 0, 14400);
+  bounded(spec.border, 0, 100);
+  rgb(spec.color);
+  rgb(spec.background, true);
+  integer(spec.maxLength, 32767);
+  for (const entry of array(spec.options, 4096)) {
+    const option = record(entry);
+    text(option.value);
+    text(option.label);
+  }
+  for (const key of ["value", "defaultValue"]) {
+    if (spec.kind === "checkbox") bool(spec[key]);
+    else if (spec.kind === "list")
+      for (const value of array(spec[key], 4096)) text(value);
+    else text(spec[key]);
+  }
+}
+function annotationStyle(value: unknown): void {
+  const style = record(value);
+  placement(style.placement);
+  rgb(style.color);
+  bounded(style.opacity, 0, 1);
+  bounded(style.border, 0, 100);
+  text(style.author);
+  text(style.text);
+}
+function annotationPoints(value: unknown): void {
+  const points = array(value, 32768);
+  if (points.length % 2) throw new Error("Invalid annotation point pairs");
+  for (const point of points) bounded(point, -14400, 14400);
 }
 function array(value: unknown, max: number): unknown[] {
   if (!Array.isArray(value) || value.length > max)
@@ -141,13 +234,26 @@ function query(value: unknown): void {
   for (const entry of array(state.fields, 4096)) {
     const field = record(entry);
     for (const key of ["id", "name", "readOnlyReason"]) text(field[key]);
-    if (!["text", "checkbox", "unsupported"].includes(String(field.kind)))
+    if (
+      !["text", "checkbox", "radio", "choice", "list", "unsupported"].includes(
+        String(field.kind),
+      )
+    )
       throw new Error("Invalid PDF field kind");
-    if (field.kind === "text") text(field.value);
+    if (["text", "radio", "choice"].includes(String(field.kind)))
+      text(field.value);
     else if (field.kind === "checkbox") bool(field.value);
-    else if (field.value !== null)
+    else if (field.kind === "list") {
+      for (const item of array(field.value, 4096)) text(item);
+    } else if (field.value !== null)
       throw new Error("Invalid protected PDF field");
     bool(field.multiline);
+    bool(field.multiSelect);
+    for (const entry of array(field.options, 4096)) {
+      const option = record(entry);
+      text(option.value);
+      text(option.label);
+    }
     integer(field.maxLength, 32767);
     for (const widget of array(field.widgets, 4096)) {
       const item = record(widget);
@@ -176,6 +282,114 @@ export function pdfResult<C extends PdfCommand>(
 ): PdfResult<C> {
   const object = record(value);
   switch (command.operation) {
+    case "defaultPdfOfficeBudget":
+      resourceBudget(value);
+      break;
+    case "convertPdfOffice": {
+      if (
+        integer(object.revision) !== command.revision ||
+        object.format !== command.format
+      )
+        throw new Error("Stale PDF conversion");
+      if (
+        ![
+          "success",
+          "completed-with-loss",
+          "needs-acceptance",
+          "failed",
+        ].includes(String(object.status))
+      )
+        throw new Error("Invalid PDF conversion status");
+      diagnostics(object.warnings);
+      text(object.reason);
+      for (const entry of array(object.pages, 1024)) {
+        const item = record(entry);
+        text(item.source, 256);
+        integer(item.target, 1048576);
+      }
+      const completed =
+        object.status === "success" || object.status === "completed-with-loss";
+      if (completed) {
+        if (object.bytes === null) throw new Error("Missing conversion output");
+        object.bytes = bytes(
+          object.bytes,
+          Math.min(67108864, command.budget.outputBytes),
+        );
+      } else if (object.bytes !== null)
+        throw new Error("Unaccepted conversion returned bytes");
+      break;
+    }
+    case "previewPdfRedaction":
+      if (integer(object.revision) !== command.revision)
+        throw new Error("Stale PDF redaction preview");
+      diagnostics(object.warnings);
+      text(object.readOnlyReason);
+      for (const key of ["regions", "affected"])
+        for (const entry of array(object[key], 1048576)) {
+          const item = record(entry);
+          text(item.page, 256);
+          for (const axis of ["x", "y"]) bounded(item[axis], -1e9, 1e9);
+          for (const axis of ["width", "height"]) bounded(item[axis], 0, 1e9);
+          if (key === "affected") text(item.kind, 256);
+        }
+      break;
+    case "exportPdfRedaction":
+      if (integer(object.revision) !== command.revision)
+        throw new Error("Stale PDF redaction output");
+      diagnostics(object.warnings);
+      object.bytes = bytes(object.bytes, 67108864);
+      break;
+    case "pdfAnnotation":
+      if (
+        integer(object.revision) !== command.revision ||
+        text(object.page, 256) !== command.page ||
+        text(object.annotation, 256) !== command.annotation
+      )
+        throw new Error("Stale PDF annotation");
+      text(object.kind, 256);
+      annotationStyle(object.style);
+      annotationPoints(object.points);
+      for (const path of array(object.strokes, 4096)) annotationPoints(path);
+      bool(object.arrow);
+      bool(object.signature);
+      text(object.replyTo, 256);
+      break;
+    case "pdfAnnotationThread":
+      if (integer(object.revision) !== command.revision)
+        throw new Error("Stale PDF annotation thread");
+      for (const entry of array(object.entries, 4096)) {
+        const item = record(entry);
+        for (const key of ["id", "page", "parent"]) text(item[key], 256);
+        text(item.text);
+        text(item.author);
+      }
+      break;
+    case "pdfFieldDesign": {
+      if (
+        integer(object.revision) !== command.revision ||
+        text(object.field, 256) !== command.field
+      )
+        throw new Error("Stale field design");
+      const reason = text(object.readOnlyReason);
+      if (object.spec === null) {
+        if (!reason) throw new Error("Missing field design");
+      } else fieldDesign(object.spec);
+      const ids = new Set<string>();
+      for (const entry of array(object.widgets, 4096)) {
+        const widget = record(entry),
+          id = text(widget.id, 256);
+        if (!id || ids.has(id))
+          throw new Error("Invalid field widget identity");
+        ids.add(id);
+        text(widget.page, 256);
+        placement(widget.placement);
+        bounded(widget.border, 0, 100);
+        rgb(widget.borderColor, true);
+        rgb(widget.background, true);
+        text(widget.exportValue);
+      }
+      break;
+    }
     case "pdfObjects":
       if (
         integer(object.revision) !== command.revision ||
@@ -283,6 +497,29 @@ export function pdfResult<C extends PdfCommand>(
           throw new Error("Invalid PDF budget");
       break;
     }
+    case "splitPdfFiles": {
+      if (object.revision !== command.revision)
+        throw new Error("Stale PDF split output");
+      let remaining = 67108864;
+      const names = new Set<string>();
+      for (const entry of array(object.files, 1024)) {
+        const file = record(entry),
+          name = text(file.name, 64);
+        if (!/^part-[0-9]+\.pdf$/.test(name) || names.has(name))
+          throw new Error("Invalid PDF output name");
+        names.add(name);
+        const data = bytes(file.bytes, remaining);
+        file.bytes = data;
+        remaining -= data.length;
+      }
+      break;
+    }
+    case "exportPdfText":
+      if (object.revision !== command.revision)
+        throw new Error("Stale PDF text output");
+      diagnostics(object.warnings);
+      object.bytes = bytes(object.bytes, 67108864);
+      break;
     case "savePdf":
     case "extractPdfPages":
       integer(object.revision);
@@ -373,6 +610,7 @@ export class PdfSession extends WasmSession {
       command.operation === "insertPdfPages" ||
       command.operation === "replacePdfPages" ||
       command.operation === "addPdfImage" ||
+      command.operation === "addPdfStampAnnotation" ||
       command.operation === "decodedImagePdf"
     ) {
       if (

@@ -931,6 +931,7 @@ pub fn TextDecoration::to_json(Self) -> Json
 pub struct TextProbe {
   fonts : Array[Font]
   outlines : Map[String, String]
+  outline_boxes : Map[String, Array[Double]]
   mut font_bytes : Int32
   mut outline_bytes : Int32
   mut closed : Bool
@@ -942,14 +943,18 @@ pub fn TextProbe::add_font(Self, Bytes, String) -> Int32 raise @failure.Failure
 pub fn TextProbe::add_source_font(Self, Bytes, String) -> Int32 raise @failure.Failure
 pub fn TextProbe::close(Self) -> Unit
 pub fn TextProbe::font_bytes(Self, Int32) -> Bytes raise @failure.Failure
+pub fn TextProbe::font_family(Self, Int32) -> String raise @failure.Failure
 pub fn TextProbe::font_index(Self, String) -> Int32 raise @failure.Failure
 pub fn TextProbe::font_info(Self) -> Array[FontInfo] raise @failure.Failure
+pub fn TextProbe::font_style(Self, Int32) -> (Bool, Bool) raise @failure.Failure
 pub fn TextProbe::glyph_width(Self, Int32, UInt32) -> Double raise @failure.Failure
 pub fn TextProbe::new() -> Self
 pub fn TextProbe::outline_resources(Self) -> Array[Outline] raise @failure.Failure
 pub fn TextProbe::paragraph_lines(Self, Paragraph, Map[String, String], Double, Bool, baseLevel? : Int32) -> Array[Line] raise @failure.Failure
 pub fn TextProbe::shape(Self, String, Double, String, primary? : Int32, base? : Int32) -> ShapeBatch raise @failure.Failure
-pub fn TextProbe::source_glyph(Self, Int32, Int32, String, Int32, Bool) -> (String, Int32) raise @failure.Failure
+pub fn TextProbe::source_glyph(Self, Int32, Int32, String, Int32, Bool) -> (String, Int32, UInt32) raise @failure.Failure
+pub fn TextProbe::source_glyph_bounds(Self, Int32, UInt32) -> Array[Double] raise @failure.Failure
+pub fn TextProbe::source_glyph_contours(Self, Int32, UInt32) -> Array[Array[(Double, Double, Bool)]] raise @failure.Failure
 pub fn TextProbe::span_block(Self, Array[Span], Double, Map[String, String], Double, Bool, justify? : Bool, distributed? : Bool) -> TextBlock raise @failure.Failure
 pub fn TextProbe::text_block(Self, String, TextStyle, Map[String, String], Double, Bool) -> TextBlock raise @failure.Failure
 

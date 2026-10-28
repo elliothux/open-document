@@ -91,7 +91,7 @@ priv struct SourceFont {
   substituted : Bool
   symbolic : Bool
   unicodeMap : Map[Int32, String?]
-  glyphs : Map[Int32, (String, Int32)?]
+  glyphs : Map[Int32, (String, Int32, UInt32)?]
 }
 
 ///|

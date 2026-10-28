@@ -74,9 +74,16 @@ fn install_font(
   index : Int32,
   info : @layout.FontInfo,
   widths : Array[Double],
-) -> Int32 raise @pdfcore.PdfError {
-  let bytes = @subsetter.subset(source, 0, subset.remap) catch {
-    _ => raise @pdfcore.HardError("TrueType font subsetting failed")
+  clean_fonts~ : Bool,
+  probe~ : @layout.TextProbe,
+) -> Int32 raise {
+  let bytes = if clean_fonts {
+    clean_font(subset, source, index, info, probe)
+  } else {
+    let bytes = @subsetter.subset(source, 0, subset.remap) catch {
+      _ => raise @pdfcore.HardError("TrueType font subsetting failed")
+    }
+    subset_font_policy(bytes, source)
   }
   let base = "ODAAAA+Font\{index}"
   let file = document.add_object(

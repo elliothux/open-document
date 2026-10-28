@@ -8,19 +8,36 @@ import {
 
 ///|
 async fn main {
+  let artifact = "_build/wasm-gc/release/build/open_document/bridge/all/all"
+  // Use Binaryen supplied by the pinned MoonBit toolchain. Size optimization
+  // preserves the synchronous core's Chromium instantiation size budget.
+  // Restrict optimization to Chromium-supported features used by MoonBit.
+  // Enabling every proposal can introduce unsupported exact heap types.
+  @shell.Cmd("moon-wasm-opt", [
+    artifact + ".wasm",
+    "--enable-gc",
+    "--enable-reference-types",
+    "--enable-multivalue",
+    "--enable-bulk-memory",
+    "--enable-simd",
+    "--enable-nontrapping-float-to-int",
+    "-Oz",
+    "-o",
+    artifact + ".optimized.wasm",
+  ])
+  .output()
+  .check()
+  let wasm = @fs.read_file(artifact + ".optimized.wasm").binary()
+  let identity = StringBuilder()
+  for byte in @crypto.sha256(wasm) {
+    identity.write_string(byte.to_int().to_string(radix=16).pad_start(2, '0'))
+  }
   for name in ["wasm", "web-core", "ui", "docx", "xlsx", "pptx", "pdf"] {
     if @fs.exists("packages/" + name + "/dist") {
       @shell.Cmd("find", ["packages/" + name + "/dist", "-depth", "-delete"])
       .output()
       .check()
     }
-  }
-  let wasm = @fs.read_file(
-    "_build/wasm-gc/release/build/open_document/bridge/all/all.wasm",
-  ).binary()
-  let identity = StringBuilder()
-  for byte in @crypto.sha256(wasm) {
-    identity.write_string(byte.to_int().to_string(radix=16).pad_start(2, '0'))
   }
   @shell.Cmd("mkdir", ["-p", "packages/wasm/dist"]).output().check()
   @fs.write_file("packages/wasm/dist/engine.wasm", wasm)

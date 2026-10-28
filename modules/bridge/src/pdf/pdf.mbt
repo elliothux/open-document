@@ -43,6 +43,9 @@ fn Context::pdf_operation(
   if operation == "defaultPdfBudget" {
     return @model.PdfBudget::default().to_json()
   }
+  if operation == "defaultPdfOfficeBudget" {
+    return @common.archive_budget()
+  }
   if operation == "openPdf" || operation == "createPdf" {
     guard request is { "budget": value, .. } else {
       @failure.reject("invalid-budget", "Explicit PDF budget is required")
@@ -71,6 +74,51 @@ fn Context::pdf_operation(
   }
   match operation {
     "queryPdf" => session.query()
+    "convertPdfOffice" => self.pdf_convert_operation(request)
+    "previewPdfRedaction" | "exportPdfRedaction" =>
+      self.pdf_redaction_operation(operation, request)
+    "pdfAnnotation"
+    | "pdfAnnotationThread"
+    | "editPdfAnnotation"
+    | "replyPdfAnnotation"
+    | "deletePdfAnnotationThread"
+    | "addPdfInkAnnotation"
+    | "addPdfStampAnnotation" =>
+      self.pdf_annotation_operation(operation, request)
+    "pdfFieldDesign" | "updatePdfFieldDesign" =>
+      self.pdf_field_design_operation(operation, request)
+    "splitPdfPage" | "splitPdfPageGrid" | "nupPdfPages" =>
+      self.pdf_arrange_operation(operation, request)
+    "splitPdfFiles" => {
+      guard request is { "groups": Array(groups), .. } &&
+        groups.length() <= 1024 else {
+        @failure.reject("invalid-operation", "PDF split groups are required")
+      }
+      let revision = field_int(request, "revision")
+      let groups = groups.map(group => pdf_strings({ "pages": group }, "pages"))
+      {
+        "revision": revision,
+        "files": session
+        .split_files(revision, groups)
+        .map(file => { "name": file.0, "bytes": @base64.encode(file.1) }),
+      }
+    }
+    "exportPdfText" => {
+      let revision = field_int(request, "revision")
+      let (bytes, warnings) = session.export_text(
+        revision,
+        pdf_strings(request, "pages"),
+        field_string(request, "format"),
+        self.probe,
+        font_profile(request),
+        decoded=self.images,
+      )
+      {
+        "revision": revision,
+        "bytes": @base64.encode(bytes),
+        "warnings": warnings,
+      }
+    }
     "pdfNavigation" => session.navigation()
     "selectPdfRange" =>
       session.select_range(
@@ -311,6 +359,7 @@ fn Context::pdf_operation(
         "height": image.height,
       }
     }
+    "cropPdfImage" => self.pdf_image_crop_operation(request)
     _ => self.pdf_object_operation(operation, request)
   }
 }

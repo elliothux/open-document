@@ -19,7 +19,12 @@ export async function mountEditor(
     extraTabs: true,
     addressStatus: false,
     editReadOnly: true,
-    outputs: [],
+    outputs: [
+      { kind: "png", label: "exportPagePng" },
+      { kind: "jpeg", label: "exportPageJpeg" },
+      { kind: "images", label: "exportPageImages" },
+      { kind: "jpegs", label: "exportPageJpegs" },
+    ],
     prepare: (document, parent, signal) =>
       prepareFile(options, document, parent, signal),
     render(slot, props) {

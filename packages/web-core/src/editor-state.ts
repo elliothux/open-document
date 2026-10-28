@@ -45,6 +45,7 @@ export class EditorState<T> {
   private readonly documentId = crypto.randomUUID();
   private readonly listeners = new Set<() => void>();
   private readonly outputs = new WeakSet<EditorOutput>();
+  private readonly saveOutputs = new WeakSet<EditorOutput>();
   private value: EditorSnapshot<T>;
 
   constructor(
@@ -103,6 +104,7 @@ export class EditorState<T> {
     revision: number,
     format: EditorOutput["format"],
     bytes: Uint8Array,
+    canConfirmSave = true,
   ): EditorOutput {
     const output = Object.freeze({
       documentId: this.documentId,
@@ -111,6 +113,7 @@ export class EditorState<T> {
       bytes,
     });
     this.outputs.add(output);
+    if (canConfirmSave) this.saveOutputs.add(output);
     this.publish({
       ...this.value,
       lastOutput: { revision, format, downloaded: false },
@@ -120,7 +123,7 @@ export class EditorState<T> {
 
   markSaved(output: EditorOutput): void {
     this.validateOutput(output);
-    if (output.format !== this.format)
+    if (output.format !== this.format || !this.saveOutputs.has(output))
       throw new Error("Only original-format output can confirm a save");
     const savedRevision = Math.max(this.value.savedRevision, output.revision);
     this.publish({

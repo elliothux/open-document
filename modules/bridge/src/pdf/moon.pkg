@@ -1,6 +1,8 @@
 import {
   "open_document/core/failure",
   "open_document/formats/pdf" @model,
+  "open_document/formats/pdf-convert" @convert,
+  "open_document/core/archive",
   "open_document/layout",
   "open_document/bridge/common",
   "moonbitlang/core/encoding/base64",

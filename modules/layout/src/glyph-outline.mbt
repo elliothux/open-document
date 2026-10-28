@@ -7,7 +7,7 @@ pub fn TextProbe::source_glyph(
   name : String,
   codepoint : Int32,
   symbolic : Bool,
-) -> (String, Int32) raise @failure.Failure {
+) -> (String, Int32, UInt32) raise @failure.Failure {
   self.check()
   guard index >= 0 && index < self.fonts.length() else {
     @failure.reject("missing-font", "Unknown source font")
@@ -46,5 +46,5 @@ pub fn TextProbe::source_glyph(
     }
   }
   let (outline, _, _) = self.outline(index, id)
-  (outline, font.upem)
+  (outline, font.upem, id)
 }

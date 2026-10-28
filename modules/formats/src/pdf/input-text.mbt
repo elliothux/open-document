@@ -4,6 +4,7 @@ fn show_text(
   state : GraphicsState,
   op : @content.PdfContentOp,
   source : String,
+  depth : Int32,
 ) -> GraphicsState raise {
   guard state.font is Some(font) else {
     @failure.reject("unsupported-pdf", "PDF text has no font resource")
@@ -38,6 +39,9 @@ fn show_text(
     geometry_matrix(state.matrix),
     op,
   )
+  let extractionGroup = context.extraction
+    .map(data => data.glyphs.length())
+    .unwrap_or(0)
   for index, glyph in result.glyphs {
     @pdfcore.sdk_check(1)
     let box = glyph.bounding_box
@@ -79,6 +83,28 @@ fn show_text(
       mapped: mapped is Some(_) || actual,
       invisible: text_state.rendering_mode == 3,
     })
+    let transform = state.matrix
+      .then(matrix(glyph.text_matrix))
+      .then({
+        a: text_state.font_size * text_state.horizontal_scaling,
+        b: 0,
+        c: 0,
+        d: text_state.font_size,
+        e: 0,
+        f: text_state.rise,
+      })
+    let extracted = context.extracted_glyph(
+      state,
+      font,
+      text_state,
+      mapped,
+      quad,
+      transform,
+      glyph.pvx,
+      glyph.pvy,
+      depth,
+      extractionGroup,
+    )
     if text_state.rendering_mode == 3 || text_state.font_size == 0 {
       continue
     }
@@ -147,19 +173,10 @@ fn show_text(
           outline
         }
       }
-      let transform = state.matrix
-        .then(matrix(glyph.text_matrix))
-        .then({
-          a: text_state.font_size * text_state.horizontal_scaling,
-          b: 0,
-          c: 0,
-          d: text_state.font_size,
-          e: 0,
-          f: text_state.rise,
-        })
       check_style(state.style, state.width)
       context.commands.push(@layout.Style(state.style))
       context.scope(@layout.Transform(transform))
+      context.extracted_glyph_draw(extracted, outline.2)
       context.commands.push(
         @layout.Glyphs(0, 0, state.fill, [
           {
@@ -186,6 +203,7 @@ fn finish_marked(context : ContentContext) -> Unit raise @failure.Failure {
   }
   if mark.replacement is Some(replacement) &&
     !context.marked.any(parent => parent.replacement is Some(_)) {
+    context.extracted_mark(mark.glyph, replacement)
     let spans = context.spans[mark.span:].to_owned()
     while context.spans.length() > mark.span {
       ignore(context.spans.pop())

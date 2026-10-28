@@ -6,10 +6,13 @@ fn PdfSession::page_order_reason(
     self.document,
     @syntax.PdfIndirect(self.document.root()),
   )
-  for key in ["PageLabels", "StructTreeRoot", "Threads"] {
+  for key in ["StructTreeRoot", "Threads"] {
     if raw(catalog, key) != @syntax.PdfNull {
       return "Page order is protected by " + key
     }
+  }
+  ignore(self.page_labels()) catch {
+    @failure.Failure(message~, ..) => return message
   }
   for (_, _, object) in self.document.parsed_object_entries() {
     if numeric_destination(object, 0) {
@@ -62,7 +65,9 @@ fn PdfSession::rebuild_pages(
   self : PdfSession,
   tx : PdfTransaction,
   pages : Array[SourcePage],
+  labels~ : Map[Int32, @syntax.PdfObject] = Map([]),
 ) -> Unit raise @failure.Failure {
+  tx.rebuild_page_labels(pages, labels)
   let catalog = resolve(
     self.document,
     @syntax.PdfIndirect(self.document.root()),
@@ -182,6 +187,9 @@ pub fn PdfSession::delete_pages(
         (
           is_name(raw(object, "Subtype"), "Text") ||
           is_name(raw(object, "Subtype"), "Highlight") ||
+          is_name(raw(object, "Subtype"), "Underline") ||
+          is_name(raw(object, "Subtype"), "StrikeOut") ||
+          drawing_annotation_kind(object) ||
           is_name(raw(object, "Subtype"), "Link")
         ) &&
         raw(object, "IRT") == @syntax.PdfNull &&

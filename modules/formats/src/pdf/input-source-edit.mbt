@@ -392,6 +392,11 @@ pub fn PdfSession::replace_source_text(
     guard target.kind.has_prefix("text") else {
       @failure.reject("invalid-operation", "Choose a PDF text object")
     }
+    guard spec.foreground else {
+      @failure.reject(
+        "protected-content", "Source text keeps its original paint order",
+      )
+    }
     let combined = source_edit_probe(supplied, display.probe)
     defer combined.close()
     let profile = profile.copy()
@@ -404,7 +409,20 @@ pub fn PdfSession::replace_source_text(
       let identity = display.probe.font_info()[index].identity
       profile[spec.font] = identity
     }
-    let form = tx.text_form(spec, combined, profile)
+    let baseline = if target.kind == "text" {
+      let original = source_placement(self, target)
+      let (x, y) = target.matrix
+        .then(matrix(target.before.text_matrix))
+        .point(0, target.before.rise)
+      let (_, offset) = source_placement_matrix(original).inverse().point(x, y)
+      let basis = target.matrix.then(matrix(target.before.text_matrix))
+      let originalSize = target.before.font_size.abs() *
+        (basis.c * basis.c + basis.d * basis.d).sqrt()
+      Some(offset * spec.size / originalSize)
+    } else {
+      None
+    }
+    let form = tx.text_form(spec, combined, profile, baseline?)
     let (ops, resources) = tx.source_form_ops(target, form, spec.placement)
     tx.write_source_object(page, target, ops, resources)
     tx.commit(self.current)

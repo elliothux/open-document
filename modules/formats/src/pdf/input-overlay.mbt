@@ -210,6 +210,7 @@ fn PdfTransaction::text_form(
   spec : PdfTextSpec,
   supplied : @layout.TextProbe,
   profile : Map[String, String],
+  baseline? : Double,
 ) -> @syntax.PdfObject raise {
   check_pdf_placement(spec.placement)
   check_pdf_text(spec.text)
@@ -242,8 +243,33 @@ fn PdfTransaction::text_form(
     )
   }
   let primitives : Array[@layout.PositionedPrimitive] = []
+  if baseline is Some(value) {
+    let mut first : Double? = None
+    for line in block.lines {
+      for primitive in line {
+        if primitive is @layout.Text(text) &&
+          first is None &&
+          !text.runs.is_empty() {
+          first = Some(text.runs[0].baseline)
+        }
+      }
+    }
+    primitives.push(
+      @layout.Transform({
+        a: 1,
+        b: 0,
+        c: 0,
+        d: 1,
+        e: 0,
+        f: value - first.unwrap_or(0),
+      }),
+    )
+  }
   for line in block.lines {
     primitives.append(line)
+  }
+  if baseline is Some(_) {
+    primitives.push(@layout.Restore)
   }
   let positioned : @layout.PositionedDocument = {
     links: [],
@@ -297,8 +323,14 @@ pub fn PdfSession::add_text(
   spec : PdfTextSpec,
   supplied : @layout.TextProbe,
   profile : Map[String, String],
+  replace_numbers~ : Bool = false,
 ) -> Json raise @failure.Failure {
   let tx = self.transaction(revision)
+  guard !replace_numbers || spec.role == "page-number" else {
+    @failure.reject(
+      "invalid-operation", "Page numbering requires a page-number text specification",
+    )
+  }
   guard !pages.is_empty() && pages.length() <= self.budget.pages else {
     @failure.reject("invalid-page", "Choose PDF pages for text insertion")
   }
@@ -329,9 +361,13 @@ pub fn PdfSession::add_text(
             profile,
           )
       }
-      ignore(
-        tx.place_form(self.page(id), form, spec.placement, spec.foreground),
-      )
+      if replace_numbers {
+        tx.set_page_number(self.page(id), form, spec)
+      } else {
+        ignore(
+          tx.place_form(self.page(id), form, spec.placement, spec.foreground),
+        )
+      }
     }
     tx.commit(self.current)
   })
@@ -352,68 +388,8 @@ pub fn PdfSession::add_image(
 ) -> Json raise @failure.Failure {
   let tx = self.transaction(revision)
   check_pdf_placement(placement)
-  guard width > 0 &&
-    height > 0 &&
-    width <= 4096 &&
-    height <= 4096 &&
-    width.to_int64() * height.to_int64() * 4 == rgba.length().to_int64() &&
-    rgba.length() <= 16777216 else {
-    @failure.reject("invalid-image", "PDF image requires bounded RGBA pixels")
-  }
   pdf_bound(self.budget, () => {
-    let rgb = Bytes::makei(width * height * 3, i => rgba[i / 3 * 4 + i % 3])
-    let alpha = Bytes::makei(width * height, i => rgba[i * 4 + 3])
-    let entries : Array[(String, @syntax.PdfObject)] = [
-      ("Type", tag("XObject")),
-      ("Subtype", tag("Image")),
-      ("Width", @syntax.PdfInteger(width)),
-      ("Height", @syntax.PdfInteger(height)),
-      ("ColorSpace", tag("DeviceRGB")),
-      ("BitsPerComponent", @syntax.PdfInteger(8)),
-    ]
-    if alpha.iter().any(value => value != 255) {
-      entries.push(
-        (
-          "SMask",
-          tx.add(
-            stream(alpha, [
-              ("Type", tag("XObject")),
-              ("Subtype", tag("Image")),
-              ("Width", @syntax.PdfInteger(width)),
-              ("Height", @syntax.PdfInteger(height)),
-              ("ColorSpace", tag("DeviceGray")),
-              ("BitsPerComponent", @syntax.PdfInteger(8)),
-            ]),
-          ),
-        ),
-      )
-    }
-    let image = tx.add(stream(rgb, entries))
-    let form = appearance_stream(
-      @pdflite.pdf_content_bytes_of_ops([
-        @content.Op_q,
-        @content.Op_cm({
-          a: placement.width,
-          b: 0,
-          c: 0,
-          d: placement.height,
-          e: 0,
-          f: 0,
-        }),
-        @content.Op_Do(pdf_name("Image")),
-        @content.Op_Q,
-      ]),
-      placement.width,
-      placement.height,
-      dict([("XObject", dict([("Image", image)]))]),
-    )
-    guard form is PdfStreamObject(value) else { abort("Expected image Form") }
-    let form = tx.add(
-      @syntax.pdf_stream(
-        value.dictionary.with_entry(pdf_name("ODKind"), tag("Image")),
-        value.data,
-      ),
-    )
+    let form = tx.image_form(width, height, rgba)
     let page = self.page(page)
     if replace.is_empty() {
       ignore(tx.place_form(page, form, placement, true))

@@ -35,6 +35,69 @@ pub fn ConnectorEnd::equal(Self, Self) -> Bool
 pub fn ConnectorEnd::not_equal(Self, Self) -> Bool
 pub fn ConnectorEnd::to_json(Self) -> Json
 
+pub(all) struct ContentPicture {
+  bytes : Bytes
+  x : Double
+  y : Double
+  width : Double
+  height : Double
+  rotation : Double
+}
+
+pub(all) struct ContentShape {
+  kind : String
+  x : Double
+  y : Double
+  width : Double
+  height : Double
+  fill : String
+  stroke : String
+  thickness : Double
+}
+
+pub(all) struct ContentSlide {
+  texts : Array[ContentText]
+  pictures : Array[ContentPicture]
+  shapes : Array[ContentShape]
+  tables : Array[ContentTable]
+}
+
+pub(all) struct ContentTable {
+  x : Double
+  y : Double
+  widths : Array[Double]
+  heights : Array[Double]
+  cells : Array[ContentTableCell]
+}
+
+pub(all) struct ContentTableCell {
+  row : Int32
+  column : Int32
+  rowSpan : Int32
+  columnSpan : Int32
+  text : String
+  font : String
+  size : Double
+  color : String
+  bold : Bool
+  italic : Bool
+  fill : String
+}
+
+pub(all) struct ContentText {
+  text : String
+  font : String
+  size : Double
+  color : String
+  bold : Bool
+  italic : Bool
+  x : Double
+  y : Double
+  width : Double
+  height : Double
+  rotation : Double
+}
+
 pub(all) struct CustomShow {
   id : String
   name : String
@@ -231,6 +294,7 @@ pub fn Session::close(Self) -> Unit
 pub fn Session::control_show(Self, Int32, String, String, Double, custom? : String?, layout? : Int32?, point? : (Double, Double)?) -> Json raise @failure.Failure
 pub fn Session::copy(Self, Int32) -> Json raise @failure.Failure
 pub fn Session::create(@archive.Budget, date_time? : String) -> Self raise @failure.Failure
+pub fn Session::create_content(Array[ContentSlide], Double, Double, @archive.Budget, @layout.TextProbe, Map[String, String]) -> Self raise @failure.Failure
 pub fn Session::delete(Self, Int32, Bool, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::drag(Self, Int32, Int32, Double, Double, Int32, tolerance? : Double, shift? : Bool, center? : Bool) -> Json raise @failure.Failure
 pub fn Session::edit_objects(Self, Int32, ObjectEdit, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure

@@ -213,6 +213,13 @@ pub fn PdfSession::resize_page(
       @content.Op_W,
       @content.Op_n,
     ])
+    let prefix = Bytes::makei(prefix.length() + 1, i => {
+      if i == prefix.length() {
+        b'\n'
+      } else {
+        prefix[i]
+      }
+    })
     let bytes = content_bytes(
       self.document,
       raw(tx.object(page.number), "Contents"),

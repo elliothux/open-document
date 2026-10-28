@@ -61,6 +61,7 @@ fn font_line_extents(
 pub struct TextProbe {
   fonts : Array[Font]
   outlines : Map[String, String]
+  outline_boxes : Map[String, Array[Double]]
   mut font_bytes : Int32
   mut outline_bytes : Int32
   mut closed : Bool
@@ -74,6 +75,7 @@ pub fn TextProbe::new() -> TextProbe {
   {
     fonts: [],
     outlines: Map([]),
+    outline_boxes: Map([]),
     font_bytes: 0,
     outline_bytes: 0,
     closed: false,
@@ -328,31 +330,56 @@ fn TextProbe::outline(
   if self.outlines.get(key) is Some(path) {
     return (key, path, false)
   }
-  let pen = StringBuilder()
+  let pen : GlyphOutlinePen = {
+    path: StringBuilder(),
+    bounds: [],
+    valid: true,
+  }
   let funcs = @draw.DrawFuncs::new()
-  funcs.set_move_to(Some((pen : StringBuilder, _, x, y) => pen <+ "M\{x} \{y}"))
-  funcs.set_line_to(Some((pen, _, x, y) => pen <+ "L\{x} \{y}"))
+  funcs.set_move_to(
+    Some((pen : GlyphOutlinePen, _, x, y) => {
+      pen.point(x, y)
+      pen.path <+ "M\{x} \{y}"
+    }),
+  )
+  funcs.set_line_to(
+    Some((pen, _, x, y) => {
+      pen.point(x, y)
+      pen.path <+ "L\{x} \{y}"
+    }),
+  )
   funcs.set_quadratic_to(
-    Some((pen, _, x1, y1, x, y) => pen <+ "Q\{x1} \{y1} \{x} \{y}"),
+    Some((pen, _, x1, y1, x, y) => {
+      pen.point(x1, y1)
+      pen.point(x, y)
+      pen.path <+ "Q\{x1} \{y1} \{x} \{y}"
+    }),
   )
   funcs.set_cubic_to(
     Some((pen, _, x1, y1, x2, y2, x, y) => {
-      pen <+ "C\{x1} \{y1} \{x2} \{y2} \{x} \{y}"
+      pen.point(x1, y1)
+      pen.point(x2, y2)
+      pen.point(x, y)
+      pen.path <+ "C\{x1} \{y1} \{x2} \{y2} \{x} \{y}"
     }),
   )
-  funcs.set_close_path(Some((pen, _) => pen.write_char('Z')))
+  funcs.set_close_path(Some((pen, _) => pen.path.write_char('Z')))
   match self.fonts[index].font.draw_glyph_or_fail(glyph, funcs, pen) {
     Err(_) => @failure.reject("malformed-font", "Glyph outline parsing failed")
     Ok(false) =>
       @failure.reject("unsupported-font", "Glyph has no supported outline")
     Ok(true) => ()
   }
-  let path = pen.to_string()
+  guard pen.valid else {
+    @failure.reject("malformed-font", "Glyph outline coordinates exceed budget")
+  }
+  let path = pen.path.to_string()
   guard path.length() <= 8388608 - self.outline_bytes else {
     @failure.reject("limit-exceeded", "Outline cache budget exceeded")
   }
   self.outline_bytes += path.length()
   self.outlines[key] = path
+  self.outline_boxes[key] = pen.bounds.copy()
   (key, path, true)
 }
 
@@ -361,6 +388,7 @@ pub fn TextProbe::close(self : TextProbe) -> Unit {
   self.closed = true
   self.fonts.clear()
   self.outlines.clear()
+  self.outline_boxes.clear()
   self.paragraphs.clear()
   self.text_units = 0
   self.pagination = None

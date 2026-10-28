@@ -71,6 +71,30 @@ pub(all) enum CommentEdit {
   GoToComment(String)
 }
 
+pub(all) enum ContentBlock {
+  ParagraphBlock(Array[ContentRun], Bool)
+  TableBlock(Array[Double], Int32, Array[ContentCell], Bool)
+  PictureBlock(Bytes, Int32, Int32, Bytes, Double, Double, Bool)
+}
+
+pub(all) struct ContentCell {
+  row : Int32
+  column : Int32
+  rowSpan : Int32
+  columnSpan : Int32
+  runs : Array[ContentRun]
+  fill : String
+}
+
+pub(all) struct ContentRun {
+  text : String
+  font : String
+  size : Double
+  color : String
+  bold : Bool
+  italic : Bool
+}
+
 pub(all) struct FindOptions {
   matchCase : Bool
   wholeWord : Bool
@@ -206,6 +230,7 @@ pub fn Session::comment_overlays(Self, @layout.Layout) -> Json raise @failure.Fa
 pub fn Session::comments(Self, Int32) -> Json raise @failure.Failure
 pub fn Session::commit_composition(Self, Int32, Int32, String) -> Json raise @failure.Failure
 pub fn Session::create(@archive.Budget) -> Self raise @failure.Failure
+pub fn Session::create_content(Array[ContentBlock], @layout.PageSetup, @archive.Budget, @layout.TextProbe, Map[String, String]) -> (Self, Array[Int32]) raise @failure.Failure
 pub fn Session::create_style(Self, Int32, String, String, based_on? : String?) -> Json raise @failure.Failure
 pub fn Session::delete(Self, Int32, String) -> Json raise @failure.Failure
 pub fn Session::delete_picture(Self, Int32, Int32) -> Json raise @failure.Failure

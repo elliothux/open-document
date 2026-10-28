@@ -5,6 +5,10 @@ export async function output(
   editor: PdfEditor,
   kind: string,
 ): Promise<EditorOutput> {
+  if (kind === "png" || kind === "jpeg")
+    return (await editor.exportPageImages(kind, [editor.snapshot.page]))[0]!;
+  if (kind === "html" || kind === "markdown")
+    return (await editor.exportText(kind)).output;
   if (kind !== "original" && kind !== "print")
     throw new Error("Unsupported PDF output");
   return editor.save();

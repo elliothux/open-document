@@ -80,7 +80,7 @@ fn field_appearance(
   profile : Map[String, String],
 ) -> @syntax.PdfObject raise {
   let document = tx.session.document
-  let widget = resolve(document, @syntax.PdfIndirect(widget_id))
+  let widget = tx.object(widget_id)
   let (x, y, r, t) = rectangle(get(document, widget, "Rect"))
   let width = r - x
   let height = t - y
@@ -197,6 +197,11 @@ fn field_appearance(
     is Some(identity) {
     ignore(probe.font_index(identity))
     identity
+  } else if field.attributes.get("ODFont") is Some(family) &&
+    @layout.font_profile_identity(profile, pdf_text_string(family))
+    is Some(identity) {
+    ignore(probe.font_index(identity))
+    identity
   } else {
     let catalog = resolve(document, @syntax.PdfIndirect(document.root()))
     let form = get(document, catalog, "AcroForm")
@@ -224,22 +229,61 @@ fn field_appearance(
   }
   let font_profile = profile.copy()
   font_profile["form"] = identity
+  // A blank variable-text widget still needs an embedded default font.
+  let text = if text.is_empty() { " " } else { text }
   let mut chosen : @layout.TextBlock? = None
+  let mut listRows : Array[(String, Bool)] = []
+  let mut rowHeight = 0.0
   let initial = if size == 0 { 12.0.min(height - padding * 2) } else { size }
   for attempt in 0..<9 {
     let current = initial - attempt.to_double()
     if current < 4 || (size > 0 && attempt > 0) {
       break
     }
+    let style = @layout.TextStyle::new("form", current, color)
+    let text = if field.kind == "list" {
+      let selected : Array[String] = match field.value {
+        Array(values) =>
+          values.filter_map(value => {
+            match value {
+              String(text) => Some(text)
+              _ => None
+            }
+          })
+        _ => []
+      }
+      rowHeight = probe.text_block(
+          "M",
+          style,
+          font_profile,
+          width - padding * 2,
+          false,
+        ).height
+      let count = ((height - padding * 2) / rowHeight).to_int().max(1)
+      let mut start = 0
+      for index, option in field.options {
+        if selected.contains(option.0) {
+          start = index
+          break
+        }
+      }
+      listRows = field.options[start:(start + count).min(field.options.length())].map(option => {
+          (option.1, selected.contains(option.0))
+        },
+      )
+      listRows.map(row => row.0).join("\n")
+    } else {
+      text
+    }
     let block = probe.text_block(
       text,
-      @layout.TextStyle::new("form", current, color),
+      style,
       font_profile,
       width - padding * 2,
-      field.multiline,
+      field.multiline && field.kind != "list",
     )
     if block.height <= height - padding * 2 &&
-      block.widths.all(w => w <= width - padding * 2) {
+      (field.kind == "list" || block.widths.all(w => w <= width - padding * 2)) {
       chosen = Some(block)
       break
     }
@@ -280,6 +324,17 @@ fn field_appearance(
     }),
   )
   for index, line in block.lines {
+    if field.kind == "list" && index < listRows.length() && listRows[index].1 {
+      primitives.push(
+        @layout.Rectangle({
+          x: padding,
+          y: padding + index.to_double() * rowHeight,
+          width: width - padding * 2,
+          height: rowHeight,
+          color: "BDD7EE",
+        }),
+      )
+    }
     let offset = if alignment == 1 {
       (width - padding * 2 - block.widths[index]) / 2
     } else if alignment == 2 {

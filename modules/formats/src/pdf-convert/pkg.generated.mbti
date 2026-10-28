@@ -1,0 +1,34 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "open_document/formats/pdf-convert"
+
+import {
+  "open_document/core/archive",
+  "open_document/core/failure",
+  "open_document/formats/pdf",
+  "open_document/layout",
+}
+
+// Values
+pub fn convert(@pdf.PdfSession, Int32, Array[String], String, Bool, @archive.Budget, @layout.TextProbe, Map[String, String], decoded~ : @layout.Images) -> ConversionResult raise @failure.Failure
+
+// Errors
+
+// Types and methods
+pub(all) struct ConversionResult {
+  revision : Int32
+  format : String
+  status : String
+  reason : String
+  warnings : Array[String]
+  pages : Array[PageMap]
+  bytes : Bytes?
+}
+
+pub(all) struct PageMap {
+  source : String
+  target : Int32
+}
+
+// Type aliases
+
+// Traits

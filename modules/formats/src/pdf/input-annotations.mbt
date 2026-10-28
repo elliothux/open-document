@@ -18,20 +18,52 @@ fn annotation_reason(
   object : @syntax.PdfObject,
 ) -> String raise @failure.Failure {
   if !is_name(raw(object, "Subtype"), "Text") &&
-    !is_name(raw(object, "Subtype"), "Highlight") {
+    !is_name(raw(object, "Subtype"), "Highlight") &&
+    !is_name(raw(object, "Subtype"), "Underline") &&
+    !is_name(raw(object, "Subtype"), "StrikeOut") &&
+    !is_name(raw(object, "Subtype"), "Stamp") &&
+    !drawing_annotation_kind(object) {
     return "Unsupported annotation type"
   }
   let flags = raw(object, "F")
   if flags != @syntax.PdfNull && (integer(flags) & (64 | 128 | 512)) != 0 {
     return "Locked PDF annotation"
   }
-  for
-    key in [
-      "IRT", "Popup", "RC", "A", "AA", "StructParent", "State", "StateModel", "OC",
-    ] {
+  for key in ["RC", "A", "AA", "StructParent", "State", "StateModel", "OC"] {
     if raw(object, key) != @syntax.PdfNull {
       return "Annotation relationship or content is protected: " + key
     }
+  }
+  if raw(object, "IRT") != @syntax.PdfNull &&
+    !(raw(object, "IRT") is PdfIndirect(_)) {
+    return "Direct annotation replies are protected"
+  }
+  if raw(object, "Popup") != @syntax.PdfNull &&
+    !(raw(object, "Popup") is PdfIndirect(_)) {
+    return "Direct annotation popup is protected"
+  }
+  if raw(object, "RT") != @syntax.PdfNull && !is_name(raw(object, "RT"), "R") {
+    return "Unsupported annotation reply type"
+  }
+  if drawing_annotation_kind(object) {
+    for
+      key in [
+        "IC", "RD", "BE", "Measure", "CL", "Path", "LL", "LLE", "LLO", "Cap",
+      ] {
+      if raw(object, key) != @syntax.PdfNull {
+        return "Drawing annotation property is protected: " + key
+      }
+    }
+    let endings = raw(object, "LE")
+    if endings != @syntax.PdfNull &&
+      endings != @syntax.PdfArray([tag("None"), tag("None")]) &&
+      endings != @syntax.PdfArray([tag("None"), tag("OpenArrow")]) {
+      return "Unsupported annotation line endings"
+    }
+  }
+  if is_name(raw(object, "Subtype"), "Stamp") &&
+    raw(object, "ODStampBase") == @syntax.PdfNull {
+    return "Imported stamp appearance editing is protected"
   }
   ""
 }
@@ -114,17 +146,48 @@ fn annotation_appearance(
   tx : PdfTransaction,
   object : @syntax.PdfObject,
 ) -> @syntax.PdfObject raise {
+  if is_name(raw(object, "Subtype"), "Stamp") {
+    return stamp_annotation_appearance(tx, object)
+  }
+  if drawing_annotation_kind(object) {
+    return drawing_annotation_appearance(tx, object)
+  }
   let (x, y, r, t) = rectangle(raw(object, "Rect"))
   let w = r - x
   let h = t - y
   let ops : Array[@content.PdfContentOp] = [@content.Op_q]
   let mut style = @layout.DrawStyle::default()
   if is_name(raw(object, "Subtype"), "Text") {
-    ops.push(@content.Op_rg(1, 0.85, 0.15))
+    let color = raw(object, "C")
+    let color = if color == @syntax.PdfNull {
+      [1.0, 0.85, 0.15]
+    } else {
+      guard color is PdfArray(items) && items.length() == 3 else {
+        @failure.reject("protected-content", "Note color is unsupported")
+      }
+      items.map(number)
+    }
+    let alpha = raw(object, "CA")
+    let alpha = if alpha == @syntax.PdfNull { 1.0 } else { number(alpha) }
+    guard alpha >= 0 && alpha <= 1 else {
+      @failure.reject("protected-content", "Note opacity is unsupported")
+    }
+    style = { ..style, fillAlpha: alpha, strokeAlpha: alpha, }
+    ops.push(@content.Op_gs(pdf_name("GS")))
+    ops.push(@content.Op_rg(color[0], color[1], color[2]))
     ops.push(@content.Op_re(0, 0, w, h))
     ops.push(@content.Op_f)
     ops.push(@content.Op_RG(0.35, 0.25, 0))
-    ops.push(@content.Op_w(w.min(h) / 16))
+    let border = get(tx.session.document, raw(object, "BS"), "W")
+    ops.push(
+      @content.Op_w(
+        if border == @syntax.PdfNull {
+          w.min(h) / 16
+        } else {
+          number(border)
+        },
+      ),
+    )
     for line in 1..<4 {
       let ly = h * line.to_double() / 4
       ops.push(@content.Op_m(w / 5, ly))
@@ -152,11 +215,44 @@ fn annotation_appearance(
     guard alpha >= 0 && alpha <= 1 else {
       @failure.reject("invalid-pdf", "Invalid highlight opacity")
     }
-    style = { ..style, fillAlpha: alpha, multiply: true, }
+    style = { ..style, fillAlpha: alpha, strokeAlpha: alpha, multiply: true, }
     ops.push(@content.Op_gs(pdf_name("GS")))
     ops.push(@content.Op_rg(components[0], components[1], components[2]))
     for offset in 0..<(points.length() / 8) {
       let q = points[offset * 8:offset * 8 + 8].map(number)
+      if is_name(raw(object, "Subtype"), "Underline") ||
+        is_name(raw(object, "Subtype"), "StrikeOut") {
+        let ratio = if is_name(raw(object, "Subtype"), "Underline") {
+          0.9
+        } else {
+          0.5
+        }
+        ops.push(@content.Op_RG(components[0], components[1], components[2]))
+        let border = get(tx.session.document, raw(object, "BS"), "W")
+        ops.push(
+          @content.Op_w(
+            if border == @syntax.PdfNull {
+              1.0
+            } else {
+              number(border)
+            },
+          ),
+        )
+        ops.push(
+          @content.Op_m(
+            q[0] * (1 - ratio) + q[4] * ratio - x,
+            q[1] * (1 - ratio) + q[5] * ratio - y,
+          ),
+        )
+        ops.push(
+          @content.Op_l(
+            q[2] * (1 - ratio) + q[6] * ratio - x,
+            q[3] * (1 - ratio) + q[7] * ratio - y,
+          ),
+        )
+        ops.push(@content.Op_S)
+        continue
+      }
       ops.push(@content.Op_m(q[0] - x, q[1] - y))
       ops.push(@content.Op_l(q[2] - x, q[3] - y))
       ops.push(@content.Op_l(q[6] - x, q[7] - y))
@@ -186,6 +282,9 @@ fn render_appearances(
   let page = document.lookup_object_or_null(context.page.number)
   for index, reference in annotation_refs(document, page) {
     let object = resolve(document, reference)
+    if is_name(raw(object, "Subtype"), "Popup") {
+      continue
+    }
     let flags = get(document, object, "F")
     if flags != @syntax.PdfNull && (integer(flags) & (1 | 2 | 32)) != 0 {
       continue
@@ -204,6 +303,19 @@ fn render_appearances(
         )
       }
       let ap = get(document, object, "AP")
+      if is_name(raw(object, "Subtype"), "Link") && ap == @syntax.PdfNull {
+        let width = get(document, get(document, object, "BS"), "W")
+        let border = get(document, object, "Border")
+        if (width != @syntax.PdfNull && number(width) == 0) ||
+          (
+            width == @syntax.PdfNull &&
+            border is PdfArray(items) &&
+            items.length() >= 3 &&
+            number(items[2]) == 0
+          ) {
+          continue
+        }
+      }
       let normal = get(document, ap, "N")
       let normal = if normal is PdfDictionary(_) {
         get(
@@ -376,8 +488,12 @@ pub fn PdfSession::add_highlight(
   self : PdfSession,
   revision : Int32,
   layout_id : Int32,
+  kind~ : String = "Highlight",
 ) -> Json raise @failure.Failure {
   let tx = self.transaction(revision)
+  guard ["Highlight", "Underline", "StrikeOut"].contains(kind) else {
+    @failure.reject("invalid-operation", "Unknown PDF text markup")
+  }
   let display = self.current_display(layout_id)
   let page = self.page(display.page)
   let catalog = resolve(
@@ -422,18 +538,18 @@ pub fn PdfSession::add_highlight(
   ])
   let object = dict([
     ("Type", tag("Annot")),
-    ("Subtype", tag("Highlight")),
+    ("Subtype", tag(kind)),
     ("Rect", rect),
     ("QuadPoints", @syntax.PdfArray(points)),
     (
       "C",
       @syntax.PdfArray([
         @syntax.PdfInteger(1),
-        @syntax.PdfInteger(1),
+        @syntax.PdfInteger(if kind == "Highlight" { 1 } else { 0 }),
         @syntax.PdfInteger(0),
       ]),
     ),
-    ("CA", @syntax.PdfReal(0.35)),
+    ("CA", @syntax.PdfReal(if kind == "Highlight" { 0.35 } else { 1.0 })),
     ("Contents", pdf_string(self.selected_text(layout_id))),
     ("F", @syntax.PdfInteger(4)),
     ("P", @syntax.PdfIndirect(page.number)),
@@ -483,26 +599,9 @@ pub fn PdfSession::change_annotation(
   let object = resolve(self.document, @syntax.PdfIndirect(n))
   let reason = annotation_reason(object)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
+  self.check_annotation_relationships(page, n)
   if delete {
-    let targets : Map[Int32, Bool] = Map([(n, true)])
-    for (id, _, object) in self.document.parsed_object_entries() {
-      if id == n || id == page.number {
-        continue
-      }
-      guard !references_any(object, targets, 0) else {
-        @failure.reject(
-          "protected-content", "Retained PDF object refers to this annotation",
-        )
-      }
-    }
-    tx.objects[page.number] = tx
-      .object(page.number)
-      .with_entry(
-        pdf_name("Annots"),
-        @syntax.PdfArray(
-          refs.filter(reference => reference != @syntax.PdfIndirect(n)),
-        ),
-      )
+    pdf_bound(self.budget, () => self.delete_annotation_members(tx, n, false))
   } else {
     let updated = tx
       .object(n)

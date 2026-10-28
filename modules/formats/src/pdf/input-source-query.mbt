@@ -50,6 +50,13 @@ fn source_placement(
     e: x,
     f: t,
   })
+  placement_from_matrix(mapping)
+}
+
+///|
+fn placement_from_matrix(
+  mapping : @layout.Matrix,
+) -> PdfPlacement raise @failure.Failure {
   let width = (mapping.a * mapping.a + mapping.b * mapping.b).sqrt()
   let height = (mapping.c * mapping.c + mapping.d * mapping.d).sqrt()
   guard width > 0 &&
@@ -89,6 +96,29 @@ fn source_text(display : PageDisplay, target : PdfSourceObject) -> String {
 }
 
 ///|
+fn source_font_size(
+  session : PdfSession,
+  target : PdfSourceObject,
+) -> Double raise @failure.Failure {
+  let size = if target.kind == "text" {
+    let basis = target.matrix.then(matrix(target.before.text_matrix))
+    target.before.font_size.abs() *
+    (basis.c * basis.c + basis.d * basis.d).sqrt()
+  } else if target.kind == "text-form" {
+    number(get(session.document, target.reference, "ODSize")) *
+    (target.matrix.c * target.matrix.c + target.matrix.d * target.matrix.d).sqrt()
+  } else {
+    0.0
+  }
+  guard !size.is_nan() && !size.is_inf() && size >= 0 && size <= 14400 else {
+    @failure.reject(
+      "protected-content", "Source font size cannot be edited within the geometry budget",
+    )
+  }
+  size
+}
+
+///|
 fn source_reason(
   session : PdfSession,
   display : PageDisplay,
@@ -121,6 +151,7 @@ fn source_reason(
       return "PDF source object exceeds the editable text budget"
     }
     ignore(source_placement(session, target))
+    ignore(source_font_size(session, target))
     if target.kind == "text" {
       ignore(source_restore_ops(target.after))
     }
@@ -140,16 +171,7 @@ fn source_object_json(
   let placement = source_placement(session, target) catch {
     _ => { x: 0, y: 0, width: 1, height: 1, rotation: 0, }
   }
-  let size = if target.kind == "text" {
-    let basis = target.matrix.then(matrix(target.before.text_matrix))
-    target.before.font_size.abs() *
-    (basis.c * basis.c + basis.d * basis.d).sqrt()
-  } else if target.kind == "text-form" {
-    number(get(session.document, target.reference, "ODSize")) *
-    (target.matrix.c * target.matrix.c + target.matrix.d * target.matrix.d).sqrt()
-  } else {
-    0.0
-  }
+  let size = source_font_size(session, target) catch { _ => 0.0 }
   let role = if target.kind == "text-form" {
     get(session.document, target.reference, "ODRole")
   } else {

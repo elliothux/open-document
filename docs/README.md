@@ -2,7 +2,7 @@
 
 项目未发布，当前有 0 个用户。目标是复刻 GenOffice 的文档、表格、PPT、PDF 全功能 SDK。GenOffice 提供功能与 UI 参考；Office 实现、布局和算法仍优先参考 ONLYOFFICE，其次 LibreOffice。
 
-阶段 P0–P12 已完成各自声明范围，四类格式共用 [R0](implemented/r0-renderer-foundation.md)。后续按“功能优先级 P0 核心功能、P1 兼容与性能、P2 次要与外围能力”推进；与历史阶段编号分开。只覆盖 Chrome/Chromium，文档完整性、恢复、资源安全和无障碍随功能保留。按风险选择[最小检查](references/testing.md)。
+阶段 P0–P13 已完成各自声明范围，四类格式共用 [R0](implemented/r0-renderer-foundation.md)。后续按“功能优先级 P0 核心功能、P1 兼容与性能、P2 次要与外围能力”推进；与历史阶段编号分开。只覆盖 Chrome/Chromium，文档完整性、恢复、资源安全和无障碍随功能保留。按风险选择[最小检查](references/testing.md)。
 
 | 内容 | 权威入口 |
 | --- | --- |
@@ -36,8 +36,9 @@
 | P10 | [DOCX 核心功能](implemented/p10-docx-core.md) | `implemented`：六批最低交付范围、原生编辑/历史及保存输出；复杂兼容按 P14 扩展 |
 | P11 | [XLSX 核心功能](implemented/p11-xlsx-core.md) | `implemented`：五批最低交付范围、计算/数据/分析及交换输出；更广公式与复杂资源按 P14 扩展 |
 | P12 | [PPTX 核心功能](implemented/p12-pptx-core.md) | `implemented`：五批最低交付范围、对象/母版/复合内容、放映媒体及输出；复杂效果按 P14 扩展 |
+| P13 | [PDF 核心功能](implemented/p13-pdf-core.md) | `implemented`：六批最低范围、源对象编辑/页面关系、批注/表单、独立脱敏及原生 Office/结构化输出；复杂兼容按 P14 扩展 |
 
-后续阶段为 `planned`：[P13 PDF 核心功能](p13-pdf-core.md)，P14 兼容与性能，P15 次要与外围能力，P16 跨宿主。P13 已基于 P10–P12 和 R1 细化为六批操作，尚未实现。跨宿主按功能优先级 P2 最后实施。具体顺序和范围只在[路线图](references/roadmap.md#后续阶段与顺序)维护。
+后续阶段为 `planned`：P14 兼容与性能，P15 次要与外围能力，P16 跨宿主。P13 已完成六批最低范围；更广格式兼容继续归 P14。跨宿主按功能优先级 P2 最后实施。具体顺序和范围只在[路线图](references/roadmap.md#后续阶段与顺序)维护。
 
 ## 活动研究
 

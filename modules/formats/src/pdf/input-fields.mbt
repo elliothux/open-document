@@ -11,6 +11,8 @@ priv struct FormField {
   multiline : Bool
   maxLength : Int32
   onState : String
+  options : Array[(String, String)]
+  exportStates : Map[Int32, String]
 }
 
 ///|
@@ -72,7 +74,10 @@ fn PdfSession::fields(
     let object = resolve(document, reference)
     let attributes = parent.copy()
     for
-      key in ["FT", "Ff", "V", "DV", "DA", "Q", "MaxLen", "AA", "A", "RV", "DS"] {
+      key in [
+        "FT", "Ff", "V", "DV", "DA", "Q", "MaxLen", "AA", "A", "RV", "DS", "Opt",
+        "ODFont",
+      ] {
       let value = get(document, object, key)
       if value != @syntax.PdfNull {
         attributes[key] = value
@@ -138,7 +143,7 @@ fn PdfSession::fields(
       reason = "Field has no supported widget"
     }
     let flags = attributes.get("Ff").map(integer).unwrap_or(0)
-    if (flags & 1) != 0 {
+    if (flags & 1) != 0 && reason.is_empty() {
       reason = "Read-only PDF field"
     }
     for key in ["A", "AA", "RV", "DS"] {
@@ -151,10 +156,20 @@ fn PdfSession::fields(
       "text"
     } else if is_name(field_type, "Btn") && (flags & (32768 | 65536)) == 0 {
       "checkbox"
+    } else if is_name(field_type, "Btn") &&
+      (flags & 32768) != 0 &&
+      (flags & 65536) == 0 {
+      "radio"
+    } else if is_name(field_type, "Ch") &&
+      (flags & 131072) != 0 &&
+      (flags & (262144 | 2097152)) == 0 {
+      "choice"
+    } else if is_name(field_type, "Ch") && (flags & 131072) == 0 {
+      "list"
     } else {
       "unsupported"
     }
-    let multiline = (flags & 4096) != 0
+    let multiline = (flags & 4096) != 0 || kind == "list"
     if kind == "unsupported" ||
       (kind == "text" && (flags & (8192 | 1048576 | 16777216 | 33554432)) != 0) {
       reason = "Unsupported PDF field type or flags"
@@ -165,7 +180,16 @@ fn PdfSession::fields(
     }
     let source_value = attributes.get("V").unwrap_or(@syntax.PdfNull)
     let mut on_state = ""
-    if kind == "checkbox" {
+    let options : Array[(String, String)] = []
+    let exportStates : Map[Int32, String] = Map([])
+    if kind == "choice" || kind == "list" {
+      options.append(
+        choice_options(attributes.get("Opt").unwrap_or(@syntax.PdfNull)),
+      ) catch {
+        @failure.Failure(message~, ..) => reason = message
+      }
+    }
+    if kind == "checkbox" || kind == "radio" {
       for (number, _) in widgets {
         let normal = get(
           document,
@@ -178,10 +202,25 @@ fn PdfSession::fields(
             reason = "Checkbox requires Off and one actual export state"
           } else {
             let state = @utf8.decode_lossy(on[0].0.bytes())[1:].to_owned()
-            if !on_state.is_empty() && on_state != state {
+            if kind == "checkbox" && !on_state.is_empty() && on_state != state {
               reason = "Checkbox widgets have different export states"
             }
             on_state = state
+            exportStates[number] = state
+            if !options.any(option => option.0 == state) {
+              let tooltip = get(
+                document,
+                document.lookup_object_or_null(number),
+                "TU",
+              )
+              let label = if kind == "radio" && tooltip != @syntax.PdfNull {
+                pdf_text_string(tooltip)
+              } else {
+                state
+              }
+              check_pdf_text(label)
+              options.push((state, label))
+            }
             if !(resolve(document, on[0].1) is PdfStreamObject(_)) ||
               !(get(document, normal, "Off") is PdfStreamObject(_)) {
               reason = "Checkbox normal appearances are unsupported"
@@ -202,6 +241,38 @@ fn PdfSession::fields(
       Json(text)
     } else if kind == "checkbox" {
       Json(is_name(source_value, on_state) && !on_state.is_empty())
+    } else if kind == "radio" {
+      let chosen = options.filter(option => is_name(source_value, option.0))
+      if chosen.is_empty() {
+        Json("")
+      } else {
+        Json(chosen[0].0)
+      }
+    } else if kind == "choice" {
+      let chosen = if source_value == @syntax.PdfNull {
+        ""
+      } else {
+        pdf_text_string(source_value)
+      }
+      if !chosen.is_empty() && !options.any(option => option.0 == chosen) {
+        reason = "Choice value is not in its option list"
+      }
+      Json(chosen)
+    } else if kind == "list" {
+      let selected = match source_value {
+        PdfNull => []
+        PdfString(_) => [pdf_text_string(source_value)]
+        PdfArray(items) => items.map(pdf_text_string)
+        _ => {
+          reason = "Unsupported list field value"
+          []
+        }
+      }
+      if selected.any(value => !options.any(option => option.0 == value)) ||
+        ((flags & 2097152) == 0 && selected.length() > 1) {
+        reason = "List values do not match the field options"
+      }
+      Json(selected)
     } else {
       Json::null()
     }
@@ -217,6 +288,8 @@ fn PdfSession::fields(
       multiline,
       maxLength: max_length.min(32767),
       onState: on_state,
+      options,
+      exportStates,
     })
   }
   let inherited : Map[String, @syntax.PdfObject] = Map([])
@@ -233,7 +306,7 @@ fn PdfSession::fields(
 }
 
 ///|
-fn field_json(field : FormField) -> Json {
+fn field_json(field : FormField) -> Json raise @failure.Failure {
   {
     "id": field.id,
     "name": field.name,
@@ -242,6 +315,12 @@ fn field_json(field : FormField) -> Json {
     "readOnlyReason": field.reason,
     "multiline": field.multiline,
     "maxLength": field.maxLength,
+    "options": field.options.map(option => {
+      "value": option.0,
+      "label": option.1,
+    }),
+    "multiSelect": field.kind == "list" &&
+    (field.attributes.get("Ff").map(integer).unwrap_or(0) & 2097152) != 0,
     "widgets": field.widgets.map(widget => {
       "id": widget.0.to_string(),
       "page": widget.1,
@@ -273,7 +352,9 @@ pub fn PdfSession::set_field(
     guard field.reason.is_empty() else {
       @failure.reject("protected-content", field.reason)
     }
-    if field.kind == "checkbox" {
+    if field.kind == "radio" || field.kind == "choice" || field.kind == "list" {
+      tx.fill_option_field(field, value, supplied, profile)
+    } else if field.kind == "checkbox" {
       guard value is (True | False) else {
         @failure.reject("invalid-operation", "Checkbox requires a boolean")
       }
