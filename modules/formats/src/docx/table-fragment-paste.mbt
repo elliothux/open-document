@@ -1,7 +1,7 @@
 ///|
 fn Session::paste_table_fragment(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   fragment : String,
   probe : @layout.TextProbe?,

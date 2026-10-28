@@ -6,7 +6,7 @@ priv struct History {
   mut deleted : Sheet?
   removed : Map[String, @xml.Document]
   added_media : Map[String, Bytes]
-  bytes : Int
+  bytes : Int32
   before : (String, Range)
   after : (String, Range)
   before_picture : (String, String)?
@@ -21,7 +21,7 @@ pub struct Session {
   priv mut parts : Map[String, @xml.Document]
   priv mut media : Map[String, Bytes]
   priv mut removed : Array[String]
-  priv mut next_sheet : Int
+  priv mut next_sheet : Int32
   priv budget : @archive.Budget
   priv strings : Array[(String, Bool)]
   priv strings_part : String?
@@ -31,19 +31,19 @@ pub struct Session {
   priv normal_size : Double
   priv mut font_context : (@layout.TextProbe, Map[String, String])?
   priv date1904 : Bool
-  priv mut calendar_date : (Int, Int, Int)?
+  priv mut calendar_date : (Int32, Int32, Int32)?
   priv mut sheets : Array[Sheet]
   priv mut selection : (String, Range)
   priv mut drawing_selection : (String, String)?
-  priv slicer_scrolls : Map[(String, String), Int]
+  priv slicer_scrolls : Map[(String, String), Int32]
   priv mut anchor : Address
   priv mut focus : Address
   priv mut grid : Grid?
-  priv mut grid_id : Int
-  priv mut revision : Int
+  priv mut grid_id : Int32
+  priv mut revision : Int32
   priv history : Array[History]
   priv redo : Array[History]
-  priv mut history_bytes : Int
+  priv mut history_bytes : Int32
   priv mut read_only : String
   priv mut calculation : Calculation?
   priv mut closed : Bool
@@ -309,7 +309,7 @@ fn Session::check(self : Session) -> Unit raise @failure.Failure {
 ///|
 fn Session::check_revision(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Unit raise @failure.Failure {
   self.check()
   guard revision == self.revision else {
@@ -321,7 +321,7 @@ fn Session::check_revision(
 fn Session::sheet_index(
   self : Session,
   id : String,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   self.check()
   for index, sheet in self.sheets {
     if sheet.id == id {
@@ -589,7 +589,7 @@ pub fn Session::query(
 ///|
 pub fn Session::select(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   range : String,
 ) -> Json raise @failure.Failure {

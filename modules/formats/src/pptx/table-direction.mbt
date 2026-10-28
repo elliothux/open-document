@@ -54,9 +54,9 @@ fn Session::set_table_direction(
 fn DrawingTable::rtl_navigation(
   self : DrawingTable,
   text : TextGeometry,
-  position : Int,
+  position : Int32,
   direction : String,
-) -> Int? raise @failure.Failure {
+) -> Int32? raise @failure.Failure {
   let (r, c) = self.cell_at(position)
   let cell = self.rows[r].cells[c]
   let start = self.cell_offset(r, c)

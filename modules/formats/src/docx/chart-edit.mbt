@@ -1,9 +1,9 @@
 ///|
 pub fn Session::edit_chart(
   self : Session,
-  revision : Int,
+  revision : Int32,
   action : String,
-  id : Int,
+  id : Int32,
   kind : String,
   title : String,
   source : String,
@@ -12,7 +12,7 @@ pub fn Session::edit_chart(
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],
   images~ : @layout.Images,
-  hole_size~ : Int? = None,
+  hole_size~ : Int32? = None,
   legend~ : String? = None,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)

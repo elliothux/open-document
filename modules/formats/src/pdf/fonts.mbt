@@ -1,18 +1,18 @@
 ///|
 priv struct Cid {
-  glyph : Int
+  glyph : Int32
   text : String
 }
 
 ///|
 priv struct FontSubset {
-  codes : Map[String, Int]
+  codes : Map[String, Int32]
   cids : Array[Cid]
   remap : @subsetter.GlyphRemapper
 }
 
 ///|
-fn glyph_text(run : @layout.PositionedRun, index : Int) -> String {
+fn glyph_text(run : @layout.PositionedRun, index : Int32) -> String {
   let cluster = run.glyphs[index].cluster
   if index > 0 && run.glyphs[index - 1].cluster == cluster {
     return ""
@@ -30,15 +30,15 @@ fn glyph_text(run : @layout.PositionedRun, index : Int) -> String {
 }
 
 ///|
-fn cid_key(glyph : Int, text : String) -> String {
+fn cid_key(glyph : Int32, text : String) -> String {
   "\{glyph}:\{text}"
 }
 
 ///|
 fn collect_fonts(
   layout : @layout.PositionedDocument,
-) -> Map[Int, FontSubset] raise @failure.Failure {
-  let fonts : Map[Int, FontSubset] = Map([])
+) -> Map[Int32, FontSubset] raise @failure.Failure {
+  let fonts : Map[Int32, FontSubset] = Map([])
   for page in layout.pages {
     for primitive in page.primitives {
       guard primitive is Text(line) else { continue }
@@ -71,10 +71,10 @@ fn install_font(
   document : @pdflite.PdfDocument,
   subset : FontSubset,
   source : Bytes,
-  index : Int,
+  index : Int32,
   info : @layout.FontInfo,
   widths : Array[Double],
-) -> Int raise @pdfcore.PdfError {
+) -> Int32 raise @pdfcore.PdfError {
   let bytes = @subsetter.subset(source, 0, subset.remap) catch {
     _ => raise @pdfcore.HardError("TrueType font subsetting failed")
   }

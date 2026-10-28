@@ -2,7 +2,7 @@
 priv struct RulerContext {
   selection : Selection
   paragraph : @layout.Paragraph
-  page : Int
+  page : Int32
   width : Double
   origin : Double
   extent : Double
@@ -19,7 +19,7 @@ fn ruler_twips(value : Double) -> Double {
 ///|
 fn Session::ruler_context(
   self : Session,
-  revision : Int,
+  revision : Int32,
   layout : @layout.Layout,
 ) -> RulerContext raise @failure.Failure {
   self.check_revision(revision)
@@ -118,7 +118,7 @@ fn Session::ruler_context(
 ///|
 pub fn Session::ruler(
   self : Session,
-  revision : Int,
+  revision : Int32,
   layout : @layout.Layout,
 ) -> Json raise @failure.Failure {
   let context = self.ruler_context(revision, layout)
@@ -191,14 +191,14 @@ pub fn Session::ruler(
 pub(all) enum RulerEdit {
   RulerIndent(String, Double, Bool)
   RulerMargin(String, Double, Bool)
-  RulerTab(Int, Double, String, Bool, Bool)
+  RulerTab(Int32, Double, String, Bool, Bool)
 }
 
 ///|
 /// Applies one physical ruler position through the existing format or page transaction.
 pub fn Session::edit_ruler(
   self : Session,
-  revision : Int,
+  revision : Int32,
   layout : @layout.Layout,
   selection : Selection,
   change : RulerEdit,

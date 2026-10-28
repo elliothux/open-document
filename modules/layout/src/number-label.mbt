@@ -2,7 +2,7 @@
 /// Format a supported Office list ordinal.
 pub fn numbering_value(
   format : String,
-  value : Int,
+  value : Int32,
 ) -> String raise @failure.Failure {
   guard value >= 0 else {
     @failure.reject("invalid-numbering", "Negative numbering value")

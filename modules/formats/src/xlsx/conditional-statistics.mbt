@@ -1,6 +1,6 @@
 ///|
 pub(all) struct ConditionalRank {
-  rank : Int
+  rank : Int32
   percent : Bool
   bottom : Bool
 } derive(Eq, ToJson)
@@ -26,7 +26,7 @@ fn ConditionalRank::check(
 pub(all) struct ConditionalAverage {
   above : Bool
   equal : Bool
-  stdDev : Int
+  stdDev : Int32
 } derive(Eq, ToJson)
 
 ///|
@@ -112,8 +112,8 @@ fn ConditionalRules::statistical_match(
   rule : ConditionalRule,
   address : Address,
   sheets : Array[Sheet],
-  index : Int,
-  values : Map[(Int, String), Value],
+  index : Int32,
+  values : Map[(Int32, String), Value],
   work : FormulaWork,
 ) -> Bool raise @failure.Failure {
   guard calculated_cell(sheets, values, index, address) is Number(actual) else {

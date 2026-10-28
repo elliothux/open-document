@@ -1,5 +1,5 @@
 ///|
-fn WordTree::valid_tabs(self : WordTree, id : Int) -> Bool {
+fn WordTree::valid_tabs(self : WordTree, id : Int32) -> Bool {
   let node = self.nodes[id]
   if !node.empty &&
     (
@@ -13,7 +13,7 @@ fn WordTree::valid_tabs(self : WordTree, id : Int) -> Bool {
     self.children[id].length() > 128 {
     return false
   }
-  let seen : Map[Int, Bool] = Map([])
+  let seen : Map[Int32, Bool] = Map([])
   for child in self.children[id] {
     let tab = self.nodes[child]
     let position = tab.attribute("pos", uri=word_uri).unwrap_or("")
@@ -50,13 +50,13 @@ fn WordTree::valid_tabs(self : WordTree, id : Int) -> Bool {
 ///|
 fn WordTree::paragraph_tabs(
   self : WordTree,
-  id : Int,
+  id : Int32,
   base : Array[@layout.TabStop],
 ) -> Array[@layout.TabStop] raise @failure.Failure {
   guard self.child(id, "tabs") is Some(tabs) && self.valid_tabs(tabs) else {
     return base
   }
-  let values : Map[Int, @layout.TabStop] = Map([])
+  let values : Map[Int32, @layout.TabStop] = Map([])
   for stop in base {
     values[(stop.position * 20).to_int()] = stop
   }
@@ -92,7 +92,7 @@ fn WordTree::paragraph_tabs(
 fn Session::tab_markup(
   self : Session,
   tree : WordTree,
-  paragraph : Int,
+  paragraph : Int32,
   stops : Array[@layout.TabStop],
   style~ : FormatChange[String] = Keep,
 ) -> String raise @failure.Failure {
@@ -137,7 +137,7 @@ fn tabs_markup(
 fn Styles::paragraph_style(
   self : Styles,
   tree : WordTree,
-  id : Int,
+  id : Int32,
   diagnostics : Array[String],
   style~ : FormatChange[String] = Keep,
 ) -> @layout.Paragraph raise @failure.Failure {

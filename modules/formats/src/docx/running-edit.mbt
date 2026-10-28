@@ -2,10 +2,10 @@
 fn Session::running_target(
   self : Session,
   tree : WordTree,
-  index : Int,
+  index : Int32,
   kind : String,
   variant : String,
-) -> (Int?, Int?, String?) raise @failure.Failure {
+) -> (Int32?, Int32?, String?) raise @failure.Failure {
   guard ["header", "footer"].contains(kind) else {
     @failure.reject("invalid-operation", "Invalid header or footer kind")
   }
@@ -13,7 +13,7 @@ fn Session::running_target(
   guard ["default", "first", "even"].contains(variant) else {
     @failure.reject("invalid-operation", "Invalid running area variant")
   }
-  let mut reference : Int? = None
+  let mut reference : Int32? = None
   let mut part : String? = None
   let sections = tree.page_sections()
   for current in 0..<=index {
@@ -50,10 +50,10 @@ fn Session::running_target(
 fn Session::editable_running(
   self : Session,
   tree : WordTree,
-  index : Int,
+  index : Int32,
   kind : String,
   variant : String,
-) -> (Int?, Int?, String?, Array[@layout.Paragraph]) raise @failure.Failure {
+) -> (Int32?, Int32?, String?, Array[@layout.Paragraph]) raise @failure.Failure {
   let (section, reference, part) = self.running_target(
     tree, index, kind, variant,
   )
@@ -108,8 +108,8 @@ fn Session::editable_running(
 /// Reads one section's effective story and its native link to the preceding section.
 pub fn Session::running_area(
   self : Session,
-  revision : Int,
-  sectionIndex : Int,
+  revision : Int32,
+  sectionIndex : Int32,
   kind : String,
   variant : String,
 ) -> Json raise @failure.Failure {
@@ -181,8 +181,8 @@ pub fn Session::running_area(
 /// Replaces running text, links and page fields in one source transaction.
 pub fn Session::set_running_area(
   self : Session,
-  revision : Int,
-  sectionIndex : Int,
+  revision : Int32,
+  sectionIndex : Int32,
   kind : String,
   variant : String,
   content : Array[RunningContent],

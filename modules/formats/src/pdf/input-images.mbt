@@ -2,7 +2,7 @@
 fn image_size(
   document : @pdflite.PdfDocument,
   object : @syntax.PdfObject,
-) -> (Int, Int) raise @failure.Failure {
+) -> (Int32, Int32) raise @failure.Failure {
   let width = integer(get(document, object, "Width"))
   let height = integer(get(document, object, "Height"))
   guard width > 0 &&
@@ -23,7 +23,7 @@ fn image_size(
 fn image_decode(
   document : @pdflite.PdfDocument,
   object : @syntax.PdfObject,
-  channels : Int,
+  channels : Int32,
 ) -> Array[Double] raise @failure.Failure {
   let value = get(document, object, "Decode")
   if value == @syntax.PdfNull {
@@ -54,9 +54,9 @@ fn decoded_sample(value : Byte, low : Double, high : Double) -> Byte {
 ///|
 fn check_jpeg(
   bytes : Bytes,
-  width : Int,
-  height : Int,
-  channels : Int,
+  width : Int32,
+  height : Int32,
+  channels : Int32,
 ) -> Unit raise {
   guard bytes.length() >= 4 && bytes[0:2] == b"\xff\xd8" else {
     @failure.reject("invalid-image", "DCT image is not a JPEG")
@@ -117,8 +117,8 @@ fn check_jpeg(
 fn image_mask(
   document : @pdflite.PdfDocument,
   object : @syntax.PdfObject,
-  width : Int,
-  height : Int,
+  width : Int32,
+  height : Int32,
 ) -> Bytes? raise {
   guard raw(object, "Mask") == @syntax.PdfNull else {
     @failure.reject(

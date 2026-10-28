@@ -8,7 +8,7 @@ priv struct PrintedCell {
 fn Session::print_page_links(
   self : Session,
   sheets : Array[PrintedSheet],
-  destinations : Map[(String, Int, Int), @layout.LinkTarget],
+  destinations : Map[(String, Int32, Int32), @layout.LinkTarget],
   formulas : FormulaWork,
 ) -> Array[@layout.PageLink] raise @failure.Failure {
   let links : Array[@layout.PageLink] = []

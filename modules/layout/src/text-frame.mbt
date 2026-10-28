@@ -7,7 +7,7 @@ pub fn TextProbe::paragraph_lines(
   profile : Map[String, String],
   width : Double,
   wrap : Bool,
-  baseLevel? : Int,
+  baseLevel? : Int32,
 ) -> Array[Line] raise @failure.Failure {
   self.check()
   guard paragraph.spans.all(span => {

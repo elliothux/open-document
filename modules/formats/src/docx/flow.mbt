@@ -95,8 +95,8 @@ fn Session::flow_from(
     }
     tree.diagnose_properties(id, self.main, diagnostics)
   }
-  let numbered : Map[Int, @layout.Paragraph] = Map([])
-  let backgrounds : Map[Int, String] = Map([])
+  let numbered : Map[Int32, @layout.Paragraph] = Map([])
+  let backgrounds : Map[Int32, String] = Map([])
   for p in paragraphs {
     numbered[p.id] = p
     backgrounds[p.id] = background
@@ -118,7 +118,7 @@ fn Session::flow_from(
   }
   self.apply_numbering(tree, styles, numbered, backgrounds)
   styles.apply_contextual_spacing(tree, numbered)
-  let outline_levels : Map[Int, Int] = Map([])
+  let outline_levels : Map[Int32, Int32] = Map([])
   for id, _ in numbered {
     let level = styles.outline_level(tree, id) catch {
       @failure.Failure(message~, ..) => {
@@ -180,11 +180,11 @@ fn Session::paragraph(
   self : Session,
   tree : WordTree,
   styles : Styles,
-  id : Int,
+  id : Int32,
   document_diagnostics : Array[String],
   background~ : String = "ffffff",
   running~ : Bool = false,
-  note_refs~ : Map[Int, (String, String)] = Map([]),
+  note_refs~ : Map[Int32, (String, String)] = Map([]),
 ) -> @layout.Paragraph raise @failure.Failure {
   let diagnostics : Array[String] = []
   let has_fields = running ||
@@ -194,7 +194,7 @@ fn Session::paragraph(
       tree.nodes[item].uri == word_uri &&
       ["fldSimple", "fldChar", "instrText"].contains(tree.nodes[item].name)
     })
-  let cache : Map[Int, String] = Map([])
+  let cache : Map[Int32, String] = Map([])
   let fields = if has_fields {
     tree.running_fields(id, cache~) catch {
       @failure.Failure(message~, ..) => {

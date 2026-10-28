@@ -1,7 +1,7 @@
 ///|
 pub(all) struct SlicerSettings {
   pivot : String
-  field : Int
+  field : Int32
   name : String
   caption : String
   width : Double
@@ -12,7 +12,7 @@ pub(all) struct SlicerSettings {
 /// Creates a native slicer view at the selection, reusing the pivot field cache when present.
 pub fn Session::insert_slicer(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   settings : SlicerSettings,
   probe : @layout.TextProbe,

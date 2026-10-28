@@ -19,7 +19,7 @@ fn CopiedCells::check_copied_hyperlinks(
     bottom: self.top + self.cells.length() - 1,
     right: self.left + self.cells[0].length() - 1,
   }
-  let occupied : Map[Int, Bool] = Map([])
+  let occupied : Map[Int32, Bool] = Map([])
   let mut units = 0
   for link in self.hyperlinks {
     let r = link.range
@@ -89,7 +89,7 @@ fn Session::capture_hyperlinks(
 fn Session::prepare_hyperlinks(
   self : Session,
   plan : CellEditPlan,
-  index : Int,
+  index : Int32,
   target : Range,
   hyperlinks : Array[CopiedHyperlink],
 ) -> Unit raise @failure.Failure {

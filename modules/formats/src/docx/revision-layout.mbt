@@ -2,7 +2,7 @@
 /// Returns read-only review geometry without changing the editing selection or source.
 pub fn Session::revision_rects(
   self : Session,
-  revision : Int,
+  revision : Int32,
   layout : @layout.Layout,
   id : String,
 ) -> Array[@layout.SelectionRect] raise @failure.Failure {
@@ -45,7 +45,7 @@ pub fn Session::revision_rects(
     @failure.reject("protected-content", p.readOnlyReason)
   }
   let mut offset = 0
-  let mut start : Int? = None
+  let mut start : Int32? = None
   let mut end = 0
   let mut insertion = 0
   for span in p.spans {
@@ -69,7 +69,7 @@ pub fn Session::revision_rects(
   }
   let end = end.max(start)
   let mut low = -1
-  let mut high : Int? = None
+  let mut high : Int32? = None
   for page in layout.pages {
     for line in page.lines {
       if line.paragraph != paragraph || line.repeated {

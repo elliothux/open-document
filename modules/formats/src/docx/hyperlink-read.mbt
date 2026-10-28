@@ -1,5 +1,5 @@
 ///|
-fn WordTree::run_paragraph(self : WordTree, run : Int) -> Int {
+fn WordTree::run_paragraph(self : WordTree, run : Int32) -> Int32 {
   let parent = self.nodes[run].parent
   if parent >= 0 &&
     self.nodes[parent].uri == word_uri &&
@@ -13,12 +13,12 @@ fn WordTree::run_paragraph(self : WordTree, run : Int) -> Int {
 ///|
 fn WordTree::paragraph_runs(
   self : WordTree,
-  paragraph : Int,
+  paragraph : Int32,
   running~ : Bool = false,
   review~ : Bool = false,
   math~ : Bool = false,
-) -> Array[Int] {
-  let runs : Array[Int] = []
+) -> Array[Int32] {
+  let runs : Array[Int32] = []
   for child in self.children[paragraph] {
     let node = self.nodes[child]
     if math &&
@@ -54,7 +54,7 @@ fn WordTree::paragraph_runs(
 ///|
 fn WordTree::check_hyperlink(
   self : WordTree,
-  id : Int,
+  id : Int32,
 ) -> Unit raise @failure.Failure {
   let node = self.nodes[id]
   let rel = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
@@ -97,7 +97,7 @@ fn WordTree::check_hyperlink(
 fn WordTree::hyperlink_frame(
   self : WordTree,
   document : @xml.Document,
-  run : Int,
+  run : Int32,
 ) -> (String, String) {
   let parent = self.nodes[self.nodes[run].parent]
   if parent.uri == word_uri && parent.name == "hyperlink" {

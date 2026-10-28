@@ -1,5 +1,5 @@
 ///|
-fn filled_text_units(block : @layout.TextBlock) -> Int {
+fn filled_text_units(block : @layout.TextBlock) -> Int32 {
   block.lines
   .iter()
   .flat_map(line => line.iter())
@@ -37,7 +37,7 @@ fn filled_block(
     }
     return original
   }
-  let measure = fn(count : Int) -> @layout.TextBlock raise @failure.Failure {
+  let measure = fn(count : Int32) -> @layout.TextBlock raise @failure.Failure {
     probe.span_block(
       Array::makei(count, _ => spans).flatten(),
       size,

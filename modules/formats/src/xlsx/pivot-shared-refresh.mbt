@@ -2,7 +2,7 @@
 // A cache refresh must replace every dependent pivot and slicer in the same transaction.
 fn Session::refresh_shared_pivot(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   part : String,
   replacement~ : PivotSettings? = None,

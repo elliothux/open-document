@@ -4,8 +4,8 @@ pub struct Context {
   mut xlsx : @model.Session?
   mut closed : Bool
   images : @layout.Images
-  mut layout_id : Int
-  mut xlsx_print : (@layout.PositionedDocument, Int, Int)?
+  mut layout_id : Int32
+  mut xlsx_print : (@layout.PositionedDocument, Int32, Int32)?
 }
 
 ///|

@@ -25,7 +25,7 @@ fn Session::capture_body_fragment(
     limit,
   )
   let paragraphs = Map::from_array(range.paragraphs.map(id => (id, true)))
-  let selected : Map[Int, Bool] = Map([])
+  let selected : Map[Int32, Bool] = Map([])
   for id, position in tree.inline_marker_positions() {
     if tree.is_bookmark(id) &&
       paragraphs.contains(position.paragraph) &&
@@ -106,7 +106,7 @@ fn Session::capture_body_fragment(
     } else {
       length
     }
-    let pictures : Map[Int, String] = Map([])
+    let pictures : Map[Int32, String] = Map([])
     for text in texts; offset = 0 {
       let count = inline_text(tree.nodes[text.id]).length()
       if tree.nodes[text.id].name == "drawing" &&
@@ -165,7 +165,7 @@ fn Session::capture_body_fragment(
 /// Supply the current layout when the selected range contains page fields.
 pub fn Session::clipboard(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   cut~ : Bool = false,
   layout? : @layout.Layout,

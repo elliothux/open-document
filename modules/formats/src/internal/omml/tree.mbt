@@ -9,12 +9,12 @@ let drawing_uri = "http://schemas.openxmlformats.org/drawingml/2006/main"
 
 ///|
 priv struct Tree {
-  nodes : Map[Int, @xml.Node]
-  children : Map[Int, Array[Int]]
+  nodes : Map[Int32, @xml.Node]
+  children : Map[Int32, Array[Int32]]
 }
 
 ///|
-fn Tree::child(self : Tree, parent : Int, name : String) -> Int? {
+fn Tree::child(self : Tree, parent : Int32, name : String) -> Int32? {
   for id in self.children[parent] {
     if self.nodes[id].uri == word_uri && self.nodes[id].name == name {
       return Some(id)
@@ -24,7 +24,7 @@ fn Tree::child(self : Tree, parent : Int, name : String) -> Int? {
 }
 
 ///|
-fn Tree::value(self : Tree, parent : Int, name : String) -> String? {
+fn Tree::value(self : Tree, parent : Int32, name : String) -> String? {
   self
   .child(parent, name)
   .bind(id => self.nodes[id].attribute("val", uri=word_uri))
@@ -33,7 +33,7 @@ fn Tree::value(self : Tree, parent : Int, name : String) -> String? {
 ///|
 fn Tree::number(
   self : Tree,
-  parent : Int,
+  parent : Int32,
   name : String,
   attribute : String,
 ) -> Double? raise @failure.Failure {
@@ -57,9 +57,9 @@ fn Tree::number(
 
 ///|
 pub fn read(
-  nodes : Map[Int, @xml.Node],
-  children : Map[Int, Array[Int]],
-  id : Int,
+  nodes : Map[Int32, @xml.Node],
+  children : Map[Int32, Array[Int32]],
+  id : Int32,
   base : @layout.TextStyle,
   nary_limit : (String) -> String raise @failure.Failure,
 ) -> @layout.MathFormula raise @failure.Failure {

@@ -22,8 +22,8 @@ fn clipboard_run_style(style : @layout.TextStyle) -> TextFormat {
 fn Session::clipboard_paragraph_piece(
   self : Session,
   paragraph : TextParagraph,
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
   links : ReadOnlyArray[@opc.Relationship],
   destinations : Set[String],
 ) -> String raise @failure.Failure {
@@ -209,7 +209,7 @@ fn Session::capture_text_fragment(
 /// Captures displayed text and an independent native fragment when the selected content supports it.
 pub fn Session::copy(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   if self.selection.mode == "object" {
     return self.copy_object_fragment(revision)

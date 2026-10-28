@@ -3,9 +3,9 @@ pub(all) struct SlideAnimation {
   object : String
   kind : String
   trigger : String
-  delay : Int
-  duration : Int
-  repeat : Int
+  delay : Int32
+  duration : Int32
+  repeat : Int32
   params : Array[Double]
 } derive(Eq, ToJson)
 
@@ -121,7 +121,7 @@ fn validate_animations(
       }
     }
   }
-  let intervals : Map[String, Array[(Int, Int)]] = Map([])
+  let intervals : Map[String, Array[(Int32, Int32)]] = Map([])
   let mut base = 0
   let mut end = 0
   for index, item in items {

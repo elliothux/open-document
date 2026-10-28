@@ -1,5 +1,5 @@
 ///|
-fn Axis::uniform(self : Axis, first : Int, last : Int) -> Double? {
+fn Axis::uniform(self : Axis, first : Int32, last : Int32) -> Double? {
   let size = self.size(first)
   let mut cursor = first
   for span in self.spans {
@@ -36,10 +36,10 @@ fn Session::dimension_reason(self : Session, sheet : Sheet) -> String {
 fn Sheet::row_height_changes(
   self : Sheet,
   tree : Tree,
-  sizes : Map[Int, Double],
+  sizes : Map[Int32, Double],
   best_fit~ : Bool = false,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
-  let metadata : Map[Int, Array[(String, String)]] = Map([])
+  let metadata : Map[Int32, Array[(String, String)]] = Map([])
   for number, size in sizes {
     let values = if size == 0 {
       [("hidden", "1")]
@@ -65,8 +65,8 @@ fn Sheet::row_height_changes(
 fn Sheet::column_width_changes(
   self : Sheet,
   tree : Tree,
-  first : Int,
-  last : Int,
+  first : Int32,
+  last : Int32,
   sizes : Array[AxisSpan],
   best_fit~ : Bool = false,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
@@ -94,8 +94,8 @@ fn Sheet::column_width_changes(
 fn Session::resize_dimensions(
   self : Session,
   sheet : String,
-  first : Int,
-  last : Int,
+  first : Int32,
+  last : Int32,
   size : Double,
   rows~ : Bool,
 ) -> Json raise @failure.Failure {
@@ -117,7 +117,7 @@ fn Session::resize_dimensions(
     guard last - first < 4096 else {
       @failure.reject("limit-exceeded", "Row height edit exceeds 4096 rows")
     }
-    let sizes : Map[Int, Double] = Map([])
+    let sizes : Map[Int32, Double] = Map([])
     for axis in first..<=last {
       sizes[axis] = size
     }

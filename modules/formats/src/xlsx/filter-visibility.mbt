@@ -21,9 +21,9 @@ fn Session::sheet_filters(
       states[table.part] = state
     }
   }
-  let manual : Map[Int, Bool] = Map([])
-  let filtered : Map[Int, Bool] = Map([])
-  let imported : Map[String, Array[Int]] = Map([])
+  let manual : Map[Int32, Bool] = Map([])
+  let filtered : Map[Int32, Bool] = Map([])
+  let imported : Map[String, Array[Int32]] = Map([])
   let index = self.sheet_index(sheet.id)
   for part, state in states {
     let hidden = if state.tracked {
@@ -54,7 +54,7 @@ fn Session::sheet_filters(
   }
   for part in states.keys().to_array() {
     let state = states[part]
-    let rows : Array[Int] = []
+    let rows : Array[Int32] = []
     for row in (state.bounds.top + 1)..<=state.bounds.bottom {
       guard (sheet.dimensions.rows.size(row) == 0) ==
         (manual.contains(row) || filtered.contains(row)) else {
@@ -77,8 +77,10 @@ fn Session::sheet_filters(
 }
 
 ///|
-fn filter_hidden_rows(states : Map[String, AutoFilterState]) -> Map[Int, Bool] {
-  let hidden : Map[Int, Bool] = Map([])
+fn filter_hidden_rows(
+  states : Map[String, AutoFilterState],
+) -> Map[Int32, Bool] {
+  let hidden : Map[Int32, Bool] = Map([])
   for state in states.values() {
     for row in state.manual {
       hidden[row] = true
@@ -96,7 +98,7 @@ fn Session::write_filters(
   sheet : Sheet,
   states : Map[String, AutoFilterState],
   targets : Array[String],
-  hidden : Map[Int, Bool],
+  hidden : Map[Int32, Bool],
   parts : Map[String, @xml.Document],
   edits : Array[(String, @xml.Edit)],
 ) -> @xml.Document raise @failure.Failure {

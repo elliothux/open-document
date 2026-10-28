@@ -43,10 +43,10 @@ fn statistical_function(
   name : String,
   args : Array[Expression],
   sheets : Array[Sheet],
-  sheet : Int,
-  calculated : Map[(Int, String), Value],
+  sheet : Int32,
+  calculated : Map[(Int32, String), Value],
   work : FormulaWork,
-  depth : Int,
+  depth : Int32,
 ) -> Value raise @failure.Failure {
   let sample_deviation = name == "STDEV" || name == "STDEV.S"
   let deviation = sample_deviation || name == "STDEVP" || name == "STDEV.P"

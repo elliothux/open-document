@@ -1,5 +1,5 @@
 ///|
-fn image_uint(bytes : Bytes, offset : Int, length : Int) -> Int64 {
+fn image_uint(bytes : Bytes, offset : Int32, length : Int32) -> Int64 {
   let mut value = 0L
   for i = offset; i < offset + length; i = i + 1 {
     value = value * 256 + bytes[i].to_int().to_int64()
@@ -10,7 +10,7 @@ fn image_uint(bytes : Bytes, offset : Int, length : Int) -> Int64 {
 ///|
 pub fn type_info(
   bytes : Bytes,
-) -> (String, String, Int, Int) raise @failure.Failure {
+) -> (String, String, Int32, Int32) raise @failure.Failure {
   guard bytes.length() <= 4194304 else {
     @failure.reject("limit-exceeded", "Image input exceeds budget")
   }

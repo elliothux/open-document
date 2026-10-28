@@ -42,7 +42,7 @@ fn Session::thread_ids(self : Session) -> Set[String] raise @failure.Failure {
 }
 
 ///|
-fn numbered_thread_id(i : Int) -> String {
+fn numbered_thread_id(i : Int32) -> String {
   let digits = i.to_string()
   "{00000000-0000-4000-8000-" + "0".repeat(12 - digits.length()) + digits + "}"
 }
@@ -82,7 +82,7 @@ fn thread_message_source(
 /// Commits a native thread edit and all required parts as one exact source history item.
 pub fn Session::edit_thread(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   change : ThreadEdit,
 ) -> Json raise @failure.Failure {

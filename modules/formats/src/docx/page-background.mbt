@@ -50,7 +50,7 @@ fn Session::page_background_query(
 /// Sets a solid document background, or removes it for the default white page.
 pub fn Session::set_page_background(
   self : Session,
-  revision : Int,
+  revision : Int32,
   color : String?,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)

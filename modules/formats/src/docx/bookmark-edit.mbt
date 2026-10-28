@@ -15,7 +15,7 @@ fn bookmark_boundary(
   let tree = WordTree::new(document)
   let p = tree.nodes[position.paragraph]
   let texts = docx_texts(tree)
-  let counts : Map[Int, Int] = Map([])
+  let counts : Map[Int32, Int32] = Map([])
   for t in texts {
     if t.paragraph == p.id {
       counts[t.run] = counts.get(t.run).unwrap_or(0) +
@@ -97,7 +97,7 @@ fn Session::restore_bookmarks(
       present[n.name + ":" + n.attribute("id", uri=word_uri).unwrap_or("")] = true
     }
   }
-  let lost : Map[Int, Bool] = Map([])
+  let lost : Map[Int32, Bool] = Map([])
   for b in before.bookmarks() {
     if !b.reason.is_empty() {
       continue
@@ -180,7 +180,7 @@ fn Session::restore_bookmarks(
 fn Session::bookmark_references(
   self : Session,
   name : String,
-) -> Map[String, Array[Int]] raise @failure.Failure {
+) -> Map[String, Array[Int32]] raise @failure.Failure {
   let paths = self.opc.names.copy()
   for path, _ in self.parts {
     paths[path.to_lower()] = path
@@ -195,7 +195,7 @@ fn Session::bookmark_references(
       }
     }
   }
-  let links : Map[String, Array[Int]] = Map([])
+  let links : Map[String, Array[Int32]] = Map([])
   for path in paths.values() {
     if !path.to_lower().has_suffix(".xml") {
       continue
@@ -280,7 +280,7 @@ fn Session::bookmark_references(
 /// Creates, renames or removes a bookmark in one source and history transaction.
 pub fn Session::edit_bookmark(
   self : Session,
-  revision : Int,
+  revision : Int32,
   change : BookmarkEdit,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
@@ -302,7 +302,7 @@ pub fn Session::edit_bookmark(
   let changes : Array[@xml.SourceChange] = []
   let parts = self.parts.copy()
   let part_edits : Map[String, Array[@xml.Edit]] = Map([])
-  let affected : Array[Int] = []
+  let affected : Array[Int32] = []
   match change {
     GoToBookmark(name) => return self.go_to_bookmark(revision, name)
     CreateBookmark(name, selection) => {
@@ -504,7 +504,7 @@ pub fn Session::edit_bookmark(
 /// Places the caret at a committed bookmark's start without changing history.
 fn Session::go_to_bookmark(
   self : Session,
-  revision : Int,
+  revision : Int32,
   name : String,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)

@@ -1,7 +1,7 @@
 ///|
 fn WordTree::table_margins(
   self : WordTree,
-  id : Int,
+  id : Int32,
   inherited : @layout.CellMargins,
 ) -> @layout.CellMargins raise @failure.Failure {
   let node = self.nodes[id]
@@ -50,7 +50,7 @@ fn WordTree::table_margins(
 ///|
 fn Session::set_table_margins(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   value : @layout.CellMargins?,
   whole_table~ : Bool = false,
@@ -92,7 +92,7 @@ fn Session::set_table_margins(
 fn table_margin_defaults(
   tree : WordTree,
   styles : Styles,
-  table : Int,
+  table : Int32,
   diagnostics : Array[String],
 ) -> @layout.CellMargins raise @failure.Failure {
   let mut margins : @layout.CellMargins = {

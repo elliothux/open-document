@@ -1,13 +1,13 @@
 ///|
 priv struct ShowState {
   scene : Double
-  index : Int
-  route : Array[Int]
-  position : Int
+  index : Int32
+  route : Array[Int32]
+  position : Int32
   custom : String?
-  last_view : (Array[Int], Int, String?)?
+  last_view : (Array[Int32], Int32, String?)?
   cycling : Bool
-  from : Int?
+  from : Int32?
   effect : SlideTransition?
   time : Double
   elapsed : Double
@@ -17,16 +17,16 @@ priv struct ShowState {
   animations : Array[SlideAnimation]
   flights : Array[(Double, Double)]
   starts : Array[Double]
-  finished : Int
-  step : Int
+  finished : Int32
+  step : Int32
   ready : Double
   leaving : Map[String, ShowObject]
-  ink : Map[Int, Array[ShowInkStroke]]
-  ink_strokes : Int
-  ink_points : Int
+  ink : Map[Int32, Array[ShowInkStroke]]
+  ink_strokes : Int32
+  ink_points : Int32
   ink_draft : ShowInkStroke?
   media : Map[String, ShowMediaPlayback]
-  media_cues : Map[Int, Bool]
+  media_cues : Map[Int32, Bool]
 }
 
 ///|
@@ -46,8 +46,8 @@ fn ShowObject::initial() -> ShowObject {
 
 ///|
 priv struct ShowDrawing {
-  id : Int
-  previous : (Int, ShowState)?
+  id : Int32
+  previous : (Int32, ShowState)?
   frame : ShowState
   key : String
   regions : Array[@layout.DrawingRegion]
@@ -154,14 +154,14 @@ fn Session::show_state(
 ///|
 fn Session::show_scene(
   self : Session,
-  route : Array[Int],
-  position : Int,
+  route : Array[Int32],
+  position : Int32,
   custom : String?,
-  from : Int?,
+  from : Int32?,
   time : Double,
   animated : Bool,
   leaving~ : Map[String, ShowObject] = Map([]),
-  last_view~ : (Array[Int], Int, String?)? = None,
+  last_view~ : (Array[Int32], Int32, String?)? = None,
 ) -> ShowState raise @failure.Failure {
   let index = route[position]
   let transition = if animated {

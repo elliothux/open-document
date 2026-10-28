@@ -92,7 +92,7 @@ fn Session::check_sheet_pictures(
 fn Session::copy_sheet_pictures(
   self : Session,
   source : Sheet,
-  number : Int,
+  number : Int32,
   created : Map[String, @xml.Document],
   remapped : Map[String, String],
   types : StringBuilder,

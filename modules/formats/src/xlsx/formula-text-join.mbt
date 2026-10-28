@@ -2,10 +2,10 @@
 fn Expression::text_items(
   self : Expression,
   sheets : Array[Sheet],
-  sheet : Int,
-  calculated : Map[(Int, String), Value],
+  sheet : Int32,
+  calculated : Map[(Int32, String), Value],
   work : FormulaWork,
-  depth : Int,
+  depth : Int32,
   include_blanks : Bool,
 ) -> Array[Value] raise @failure.Failure {
   guard self is Reference(target, first, Some(last)) else {
@@ -58,10 +58,10 @@ fn join_function(
   name : String,
   args : Array[Expression],
   sheets : Array[Sheet],
-  sheet : Int,
-  calculated : Map[(Int, String), Value],
+  sheet : Int32,
+  calculated : Map[(Int32, String), Value],
   work : FormulaWork,
-  depth : Int,
+  depth : Int32,
 ) -> Value raise @failure.Failure {
   let delimiters : Array[String] = []
   let ignore_empty = if name == "TEXTJOIN" {

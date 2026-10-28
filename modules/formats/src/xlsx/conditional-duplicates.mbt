@@ -4,8 +4,8 @@ fn ConditionalRules::duplicate_match(
   rule : ConditionalRule,
   address : Address,
   sheets : Array[Sheet],
-  index : Int,
-  values : Map[(Int, String), Value],
+  index : Int32,
+  values : Map[(Int32, String), Value],
   work : FormulaWork,
 ) -> Bool raise @failure.Failure {
   let key = calculated_cell(sheets, values, index, address).display()

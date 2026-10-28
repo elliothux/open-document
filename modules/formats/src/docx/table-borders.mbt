@@ -6,7 +6,7 @@ fn empty_border() -> @layout.BorderStyle {
 ///|
 fn WordTree::read_borders(
   self : WordTree,
-  properties : Int,
+  properties : Int32,
   name : String,
   themes : Map[String, String]?,
 ) -> Map[String, @layout.BorderStyle] raise @failure.Failure {
@@ -98,7 +98,7 @@ fn WordTree::read_borders(
 fn border_defaults(
   tree : WordTree,
   styles : Styles,
-  table : Int,
+  table : Int32,
   diagnostics : Array[String],
   cells~ : Bool = false,
 ) -> Map[String, @layout.BorderStyle] raise @failure.Failure {
@@ -146,8 +146,8 @@ fn border_conflict(
   if (a.style == "double") != (b.style == "double") {
     return Some(if a.style == "double" { b } else { a })
   }
-  fn channels(value : String) -> (Int, Int, Int) {
-    fn digit(value : UInt16) -> Int {
+  fn channels(value : String) -> (Int32, Int32, Int32) {
+    fn digit(value : UInt16) -> Int32 {
       let value = value.to_int()
       if value <= 57 {
         value - 48
@@ -168,10 +168,10 @@ fn border_conflict(
 fn table_border_grid(
   tree : WordTree,
   styles : Styles,
-  table : Int,
-  spans : Array[Array[Int]],
-  row_spans : Array[Array[Int]],
-  columns : Int,
+  table : Int32,
+  spans : Array[Array[Int32]],
+  row_spans : Array[Array[Int32]],
+  columns : Int32,
   diagnostics : Array[String],
 ) -> @layout.TableBorders raise @failure.Failure {
   guard spans.length() <= 1000 && columns <= 63 else {

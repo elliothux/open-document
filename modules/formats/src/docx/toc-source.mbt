@@ -1,6 +1,6 @@
 ///|
 priv struct TocEntry {
-  level : Int
+  level : Int32
   text : String
   bookmarks : Array[String]
 } derive(Eq)
@@ -11,11 +11,11 @@ fn Session::toc_entries(
   tree : WordTree,
   flow : @layout.Flow,
   layout : @layout.Layout,
-  first : Int,
-  last : Int,
+  first : Int32,
+  last : Int32,
   sequence~ : String = "",
 ) -> (Array[TocEntry], Array[@xml.SourceChange]) raise @failure.Failure {
-  let paragraphs : Map[Int, @layout.Paragraph] = Map::from_array(
+  let paragraphs : Map[Int32, @layout.Paragraph] = Map::from_array(
     flow.paragraphs.map(p => (p.id, p)),
   )
   for table in flow.tables {
@@ -27,8 +27,8 @@ fn Session::toc_entries(
       }
     }
   }
-  let values : Map[Int, String] = Map([])
-  let fields : Set[Int] = Set([])
+  let values : Map[Int32, String] = Map([])
+  let fields : Set[Int32] = Set([])
   for p in paragraphs.values() {
     for span in p.spans {
       if !span.field.is_empty() {
@@ -185,7 +185,7 @@ fn Session::toc_entries(
 ///|
 fn toc_markup(
   entries : Array[TocEntry],
-  styles : Map[Int, String],
+  styles : Map[Int32, String],
   instruction : String,
   hyperlink : Bool,
   width : Double,

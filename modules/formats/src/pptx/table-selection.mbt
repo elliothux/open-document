@@ -1,10 +1,10 @@
 ///|
 priv struct TableRange {
-  top : Int
-  bottom : Int
-  left : Int
-  right : Int
-  owners : Int
+  top : Int32
+  bottom : Int32
+  left : Int32
+  right : Int32
+  owners : Int32
 }
 
 ///|
@@ -74,8 +74,8 @@ fn DrawingTable::range(
 ///|
 fn DrawingTable::cell_at(
   self : DrawingTable,
-  position : Int,
-) -> (Int, Int) raise @failure.Failure {
+  position : Int32,
+) -> (Int32, Int32) raise @failure.Failure {
   let mut offset = 0
   for row, item in self.rows {
     for column, cell in item.cells {
@@ -97,9 +97,9 @@ fn DrawingTable::cell_at(
 ///|
 fn DrawingTable::cell_offset(
   self : DrawingTable,
-  row : Int,
-  column : Int,
-) -> Int {
+  row : Int32,
+  column : Int32,
+) -> Int32 {
   let (row, column) = self.owners[row][column]
   let mut offset = 0
   for r, item in self.rows {
@@ -123,7 +123,7 @@ fn Session::table_position(
   self : Session,
   object : Object,
   selection : Selection,
-) -> (Int, Int, String) raise @failure.Failure {
+) -> (Int32, Int32, String) raise @failure.Failure {
   let table = object.table.unwrap()
   let (row, column) = if selection.mode == "text" {
     table.cell_at(selection.focus)

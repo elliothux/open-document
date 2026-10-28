@@ -10,7 +10,7 @@ let note_excel_uri = "urn:schemas-microsoft-com:office:excel"
 ///|
 fn vml_child(
   tree : Tree,
-  parent : Int,
+  parent : Int32,
   uri : String,
   name : String,
 ) -> @xml.Node? raise @failure.Failure {
@@ -236,7 +236,7 @@ fn Session::read_note_vml(
 ///|
 fn note_vml_shape(
   address : Address,
-  id : Int,
+  id : Int32,
   shape_type~ : String = "_x0000_t202",
 ) -> String raise @failure.Failure {
   let column = (address.column - 1).min(16381)
@@ -264,7 +264,7 @@ fn moved_note_shape(
   target : Tree,
   ids : Map[String, Bool],
   types : Map[String, String],
-) -> (String, Int) raise @failure.Failure {
+) -> (String, Int32) raise @failure.Failure {
   let id = for i in 1025..<=21504 {
     if !ids.contains("_x0000_s\{i}") {
       break i

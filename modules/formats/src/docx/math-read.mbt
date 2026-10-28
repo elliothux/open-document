@@ -18,7 +18,7 @@ fn Session::math_base_style(
 fn Session::read_inline_math(
   self : Session,
   tree : WordTree,
-  id : Int,
+  id : Int32,
   style : @layout.TextStyle,
 ) -> @layout.DrawingFrame raise @failure.Failure {
   let (root, display) = tree.math_source(id)

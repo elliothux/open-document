@@ -11,7 +11,7 @@ fn sheet_node_removal(tree : Tree, node : @xml.Node) -> @xml.SourceChange {
 ///|
 fn Session::prepare_sheet_delete(
   self : Session,
-  index : Int,
+  index : Int32,
   parts : Map[String, @xml.Document],
   edits : Array[(String, @xml.Edit)],
   workbook_changes : Array[@xml.SourceChange],

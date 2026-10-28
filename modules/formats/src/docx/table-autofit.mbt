@@ -1,7 +1,7 @@
 ///|
 fn WordTree::preferred_table_width(
   self : WordTree,
-  id : Int,
+  id : Int32,
 ) -> @layout.PreferredWidth raise @failure.Failure {
   let node = self.nodes[id]
   guard self.children[id].is_empty() &&
@@ -37,11 +37,11 @@ fn WordTree::preferred_table_width(
 fn table_sizing(
   tree : WordTree,
   styles : Styles,
-  table : Int,
+  table : Int32,
   diagnostics : Array[String],
 ) -> (Bool, @layout.PreferredWidth) raise @failure.Failure {
   let props = tree.child(table, "tblPr")
-  let properties : Array[(WordTree, Int)] = []
+  let properties : Array[(WordTree, Int32)] = []
   if props.bind(p => tree.value(p, "tblStyle")) is Some(key) &&
     styles.tree is Some(source) {
     for style in styles.chain(key, diagnostics) {
@@ -73,7 +73,7 @@ fn table_sizing(
 fn WordTree::fitted_grid_change(
   self : WordTree,
   document : @xml.Document,
-  table : Int,
+  table : Int32,
   widths : Array[Double],
 ) -> @xml.SourceChange? raise @failure.Failure {
   let grid = self.child(table, "tblGrid").unwrap()
@@ -117,7 +117,7 @@ fn WordTree::fitted_grid_change(
 ///|
 fn Session::fit_table(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   mode : String,
   probe : @layout.TextProbe?,

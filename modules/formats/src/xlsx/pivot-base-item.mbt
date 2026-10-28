@@ -47,9 +47,9 @@ fn pivot_read_base_item(
 ///|
 fn PivotCache::base_item_index(
   self : PivotCache,
-  field : Int,
+  field : Int32,
   value : Value,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   // shortcut: Retired group labels stay protected until grouped member editing can preserve them.
   self
   .axis_items(field)

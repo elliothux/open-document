@@ -2,7 +2,7 @@
 fn Session::section_note_settings(
   self : Session,
   tree : WordTree,
-  section : Int?,
+  section : Int32?,
   kind : String,
 ) -> NoteSettings raise @failure.Failure {
   let defaults = self.note_settings(kind)
@@ -16,9 +16,9 @@ fn Session::section_note_settings(
 /// Reads one section's effective footnote or endnote numbering without changing source.
 pub fn Session::note_numbering(
   self : Session,
-  revision : Int,
+  revision : Int32,
   kind : String,
-  sectionIndex : Int,
+  sectionIndex : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   guard ["footnote", "endnote"].contains(kind) &&
@@ -57,9 +57,9 @@ pub fn Session::note_numbering(
 /// Changes a section's numbering and preflights the complete candidate layout before commit.
 pub fn Session::set_note_numbering(
   self : Session,
-  revision : Int,
+  revision : Int32,
   kind : String,
-  sectionIndex : Int,
+  sectionIndex : Int32,
   numbering : @layout.PageNumbering,
   restart : String,
   probe~ : @layout.TextProbe,

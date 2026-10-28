@@ -21,7 +21,7 @@ fn Paragraph::content_widths(
       })
     hard = hard.max(indent + 0.05)
     maximum = maximum.max(line.width + indent)
-    let breaks : Map[Int, Bool] = Map([])
+    let breaks : Map[Int32, Bool] = Map([])
     for
       (offset, _) in @linebreak.linebreaks(
         line.text
@@ -56,8 +56,8 @@ fn Paragraph::content_widths(
 ///|
 fn width_constraint(
   widths : Array[Double],
-  start : Int,
-  span : Int,
+  start : Int32,
+  span : Int32,
   required : Double,
   basis : Array[Double],
 ) -> Unit {
@@ -77,10 +77,10 @@ fn width_constraint(
 
 ///|
 fn width_distribution(
-  base : Array[Int],
-  target : Int,
+  base : Array[Int32],
+  target : Int32,
   weights : Array[Double],
-) -> Array[Int] {
+) -> Array[Int32] {
   let extra = target - base.fold(init=0, (sum, width) => sum + width)
   let total = weights.fold(init=0.0, (sum, weight) => sum + weight)
   let mut edge = 0.0
@@ -126,7 +126,7 @@ pub fn Table::fit_widths(
   let minimum = Array::make(count, 0.05)
   let maximum = Array::make(count, 0.05)
   let preferred = Array::make(count, 0.0)
-  let cells : Array[(Int, Int, Double, Double, Double, Double)] = []
+  let cells : Array[(Int32, Int32, Double, Double, Double, Double)] = []
   for r, row in self.rows {
     guard self.preferredWidths[r].length() == row.length() else {
       @failure.reject(
@@ -185,7 +185,7 @@ pub fn Table::fit_widths(
   let high = maximum.mapi((i, v) => {
     (v * 20 - 0.000001).ceil().to_int().max(low[i])
   })
-  let sum = fn(values : Array[Int]) {
+  let sum = fn(values : Array[Int32]) {
     values.fold(init=0, (total, width) => total + width)
   }
   let limit = (available * 20).floor().to_int()

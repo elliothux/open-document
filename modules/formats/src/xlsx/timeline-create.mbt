@@ -1,7 +1,7 @@
 ///|
 pub(all) struct TimelineSettings {
   pivot : String
-  field : Int
+  field : Int32
   name : String
   caption : String
   width : Double
@@ -12,7 +12,7 @@ pub(all) struct TimelineSettings {
 /// Inserts a native monthly timeline at the selection and reuses an existing field connection.
 pub fn Session::insert_timeline(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   settings : TimelineSettings,
   probe : @layout.TextProbe,

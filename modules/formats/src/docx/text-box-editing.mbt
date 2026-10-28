@@ -1,5 +1,5 @@
 ///|
-fn WordTree::text_box_drawing(self : WordTree, paragraph : Int) -> Int? {
+fn WordTree::text_box_drawing(self : WordTree, paragraph : Int32) -> Int32? {
   guard self.nodes.get(paragraph) is Some(node) &&
     self.nodes.get(node.parent) is Some(parent) &&
     parent.uri == word_uri &&
@@ -24,7 +24,7 @@ fn WordTree::text_box_drawing(self : WordTree, paragraph : Int) -> Int? {
 fn Session::check_text_box_paragraph(
   self : Session,
   tree : WordTree,
-  paragraph : Int,
+  paragraph : Int32,
 ) -> Unit raise @failure.Failure {
   if tree.text_box_drawing(paragraph) is Some(drawing) {
     ignore(self.editable_shape(tree, drawing))

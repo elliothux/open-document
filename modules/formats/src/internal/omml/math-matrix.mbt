@@ -35,7 +35,7 @@ fn matrix_grid(
 ///|
 fn Tree::matrix_property(
   self : Tree,
-  id : Int,
+  id : Int32,
 ) -> String raise @failure.Failure {
   let node = self.nodes[id]
   guard self.children[id].is_empty() && node.text.is_empty() else {
@@ -54,7 +54,7 @@ fn Tree::matrix_property(
 ///|
 fn Tree::matrix_columns(
   self : Tree,
-  id : Int,
+  id : Int32,
 ) -> Array[String] raise @failure.Failure {
   let groups = self.math_children(id, ["mc"])
   guard !groups.is_empty() && groups.length() <= 64 else {
@@ -109,8 +109,8 @@ fn Tree::matrix_columns(
 fn MathRead::matrix(
   self : MathRead,
   tree : Tree,
-  id : Int,
-  depth : Int,
+  id : Int32,
+  depth : Int32,
 ) -> @layout.MathExpression raise @failure.Failure {
   let children = tree.math_children(id, ["mPr", "mr"])
   let properties = children.filter(id => tree.nodes[id].name == "mPr")

@@ -3,22 +3,22 @@ priv struct MarkupInput {
   output : StringBuilder
   definitions : Array[(String, String)]
   defs : Map[String, @cmark.LabelDef]
-  limit : Int
+  limit : Int32
   mode : String
-  mut units : Int
-  mut nodes : Int
-  mut paragraphs : Int
+  mut units : Int32
+  mut nodes : Int32
+  mut paragraphs : Int32
   // Resource preflight has no target; resolve receiving geometry only during paste.
   available : () -> (Double, Double) raise @failure.Failure
   mut area : (Double, Double)?
-  mut drawings : Int
+  mut drawings : Int32
   mut afterRule : Bool
-  mut pictureBytes : Int
+  mut pictureBytes : Int32
 }
 
 ///|
 fn MarkupInput::new(
-  limit : Int,
+  limit : Int32,
   defs~ : Map[String, @cmark.LabelDef] = Map([]),
   mode~ : String = "source",
   available~ : () -> (Double, Double) raise @failure.Failure = () => (14400, 0),
@@ -45,10 +45,10 @@ fn MarkupInput::new(
 ///|
 fn MarkupInput::number(
   self : MarkupInput,
-  level : Int,
-  start : Int,
+  level : Int32,
+  start : Int32,
   format : String,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   guard level < 9 && self.definitions.length() < 256 else {
     @failure.reject("limit-exceeded", "Markup exceeds list budget")
   }
@@ -106,7 +106,7 @@ fn MarkupInput::add(
 ///|
 fn MarkupInput::visit(
   self : MarkupInput,
-  depth : Int,
+  depth : Int32,
 ) -> Unit raise @failure.Failure {
   self.nodes += 1
   guard depth <= 32 && self.nodes <= 4096 else {
@@ -139,7 +139,7 @@ fn MarkupInput::text(
 fn MarkupInput::inline(
   self : MarkupInput,
   value : @cmark.Inline,
-  depth : Int,
+  depth : Int32,
   format : CharacterFormat,
 ) -> Unit raise @failure.Failure {
   self.visit(depth)
@@ -231,11 +231,11 @@ fn MarkupInput::link(
 fn MarkupInput::paragraph(
   self : MarkupInput,
   content : @cmark.Inline,
-  depth : Int,
-  quote : Int,
-  list : (Int, Int)?,
+  depth : Int32,
+  quote : Int32,
+  list : (Int32, Int32)?,
   first : Ref[Bool],
-  heading~ : Int = 0,
+  heading~ : Int32 = 0,
   code~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   self.afterRule = false
@@ -284,10 +284,10 @@ fn MarkupInput::paragraph(
 fn MarkupInput::block(
   self : MarkupInput,
   value : @cmark.Block,
-  depth : Int,
-  quote : Int,
-  level : Int,
-  list : (Int, Int)?,
+  depth : Int32,
+  quote : Int32,
+  level : Int32,
+  list : (Int32, Int32)?,
   first : Ref[Bool],
 ) -> Unit raise @failure.Failure {
   self.visit(depth)
@@ -345,7 +345,7 @@ fn MarkupInput::block(
 /// Imports CommonMark text through the existing bounded native fragment transaction.
 pub fn Session::paste_markdown(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   markdown : String,
   probe : @layout.TextProbe,

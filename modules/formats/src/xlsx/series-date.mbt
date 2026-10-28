@@ -1,5 +1,5 @@
 ///|
-fn series_weekday(serial : Int, date1904 : Bool) -> Int {
+fn series_weekday(serial : Int32, date1904 : Bool) -> Int32 {
   let value = (serial + (if date1904 { 5 } else { 6 })) % 7
   if value < 0 {
     value + 7
@@ -9,7 +9,7 @@ fn series_weekday(serial : Int, date1904 : Bool) -> Int {
 }
 
 ///|
-fn series_workday(serial : Int, step : Int, date1904 : Bool) -> Int {
+fn series_workday(serial : Int32, step : Int32, date1904 : Bool) -> Int32 {
   if step == 0 {
     return serial
   }
@@ -34,9 +34,9 @@ fn date_series_values(
   seed : Double,
   unit : String,
   step : Double,
-  count : Int,
+  count : Int32,
   date1904 : Bool,
-  expectedDay? : Int,
+  expectedDay? : Int32,
 ) -> Array[Double] raise @failure.Failure {
   let limit = if date1904 { 2957004.0 } else { 2958466.0 }
   guard !seed.is_nan() && !seed.is_inf() && seed >= 0 && seed < limit else {

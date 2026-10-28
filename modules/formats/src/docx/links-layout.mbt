@@ -25,7 +25,7 @@ pub fn Session::page_links(
       }
     }
   }
-  let running : Map[(Int, Int), String] = Map([])
+  let running : Map[(Int32, Int32), String] = Map([])
   let sections = tree.order.filter(id => {
     tree.nodes[id].uri == word_uri && tree.nodes[id].name == "sectPr"
   })
@@ -60,11 +60,11 @@ pub fn Session::page_links(
     }
     paragraphs.append(story)
   }
-  let targets : Map[(Int, Int), @layout.LinkTarget] = Map([])
-  let drawing_nodes : Map[(Int, Int), Int] = Map([])
-  let drawing_sources : Set[(Int, Int)] = Set([])
+  let targets : Map[(Int32, Int32), @layout.LinkTarget] = Map([])
+  let drawing_nodes : Map[(Int32, Int32), Int32] = Map([])
+  let drawing_sources : Set[(Int32, Int32)] = Set([])
   let positions : Map[String, @layout.LinkTarget?] = Map([])
-  let addresses : Map[Int, String] = Map([])
+  let addresses : Map[Int32, String] = Map([])
   let relationships = self.hyperlink_relationships()
   let bookmarks = Map::from_array(
     flow.bookmarks.keys().map(name => (name, true)).to_array(),
@@ -168,8 +168,8 @@ pub fn Session::page_links(
     return links
   }
   fn collect(
-    page : Int,
-    index : Int,
+    page : Int32,
+    index : Int32,
     line : @layout.Line,
     clip : @layout.Border?,
   ) -> Unit raise @failure.Failure {

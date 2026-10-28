@@ -18,7 +18,7 @@ pub extend TextWatermark with ToJson::{to_json}
 
 ///|
 priv struct WatermarkSource {
-  node : Int
+  node : Int32
   identity : String
   value : Watermark
 }
@@ -145,7 +145,7 @@ fn watermark_markup(
 }
 
 ///|
-fn WordTree::watermark_block(self : WordTree, id : Int) -> Bool {
+fn WordTree::watermark_block(self : WordTree, id : Int32) -> Bool {
   self.nodes[id].uri == word_uri &&
   self.nodes[id].name == "sdt" &&
   self
@@ -158,7 +158,12 @@ fn WordTree::watermark_block(self : WordTree, id : Int) -> Bool {
 }
 
 ///|
-fn watermark_equal(a : WordTree, left : Int, b : WordTree, right : Int) -> Bool {
+fn watermark_equal(
+  a : WordTree,
+  left : Int32,
+  b : WordTree,
+  right : Int32,
+) -> Bool {
   let x = a.nodes[left]
   let y = b.nodes[right]
   x.name == y.name &&
@@ -185,7 +190,7 @@ fn watermark_equal(a : WordTree, left : Int, b : WordTree, right : Int) -> Bool 
 ///|
 fn WordTree::watermark_node(
   self : WordTree,
-  id : Int,
+  id : Int32,
   name : String,
   uri~ : String = word_uri,
 ) -> @xml.Node raise @failure.Failure {
@@ -218,7 +223,7 @@ fn watermark_number(
 ///|
 fn WordTree::watermark_source(
   self : WordTree,
-  id : Int,
+  id : Int32,
 ) -> WatermarkSource raise @failure.Failure {
   if self
     .descendants(id)
@@ -287,7 +292,7 @@ fn WordTree::watermark_source(
 ///|
 fn WordTree::running_nodes(
   self : WordTree,
-) -> Array[Int] raise @failure.Failure {
+) -> Array[Int32] raise @failure.Failure {
   self.children[0].filter(id => {
     if self.watermark_block(id) {
       guard self.nodes[0].name == "hdr" else {

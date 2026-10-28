@@ -11,7 +11,7 @@ fn Span::logical_text(self : Span) -> String {
 fn LineGroup::measure_field(
   self : LineGroup,
   probe : TextProbe,
-  position : Int,
+  position : Int32,
   width : Double,
   rtl : Bool,
   geometry : Bool,
@@ -81,7 +81,7 @@ fn LineGroup::measure_field(
 }
 
 ///|
-fn PlacedRun::logical_cluster(self : PlacedRun, glyph : Glyph) -> Int {
+fn PlacedRun::logical_cluster(self : PlacedRun, glyph : Glyph) -> Int32 {
   if self.text.length() > 1 &&
     self.sources is [source] &&
     source.end - source.start == 1 {
@@ -96,7 +96,7 @@ fn Line::display_text(self : Line, objects~ : Bool = true) -> String {
   if !self.text.contains("\ufffc") {
     return self.text
   }
-  let fields : Map[Int, String] = Map([])
+  let fields : Map[Int32, String] = Map([])
   for image in self.drawings {
     let text = image.content.alternative_text()
     if text is Some(text) {

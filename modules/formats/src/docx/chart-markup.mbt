@@ -1,6 +1,6 @@
 ///|
 fn chart_markup(
-  id : Int,
+  id : Int32,
   link : String,
   width : Double,
   height : Double,

@@ -1,6 +1,6 @@
 ///|
 pub(all) struct PivotDateGroup {
-  field : Int
+  field : Int32
   units : Array[String]
 } derive(ToJson)
 
@@ -43,7 +43,10 @@ fn pivot_date_epoch(date1904 : Bool) -> Int64 {
 }
 
 ///|
-fn pivot_calendar_parts(value : Double, date1904 : Bool) -> (Int, Int, Int) {
+fn pivot_calendar_parts(
+  value : Double,
+  date1904 : Bool,
+) -> (Int32, Int32, Int32) {
   let ordinal = pivot_date_epoch(date1904) + value.floor().to_int64()
   date_parts((ordinal - calendar_ordinal(1904, 1, 1)).to_int(), true)
 }

@@ -1,12 +1,12 @@
 ///|
 priv struct DateTime {
   value : String
-  year : Int
-  month : Int
-  day : Int
-  hour : Int
-  minute : Int
-  second : Int
+  year : Int32
+  month : Int32
+  day : Int32
+  hour : Int32
+  minute : Int32
+  second : Int32
 }
 
 ///|
@@ -54,7 +54,7 @@ fn read_date_time(value : String) -> DateTime raise @failure.Failure {
 }
 
 ///|
-fn date_digits(value : Int, count : Int) -> String {
+fn date_digits(value : Int32, count : Int32) -> String {
   let text = value.to_string()
   "0".repeat((count - text.length()).max(0)) + text
 }
@@ -63,7 +63,7 @@ fn date_digits(value : Int, count : Int) -> String {
 fn presentation_date_format(
   source : Ref,
   styles : Array[Ref],
-) -> (Int, String)? {
+) -> (Int32, String)? {
   if !simple_text_field(source) {
     return None
   }
@@ -97,7 +97,11 @@ fn presentation_date_text(
 }
 
 ///|
-fn date_field_value(format : Int, language : String, time : DateTime) -> String {
+fn date_field_value(
+  format : Int32,
+  language : String,
+  time : DateTime,
+) -> String {
   let kind = "datetime" + format.to_string()
   let y = date_digits(time.year, 4)
   let m = time.month.to_string()
@@ -168,7 +172,7 @@ fn date_field_value(format : Int, language : String, time : DateTime) -> String 
 /// Refreshes derived date text without changing package source, revision or history.
 pub fn Session::set_date_time(
   self : Session,
-  revision : Int,
+  revision : Int32,
   value : String,
   probe : @layout.TextProbe,
   profile : Map[String, String],

@@ -44,7 +44,7 @@ pub fn write(
   layout : @layout.PositionedDocument,
   probe : @layout.TextProbe,
   images : @layout.Images,
-  output_limit : Int,
+  output_limit : Int32,
 ) -> Bytes raise @failure.Failure {
   guard !layout.pages.is_empty() && output_limit > 0 && output_limit <= 67108864 else {
     @failure.reject(
@@ -52,7 +52,7 @@ pub fn write(
     )
   }
   let fonts = collect_fonts(layout)
-  let sources : Map[Int, Bytes] = Map([])
+  let sources : Map[Int32, Bytes] = Map([])
   for index, _ in fonts {
     sources[index] = probe.font_bytes(index)
   }

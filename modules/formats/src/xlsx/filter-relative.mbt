@@ -6,7 +6,9 @@ let relative_filter_periods : ReadOnlyArray[String] = [
 ]
 
 ///|
-fn filter_current_date(text : String) -> (Int, Int, Int) raise @failure.Failure {
+fn filter_current_date(
+  text : String,
+) -> (Int32, Int32, Int32) raise @failure.Failure {
   let parts = filter_date_parts(text)
   guard parts.length() == 3 &&
     parts[2] <= calendar_months(parts[0])[parts[1] - 1] else {
@@ -48,7 +50,7 @@ fn Session::relative_filter_interval(
     )
   }
   let today = calendar_ordinal(year, month, day)
-  let days = fn(first : Int, end : Int) {
+  let days = fn(first : Int32, end : Int32) {
     (
       serial_from_ordinal(today + first.to_int64(), self.date1904).to_double(),
       serial_from_ordinal(today + end.to_int64(), self.date1904).to_double(),

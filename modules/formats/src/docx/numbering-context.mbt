@@ -3,9 +3,9 @@ priv struct NumberingContext {
   tree : WordTree
   document : @xml.Document
   part : String
-  instances : Map[Int, Int]
-  abstracts : Map[Int, Int]
-  definitions : Map[Int, NumberDefinition]
+  instances : Map[Int32, Int32]
+  abstracts : Map[Int32, Int32]
+  definitions : Map[Int32, NumberDefinition]
 }
 
 ///|
@@ -39,8 +39,8 @@ fn NumberingContext::new(
     numbers.children[0].length() <= 8192 else {
     @failure.reject("invalid-numbering", "Invalid or oversized numbering part")
   }
-  let instances : Map[Int, Int] = Map([])
-  let abstracts : Map[Int, Int] = Map([])
+  let instances : Map[Int32, Int32] = Map([])
+  let abstracts : Map[Int32, Int32] = Map([])
   for id in numbers.children[0] {
     let node = numbers.nodes[id]
     if node.uri != word_uri || !["num", "abstractNum"].contains(node.name) {
@@ -65,7 +65,7 @@ fn NumberingContext::new(
 ///|
 fn NumberingContext::definition(
   self : NumberingContext,
-  id : Int,
+  id : Int32,
 ) -> NumberDefinition raise @failure.Failure {
   match self.definitions.get(id) {
     Some(value) => value
@@ -86,8 +86,8 @@ fn NumberingContext::properties(
   self : NumberingContext,
   tree : WordTree,
   paragraph : @layout.Paragraph,
-  instance : Int,
-  index : Int,
+  instance : Int32,
+  index : Int32,
 ) -> @layout.Paragraph raise @failure.Failure {
   let mut paragraph = self.level_properties(paragraph, instance, index)
   if tree.child(paragraph.id, "pPr") is Some(p) {
@@ -100,8 +100,8 @@ fn NumberingContext::properties(
 fn NumberingContext::level_properties(
   self : NumberingContext,
   paragraph : @layout.Paragraph,
-  instance : Int,
-  index : Int,
+  instance : Int32,
+  index : Int32,
 ) -> @layout.Paragraph raise @failure.Failure {
   let level = self.level(instance, index)
   match self.tree.child(level.node, "pPr") {
@@ -114,7 +114,7 @@ fn NumberingContext::level_properties(
 fn Session::formatting_paragraphs(
   self : Session,
   document : @xml.Document,
-  paragraphs : Array[Int],
+  paragraphs : Array[Int32],
 ) -> Array[@layout.Paragraph] raise @failure.Failure {
   let tree = WordTree::new(document)
   let styles = self.styles([])

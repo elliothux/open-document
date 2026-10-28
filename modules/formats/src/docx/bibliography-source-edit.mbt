@@ -70,8 +70,8 @@ fn source_changes(
   tree : WordTree,
   old : SourceRecord,
   value : BibliographySource,
-) -> (Map[Int, String], Array[@xml.SourceChange]) raise @failure.Failure {
-  let text : Map[Int, String] = Map([])
+) -> (Map[Int32, String], Array[@xml.SourceChange]) raise @failure.Failure {
+  let text : Map[Int32, String] = Map([])
   let changes : Array[@xml.SourceChange] = []
   let uri = tree.nodes[old.node].uri
   let missing = StringBuilder()
@@ -158,7 +158,7 @@ fn source_changes(
 /// Edits native source data in one package/history transaction, preserving other entries and metadata.
 pub fn Session::edit_bibliography_source(
   self : Session,
-  revision : Int,
+  revision : Int32,
   change : BibliographyEdit,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)

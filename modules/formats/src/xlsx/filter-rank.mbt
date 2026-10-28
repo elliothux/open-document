@@ -1,7 +1,7 @@
 ///|
 fn Session::prepare_filter(
   self : Session,
-  sheet : Int,
+  sheet : Int32,
   range : Range,
   column : FilterColumn,
   work : FormulaWork,
@@ -54,10 +54,10 @@ fn Session::prepare_filter(
 ///|
 fn Session::rank_threshold(
   self : Session,
-  sheet : Int,
+  sheet : Int32,
   range : Range,
-  column : Int,
-  value : Int,
+  column : Int32,
+  value : Int32,
   top : Bool,
   percent : Bool,
   work : FormulaWork,
@@ -76,9 +76,9 @@ fn Session::rank_threshold(
 ///|
 fn Session::filter_numbers(
   self : Session,
-  sheet : Int,
+  sheet : Int32,
   range : Range,
-  column : Int,
+  column : Int32,
   work : FormulaWork,
 ) -> Array[Double] raise @failure.Failure {
   let numbers : Array[Double] = []

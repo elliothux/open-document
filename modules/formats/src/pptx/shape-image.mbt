@@ -179,7 +179,7 @@ fn image_fill_markup(
 ///|
 fn image_fill_opacity_markup(
   fill : Ref,
-  amount : Int,
+  amount : Int32,
 ) -> String raise @failure.Failure {
   let blip = fill.child("blip").unwrap()
   let (document, _) = fill.tree.document.edit_source([

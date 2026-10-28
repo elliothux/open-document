@@ -50,7 +50,7 @@ fn criteria_compare(
   a : String,
   b : String,
   work : FormulaWork,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   work.spend(amount=a.length() + b.length())
   for index in 0..<a.length().min(b.length()) {
     let compared = search_fold(a[index].to_int()).compare(

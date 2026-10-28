@@ -4,15 +4,15 @@ fn Table::measure_rows(
   cache : ParagraphCache,
   probe : TextProbe,
   page : PageSetup,
-  first_row : Int,
-  last_row : Int,
+  first_row : Int32,
+  last_row : Int32,
   profile : Map[String, String],
   additive : Bool,
-) -> (Array[Double], Array[(Int, Int, Array[(Line, Double, Line)], Double)]) raise @failure.Failure {
+) -> (Array[Double], Array[(Int32, Int32, Array[(Line, Double, Line)], Double)]) raise @failure.Failure {
   let heights = Array::makei(last_row - first_row + 1, i => {
     self.row_minimum_height(first_row + i)
   })
-  let cells : Array[(Int, Int, Array[(Line, Double, Line)], Double)] = []
+  let cells : Array[(Int32, Int32, Array[(Line, Double, Line)], Double)] = []
   for row in first_row..<=last_row {
     for column, paragraphs in self.rows[row] {
       if self.rowSpans[row][column] == 0 {

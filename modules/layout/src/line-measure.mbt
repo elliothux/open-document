@@ -3,10 +3,10 @@ fn measure_line(
   probe : TextProbe,
   spans : Array[MeasuredSpan],
   paragraph : @bidi.BidiParagraph,
-  start : Int,
-  end : Int,
-  boundaries : Array[Int],
-  spaces : Map[Int, Double],
+  start : Int32,
+  end : Int32,
+  boundaries : Array[Int32],
+  spaces : Map[Int32, Double],
   geometry~ : Bool,
   trailing~ : Double = 0,
   advances? : Array[(Double, Double)],
@@ -16,8 +16,8 @@ fn measure_line(
   probe.check()
   let runs : Array[PlacedRun] = []
   let images : Array[PlacedDrawingFrame] = []
-  let before : Map[Int, Double] = Map([])
-  let after : Map[Int, Double] = Map([])
+  let before : Map[Int32, Double] = Map([])
+  let after : Map[Int32, Double] = Map([])
   let text = StringBuilder()
   for item in spans {
     let a = start.max(item.start)
@@ -40,8 +40,8 @@ fn measure_line(
     context_start += 1
   }
   let groups : Array[LineGroup] = []
-  let group_chars : Array[Int] = []
-  let char_groups : Array[Int] = []
+  let group_chars : Array[Int32] = []
+  let char_groups : Array[Int32] = []
   let mut offset = 0
   let mut span_index = 0
   for i, ch in bidi.chars {
@@ -87,7 +87,7 @@ fn measure_line(
     char_groups.push(groups.length() - 1)
     offset = next
   }
-  let visual : Array[Int] = []
+  let visual : Array[Int32] = []
   for i in bidi_order(bidi) {
     if visual.last() != Some(char_groups[i]) {
       visual.push(char_groups[i])
@@ -231,7 +231,7 @@ fn measure_line(
       continue
     }
     let fragment = text[group.start:group.end].to_owned()
-    let spacing : Map[Int, Double] = Map([])
+    let spacing : Map[Int32, Double] = Map([])
     for offset, gap in spaces {
       if offset > start + group.start &&
         offset <= start + group.end &&

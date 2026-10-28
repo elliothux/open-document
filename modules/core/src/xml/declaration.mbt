@@ -4,7 +4,7 @@ fn declaration(
   source : String,
   encoding : String,
   part : String,
-) -> (String, Int, String) raise @failure.Failure {
+) -> (String, Int32, String) raise @failure.Failure {
   if !source.has_prefix("<?xml") ||
     source.length() <= 5 ||
     !(source[5] == ' ' ||

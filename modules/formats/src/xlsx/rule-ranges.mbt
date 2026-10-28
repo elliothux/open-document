@@ -41,8 +41,8 @@ fn rule_anchor(ranges : Array[Range], conditional : Bool) -> Address {
 ///|
 fn rule_formula(
   text : String,
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
 ) -> String raise @failure.Failure {
   if text.is_empty() || (rows == 0 && columns == 0) {
     return text
@@ -165,7 +165,7 @@ fn rule_expression(
   anchor : Address,
   address : Address,
   sheets : Array[Sheet],
-  sheet : Int,
+  sheet : Int32,
   work : FormulaWork,
 ) -> Expression raise @failure.Failure {
   work.spend(amount=source.length())

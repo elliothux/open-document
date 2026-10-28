@@ -1,9 +1,9 @@
 ///|
 fn table_row_height_limit(
   table : @layout.Table,
-  row : Int,
+  row : Int32,
   page : @layout.PageSetup,
-  end~ : Int = row + 1,
+  end~ : Int32 = row + 1,
 ) -> Double {
   let mut limit = 14400.0
   let mut first = 0
@@ -135,7 +135,7 @@ fn Session::table_dimensions(
 fn WordTree::table_property_change(
   self : WordTree,
   document : @xml.Document,
-  owner : Int,
+  owner : Int32,
   kind : String,
   name : String,
   attributes : Map[String, String?]?,
@@ -275,11 +275,11 @@ fn WordTree::table_property_change(
 ///|
 fn Session::size_table(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   value : Double,
   width~ : Bool,
-  column~ : Int? = None,
+  column~ : Int32? = None,
   rule~ : String = "atLeast",
   probe? : @layout.TextProbe,
   profile~ : Map[String, String] = Map([]),

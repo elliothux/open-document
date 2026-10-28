@@ -383,7 +383,7 @@ fn navigation_action(target : String) -> Bool {
 /// Follows the selected internal link in the editor without changing revision or source history.
 pub fn Session::follow_hyperlink(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   self.check_idle()

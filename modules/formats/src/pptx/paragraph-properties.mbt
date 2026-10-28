@@ -13,7 +13,7 @@ pub(all) struct ParagraphFormat {
   after : TextSpacing?
   line : TextSpacing?
   list : ListFormat?
-  level : Int?
+  level : Int32?
   rtl : Bool?
   list_font : String??
   list_size : TextSpacing??
@@ -31,7 +31,7 @@ pub fn ParagraphFormat::new(
   after? : TextSpacing,
   line? : TextSpacing,
   list? : ListFormat,
-  level? : Int,
+  level? : Int32,
   rtl? : Bool,
   list_font? : String?,
   list_size? : TextSpacing?,

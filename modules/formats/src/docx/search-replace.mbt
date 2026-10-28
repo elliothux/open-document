@@ -1,9 +1,9 @@
 ///|
 priv struct ReplaceParagraph {
   nodes : Array[TextNode]
-  starts : Array[Int]
-  ends : Array[Int]
-  boundaries : Array[Int]
+  starts : Array[Int32]
+  ends : Array[Int32]
+  boundaries : Array[Int32]
 }
 
 ///|
@@ -12,8 +12,8 @@ fn replacement_paragraph(
   nodes : Array[TextNode],
 ) -> ReplaceParagraph {
   let nodes = nodes.filter(node => !inline_text(tree.nodes[node.id]).is_empty())
-  let starts : Array[Int] = []
-  let ends : Array[Int] = []
+  let starts : Array[Int32] = []
+  let ends : Array[Int32] = []
   let out = StringBuilder()
   let mut offset = 0
   for item in nodes {
@@ -28,7 +28,7 @@ fn replacement_paragraph(
 }
 
 ///|
-fn compare_positions(tree : WordTree, a : Position, b : Position) -> Int {
+fn compare_positions(tree : WordTree, a : Position, b : Position) -> Int32 {
   if a.paragraph == b.paragraph {
     a.offset.compare(b.offset)
   } else {
@@ -42,9 +42,9 @@ fn Session::plain_replacements(
   targets : Array[Selection],
   text : String,
   tree : WordTree,
-  paragraphs : Map[Int, ReplaceParagraph],
+  paragraphs : Map[Int32, ReplaceParagraph],
 ) -> PreparedEdit? raise @failure.Failure {
-  let edits : Map[Int, Array[(Int, Int, String)]] = Map([])
+  let edits : Map[Int32, Array[(Int32, Int32, String)]] = Map([])
   for target in targets {
     let frame = paragraphs[target.anchor.paragraph]
     let first = match
@@ -72,7 +72,7 @@ fn Session::plain_replacements(
       edits[item.id] = values
     }
   }
-  let changes : Map[Int, String] = Map([])
+  let changes : Map[Int32, String] = Map([])
   for id, values in edits {
     let before = inline_text(tree.nodes[id])
     let out = StringBuilder()
@@ -133,7 +133,7 @@ fn Session::plain_replacements(
 /// Replaces explicit nonoverlapping search ranges as one revision and history entry.
 pub fn Session::replace_matches(
   self : Session,
-  revision : Int,
+  revision : Int32,
   matches : Array[Selection],
   text : String,
 ) -> Json raise @failure.Failure {
@@ -157,13 +157,13 @@ pub fn Session::replace_matches(
   }
   let document = self.document()
   let tree = WordTree::new(document)
-  let by_paragraph : Map[Int, Array[TextNode]] = Map([])
+  let by_paragraph : Map[Int32, Array[TextNode]] = Map([])
   for node in self.texts {
     let nodes = by_paragraph.get(node.paragraph).unwrap_or([])
     nodes.push(node)
     by_paragraph[node.paragraph] = nodes
   }
-  let paragraphs : Map[Int, ReplaceParagraph] = Map([])
+  let paragraphs : Map[Int32, ReplaceParagraph] = Map([])
   let targets = matches.map(selection => {
     for position in [selection.anchor, selection.focus] {
       guard tree.nodes.contains(position.paragraph) else {
@@ -238,7 +238,7 @@ pub fn Session::replace_matches(
     }
     let mut candidate = document
     let edits : Array[@xml.Edit] = []
-    let affected : Array[Int] = []
+    let affected : Array[Int32] = []
     let mut bytes = 0
     let mut selection = self.selection
     for index = targets.length() - 1; index >= 0; index = index - 1 {
@@ -311,7 +311,7 @@ pub fn Session::replace_matches(
 ///|
 pub fn Session::replace_all(
   self : Session,
-  revision : Int,
+  revision : Int32,
   query : String,
   options : FindOptions,
   text : String,

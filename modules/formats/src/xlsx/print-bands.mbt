@@ -1,5 +1,9 @@
 ///|
-fn print_title_size(axis : Axis, titles : Array[Int], first : Int) -> Double {
+fn print_title_size(
+  axis : Axis,
+  titles : Array[Int32],
+  first : Int32,
+) -> Double {
   if titles is [start, ..] && start < first {
     axis.position(first.min(titles.last().unwrap() + 1)) - axis.position(start)
   } else {
@@ -10,12 +14,12 @@ fn print_title_size(axis : Axis, titles : Array[Int], first : Int) -> Double {
 ///|
 fn print_groups(
   axis : Axis,
-  indices : Array[Int],
+  indices : Array[Int32],
   available : Double,
-  titles : Array[Int],
-) -> Array[Array[Int]] raise @failure.Failure {
-  let groups : Array[Array[Int]] = []
-  let mut current : Array[Int] = []
+  titles : Array[Int32],
+) -> Array[Array[Int32]] raise @failure.Failure {
+  let groups : Array[Array[Int32]] = []
+  let mut current : Array[Int32] = []
   let mut size = 0.0
   for index in indices {
     let next = axis.size(index)
@@ -46,9 +50,9 @@ fn print_groups(
 ///|
 fn print_segments(
   axis : Axis,
-  body : Array[Int],
-  titles : Array[Int],
-) -> Array[(Array[Int], Double)] {
+  body : Array[Int32],
+  titles : Array[Int32],
+) -> Array[(Array[Int32], Double)] {
   guard body is [first, ..] else { return [] }
   let prefix = titles.filter(index => index < first)
   if prefix.is_empty() {
@@ -66,7 +70,7 @@ fn print_title_indices(
   value : String,
   axis : Axis,
   rows : Bool,
-) -> Array[Int] raise @failure.Failure {
+) -> Array[Int32] raise @failure.Failure {
   if value.is_empty() {
     return []
   }

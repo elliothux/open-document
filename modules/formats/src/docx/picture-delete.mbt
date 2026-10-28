@@ -8,7 +8,7 @@ fn picture_identity(value : String) -> String {
 ///|
 fn WordTree::check_picture_references(
   self : WordTree,
-  id : Int,
+  id : Int32,
 ) -> Unit raise @failure.Failure {
   let tree = self
   let target = tree.nodes[id]
@@ -43,8 +43,8 @@ fn WordTree::check_picture_references(
 ///|
 pub fn Session::delete_picture(
   self : Session,
-  revision : Int,
-  id : Int,
+  revision : Int32,
+  id : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let document = self.document()
@@ -58,8 +58,8 @@ fn Session::delete_drawing(
   self : Session,
   document : @xml.Document,
   tree : WordTree,
-  id : Int,
-  paragraph : Int,
+  id : Int32,
+  paragraph : Int32,
 ) -> Json raise @failure.Failure {
   let target = tree.nodes[id]
   let offset = self.texts

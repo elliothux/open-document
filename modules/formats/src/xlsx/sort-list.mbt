@@ -1,13 +1,13 @@
 ///|
 priv struct SortValue {
   value : Value
-  rank : Int?
+  rank : Int32?
 }
 
 ///|
 priv struct SortList {
-  exact : Map[String, Int]
-  folded : Map[String, Int]
+  exact : Map[String, Int32]
+  folded : Map[String, Int32]
 }
 
 ///|
@@ -42,8 +42,8 @@ fn SortList::new(
   work : FormulaWork,
 ) -> SortList raise @failure.Failure {
   check_sort_list(values)
-  let exact : Map[String, Int] = Map([])
-  let folded : Map[String, Int] = Map([])
+  let exact : Map[String, Int32] = Map([])
+  let folded : Map[String, Int32] = Map([])
   for index, value in values {
     exact[value] = index
     let normalized = formula_case(value, true, work)
@@ -86,7 +86,7 @@ fn SortList::value(
 }
 
 ///|
-fn sort_list_compare(a : SortValue, b : SortValue, descending : Bool) -> Int {
+fn sort_list_compare(a : SortValue, b : SortValue, descending : Bool) -> Int32 {
   if (a.value, b.value) is (Text(_), Text(_)) {
     let result = match (a.rank, b.rank) {
       (Some(a), Some(b)) => a.compare(b)

@@ -2,7 +2,7 @@
 fn table_header_names(
   labels : Array[String],
   retained : Array[String],
-  initial_units : Int,
+  initial_units : Int32,
 ) -> Array[String] raise @failure.Failure {
   let reserved : Map[String, Bool] = Map([])
   let used : Map[String, Bool] = Map([])

@@ -3,7 +3,7 @@ fn read_paragraph_style(
   source : Ref,
   own : Ref?,
   styles : Array[Ref],
-  level : Int,
+  level : Int32,
   runs : Array[TextRun],
   theme : Theme,
   previous : Array[TextParagraph],

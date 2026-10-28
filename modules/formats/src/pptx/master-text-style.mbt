@@ -2,7 +2,7 @@
 fn master_text_style(
   tree : Tree,
   kind : String,
-  level : Int,
+  level : Int32,
 ) -> (Ref?, Ref?, Ref?) raise @failure.Failure {
   guard ["title", "body", "other"].contains(kind) && level >= 0 && level <= 8 else {
     @failure.reject("invalid-operation", "Invalid master text style or level")
@@ -128,7 +128,7 @@ fn Session::set_master_text_style(
   self : Session,
   part : String,
   kind : String,
-  level : Int,
+  level : Int32,
   format : TextFormat?,
   probe : @layout.TextProbe?,
   profile : Map[String, String],

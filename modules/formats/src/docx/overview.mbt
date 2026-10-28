@@ -2,13 +2,13 @@
 /// Returns committed body headings and logical text counts without changing selection or history.
 pub fn Session::overview(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
   let body = tree.child(0, "body").unwrap()
   let styles = self.styles([])
-  let atoms : Map[Int, Array[Int]] = Map([])
+  let atoms : Map[Int32, Array[Int32]] = Map([])
   for node in self.texts {
     if !atoms.contains(node.paragraph) {
       atoms[node.paragraph] = []

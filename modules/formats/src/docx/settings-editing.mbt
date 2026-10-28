@@ -25,7 +25,7 @@ fn Session::settings_part(self : Session) -> String? raise @failure.Failure {
 /// Sets the document's default tab interval in points; None removes the explicit setting.
 pub fn Session::set_default_tab_stop(
   self : Session,
-  revision : Int,
+  revision : Int32,
   interval : Double?,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)

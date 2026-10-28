@@ -335,7 +335,7 @@ fn object_text_markup(
 ///|
 pub fn Session::edit_objects(
   self : Session,
-  revision : Int,
+  revision : Int32,
   change : ObjectEdit,
   probe : @layout.TextProbe,
   profile : Map[String, String],

@@ -11,7 +11,7 @@ fn section_name(name : String) -> Unit raise @failure.Failure {
 fn section_index(
   sections : Array[Section],
   id : String,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   guard section_guid(id) &&
     sections.search_by(s => s.id.to_upper() == id.to_upper()) is Some(index) else {
     @failure.reject("invalid-operation", "Section no longer exists")
@@ -22,7 +22,7 @@ fn section_index(
 ///|
 fn Session::edit_sections(
   self : Session,
-  index : Int,
+  index : Int32,
   change : SlideEdit,
 ) -> Json raise @failure.Failure {
   let reason = if change is MoveSection(_, _) || change is DeleteSection(_) {
@@ -181,7 +181,7 @@ fn sync_slide_sections(
   after : Tree,
   edits : Array[(String, @xml.Edit)],
   change : SlideEdit,
-  index : Int,
+  index : Int32,
 ) -> Tree raise @failure.Failure {
   let sections = read_sections(before)
   if sections.is_empty() {

@@ -44,7 +44,7 @@ fn read_media_animation(
 ///|
 fn media_animation_markup(
   item : SlideAnimation,
-  id : Int,
+  id : Int32,
   target : String,
 ) -> String {
   let command = match item.kind {
@@ -59,8 +59,8 @@ fn media_animation_markup(
 fn Session::show_media_cues(
   self : Session,
   show : ShowState?,
-  initial~ : Int = self.media_sequence,
-) -> (ShowState?, Int) raise @failure.Failure {
+  initial~ : Int32 = self.media_sequence,
+) -> (ShowState?, Int32) raise @failure.Failure {
   guard show is Some(show) else { return (None, initial) }
   let order = Array::makei(show.starts.length(), i => i)
   order.sort_by((a, b) => {

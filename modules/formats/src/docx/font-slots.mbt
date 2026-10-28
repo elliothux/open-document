@@ -13,7 +13,7 @@ priv struct FontBindings {
 ///|
 fn font_bindings(
   tree : WordTree,
-  parent : Int,
+  parent : Int32,
   base : FontBindings,
   inherited : Bool,
 ) -> FontBindings raise @failure.Failure {
@@ -235,7 +235,7 @@ fn RunStyle::font_runs(
 fn RunStyle::caret_font(
   self : RunStyle,
   text : String,
-  offset : Int,
+  offset : Int32,
   before : Bool,
   themes : Map[String, String],
 ) -> RunStyle raise @failure.Failure {

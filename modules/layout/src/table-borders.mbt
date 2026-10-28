@@ -98,14 +98,18 @@ fn PageFrame::paint_table_border(
 }
 
 ///|
-pub fn Table::border_width(self : Table, row : Int) -> Double {
+pub fn Table::border_width(self : Table, row : Int32) -> Double {
   self.borders.horizontal[row].fold(init=0.0, (width, edge) => {
     width.max(edge.extent())
   })
 }
 
 ///|
-pub fn Table::cell_insets(self : Table, row : Int, cell : Int) -> CellMargins {
+pub fn Table::cell_insets(
+  self : Table,
+  row : Int32,
+  cell : Int32,
+) -> CellMargins {
   let start = self.columnSpans[row][:cell].fold(init=0, (sum, span) => {
     sum + span
   })
@@ -125,7 +129,7 @@ pub fn Table::cell_insets(self : Table, row : Int, cell : Int) -> CellMargins {
 }
 
 ///|
-pub fn Table::row_minimum_height(self : Table, row : Int) -> Double {
+pub fn Table::row_minimum_height(self : Table, row : Int32) -> Double {
   let top = self.margins[row].fold(init=0.0, (v, m) => v.max(m.top))
   let bottom = self.margins[row].fold(init=0.0, (v, m) => v.max(m.bottom))
   let border = self.border_width(row)
@@ -141,8 +145,8 @@ pub fn Table::row_minimum_height(self : Table, row : Int) -> Double {
 fn Table::paint_borders(
   self : Table,
   page : PageFrame,
-  first : Int,
-  last : Int,
+  first : Int32,
+  last : Int32,
   x : Double,
   y : Double,
   heights : Array[Double],

@@ -1,5 +1,5 @@
 ///|
-fn WordTree::has_review_markup(self : WordTree, paragraph : Int) -> Bool {
+fn WordTree::has_review_markup(self : WordTree, paragraph : Int32) -> Bool {
   if !self.nodes.contains(paragraph) {
     return false
   }
@@ -15,7 +15,7 @@ fn WordTree::has_review_markup(self : WordTree, paragraph : Int) -> Bool {
 /// Returns this session's recording mode; author identity is supplied by the host.
 pub fn Session::tracking(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   {
@@ -35,7 +35,7 @@ pub fn Session::tracking(
 /// Enables or disables text revision recording without changing the document or history.
 pub fn Session::track_changes(
   self : Session,
-  revision : Int,
+  revision : Int32,
   author : String?,
   date : String,
 ) -> Json raise @failure.Failure {

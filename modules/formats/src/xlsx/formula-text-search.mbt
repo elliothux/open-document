@@ -2,9 +2,9 @@
 fn formula_find(
   needle : String,
   text : String,
-  start : Int,
+  start : Int32,
   work : FormulaWork,
-) -> Int? raise @failure.Failure {
+) -> Int32? raise @failure.Failure {
   for index in start..<=(text.length() - needle.length()) {
     let mut found = true
     for offset in 0..<needle.length() {
@@ -25,11 +25,11 @@ fn formula_find(
 priv enum FormulaPattern {
   Many
   One
-  Unit(Int)
+  Unit(Int32)
 }
 
 ///|
-fn search_fold(unit : Int) -> Int {
+fn search_fold(unit : Int32) -> Int32 {
   guard unit.to_char() is Some(character) else { return unit }
   let upper = @ucd.to_simple_uppercase(character).to_int()
   // Match the reference's non-Unicode regular-expression case canonicalization.
@@ -41,7 +41,7 @@ fn search_fold(unit : Int) -> Int {
 }
 
 ///|
-fn search_first(a : Int, b : Int) -> Int {
+fn search_first(a : Int32, b : Int32) -> Int32 {
   if a < 0 {
     b
   } else if b < 0 {
@@ -84,9 +84,9 @@ fn formula_pattern(
 fn formula_search(
   needle : String,
   text : String,
-  start : Int,
+  start : Int32,
   work : FormulaWork,
-) -> Int? raise @failure.Failure {
+) -> Int32? raise @failure.Failure {
   let pattern = formula_pattern(needle, work)
   let mut previous = Array::make(pattern.length() + 1, -1)
   let mut next = Array::make(pattern.length() + 1, -1)

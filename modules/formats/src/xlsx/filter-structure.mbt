@@ -2,7 +2,7 @@
 priv struct FilterPlan {
   states : Map[String, AutoFilterState]
   targets : Array[String]
-  hidden : Map[Int, Bool]
+  hidden : Map[Int32, Bool]
 }
 
 ///|
@@ -11,14 +11,14 @@ fn transformed_filter(
   bounds : Range,
   change : AxisChange?,
 ) -> AutoFilterState raise @failure.Failure {
-  let move_column = fn(column : Int) -> Int? {
+  let move_column = fn(column : Int32) -> Int32? {
     if change is Some({ rows: false, .. } as change) {
       change.interval(column, column).map(pair => pair.0)
     } else {
       Some(column)
     }
   }
-  let move_row = fn(row : Int) -> Int? {
+  let move_row = fn(row : Int32) -> Int32? {
     if change is Some({ rows: true, .. } as change) {
       change.interval(row, row).map(pair => pair.0)
     } else {
@@ -34,7 +34,7 @@ fn transformed_filter(
     }),
   }
   ignore(filter_settings(settings))
-  let flags : Map[Int, Array[(String, String)]] = Map([])
+  let flags : Map[Int32, Array[(String, String)]] = Map([])
   for column, values in state.flags {
     if move_column(column).filter(column => {
         column >= bounds.left && column <= bounds.right
@@ -63,9 +63,9 @@ fn filter_plan_hidden(
   before : Map[String, AutoFilterState],
   after : Map[String, AutoFilterState],
   change : AxisChange?,
-) -> Map[Int, Bool] {
-  let hidden : Map[Int, Bool] = Map([])
-  let manual : Map[Int, Bool] = Map([])
+) -> Map[Int32, Bool] {
+  let hidden : Map[Int32, Bool] = Map([])
+  let manual : Map[Int32, Bool] = Map([])
   for state in before.values() {
     for row in state.manual {
       let next = if change is Some({ rows: true, .. } as change) {
@@ -184,7 +184,7 @@ fn Session::write_filter_plan(
 ///|
 fn Session::reapply_candidate_filters(
   self : Session,
-  index : Int,
+  index : Int32,
   states : Map[String, AutoFilterState],
   targets : Array[String],
   sheets : Array[Sheet],
@@ -208,7 +208,7 @@ fn Session::reapply_candidate_filters(
       }
     }
   }
-  let hidden : Map[Int, Bool] = Map([])
+  let hidden : Map[Int32, Bool] = Map([])
   for state in states.values() {
     for row in (state.bounds.top + 1)..<=state.bounds.bottom {
       hidden[row] = false

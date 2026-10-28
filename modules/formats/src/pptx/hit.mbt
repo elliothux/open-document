@@ -1,7 +1,7 @@
 ///|
 fn Session::current_view(
   self : Session,
-  id : Int,
+  id : Int32,
 ) -> View raise @failure.Failure {
   self.check()
   guard self.view is Some(view) &&
@@ -132,7 +132,7 @@ fn closest_caret(
   text : TextGeometry,
   x : Double,
   y : Double,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   let mut offset = 0
   let mut distance = 1.0e30
   let mut column_distance = 1.0e30
@@ -163,7 +163,7 @@ fn closest_caret(
 ///|
 pub fn Session::hit(
   self : Session,
-  id : Int,
+  id : Int32,
   x : Double,
   y : Double,
   tolerance : Double,
@@ -261,7 +261,7 @@ fn polygon(
 ///|
 pub fn Session::selection_geometry(
   self : Session,
-  id : Int,
+  id : Int32,
   grid_scale~ : Double? = None,
 ) -> Json raise @failure.Failure {
   let view = self.current_view(id)
@@ -387,8 +387,8 @@ pub fn Session::selection_geometry(
 ///|
 pub fn Session::navigate(
   self : Session,
-  revision : Int,
-  id : Int,
+  revision : Int32,
+  id : Int32,
   direction : String,
   extend_selection : Bool,
 ) -> Json raise @failure.Failure {

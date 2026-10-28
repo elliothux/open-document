@@ -81,7 +81,7 @@ fn Session::copied_thread_ids(
 fn Session::copy_sheet_threads(
   self : Session,
   threads : SheetThreads,
-  number : Int,
+  number : Int32,
   ids : Map[String, String],
   created : Map[String, @xml.Document],
   remapped : Map[String, String],

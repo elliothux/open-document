@@ -45,7 +45,7 @@ pub fn Session::page_positioned(
       "stale-layout", "Watermarks require page section identities",
     )
   }
-  let paints : Map[(Int, String), Array[@layout.PositionedPrimitive]] = Map([])
+  let paints : Map[(Int32, String), Array[@layout.PositionedPrimitive]] = Map([])
   let pages = base.pages.mapi((index, positioned) => {
     guard layout.pageSections[index] is Some((section, localPage)) else {
       return positioned

@@ -50,10 +50,10 @@ fn Session::table_cell_markup(
 /// Inserts a fixed grid at a supported body range; source deletion and splitting share one history.
 pub fn Session::insert_table(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
   probe? : @layout.TextProbe,
   profile~ : Map[String, String] = Map([]),
   images? : @layout.Images,

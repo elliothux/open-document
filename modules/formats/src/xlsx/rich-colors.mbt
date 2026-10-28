@@ -87,14 +87,14 @@ fn Session::rich_text_sources(
 ///|
 fn Session::rich_text_colors(
   self : Session,
-  index : Int,
+  index : Int32,
   addresses : Array[Address],
   work : FormulaWork,
 ) -> Map[String, Map[String, Bool]] raise @failure.Failure {
   let sheet = self.sheets[index]
   let sources = self.rich_text_sources(sheet, addresses, work)
   let result : Map[String, Map[String, Bool]] = Map([])
-  let cache : Map[Int, Map[String, Bool]] = Map([])
+  let cache : Map[Int32, Map[String, Bool]] = Map([])
   for name, (tree, root) in sources {
     let shared = sheet.cells[name].shared
     let colors = shared
@@ -114,7 +114,7 @@ fn Session::rich_text_colors(
 ///|
 fn Session::cell_color_matches(
   self : Session,
-  index : Int,
+  index : Int32,
   address : Address,
   wanted : String,
   cell_color : Bool,

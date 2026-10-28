@@ -1,18 +1,18 @@
 ///|
 priv struct SeriesPattern {
   prefix : String?
-  padding : Int
+  padding : Int32
   fit : SeriesTrend
   base : Double
   calendar : SeriesCalendar?
   cycle : Array[String]?
-  mut cursor : Int
+  mut cursor : Int32
 }
 
 ///|
 fn series_text_suffix(
   text : String,
-) -> (String, Double, Int)? raise @failure.Failure {
+) -> (String, Double, Int32)? raise @failure.Failure {
   let mut end = text.length()
   while end > 0 && text[end - 1] >= 48 && text[end - 1] <= 57 {
     end -= 1
@@ -47,9 +47,9 @@ fn series_text_suffix(
 
 ///|
 fn series_pattern_group(
-  indices : Array[Int],
-  suffixes : Array[(String?, Double, Int)?],
-  slots : Array[Int?],
+  indices : Array[Int32],
+  suffixes : Array[(String?, Double, Int32)?],
+  slots : Array[Int32?],
   plans : Array[SeriesPattern],
   forward : Bool,
   single : Bool,
@@ -202,19 +202,19 @@ fn SeriesPattern::next(
 fn Sheet::text_series_values(
   self : Sheet,
   source : Range,
-  lane : Int,
+  lane : Int32,
   vertical : Bool,
-  first : Int,
-  last : Int,
+  first : Int32,
+  last : Int32,
   forward : Bool,
   automatic~ : Bool = false,
   styles~ : Array[CellStyle] = [],
   date1904~ : Bool = false,
-) -> Array[(Value, Int)] raise @failure.Failure {
+) -> Array[(Value, Int32)] raise @failure.Failure {
   let start = if vertical { source.top } else { source.left }
   let end = if vertical { source.bottom } else { source.right }
-  let seeds : Array[(Value, Int)] = []
-  let suffixes : Array[(String?, Double, Int)?] = []
+  let seeds : Array[(Value, Int32)] = []
+  let suffixes : Array[(String?, Double, Int32)?] = []
   let separators : Array[Bool] = []
   let kinds : Array[String] = []
   let cycles : Array[SeriesCycle?] = []
@@ -294,9 +294,9 @@ fn Sheet::text_series_values(
     )
     separators.push(formula is Some(_) || (value != Blank && value != Text("")))
   }
-  let slots : Array[Int?] = Array::make(seeds.length(), None)
+  let slots : Array[Int32?] = Array::make(seeds.length(), None)
   let plans : Array[SeriesPattern] = []
-  let mut indices : Array[Int] = []
+  let mut indices : Array[Int32] = []
   for offset, suffix in suffixes {
     match suffix {
       Some((head, _, _)) => {
@@ -349,7 +349,7 @@ fn Sheet::text_series_values(
     date1904,
     cycles,
   )
-  let values : Array[(Value, Int)] = Array::make(last - first + 1, (Blank, 0))
+  let values : Array[(Value, Int32)] = Array::make(last - first + 1, (Blank, 0))
   let mut units = 0
   for offset in 0..<(last - first + 1) {
     let slot = offset % seeds.length()

@@ -1,8 +1,8 @@
 ///|
 fn paragraph_selected(
   selection : Selection,
-  offset : Int,
-  length : Int,
+  offset : Int32,
+  length : Int32,
 ) -> Bool {
   if selection.mode == "object" {
     return true
@@ -17,16 +17,16 @@ fn paragraph_selected(
 }
 
 ///|
-fn paragraph_length(paragraph : TextParagraph) -> Int {
+fn paragraph_length(paragraph : TextParagraph) -> Int32 {
   paragraph.runs.fold(init=0, (sum, run) => sum + run.text.length())
 }
 
 ///|
 fn caret_run(
   paragraph : TextParagraph,
-  position : Int,
+  position : Int32,
   leading~ : Bool = false,
-) -> (Int, Int) {
+) -> (Int32, Int32) {
   let mut offset = 0
   for index, run in paragraph.runs {
     if run.text.is_empty() && offset == position {

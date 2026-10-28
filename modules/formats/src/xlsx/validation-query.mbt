@@ -133,7 +133,7 @@ fn Session::validation_reason(
 ///|
 fn Session::validation_query(
   self : Session,
-  sheet : Int,
+  sheet : Int32,
   target : Range,
 ) -> Json {
   let current = self.sheets[sheet]

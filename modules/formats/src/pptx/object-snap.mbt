@@ -3,7 +3,7 @@ fn Session::snap_drag(
   self : Session,
   dx : Double,
   dy : Double,
-  handle : Int,
+  handle : Int32,
   tolerance : Double,
   center : Bool,
 ) -> (Double, Double, Array[Guide], (Bool, Bool), (Bool, Bool)) raise @failure.Failure {
@@ -29,8 +29,8 @@ fn Session::snap_drag(
     (dx, dy, (false, false))
   }
   let moving = slide.snap_members(self.selection.objects)
-  let targets_x : Array[(Double, Int)] = []
-  let targets_y : Array[(Double, Int)] = []
+  let targets_x : Array[(Double, Int32)] = []
+  let targets_y : Array[(Double, Int32)] = []
   if snap_objects {
     for object in slide.objects {
       if object.source.tree.part == slide.tree.part &&
@@ -242,9 +242,11 @@ fn Object::snap_points(self : Object) -> Array[(Double, Double)] {
 }
 
 ///|
-fn sorted_snap_targets(targets : Array[(Double, Int)]) -> Array[(Double, Int)] {
+fn sorted_snap_targets(
+  targets : Array[(Double, Int32)],
+) -> Array[(Double, Int32)] {
   targets.sort()
-  let result : Array[(Double, Int)] = []
+  let result : Array[(Double, Int32)] = []
   for target in targets {
     if result.last().map(previous => previous.0 != target.0).unwrap_or(true) {
       result.push(target)
@@ -255,9 +257,9 @@ fn sorted_snap_targets(targets : Array[(Double, Int)]) -> Array[(Double, Int)] {
 
 ///|
 fn nearest_snap_target(
-  targets : Array[(Double, Int)],
+  targets : Array[(Double, Int32)],
   value : Double,
-) -> (Double, Int)? {
+) -> (Double, Int32)? {
   // Sorted targets keep large multi-selections from comparing every point pair.
   let index = match targets.binary_search((value, -1)) {
     Ok(index) | Err(index) => index
@@ -328,8 +330,8 @@ fn Session::snap_lines(self : Session) -> Array[Json] raise @failure.Failure {
   }
   let slide = self.current()
   let moving = slide.snap_members(candidate.selection.objects)
-  let xs : Array[(Double, Int)] = []
-  let ys : Array[(Double, Int)] = []
+  let xs : Array[(Double, Int32)] = []
+  let ys : Array[(Double, Int32)] = []
   for object in slide.objects {
     if object.kind != "group" && moving.contains(object.id) {
       for (x, y) in object.snap_points() {
@@ -355,11 +357,11 @@ fn Session::snap_lines(self : Session) -> Array[Json] raise @failure.Failure {
 ///|
 pub fn Session::drag(
   self : Session,
-  revision : Int,
-  id : Int,
+  revision : Int32,
+  id : Int32,
   dx : Double,
   dy : Double,
-  handle : Int,
+  handle : Int32,
   tolerance~ : Double = 0,
   shift~ : Bool = false,
   center~ : Bool = false,

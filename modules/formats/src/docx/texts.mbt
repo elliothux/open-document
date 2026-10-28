@@ -2,7 +2,7 @@
 fn docx_texts(tree : WordTree) -> Array[TextNode] {
   let body = tree.child(0, "body").unwrap()
   let texts : Array[TextNode] = []
-  let fields : Map[Int, Bool] = Map([])
+  let fields : Map[Int32, Bool] = Map([])
   for id in tree.order {
     let node = tree.nodes[id]
     if tree.index_markers.contains(id) {

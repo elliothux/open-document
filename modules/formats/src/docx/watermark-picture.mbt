@@ -16,7 +16,7 @@ fn picture_watermark_markup(
 ///|
 fn WordTree::picture_watermark_source(
   self : WordTree,
-  id : Int,
+  id : Int32,
 ) -> WatermarkSource raise @failure.Failure {
   let extent = self.watermark_node(id, "extent", uri=picture_inline_uri)
   let width = watermark_number(extent, "cx") / 12700

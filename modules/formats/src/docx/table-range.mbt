@@ -1,17 +1,17 @@
 ///|
 priv struct TableCellRange {
   grid : TableGrid
-  top : Int
-  bottom : Int
-  left : Int
-  right : Int
-  owners : Array[Int]
-  cells : Array[Int]
-  paragraphs : Array[Int]
+  top : Int32
+  bottom : Int32
+  left : Int32
+  right : Int32
+  owners : Array[Int32]
+  cells : Array[Int32]
+  paragraphs : Array[Int32]
 }
 
 ///|
-fn TableCellRange::column_bounds(self : TableCellRange) -> (Int, Int) {
+fn TableCellRange::column_bounds(self : TableCellRange) -> (Int32, Int32) {
   self.owners.fold(init=(self.left, self.right), (bounds, cell) => {
     let (row, column) = self.grid.owners[cell]
     let left = self.grid.starts[row][column]
@@ -23,7 +23,7 @@ fn TableCellRange::column_bounds(self : TableCellRange) -> (Int, Int) {
 }
 
 ///|
-fn TableCellRange::source_rows(self : TableCellRange) -> Array[Int] {
+fn TableCellRange::source_rows(self : TableCellRange) -> Array[Int32] {
   self.grid.rows.filter(row => {
     self.owners.any(cell => self.grid.rows[self.grid.owners[cell].0] == row)
   })
@@ -82,8 +82,8 @@ fn Session::table_cell_range(
     grid.starts[end_row][end_column] +
     grid.model.columnSpans[end_row][end_column],
   )
-  let owners : Array[Int] = []
-  let positions : Map[(Int, Int), Unit] = Map([])
+  let owners : Array[Int32] = []
+  let positions : Map[(Int32, Int32), Unit] = Map([])
   for row, cells in grid.cells {
     for column, cell in cells {
       let span = grid.model.rowSpans[row][column]

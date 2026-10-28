@@ -150,7 +150,7 @@ fn running_field_code(instruction : String) -> String raise @failure.Failure {
 ///|
 fn WordTree::check_running_field_node(
   self : WordTree,
-  id : Int,
+  id : Int32,
   allowed : Array[String],
 ) -> Unit raise @failure.Failure {
   let node = self.nodes[id]
@@ -175,7 +175,7 @@ fn WordTree::check_running_field_node(
 ///|
 fn WordTree::check_field_text(
   self : WordTree,
-  id : Int,
+  id : Int32,
 ) -> Unit raise @failure.Failure {
   let node = self.nodes[id]
   guard self.children[id].is_empty() &&
@@ -191,11 +191,11 @@ fn WordTree::check_field_text(
 ///|
 // Keep the first result's formatting; all remaining cached result runs are derived.
 fn keep_running_field(
-  fields : Map[Int, String],
-  results : Array[Int],
+  fields : Map[Int32, String],
+  results : Array[Int32],
   code : String,
-  nodes : Map[Int, @xml.Node],
-  cache : Map[Int, String],
+  nodes : Map[Int32, @xml.Node],
+  cache : Map[Int32, String],
 ) -> Unit raise @failure.Failure {
   guard !results.is_empty() else {
     @failure.reject("protected-content", "Running field has no result text")
@@ -215,9 +215,9 @@ fn keep_running_field(
 ///|
 fn WordTree::running_fields(
   self : WordTree,
-  paragraph : Int,
-  cache~ : Map[Int, String] = Map([]),
-) -> Map[Int, String] raise @failure.Failure {
+  paragraph : Int32,
+  cache~ : Map[Int32, String] = Map([]),
+) -> Map[Int32, String] raise @failure.Failure {
   let contents = self.contents
     .get(paragraph)
     .filter(toc => toc.reason.is_empty())
@@ -253,7 +253,7 @@ fn WordTree::running_fields(
       }
     }
   }
-  let fields : Map[Int, String] = Map([])
+  let fields : Map[Int32, String] = Map([])
   for id in self.descendants(paragraph) {
     if self.index_markers.contains(id) && self.nodes[id].name == "t" {
       fields[id] = ""
@@ -262,9 +262,9 @@ fn WordTree::running_fields(
   let mut state = 0
   let mut instruction = ""
   let mut code = ""
-  let mut results : Array[Int] = []
+  let mut results : Array[Int32] = []
   let mut count = 0
-  let children : Array[Int] = []
+  let children : Array[Int32] = []
   for child in self.children[paragraph] {
     let node = self.nodes[child]
     if contents is Some(_) && node.uri == word_uri && node.name == "hyperlink" {
@@ -289,7 +289,7 @@ fn WordTree::running_fields(
       let code = running_field_code(
         node.attribute("instr", uri=word_uri).unwrap_or(""),
       )
-      let texts : Array[Int] = []
+      let texts : Array[Int32] = []
       for run in self.children[child] {
         guard self.nodes[run].uri == word_uri && self.nodes[run].name == "r" else {
           @failure.reject("protected-content", "Extended running field result")

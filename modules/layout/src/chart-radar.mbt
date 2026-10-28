@@ -1,7 +1,7 @@
 ///|
 fn radar_point(
-  index : Int,
-  count : Int,
+  index : Int32,
+  count : Int32,
   x : Double,
   y : Double,
   radius : Double,

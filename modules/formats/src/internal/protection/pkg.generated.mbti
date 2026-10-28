@@ -6,9 +6,9 @@ import {
 }
 
 // Values
-pub fn hash(String, Bytes, Int) -> Bytes
+pub fn hash(String, Bytes, Int32) -> Bytes
 
-pub fn matches(String, Bytes, Int, Bytes) -> Bool
+pub fn matches(String, Bytes, Int32, Bytes) -> Bool
 
 pub fn password(String) -> Unit raise @failure.Failure
 

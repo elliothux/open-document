@@ -17,8 +17,8 @@ pub(all) struct Attribute {
   uri : String
   name : String
   value : String
-  start : Int
-  end : Int
+  start : Int32
+  end : Int32
 }
 
 pub struct Document {
@@ -27,12 +27,12 @@ pub struct Document {
 pub fn Document::apply(Self, Edit, forward~ : Bool) -> Self raise @failure.Failure
 pub fn Document::bytes(Self) -> Bytes
 pub fn Document::edit_source(Self, Array[SourceChange]) -> (Self, Edit) raise @failure.Failure
-pub fn Document::edit_text(Self, Map[Int, String], source? : Array[SourceChange]) -> (Self, Edit) raise @failure.Failure
+pub fn Document::edit_text(Self, Map[Int32, String], source? : Array[SourceChange]) -> (Self, Edit) raise @failure.Failure
 pub fn Document::is_original(Self) -> Bool
-pub fn Document::node(Self, Int) -> Node raise @failure.Failure
+pub fn Document::node(Self, Int32) -> Node raise @failure.Failure
 pub fn Document::nodes(Self) -> ReadOnlyArray[Node]
-pub fn Document::parse(Bytes, String, Int, Int) -> Self raise @failure.Failure
-pub fn Document::replace(Self, Map[Int, String]) -> Bytes raise @failure.Failure
+pub fn Document::parse(Bytes, String, Int32, Int32) -> Self raise @failure.Failure
+pub fn Document::replace(Self, Map[Int32, String]) -> Bytes raise @failure.Failure
 pub fn Document::source(Self) -> String
 
 pub struct Edit {
@@ -41,15 +41,15 @@ pub struct Edit {
 pub fn Edit::payload_bytes(Self) -> Int64
 
 pub(all) struct Node {
-  id : Int
+  id : Int32
   uri : String
   name : String
   qualified : String
-  parent : Int
-  start : Int
-  opening_end : Int
-  closing_start : Int
-  end : Int
+  parent : Int32
+  start : Int32
+  opening_end : Int32
+  closing_start : Int32
+  end : Int32
   text : String
   attributes : ReadOnlyArray[Attribute]
   namespaces : ReadOnlyArray[(String, String)]
@@ -58,9 +58,9 @@ pub(all) struct Node {
 pub fn Node::attribute(Self, String, uri? : String) -> String?
 
 pub(all) struct SourceChange {
-  node : Int
-  offset : Int
-  length : Int
+  node : Int32
+  offset : Int32
+  length : Int32
   xml : String
 }
 

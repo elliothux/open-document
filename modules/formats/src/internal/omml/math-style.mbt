@@ -1,7 +1,7 @@
 ///|
 fn Tree::fraction_style(
   self : Tree,
-  properties : Int,
+  properties : Int32,
   base : @layout.TextStyle,
 ) -> @layout.TextStyle raise @failure.Failure {
   let node = self.nodes[properties]

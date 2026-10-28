@@ -19,7 +19,7 @@ pub fn FindOptions::new(
 ///|
 priv struct SearchPattern {
   chars : Array[Char]
-  prefix : Array[Int]
+  prefix : Array[Int32]
   options : FindOptions
 }
 
@@ -56,14 +56,14 @@ fn SearchPattern::matches(
   self : SearchPattern,
   text : String,
   first_only : Bool,
-) -> Array[(Int, Int)] {
-  let chars : Array[(Int, Char)] = []
+) -> Array[(Int32, Int32)] {
+  let chars : Array[(Int32, Char)] = []
   let mut position = 0
   for ch in text {
     chars.push((position, ch))
     position += if ch.to_int() > 0xffff { 2 } else { 1 }
   }
-  let matches : Array[(Int, Int)] = []
+  let matches : Array[(Int32, Int32)] = []
   let mut matched = 0
   for index, (offset, ch) in chars {
     let value = if self.options.matchCase {
@@ -97,7 +97,7 @@ fn SearchPattern::matches(
 
 ///|
 priv struct CellMatch {
-  sheet : Int
+  sheet : Int32
   cell : Cell
   text : String
   reason : String
@@ -173,7 +173,7 @@ fn Session::find_cells(
 /// Finds matching cells in worksheet/row/column order without changing selection.
 pub fn Session::find(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   text : String,
   options : FindOptions,

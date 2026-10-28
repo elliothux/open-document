@@ -1,6 +1,6 @@
 ///|
 pub(all) struct PivotNumberGroup {
-  field : Int
+  field : Int32
   start : Double?
   end : Double?
   interval : Double
@@ -23,7 +23,7 @@ pub extend PivotNumberGroup with ToJson::{to_json}
 priv struct PivotGroupItems {
   settings : PivotGrouping
   items : Array[Value]
-  indices : Array[Int]
+  indices : Array[Int32]
 }
 
 ///|
@@ -33,7 +33,7 @@ priv enum PivotGrouping {
 }
 
 ///|
-fn PivotGroupItems::base(self : PivotGroupItems) -> Int {
+fn PivotGroupItems::base(self : PivotGroupItems) -> Int32 {
   match self.settings {
     Numeric(group, ..) => group.field
     DateBuckets(group, ..) => group.field
@@ -42,10 +42,10 @@ fn PivotGroupItems::base(self : PivotGroupItems) -> Int {
 
 ///|
 fn pivot_expand_axis(
-  axis : Array[Int],
-  fields : Map[Int, Array[Int]],
-) -> Array[Int] {
-  let result : Array[Int] = []
+  axis : Array[Int32],
+  fields : Map[Int32, Array[Int32]],
+) -> Array[Int32] {
+  let result : Array[Int32] = []
   for field in axis {
     result.append(fields.get(field).unwrap_or([field]))
   }
@@ -55,7 +55,7 @@ fn pivot_expand_axis(
 ///|
 fn pivot_expand_settings(
   settings : PivotSettings,
-  fields : Map[Int, Array[Int]],
+  fields : Map[Int32, Array[Int32]],
 ) -> PivotSettings {
   let rows = pivot_expand_axis(settings.rows, fields)
   let columns = pivot_expand_axis(settings.columns, fields)
@@ -73,11 +73,11 @@ fn pivot_expand_settings(
 
 ///|
 fn pivot_source_axis(
-  axis : Array[Int],
-  fields : Map[Int, Array[Int]],
-  width : Int,
-) -> Array[Int] raise @failure.Failure {
-  let result : Array[Int] = []
+  axis : Array[Int32],
+  fields : Map[Int32, Array[Int32]],
+  width : Int32,
+) -> Array[Int32] raise @failure.Failure {
+  let result : Array[Int32] = []
   let mut at = 0
   while at < axis.length() {
     let native = axis[at]
@@ -106,7 +106,7 @@ fn pivot_source_axis(
 }
 
 ///|
-fn pivot_group_compare(left : Double, right : Double) -> Int {
+fn pivot_group_compare(left : Double, right : Double) -> Int32 {
   if general_number(left) == general_number(right) {
     0
   } else {
@@ -240,12 +240,16 @@ fn PivotNumberGroup::build(
 }
 
 ///|
-fn PivotCache::axis_items(self : PivotCache, field : Int) -> Array[Value] {
+fn PivotCache::axis_items(self : PivotCache, field : Int32) -> Array[Value] {
   self.groups.get(field).map(group => group.items).unwrap_or(self.items[field])
 }
 
 ///|
-fn PivotCache::axis_style(self : PivotCache, field : Int, item : Int) -> Int {
+fn PivotCache::axis_style(
+  self : PivotCache,
+  field : Int32,
+  item : Int32,
+) -> Int32 {
   if self.groups.contains(field) {
     0
   } else {
@@ -257,7 +261,7 @@ fn PivotCache::axis_style(self : PivotCache, field : Int, item : Int) -> Int {
 fn PivotGroupItems::markup(
   self : PivotGroupItems,
   date1904 : Bool,
-  parent? : Int,
+  parent? : Int32,
 ) -> String raise @failure.Failure {
   let out = StringBuilder()
   match self.settings {

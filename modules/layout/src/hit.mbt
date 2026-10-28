@@ -1,13 +1,13 @@
 ///|
 pub(all) struct Hit {
-  paragraph : Int
-  offset : Int
+  paragraph : Int32
+  offset : Int32
   affinity : String
-  bidiLevel : Int?
-  frameStart : Int?
-  drawingStart : Int?
-  page : Int
-  line : Int
+  bidiLevel : Int32?
+  frameStart : Int32?
+  drawingStart : Int32?
+  page : Int32
+  line : Int32
   x : Double
   y : Double
   height : Double
@@ -72,7 +72,7 @@ fn Layout::portion_caret_geometry(self : Layout, hit : Hit) -> Hit {
       })
     multiple = line.width > advance + 1.0e-7
   }
-  let mut script : Int? = None
+  let mut script : Int32? = None
   if !multiple {
     for ch in line.text.iter() {
       let category = character_font_class(ch.to_uint(), script.unwrap_or(0))
@@ -88,7 +88,7 @@ fn Layout::portion_caret_geometry(self : Layout, hit : Hit) -> Hit {
     return hit
   }
   let mut chosen : (PlacedRun, Glyph)? = None
-  let mut control : (PlacedRun, Int)? = None
+  let mut control : (PlacedRun, Int32)? = None
   for run in line.runs {
     let index = hit.offset - run.start - 1
     if index >= 0 &&
@@ -164,8 +164,8 @@ fn Layout::portion_caret_geometry(self : Layout, hit : Hit) -> Hit {
 ///|
 fn line_hit(
   line : Line,
-  page : Int,
-  index : Int,
+  page : Int32,
+  index : Int32,
   caret : Caret,
   affinity : String,
 ) -> Hit {
@@ -194,7 +194,7 @@ fn line_hit(
 /// Set text_only to choose text carets through picture overlays.
 pub fn Layout::hit_test(
   self : Layout,
-  page : Int,
+  page : Int32,
   x : Double,
   y : Double,
   text_only~ : Bool = false,
@@ -313,7 +313,7 @@ pub fn Layout::hit_test(
 }
 
 ///|
-fn nearest_caret(line : Line, page : Int, index : Int, x : Double) -> Hit {
+fn nearest_caret(line : Line, page : Int32, index : Int32, x : Double) -> Hit {
   let first = line.carets[0].offset
   let last = line.carets.last().unwrap().offset
   let mut best = line_hit(line, page, index, line.carets[0], "after")
@@ -383,11 +383,11 @@ fn nearest_caret(line : Line, page : Int, index : Int, x : Double) -> Hit {
 /// Affinity selects the correct side of a BiDi or soft-wrap boundary.
 pub fn Layout::caret(
   self : Layout,
-  paragraph : Int,
-  offset : Int,
+  paragraph : Int32,
+  offset : Int32,
   affinity : String,
-  bidi_level? : Int,
-  frame_start? : Int,
+  bidi_level? : Int32,
+  frame_start? : Int32,
 ) -> Hit raise @failure.Failure {
   if self.text_box_layout(paragraph) is Some(story) {
     return story.caret(paragraph, offset, affinity, bidi_level?, frame_start?)

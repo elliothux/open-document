@@ -2,7 +2,7 @@
 fn read_text_fragment(
   source : String,
   budget : @archive.Budget,
-) -> (Tree, Array[@xml.Node], Int) raise @failure.Failure {
+) -> (Tree, Array[@xml.Node], Int32) raise @failure.Failure {
   guard source.length() <= 1048576 else {
     @failure.reject(
       "limit-exceeded", "Presentation text clipboard exceeds 1Mi units",
@@ -155,7 +155,7 @@ fn read_text_fragment(
 /// Pastes a validated native text fragment into one shape or table-cell range as one history entry.
 pub fn Session::paste_text_fragment(
   self : Session,
-  revision : Int,
+  revision : Int32,
   fragment : String,
   probe : @layout.TextProbe,
   profile : Map[String, String],

@@ -167,8 +167,8 @@ pub fn DrawingFrame::validate(
 
 ///|
 pub(all) struct PlacedDrawingFrame {
-  start : Int
-  level : Int
+  start : Int32
+  level : Int32
   x : Double
   y : Double
   width : Double

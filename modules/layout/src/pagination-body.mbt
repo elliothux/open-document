@@ -6,7 +6,7 @@ fn Pagination::body(
   cache : ParagraphCache,
   profile : Map[String, String],
   images : Images,
-) -> (Int, Int, PaginationCache?) raise @failure.Failure {
+) -> (Int32, Int32, PaginationCache?) raise @failure.Failure {
   let blocks = flow.body_blocks()
   // Note reservations must be replayed with their reference lines.
   let keys = if flow.notes.is_empty() && self.notePending.is_empty() {

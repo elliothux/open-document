@@ -147,7 +147,7 @@ fn ConditionalFormat::check(
   self : ConditionalFormat,
   ranges : Array[Range],
   sheets : Array[Sheet],
-  index : Int,
+  index : Int32,
   work : FormulaWork,
 ) -> Unit raise @failure.Failure {
   if self.check_nonformula() {
@@ -244,8 +244,8 @@ fn ConditionalFormat::check(
 ///|
 fn ConditionalFormat::markup(
   self : ConditionalFormat,
-  priority : Int,
-  style : Int?,
+  priority : Int32,
+  style : Int32?,
   anchor : Address,
   colors~ : Array[String?] = [],
 ) -> String raise @failure.Failure {

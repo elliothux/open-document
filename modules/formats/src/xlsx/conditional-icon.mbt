@@ -29,17 +29,17 @@ pub extend IconSet with ToJson::{to_json}
 ///|
 priv struct ConditionalIcon {
   kind : String
-  index : Int
+  index : Int32
   showValue : Bool
 } derive(Eq)
 
 ///|
 fn Session::cell_icon_matches(
   self : Session,
-  index : Int,
+  index : Int32,
   address : Address,
   set : String,
-  id : Int?,
+  id : Int32?,
   rules : ConditionalRules,
   work : FormulaWork,
 ) -> Bool raise @failure.Failure {
@@ -63,7 +63,7 @@ fn Session::cell_icon_matches(
 }
 
 ///|
-fn conditional_icon_count(kind : String) -> Int {
+fn conditional_icon_count(kind : String) -> Int32 {
   match kind {
     "3Arrows"
     | "3ArrowsGray"
@@ -85,7 +85,7 @@ fn IconSet::check(
   self : IconSet,
   anchor : Address,
   sheets : Array[Sheet],
-  index : Int,
+  index : Int32,
   work : FormulaWork,
 ) -> Unit raise @failure.Failure {
   guard conditional_icon_count(self.kind) > 0 &&
@@ -109,7 +109,7 @@ fn read_conditional_icons(
   node : @xml.Node,
   anchor : Address,
   sheets : Array[Sheet],
-  index : Int,
+  index : Int32,
   work : FormulaWork,
 ) -> IconSet raise @failure.Failure {
   conditional_node(tree, node, ["iconSet", "showValue", "percent", "reverse"], [
@@ -146,8 +146,8 @@ fn ConditionalRules::icon(
   rule : ConditionalRule,
   address : Address,
   sheets : Array[Sheet],
-  index : Int,
-  values : Map[(Int, String), Value],
+  index : Int32,
+  values : Map[(Int32, String), Value],
   work : FormulaWork,
 ) -> ConditionalIcon? raise @failure.Failure {
   guard rule.icons is Some(icons) &&
@@ -171,7 +171,7 @@ fn ConditionalRules::icon(
 ///|
 fn IconSet::markup(
   self : IconSet,
-  priority : Int,
+  priority : Int32,
 ) -> String raise @failure.Failure {
   let thresholds = self.thresholds
     .map(stop => {

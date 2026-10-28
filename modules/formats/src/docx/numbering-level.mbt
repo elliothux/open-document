@@ -1,8 +1,8 @@
 ///|
 fn WordTree::number_level(
   self : WordTree,
-  level : Int,
-) -> (Int, NumberLevel) raise @failure.Failure {
+  level : Int32,
+) -> (Int32, NumberLevel) raise @failure.Failure {
   self.numbering_shape(level, ["ilvl", "tplc", "tentative"], [
     "start", "numFmt", "lvlRestart", "lvlText", "lvlJc", "suff", "pPr", "rPr",
   ])

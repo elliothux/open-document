@@ -1,9 +1,9 @@
 ///|
 fn Tree::math_children(
   self : Tree,
-  id : Int,
+  id : Int32,
   names : Array[String],
-) -> Array[Int] raise @failure.Failure {
+) -> Array[Int32] raise @failure.Failure {
   let node = self.nodes[id]
   guard node.uri == math_uri &&
     node.attributes.is_empty() &&
@@ -22,7 +22,7 @@ fn Tree::math_children(
 ///|
 fn Tree::read_math_run(
   self : Tree,
-  id : Int,
+  id : Int32,
   base : @layout.TextStyle,
 ) -> (String, @layout.TextStyle) raise @failure.Failure {
   let output = StringBuilder()

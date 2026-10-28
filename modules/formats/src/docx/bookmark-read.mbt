@@ -2,8 +2,8 @@
 priv struct Bookmark {
   key : String
   name : String
-  start : Int
-  end : Int
+  start : Int32
+  end : Int32
   selection : Selection?
   reason : String
 }
@@ -51,7 +51,7 @@ fn check_bookmark_name(name : String) -> Unit raise @failure.Failure {
 }
 
 ///|
-fn WordTree::is_bookmark(self : WordTree, id : Int) -> Bool {
+fn WordTree::is_bookmark(self : WordTree, id : Int32) -> Bool {
   let node = self.nodes[id]
   node.uri == word_uri && ["bookmarkStart", "bookmarkEnd"].contains(node.name)
 }
@@ -59,7 +59,7 @@ fn WordTree::is_bookmark(self : WordTree, id : Int) -> Bool {
 ///|
 fn WordTree::check_bookmark_marker(
   self : WordTree,
-  id : Int,
+  id : Int32,
 ) -> Unit raise @failure.Failure {
   let node = self.nodes[id]
   let key = node.attribute("id", uri=word_uri).unwrap_or("")
@@ -81,10 +81,10 @@ fn WordTree::check_bookmark_marker(
 }
 
 ///|
-fn WordTree::inline_marker_positions(self : WordTree) -> Map[Int, Position] {
+fn WordTree::inline_marker_positions(self : WordTree) -> Map[Int32, Position] {
   let atoms = Map::from_array(docx_texts(self).map(t => (t.id, t.paragraph)))
-  let offsets : Map[Int, Int] = Map([])
-  let positions : Map[Int, Position] = Map([])
+  let offsets : Map[Int32, Int32] = Map([])
+  let positions : Map[Int32, Position] = Map([])
   for id in self.order {
     let node = self.nodes[id]
     if atoms.get(id) is Some(p) {
@@ -118,9 +118,9 @@ fn WordTree::bookmarks(self : WordTree) -> Array[Bookmark] {
     return []
   }
   let positions = self.inline_marker_positions()
-  let starts : Map[String, Array[Int]] = Map([])
-  let ends : Map[String, Array[Int]] = Map([])
-  let names : Map[String, Int] = Map([])
+  let starts : Map[String, Array[Int32]] = Map([])
+  let ends : Map[String, Array[Int32]] = Map([])
+  let names : Map[String, Int32] = Map([])
   for id in self.order {
     if !self.is_bookmark(id) {
       continue
@@ -138,7 +138,7 @@ fn WordTree::bookmarks(self : WordTree) -> Array[Bookmark] {
     }
   }
   let result : Array[Bookmark] = []
-  let checked : Map[(Int, Bool), String] = Map([])
+  let checked : Map[(Int32, Bool), String] = Map([])
   for id in self.order {
     let node = self.nodes[id]
     if node.uri != word_uri || node.name != "bookmarkStart" {
@@ -240,7 +240,7 @@ fn check_bookmark_integrity(
   }
   let after = WordTree::new(candidate)
   let catalog = Map::from_array(after.bookmarks().map(b => (b.key, b)))
-  let known : Map[Int, Bool] = Map([])
+  let known : Map[Int32, Bool] = Map([])
   for b in before.bookmarks() {
     if !b.reason.is_empty() {
       continue
@@ -255,7 +255,7 @@ fn check_bookmark_integrity(
     known[b.start] = true
     known[b.end] = true
   }
-  let remaining : Map[String, Int] = Map([])
+  let remaining : Map[String, Int32] = Map([])
   for id in after.order {
     if after.is_bookmark(id) {
       let n = after.nodes[id]
@@ -281,7 +281,7 @@ fn check_bookmark_integrity(
 /// Lists body and cell bookmarks without changing selection or history.
 pub fn Session::bookmarks(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let items = WordTree::new(self.document()).bookmarks()

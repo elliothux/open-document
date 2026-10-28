@@ -1,32 +1,32 @@
 ///|
 priv struct Pagination {
   columns : Columns
-  balance : (Int, Double)?
+  balance : (Int32, Double)?
   continuation : SectionContinuation?
   mut page : PageSetup
   anchorPage : PageSetup
   setups : Array[PageSetup]
   pageSetups : Array[PageSetup]
   pages : Array[PageFrame]
-  tables : Map[Int, Table]
-  mut active_table : Int?
+  tables : Map[Int32, Table]
+  mut active_table : Int32?
   mut y : Double
-  mut count : Int
+  mut count : Int32
   mut after : Double
   mut gap : Double
   wrapping : Array[WrappingRect]
-  placedWrapping : Map[(Int, Int), Unit]
-  noteReferences : Map[(Int, Int), Array[NoteLine]]
+  placedWrapping : Map[(Int32, Int32), Unit]
+  noteReferences : Map[(Int32, Int32), Array[NoteLine]]
   noteReflow : ((Array[NoteLine], PageSetup) -> Array[NoteLine] raise @failure.Failure)?
-  noteUsed : Set[(Int, Int)]
+  noteUsed : Set[(Int32, Int32)]
   notePending : Array[NoteLine]
-  mut noteCursor : Int
-  mut noteCount : Int
+  mut noteCursor : Int32
+  mut noteCount : Int32
   mut noteBodyHeight : Double
-  notePages : Map[Int, Array[Line]]
-  noteHeights : Map[Int, Double]
-  noteBodyEnds : Map[Int, Double]
-  noteContinuations : Set[Int]
+  notePages : Map[Int32, Array[Line]]
+  noteHeights : Map[Int32, Double]
+  noteBodyEnds : Map[Int32, Double]
+  noteContinuations : Set[Int32]
 }
 
 ///|
@@ -35,10 +35,10 @@ fn Pagination::new(
   setups~ : Array[PageSetup] = [],
   pageSetups~ : Array[PageSetup] = [],
   columns~ : Columns = Columns::new(),
-  balance~ : (Int, Double)? = None,
+  balance~ : (Int32, Double)? = None,
   anchorPage~ : PageSetup? = None,
   wrapping~ : Array[WrappingRect] = [],
-  noteReferences~ : Map[(Int, Int), Array[NoteLine]] = Map([]),
+  noteReferences~ : Map[(Int32, Int32), Array[NoteLine]] = Map([]),
   noteReflow~ : ((Array[NoteLine], PageSetup) -> Array[NoteLine] raise @failure.Failure)? = None,
   pendingNotes~ : Array[NoteLine] = [],
   continuation~ : SectionContinuation? = None,
@@ -161,7 +161,7 @@ fn Pagination::fit(
 }
 
 ///|
-fn Pagination::page_at(self : Pagination, index : Int) -> PageSetup {
+fn Pagination::page_at(self : Pagination, index : Int32) -> PageSetup {
   let physical = index / self.columns.count
   let page = self.sheet_setup(physical)
   if self.columns.count == 1 {
@@ -181,7 +181,7 @@ fn Pagination::page_at(self : Pagination, index : Int) -> PageSetup {
 }
 
 ///|
-fn Pagination::sheet_setup(self : Pagination, physical : Int) -> PageSetup {
+fn Pagination::sheet_setup(self : Pagination, physical : Int32) -> PageSetup {
   let page = if self.pageSetups.get(physical) is Some(page) {
     page
   } else if self.setups.is_empty() {
@@ -209,7 +209,7 @@ fn Pagination::place(
   left : Double,
   top : Double,
   images : Images,
-  page? : Int,
+  page? : Int32,
 ) -> Unit raise @failure.Failure {
   self.count += 1
   guard self.count <= 32768 else {
@@ -305,7 +305,7 @@ fn Pagination::paragraph(
   profile : Map[String, String],
   images : Images,
   additive : Bool,
-  startOffset~ : Int = 0,
+  startOffset~ : Int32 = 0,
 ) -> Unit raise @failure.Failure {
   if startOffset == 0 &&
     paragraph.pageBreakBefore &&

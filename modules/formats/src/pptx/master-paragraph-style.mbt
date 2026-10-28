@@ -55,7 +55,7 @@ fn master_paragraph(
   main : Tree,
   theme : Theme,
   kind : String,
-  level : Int,
+  level : Int32,
 ) -> TextParagraph raise @failure.Failure {
   let (_, _, own) = master_text_style(tree, kind, level)
   let styles = master_style_sources(tree, main, kind, level)
@@ -89,7 +89,7 @@ fn Session::master_paragraph_query(
   tree : Tree,
   theme : Theme,
   kind : String,
-  level : Int,
+  level : Int32,
 ) -> Json {
   let fields = [
     "left", "right", "first", "before", "after", "line", "list", "level", "rtl",
@@ -121,7 +121,7 @@ fn Session::set_master_paragraph_style(
   self : Session,
   part : String,
   kind : String,
-  level : Int,
+  level : Int32,
   format : ParagraphFormat?,
   alignment : String?,
   probe : @layout.TextProbe?,

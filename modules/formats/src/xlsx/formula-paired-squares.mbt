@@ -3,10 +3,10 @@ fn paired_squares_function(
   name : String,
   args : Array[Expression],
   sheets : Array[Sheet],
-  sheet : Int,
-  values : Map[(Int, String), Value],
+  sheet : Int32,
+  values : Map[(Int32, String), Value],
   work : FormulaWork,
-  depth : Int,
+  depth : Int32,
 ) -> Value raise @failure.Failure {
   let qualified = args.map(arg => arg is Reference(Some(_), _, Some(_)))
   // Native qualified areas are 3D matrices; mixed 2D/3D operands do not pair.

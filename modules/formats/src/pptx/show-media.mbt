@@ -1,14 +1,14 @@
 ///|
 pub(all) struct ShowMediaChange {
   object : String
-  token : Int
+  token : Int32
   action : String
   message : String
 }
 
 ///|
 priv struct ShowMediaPlayback {
-  token : Int
+  token : Int32
   state : String
   reason : String
 }
@@ -95,9 +95,9 @@ fn Session::change_show_media(
   self : Session,
   show : ShowState,
   change : ShowMediaChange,
-  sequence~ : Int = self.media_sequence,
+  sequence~ : Int32 = self.media_sequence,
   scripted~ : Bool = false,
-) -> (ShowState, Int) raise @failure.Failure {
+) -> (ShowState, Int32) raise @failure.Failure {
   let object = self.slides[show.index].object(change.object)
   guard object.media is Some(media) else {
     @failure.reject("invalid-operation", "Target is not a media object")
@@ -197,8 +197,8 @@ fn Session::change_show_media(
 /// Applies displayed-frame user actions or token-bound decoder feedback without editing the document.
 pub fn Session::media_show(
   self : Session,
-  revision : Int,
-  layout : Int?,
+  revision : Int32,
+  layout : Int32?,
   time : Double,
   change : ShowMediaChange,
 ) -> Json raise @failure.Failure {

@@ -175,7 +175,7 @@ fn clipboard_media_reference(
 /// Returns validated local media for platform decoding before object paste.
 pub fn Session::object_fragment_media(
   self : Session,
-  revision : Int,
+  revision : Int32,
   value : String,
 ) -> Array[Json] raise @failure.Failure {
   self.check_revision(revision)

@@ -30,8 +30,8 @@ fn DrawingCell::table_fill_opacity_changes(
 ///|
 fn DrawingTable::table_opacity_changes(
   self : DrawingTable,
-  row : Int,
-  column : Int,
+  row : Int32,
+  column : Int32,
   sides : Array[Bool],
   value : Double,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {

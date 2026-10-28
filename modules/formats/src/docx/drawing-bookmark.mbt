@@ -7,7 +7,7 @@ fn Session::edit_drawing_bookmark_links(
   changes : Array[@xml.SourceChange],
   parts : Map[String, @xml.Document],
   edits : Map[String, Array[@xml.Edit]],
-  affected : Array[Int],
+  affected : Array[Int32],
 ) -> Unit raise @failure.Failure {
   let rel_uri = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
   let owners : Map[String, Map[String, @opc.Relationship]] = Map([])

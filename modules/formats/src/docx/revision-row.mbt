@@ -1,5 +1,5 @@
 ///|
-fn WordTree::is_row_revision(self : WordTree, id : Int) -> Bool {
+fn WordTree::is_row_revision(self : WordTree, id : Int32) -> Bool {
   guard self.nodes.get(id) is Some(node) &&
     node.uri == word_uri &&
     ["ins", "del"].contains(node.name) &&
@@ -13,7 +13,7 @@ fn WordTree::is_row_revision(self : WordTree, id : Int) -> Bool {
 }
 
 ///|
-fn WordTree::row_revision(self : WordTree, row : Int) -> Int? {
+fn WordTree::row_revision(self : WordTree, row : Int32) -> Int32? {
   self
   .child(row, "trPr")
   .bind(properties => {
@@ -24,8 +24,8 @@ fn WordTree::row_revision(self : WordTree, row : Int) -> Int? {
 ///|
 fn WordTree::check_row_revision(
   self : WordTree,
-  id : Int,
-) -> Int raise @failure.Failure {
+  id : Int32,
+) -> Int32 raise @failure.Failure {
   guard self.is_row_revision(id) else {
     @failure.reject("protected-content", "Invalid row revision parent")
   }
@@ -99,7 +99,7 @@ fn WordTree::check_row_revision(
 fn Session::row_revision_rects(
   self : Session,
   tree : WordTree,
-  id : Int,
+  id : Int32,
   layout : @layout.Layout,
 ) -> Array[@layout.SelectionRect] raise @failure.Failure {
   let row = tree.nodes[tree.nodes[id].parent].parent
@@ -128,7 +128,7 @@ fn Session::row_revision_rects(
       0
     },
   )
-  let paragraphs : Set[Int] = Set([])
+  let paragraphs : Set[Int32] = Set([])
   let cells = if whole {
     grid.cells.flatten()
   } else if cell {
@@ -178,7 +178,7 @@ fn Session::resolve_row_revisions(
   document : @xml.Document,
   entries : Array[RevisionEntry],
   accept : Bool,
-) -> (@xml.Document, Array[@xml.Edit], Array[Int], Int) raise @failure.Failure {
+) -> (@xml.Document, Array[@xml.Edit], Array[Int32], Int32) raise @failure.Failure {
   let initial = WordTree::new(document)
   let tables = Set::from_array(
     entries.map(entry => {
@@ -187,7 +187,7 @@ fn Session::resolve_row_revisions(
   )
   let mut candidate = document
   let steps : Array[@xml.Edit] = []
-  let affected : Array[Int] = []
+  let affected : Array[Int32] = []
   let mut bytes = 0
   for
     table in self.flow_from(document).tables.filter(model => {

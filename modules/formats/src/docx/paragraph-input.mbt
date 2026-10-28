@@ -2,7 +2,7 @@
 /// Handles paragraph Enter independently of pasted paragraph separators.
 pub fn Session::enter(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   guard self.selection is Some(selection) else {
@@ -92,7 +92,7 @@ pub fn Session::enter(
 fn Styles::next_paragraph_style(
   self : Styles,
   tree : WordTree,
-  paragraph : Int,
+  paragraph : Int32,
 ) -> String? {
   let current = match
     tree.child(paragraph, "pPr").bind(id => tree.value(id, "pStyle")) {
@@ -115,7 +115,7 @@ fn Styles::next_paragraph_style(
 ///|
 fn Session::list_boundary_input(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   enter~ : Bool,
   prepared~ : PreparedEdit? = None,

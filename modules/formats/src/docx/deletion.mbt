@@ -2,7 +2,7 @@
 /// Deletes the current range or one logical extended grapheme, without layout rules.
 pub fn Session::delete(
   self : Session,
-  revision : Int,
+  revision : Int32,
   direction : String,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)

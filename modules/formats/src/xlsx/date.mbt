@@ -4,12 +4,12 @@ let date_month_names : ReadOnlyArray[String] = [
 ]
 
 ///|
-fn calendar_floor(value : Int, divisor : Int) -> Int {
+fn calendar_floor(value : Int32, divisor : Int32) -> Int32 {
   value / divisor - (if value % divisor < 0 { 1 } else { 0 })
 }
 
 ///|
-fn calendar_year_days(year : Int) -> Int64 {
+fn calendar_year_days(year : Int32) -> Int64 {
   let previous = year - 1
   previous.to_int64() * 365 +
   calendar_floor(previous, 4).to_int64() -
@@ -18,7 +18,7 @@ fn calendar_year_days(year : Int) -> Int64 {
 }
 
 ///|
-fn calendar_months(year : Int) -> FixedArray[Int] {
+fn calendar_months(year : Int32) -> FixedArray[Int32] {
   [
     31,
     if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) {
@@ -40,7 +40,7 @@ fn calendar_months(year : Int) -> FixedArray[Int] {
 }
 
 ///|
-fn calendar_ordinal(year : Int, month : Int, day : Int) -> Int64 {
+fn calendar_ordinal(year : Int32, month : Int32, day : Int32) -> Int64 {
   let months = calendar_months(year)
   let mut ordinal = calendar_year_days(year) + day.to_int64()
   for index in 0..<(month - 1) {
@@ -50,7 +50,12 @@ fn calendar_ordinal(year : Int, month : Int, day : Int) -> Int64 {
 }
 
 ///|
-fn date_serial(year : Int, month : Int, day : Int, date1904 : Bool) -> Int64 {
+fn date_serial(
+  year : Int32,
+  month : Int32,
+  day : Int32,
+  date1904 : Bool,
+) -> Int64 {
   let year = year + calendar_floor(month - 1, 12)
   let month = (month - 1) % 12
   let month = (if month < 0 { month + 12 } else { month }) + 1
@@ -73,7 +78,7 @@ fn serial_from_ordinal(ordinal : Int64, date1904 : Bool) -> Int64 {
 }
 
 ///|
-fn date_parts(serial : Int, date1904 : Bool) -> (Int, Int, Int) {
+fn date_parts(serial : Int32, date1904 : Bool) -> (Int32, Int32, Int32) {
   if !date1904 && serial == 60 {
     return (1900, 2, 29)
   }
@@ -91,7 +96,7 @@ fn date_parts(serial : Int, date1904 : Bool) -> (Int, Int, Int) {
 }
 
 ///|
-fn calendar_parts(ordinal : Int64) -> (Int, Int, Int) {
+fn calendar_parts(ordinal : Int64) -> (Int32, Int32, Int32) {
   let mut year = 1
   let mut end = 10001
   // Binary search bounds calendar conversion independently of the input year.

@@ -1,7 +1,7 @@
 ///|
 pub(all) enum LinkTarget {
   External(String)
-  Internal(Int, Double, Double)
+  Internal(Int32, Double, Double)
 }
 
 ///|
@@ -12,7 +12,11 @@ pub(all) struct PageLink {
 
 ///|
 /// Resolve only the visible text edges, without selection's trailing line fill.
-pub fn Line::link_rects(self : Line, start : Int, end : Int) -> Array[Border] {
+pub fn Line::link_rects(
+  self : Line,
+  start : Int32,
+  end : Int32,
+) -> Array[Border] {
   let intervals : Array[(Double, Double)] = []
   for i = 0; i + 1 < self.carets.length(); i = i + 1 {
     let a = self.carets[i]

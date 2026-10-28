@@ -1,8 +1,8 @@
 ///|
 priv struct FitWork {
-  mut axes : Int
-  mut cells : Int
-  mut units : Int
+  mut axes : Int32
+  mut cells : Int32
+  mut units : Int32
   formulas : FormulaWork
 }
 
@@ -11,10 +11,10 @@ fn Session::fit_sizes(
   self : Session,
   current : Sheet,
   sheets : Array[Sheet],
-  index : Int,
+  index : Int32,
   calculation : Calculation,
   styles : Array[CellStyle],
-  axes : Array[Int],
+  axes : Array[Int32],
   probe : @layout.TextProbe,
   profile : Map[String, String],
   work : FitWork,
@@ -22,7 +22,7 @@ fn Session::fit_sizes(
   grow~ : Bool = false,
   reading~ : Bool = false,
   parts~ : Map[String, @xml.Document] = self.parts,
-) -> Map[Int, Double] raise @failure.Failure {
+) -> Map[Int32, Double] raise @failure.Failure {
   work.axes += axes.length()
   guard work.axes <= 4096 else {
     @failure.reject("limit-exceeded", "Automatic fitting exceeds 4096 axes")
@@ -68,7 +68,7 @@ fn Session::fit_sizes(
     }
   }
   let digit = self.digit_width(probe, profile)
-  let hidden : Map[(Int, Int), Double] = Map([])
+  let hidden : Map[(Int32, Int32), Double] = Map([])
   if tree.one(root.id, "cols") is Some(columns) {
     for col in tree.all(columns.id, "col") {
       if flag(col, "hidden") {
@@ -102,7 +102,7 @@ fn Session::fit_sizes(
   } else {
     current.dimensions.columns.default_size
   }
-  let sizes : Map[Int, Double] = Map([])
+  let sizes : Map[Int32, Double] = Map([])
   let indent_unit = self.indent_unit(probe, profile)
   for axis in axes {
     sizes[axis] = if rows { fallback } else { 0.0 }
@@ -338,7 +338,7 @@ fn Session::fit_sizes(
 ///|
 fn Sheet::fitted_changes(
   self : Sheet,
-  sizes : Map[Int, Double],
+  sizes : Map[Int32, Double],
   rows~ : Bool,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let tree = Tree::new(self.document)
@@ -369,10 +369,10 @@ fn Sheet::fitted_changes(
 /// Fit current displayed values, then keep automatic axes updated in later transactions.
 pub fn Session::auto_fit(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
-  first : Int,
-  last : Int,
+  first : Int32,
+  last : Int32,
   probe : @layout.TextProbe,
   profile : Map[String, String],
   rows~ : Bool,

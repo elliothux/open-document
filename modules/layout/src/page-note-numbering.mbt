@@ -3,8 +3,8 @@ fn Pagination::page_note_values(
   self : Pagination,
   flow : Flow,
   running : Array[Array[Line]],
-) -> Map[(Int, Int), String] raise @failure.Failure {
-  let values : Map[(Int, Int), String] = Map([])
+) -> Map[(Int32, Int32), String] raise @failure.Failure {
+  let values : Map[(Int32, Int32), String] = Map([])
   if !flow.notes.any(note => note.numbering.restart == "eachPage") {
     return values
   }
@@ -13,8 +13,8 @@ fn Pagination::page_note_values(
     .filter(note => note.kind == "footnote")
     .map(note => ((note.paragraph, note.node), note)),
   )
-  let origins : Map[(Int, Int), Int] = Map([])
-  let first_content : Map[Int, Int] = Map([])
+  let origins : Map[(Int32, Int32), Int32] = Map([])
+  let first_content : Map[Int32, Int32] = Map([])
   let first_ids = Set::from_array(
     flow.notes
     .filter(note => note.kind == "footnote")
@@ -45,8 +45,8 @@ fn Pagination::page_note_values(
       }
     }
   }
-  let counters : Map[Int, Int64] = Map([])
-  let seen : Set[(Int, Int)] = Set([])
+  let counters : Map[Int32, Int64] = Map([])
+  let seen : Set[(Int32, Int32)] = Set([])
   for paragraph in flow.body_field_paragraphs() {
     for span in paragraph.spans {
       let key = (paragraph.id, span.node)

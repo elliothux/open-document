@@ -2,7 +2,7 @@
 /// Removes a native pivot, disconnects analysis controls and clears its owned output in one history entry.
 pub fn Session::delete_pivot(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   part : String,
 ) -> Json raise @failure.Failure {
@@ -46,7 +46,7 @@ pub fn Session::delete_pivot(
   let links = self.relationships()
   let (owned, paths) = self.pivot_deletion_parts([pivot])
   let updates : Map[String, CellContent] = Map([])
-  let indices : Map[String, Int] = Map([])
+  let indices : Map[String, Int32] = Map([])
   let (normal, styles, style_edits) = self.normal_style()
   let style_parts = self.parts.copy()
   for (path, document, _) in style_edits {

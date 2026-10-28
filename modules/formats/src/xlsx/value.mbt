@@ -36,7 +36,7 @@ fn number(text : String) -> Double raise @failure.Failure {
 }
 
 ///|
-fn natural(text : String, limit : Int) -> Int raise @failure.Failure {
+fn natural(text : String, limit : Int32) -> Int32 raise @failure.Failure {
   guard !text.is_empty() && text.iter().all(c => c >= '0' && c <= '9') else {
     @failure.reject("malformed-xlsx", "Invalid nonnegative integer")
   }

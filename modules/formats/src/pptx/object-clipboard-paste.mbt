@@ -2,7 +2,7 @@
 /// Pastes detached native objects and their bounded resources as one source/resource history entry.
 pub fn Session::paste_object_fragment(
   self : Session,
-  revision : Int,
+  revision : Int32,
   value : String,
   probe : @layout.TextProbe,
   profile : Map[String, String],

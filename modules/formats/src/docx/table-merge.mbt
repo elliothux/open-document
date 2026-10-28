@@ -1,13 +1,13 @@
 ///|
 priv struct TableGrid {
-  table : Int
-  rows : Array[Int]
-  cells : Array[Array[Int]]
-  starts : Array[Array[Int]]
-  owners : Map[Int, (Int, Int)]
+  table : Int32
+  rows : Array[Int32]
+  cells : Array[Array[Int32]]
+  starts : Array[Array[Int32]]
+  owners : Map[Int32, (Int32, Int32)]
   model : @layout.Table
-  row : Int
-  column : Int
+  row : Int32
+  column : Int32
 }
 
 ///|
@@ -62,8 +62,8 @@ fn Session::table_grid(
 fn read_table_grid(
   tree : WordTree,
   model : @layout.Table,
-  row : Int,
-  column : Int,
+  row : Int32,
+  column : Int32,
 ) -> TableGrid raise @failure.Failure {
   let table = model.id
   let rows = tree.table_children(table, "tr")
@@ -80,12 +80,12 @@ fn read_table_grid(
       )
     }
   }
-  let starts : Array[Array[Int]] = []
-  let owners : Map[Int, (Int, Int)] = Map([])
-  let mut previous : Map[(Int, Int), (Int, Int)] = Map([])
+  let starts : Array[Array[Int32]] = []
+  let owners : Map[Int32, (Int32, Int32)] = Map([])
+  let mut previous : Map[(Int32, Int32), (Int32, Int32)] = Map([])
   for r, row in cells {
-    let positions : Array[Int] = []
-    let current : Map[(Int, Int), (Int, Int)] = Map([])
+    let positions : Array[Int32] = []
+    let current : Map[(Int32, Int32), (Int32, Int32)] = Map([])
     let mut start = 0
     for c, id in row {
       let span = model.columnSpans[r][c]
@@ -117,7 +117,7 @@ fn read_table_grid(
 ///|
 fn WordTree::check_merge_cell(
   self : WordTree,
-  cell : Int,
+  cell : Int32,
   part : String,
   pictures~ : Bool = false,
   fields~ : Bool = false,
@@ -204,9 +204,9 @@ fn WordTree::check_merge_cell(
 fn WordTree::merged_cell_properties(
   self : WordTree,
   document : @xml.Document,
-  cell : Int,
-  width : Int,
-  columns : Int,
+  cell : Int32,
+  width : Int32,
+  columns : Int32,
   state : String,
 ) -> String raise @failure.Failure {
   let original = self.table_cell_properties(document, cell, width)
@@ -265,10 +265,10 @@ fn Session::commit_table_merge(
 ///|
 fn Session::merge_table_cells(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   guard rows >= 1 &&
@@ -310,9 +310,9 @@ fn Session::merge_table_cells(
     grid.model.columnSpans[first][grid.column] == columns {
     return self.edit_state()
   }
-  let selected : Array[Array[Int]] = []
+  let selected : Array[Array[Int32]] = []
   for r in first..<bottom {
-    let indices : Array[Int] = []
+    let indices : Array[Int32] = []
     for c, cell in grid.cells[r] {
       let start = grid.starts[r][c]
       let end = start + grid.model.columnSpans[r][c]
@@ -419,7 +419,7 @@ fn Session::merge_table_cells(
 ///|
 fn Session::unmerge_table_cells(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   probe : @layout.TextProbe?,
   profile : Map[String, String],

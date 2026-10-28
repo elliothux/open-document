@@ -20,7 +20,7 @@ fn PdfSession::page_order_reason(
 }
 
 ///|
-fn numeric_destination(object : @syntax.PdfObject, depth : Int) -> Bool {
+fn numeric_destination(object : @syntax.PdfObject, depth : Int32) -> Bool {
   if depth >= 64 {
     return true
   }
@@ -39,8 +39,8 @@ fn numeric_destination(object : @syntax.PdfObject, depth : Int) -> Bool {
 ///|
 fn references_any(
   object : @syntax.PdfObject,
-  targets : Map[Int, Bool],
-  depth : Int,
+  targets : Map[Int32, Bool],
+  depth : Int32,
 ) -> Bool {
   if depth >= 64 {
     return true
@@ -94,7 +94,7 @@ fn PdfSession::rebuild_pages(
 ///|
 pub fn PdfSession::reorder(
   self : PdfSession,
-  revision : Int,
+  revision : Int32,
   ids : Array[String],
 ) -> Json raise @failure.Failure {
   let tx = self.transaction(revision)
@@ -122,9 +122,9 @@ pub fn PdfSession::reorder(
 ///|
 pub fn PdfSession::rotate_pages(
   self : PdfSession,
-  revision : Int,
+  revision : Int32,
   ids : Array[String],
-  degrees : Int,
+  degrees : Int32,
 ) -> Json raise @failure.Failure {
   let tx = self.transaction(revision)
   guard !ids.is_empty() &&
@@ -155,7 +155,7 @@ pub fn PdfSession::rotate_pages(
 ///|
 pub fn PdfSession::delete_pages(
   self : PdfSession,
-  revision : Int,
+  revision : Int32,
   ids : Array[String],
 ) -> Json raise @failure.Failure {
   let tx = self.transaction(revision)
@@ -164,8 +164,8 @@ pub fn PdfSession::delete_pages(
   }
   let reason = self.page_order_reason()
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
-  let targets : Map[Int, Bool] = Map([])
-  let own_annotations : Map[Int, Bool] = Map([])
+  let targets : Map[Int32, Bool] = Map([])
+  let own_annotations : Map[Int32, Bool] = Map([])
   for id in ids {
     let page = self.page(id)
     guard !targets.contains(page.number) else {

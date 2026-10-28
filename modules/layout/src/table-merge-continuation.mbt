@@ -10,7 +10,7 @@ priv struct TablePageSpace {
 fn TablePageSpace::index(
   self : TablePageSpace,
   position : Double,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   guard position >= 0 && position < self.starts.last().unwrap() else {
     @failure.reject("limit-exceeded", "Merged table exceeds page budget")
   }
@@ -27,7 +27,7 @@ fn TablePageSpace::index(
 }
 
 ///|
-fn TablePageSpace::start(self : TablePageSpace, page : Int) -> Double {
+fn TablePageSpace::start(self : TablePageSpace, page : Int32) -> Double {
   self.starts[page]
 }
 
@@ -43,7 +43,7 @@ fn TablePageSpace::end(
 fn TablePageSpace::y(
   self : TablePageSpace,
   position : Double,
-  page : Int,
+  page : Int32,
 ) -> Double {
   (if page == 0 { self.initial } else { self.tops[page] }) +
   position -
@@ -54,8 +54,8 @@ fn TablePageSpace::y(
 fn Table::continued_cell_lines(
   self : Table,
   space : TablePageSpace,
-  row : Int,
-  column : Int,
+  row : Int32,
+  column : Int32,
   lines : Array[(Line, Double, Line)],
   height : Double,
   start : Double,
@@ -122,10 +122,10 @@ fn Pagination::continue_table_group(
   cache : ParagraphCache,
   probe : TextProbe,
   table : Table,
-  first_row : Int,
-  last_row : Int,
+  first_row : Int32,
+  last_row : Int32,
   heights : Array[Double],
-  cells : Array[(Int, Int, Array[(Line, Double, Line)], Double)],
+  cells : Array[(Int32, Int32, Array[(Line, Double, Line)], Double)],
   profile : Map[String, String],
   images : Images,
   additive : Bool,
@@ -221,7 +221,7 @@ fn Pagination::continue_table_group(
   let ends = Array::make(count, 0.0)
   let needed = Array::make(count, 0.0)
   let positioned : Array[Array[(Line, Double)]] = []
-  let owners : Array[Array[Int]] = Array::makei(count, _ => [])
+  let owners : Array[Array[Int32]] = Array::makei(count, _ => [])
   for index, (row, _, _, _) in cells {
     owners[row - first_row].push(index)
     positioned.push([])
@@ -389,8 +389,8 @@ fn Pagination::continue_table_group(
 fn Table::merged_page_edge(
   self : Table,
   page : PageFrame,
-  row : Int,
-  cell : Int,
+  row : Int32,
+  cell : Int32,
   x : Double,
   y : Double,
   bottom : Bool,

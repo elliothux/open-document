@@ -10,8 +10,8 @@ priv struct TimelineState {
   selection : TimelineRange?
   singleRange : Bool
   filterType : String
-  minimumRefreshVersion : Int
-  lastRefreshVersion : Int
+  minimumRefreshVersion : Int32
+  lastRefreshVersion : Int32
 }
 
 ///|
@@ -36,8 +36,8 @@ priv struct SheetTimeline {
   name : String
   caption : String
   cache : TimelineCache
-  level : Int
-  selection_level : Int
+  level : Int32
+  selection_level : Int32
   scroll : String?
   header : Bool
   selection_label : Bool

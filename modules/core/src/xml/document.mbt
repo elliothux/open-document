@@ -3,21 +3,21 @@ pub(all) struct Attribute {
   uri : String
   name : String
   value : String
-  start : Int
-  end : Int
+  start : Int32
+  end : Int32
 }
 
 ///|
 pub(all) struct Node {
-  id : Int
+  id : Int32
   uri : String
   name : String
   qualified : String
-  parent : Int
-  start : Int
-  opening_end : Int
-  closing_start : Int
-  end : Int
+  parent : Int32
+  start : Int32
+  opening_end : Int32
+  closing_start : Int32
+  end : Int32
   text : String
   attributes : ReadOnlyArray[Attribute]
   namespaces : ReadOnlyArray[(String, String)]
@@ -28,22 +28,22 @@ pub(all) struct Node {
 pub struct Document {
   priv source : String
   priv nodes : Array[Node]
-  priv text_spans : Array[Array[(Int, Int)]]
-  priv declaration_end : Int
+  priv text_spans : Array[Array[(Int32, Int32)]]
+  priv declaration_end : Int32
   priv declaration : String
   priv part : String
-  priv depth_limit : Int
-  priv byte_limit : Int
+  priv depth_limit : Int32
+  priv byte_limit : Int32
   priv origin : String
-  priv next_id : Int
+  priv next_id : Int32
 }
 
 ///|
 pub fn Document::parse(
   bytes : Bytes,
   part : String,
-  depth_limit : Int,
-  byte_limit : Int,
+  depth_limit : Int32,
+  byte_limit : Int32,
 ) -> Document raise @failure.Failure {
   guard bytes.length() <= byte_limit && depth_limit >= 0 else {
     @failure.reject("limit-exceeded", "XML budget exceeded", part~)
@@ -90,9 +90,9 @@ pub fn Document::parse(
   )
   let reader = @parser.NamespaceReader::from_string(parsed_source)
   let nodes : Array[Node] = []
-  let text_spans : Array[Array[(Int, Int)]] = []
+  let text_spans : Array[Array[(Int32, Int32)]] = []
   let text_builders : Array[StringBuilder] = []
-  let stack : Array[Int] = []
+  let stack : Array[Int32] = []
   for ;; {
     let event = reader.read_event() catch {
       @parser.At(error~, span~) =>
@@ -246,7 +246,7 @@ pub fn valid_text(text : String) -> Bool {
 /// Splices source spans; unknown markup and namespace bindings stay in place.
 pub fn Document::edit_text(
   self : Document,
-  replacements : Map[Int, String],
+  replacements : Map[Int32, String],
   source~ : Array[SourceChange] = [],
 ) -> (Document, Edit) raise @failure.Failure {
   let patches = self.source_patches(source)
@@ -331,7 +331,7 @@ pub fn Document::edit_text(
 ///|
 pub fn Document::replace(
   self : Document,
-  replacements : Map[Int, String],
+  replacements : Map[Int32, String],
 ) -> Bytes raise @failure.Failure {
   self.edit_text(replacements).0.bytes()
 }

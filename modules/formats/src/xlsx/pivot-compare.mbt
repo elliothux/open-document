@@ -43,8 +43,8 @@ fn pivot_comparison(mode : String, value : Value, base : Value) -> Value {
 fn pivot_compare_series(
   field : PivotValue,
   raw : Array[Value],
-  members : Array[Int],
-  fixed : Int?,
+  members : Array[Int32],
+  fixed : Int32?,
 ) -> Array[Value] {
   let fixed = fixed.bind(item => members.search_by(value => value == item))
   raw.mapi((at, value) => {

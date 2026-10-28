@@ -1,10 +1,10 @@
 ///|
 fn WordTree::toc_control(
   self : WordTree,
-  content : Int,
-  paragraphs : Array[Int],
+  content : Int32,
+  paragraphs : Array[Int32],
   galleryName~ : String = "Table of Contents",
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   let node = self.nodes[content]
   let control = self.nodes.get(node.parent)
   guard node.uri == word_uri &&

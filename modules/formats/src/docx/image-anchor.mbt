@@ -15,7 +15,7 @@ fn anchor_flag(
 ///|
 fn WordTree::anchor_children(
   self : WordTree,
-  id : Int,
+  id : Int32,
   names : Array[String],
 ) -> Unit raise @failure.Failure {
   let seen : Map[String, Unit] = Map([])
@@ -41,9 +41,9 @@ fn WordTree::anchor_children(
 ///|
 fn WordTree::anchor_child(
   self : WordTree,
-  id : Int,
+  id : Int32,
   name : String,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   let nodes = self.children[id].filter(child => {
     self.nodes[child].uri == picture_inline_uri &&
     self.nodes[child].name == name
@@ -60,7 +60,7 @@ fn WordTree::anchor_child(
 ///|
 fn WordTree::image_axis(
   self : WordTree,
-  id : Int,
+  id : Int32,
 ) -> @layout.DrawingAxis raise @failure.Failure {
   let node = self.nodes[id]
   guard node.text.trim().is_empty() &&
@@ -89,8 +89,8 @@ fn WordTree::image_axis(
 ///|
 fn WordTree::image_anchor(
   self : WordTree,
-  drawing : Int,
-  id : Int,
+  drawing : Int32,
+  id : Int32,
 ) -> @layout.DrawingAnchor raise @failure.Failure {
   let node = self.nodes[id]
   guard self.children[drawing] is [child] &&

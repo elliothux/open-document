@@ -1,10 +1,10 @@
 ///|
 priv struct SplitCell {
   source : DrawingCell
-  top : Int
-  bottom : Int
-  left : Int
-  right : Int
+  top : Int32
+  bottom : Int32
+  left : Int32
+  right : Int32
   blank : Bool
 }
 
@@ -20,9 +20,9 @@ fn table_grid_points(values : Array[Double]) -> Array[Int64] {
 ///|
 fn table_grid_cuts(
   points : Array[Int64],
-  first : Int,
-  last : Int,
-  count : Int,
+  first : Int32,
+  last : Int32,
+  count : Int32,
 ) -> Array[Int64] raise @failure.Failure {
   let size = points[last] - points[first]
   guard size >= count.to_int64() else {
@@ -52,8 +52,8 @@ fn refined_table_grid(
 
 ///|
 fn split_cell_values(
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
   horizontal : Bool,
   vertical : Bool,
 ) -> Map[String, String] {
@@ -76,8 +76,8 @@ fn split_cell_values(
 ///|
 fn split_existing_cell(
   cell : DrawingCell,
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
   horizontal : Bool,
   vertical : Bool,
 ) -> String raise @failure.Failure {
@@ -98,8 +98,8 @@ fn split_existing_cell(
 ///|
 fn split_new_cell(
   region : SplitCell,
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
   horizontal : Bool,
   vertical : Bool,
   blank : String,
@@ -124,13 +124,13 @@ fn split_new_cell(
 ///|
 fn split_table_row(
   table : DrawingTable,
-  old_row : Int?,
-  row : Int,
+  old_row : Int32?,
+  row : Int32,
   height : Int64,
   x : Array[Int64],
   old_x : Array[Int64],
   regions : Array[SplitCell],
-  owners : Array[Array[Int]],
+  owners : Array[Array[Int32]],
   blank : String,
 ) -> String raise @failure.Failure {
   let out = StringBuilder()
@@ -207,8 +207,8 @@ fn split_table_row(
 ///|
 fn Session::split_table_cell(
   self : Session,
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
   probe : @layout.TextProbe,
   profile : Map[String, String],
 ) -> Json raise @failure.Failure {

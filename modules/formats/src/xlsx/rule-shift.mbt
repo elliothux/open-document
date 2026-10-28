@@ -1,10 +1,10 @@
 ///|
 priv struct RuleShiftWork {
-  mut cells : Int
-  mut units : Int
-  mut fragments : Int
-  mut source : Int
-  limit : Int
+  mut cells : Int32
+  mut units : Int32
+  mut fragments : Int32
+  mut source : Int32
+  limit : Int32
 }
 
 ///|
@@ -213,7 +213,7 @@ fn compact_shift_ranges(cells : Array[Range]) -> Array[Range] {
     }
   }
   let result : Array[Range] = []
-  let previous : Map[(Int, Int), Int] = Map([])
+  let previous : Map[(Int32, Int32), Int32] = Map([])
   for band in bands {
     let key = (band.left, band.right)
     if previous.get(key) is Some(index) && result[index].bottom + 1 == band.top {
@@ -309,7 +309,7 @@ fn shift_rule_changes(
   target : String,
   change : AxisChange,
   work : RuleShiftWork,
-) -> (Array[@xml.SourceChange], Int) raise @failure.Failure {
+) -> (Array[@xml.SourceChange], Int32) raise @failure.Failure {
   let before = clear_rule_ranges(rule.attribute("sqref").unwrap_or(""))
   let after = if sheet == target {
     change.rule_ranges(before)
@@ -334,7 +334,7 @@ fn transform_rule_changes(
   source_position : (Address) -> Address?,
   transform : (String) -> String raise @failure.Failure,
   work : RuleShiftWork,
-) -> (Array[@xml.SourceChange], Int) raise @failure.Failure {
+) -> (Array[@xml.SourceChange], Int32) raise @failure.Failure {
   let before = clear_rule_ranges(rule.attribute("sqref").unwrap_or(""))
   if after.is_empty() {
     return ([sheet_node_removal(tree, rule)], 0)
@@ -392,8 +392,8 @@ fn transform_rule_changes(
     })
   } else {
     // shortcut: Relative rules use bounded cell evaluation; partition reference geometry when larger rules are required.
-    let visited : Map[(Int, Int), Bool] = Map([])
-    let indices : Map[String, Int] = Map([])
+    let visited : Map[(Int32, Int32), Bool] = Map([])
+    let indices : Map[String, Int32] = Map([])
     for range in after {
       guard (range.bottom - range.top + 1).to_int64() *
         (range.right - range.left + 1).to_int64() <=

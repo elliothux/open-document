@@ -4,7 +4,7 @@ pub fn Package::validate_changes(
   self : Package,
   replacements : Map[String, Bytes],
   removed~ : Array[String] = [],
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   self.check()
   let names : Map[String, Bool] = Map([])
   for name in removed {
@@ -111,7 +111,7 @@ pub fn Package::save(
     ignore(self.read(name))
   }
   let out = FixedArray::make(size, b'\x00')
-  let offsets : Map[String, Int] = Map([])
+  let offsets : Map[String, Int32] = Map([])
   let entries = self.names()
   for name, _ in replacements {
     if !self.index.contains(name) {

@@ -1,7 +1,7 @@
 ///|
 priv struct Frozen {
-  rows : Int
-  columns : Int
+  rows : Int32
+  columns : Int32
   edit_reason : String
   layout_reason : String
 }
@@ -124,8 +124,8 @@ fn Session::freeze_reason(self : Session, sheet : Sheet) -> String {
 fn Session::freeze(
   self : Session,
   sheet : String,
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
 ) -> Json raise @failure.Failure {
   guard rows >= 0 && rows < 1048576 && columns >= 0 && columns < 16384 else {
     @failure.reject("invalid-operation", "Invalid frozen row or column count")

@@ -1,7 +1,7 @@
 ///|
 fn WordTree::check_fragment_picture(
   self : WordTree,
-  drawing : Int,
+  drawing : Int32,
 ) -> Unit raise @failure.Failure {
   let root = self.nodes[drawing]
   guard root.uri == word_uri &&
@@ -81,8 +81,8 @@ fn WordTree::check_fragment_picture(
 fn Session::fragment_picture(
   self : Session,
   tree : WordTree,
-  id : Int,
-  limit : Int,
+  id : Int32,
+  limit : Int32,
 ) -> String raise @failure.Failure {
   tree.check_fragment_picture(id)
   let image = self.editable_picture(tree, id, replace=true).0
@@ -125,7 +125,7 @@ fn Session::import_fragment_drawings(
   created : Map[String, @xml.Document],
   media : Map[String, Bytes],
   created_media : Map[String, Bytes],
-) -> (@xml.Document, Map[Int, Bool]) raise @failure.Failure {
+) -> (@xml.Document, Map[Int32, Bool]) raise @failure.Failure {
   let tree = WordTree::new(document)
   let drawings = tree.order.filter(id => {
     tree.nodes[id].uri == word_uri && tree.nodes[id].name == "drawing"
@@ -260,7 +260,7 @@ fn Session::import_fragment_drawings(
   let document = document.edit_source(changes).0
   let tree = WordTree::new(document)
   let view = { ..self, parts, media, }
-  let retained : Map[Int, Bool] = Map([])
+  let retained : Map[Int32, Bool] = Map([])
   for
     drawing in tree.order.filter(id => {
       tree.nodes[id].uri == word_uri && tree.nodes[id].name == "drawing"
@@ -281,7 +281,7 @@ fn Session::import_fragment_drawings(
 ///|
 pub fn Session::table_fragment_images(
   self : Session,
-  revision : Int,
+  revision : Int32,
   fragment : String,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)

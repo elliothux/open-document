@@ -34,7 +34,7 @@ fn moved_rule_fragment(
   ranges : Array[Range],
   relocation : CellMove,
   work : RuleShiftWork,
-) -> (String, Int) raise @failure.Failure {
+) -> (String, Int32) raise @failure.Failure {
   shift_rule_clone_guard(tree, rule)
   let wrapper = @xml.Document::parse(
     @utf8.encode(

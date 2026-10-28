@@ -1,10 +1,10 @@
 ///|
 priv struct DrawingGesture {
-  id : Int
-  drawing : Int
+  id : Int32
+  drawing : Int32
   initial : @layout.DrawingFrame
   preserve_aspect : Bool
-  handle : Int
+  handle : Int32
   origin : @layout.DrawingAnchor?
   placement : (@layout.PageSetup, @layout.Layout)?
   prepared : PreparedEdit?
@@ -16,8 +16,8 @@ priv struct DrawingGesture {
 ///|
 fn Session::require_drawing_gesture(
   self : Session,
-  revision : Int,
-  id : Int,
+  revision : Int32,
+  id : Int32,
 ) -> DrawingGesture raise @failure.Failure {
   self.check_revision_value(revision)
   guard self.drawing_gesture is Some(gesture) && gesture.id == id else {
@@ -30,9 +30,9 @@ fn Session::require_drawing_gesture(
 /// Begins a tentative move (0) or corner resize (1–4), honoring native aspect locks.
 pub fn Session::begin_drawing_gesture(
   self : Session,
-  revision : Int,
-  drawing : Int,
-  handle : Int,
+  revision : Int32,
+  drawing : Int32,
+  handle : Int32,
   probe? : @layout.TextProbe,
   profile~ : Map[String, String] = Map([]),
   images? : @layout.Images,
@@ -143,7 +143,7 @@ fn Session::prepare_drawing_gesture(
   gesture : DrawingGesture,
   dx : Double,
   dy : Double,
-  page : Int?,
+  page : Int32?,
 ) -> PreparedEdit? raise @failure.Failure {
   guard !dx.is_nan() &&
     !dx.is_inf() &&
@@ -330,11 +330,11 @@ fn Session::prepare_drawing_gesture(
 /// Replaces the candidate from the original frame without changing source history.
 pub fn Session::update_drawing_gesture(
   self : Session,
-  revision : Int,
-  id : Int,
+  revision : Int32,
+  id : Int32,
   dx : Double,
   dy : Double,
-  page? : Int,
+  page? : Int32,
 ) -> Json raise @failure.Failure {
   let gesture = self.require_drawing_gesture(revision, id)
   let prepared = self.prepare_drawing_gesture(gesture, dx, dy, page)
@@ -349,11 +349,11 @@ pub fn Session::update_drawing_gesture(
 /// Commits the authoritative final pointer position as at most one edit.
 pub fn Session::finish_drawing_gesture(
   self : Session,
-  revision : Int,
-  id : Int,
+  revision : Int32,
+  id : Int32,
   dx : Double,
   dy : Double,
-  page? : Int,
+  page? : Int32,
 ) -> Json raise @failure.Failure {
   let gesture = self.require_drawing_gesture(revision, id)
   let prepared = self.prepare_drawing_gesture(gesture, dx, dy, page)
@@ -368,8 +368,8 @@ pub fn Session::finish_drawing_gesture(
 /// Discards the candidate and preserves committed selection, revision and history.
 pub fn Session::cancel_drawing_gesture(
   self : Session,
-  revision : Int,
-  id : Int,
+  revision : Int32,
+  id : Int32,
 ) -> Json raise @failure.Failure {
   let gesture = self.require_drawing_gesture(revision, id)
   self.drawing_gesture = None

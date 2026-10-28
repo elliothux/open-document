@@ -1,7 +1,7 @@
 ///|
 priv struct AxisSpan {
-  first : Int
-  last : Int
+  first : Int32
+  last : Int32
   size : Double
 }
 
@@ -9,15 +9,15 @@ priv struct AxisSpan {
 priv struct Axis {
   default_size : Double
   spans : Array[AxisSpan]
-  limit : Int
+  limit : Int32
 }
 
 ///|
 priv struct Dimensions {
   rows : Axis
   columns : Axis
-  automatic_rows : Map[Int, Bool]
-  automatic_columns : Array[(Int, Int)]
+  automatic_rows : Map[Int32, Bool]
+  automatic_columns : Array[(Int32, Int32)]
 }
 
 ///|
@@ -48,8 +48,8 @@ fn read_dimensions(
     @failure.reject("malformed-xlsx", "Default dimensions must be positive")
   }
   let rows : Array[AxisSpan] = []
-  let automatic_rows : Map[Int, Bool] = Map([])
-  let automatic_columns : Array[(Int, Int)] = []
+  let automatic_rows : Map[Int32, Bool] = Map([])
+  let automatic_columns : Array[(Int32, Int32)] = []
   let custom_height = format
     .map(node => flag(node, "customHeight"))
     .unwrap_or(false)
@@ -132,7 +132,7 @@ fn read_dimensions(
 }
 
 ///|
-fn Axis::size(self : Axis, index : Int) -> Double {
+fn Axis::size(self : Axis, index : Int32) -> Double {
   self.spans
   .iter()
   .find_first(span => span.first <= index && index <= span.last)
@@ -141,8 +141,8 @@ fn Axis::size(self : Axis, index : Int) -> Double {
 }
 
 ///|
-fn Axis::changed_ranges(self : Axis, other : Axis) -> Array[(Int, Int)] {
-  let boundaries : Map[Int, Bool] = Map([(1, true), (self.limit + 1, true)])
+fn Axis::changed_ranges(self : Axis, other : Axis) -> Array[(Int32, Int32)] {
+  let boundaries : Map[Int32, Bool] = Map([(1, true), (self.limit + 1, true)])
   for axis in [self, other] {
     for span in axis.spans {
       boundaries[span.first] = true
@@ -151,7 +151,7 @@ fn Axis::changed_ranges(self : Axis, other : Axis) -> Array[(Int, Int)] {
   }
   let points = boundaries.keys().to_array()
   points.sort()
-  let changed : Array[(Int, Int)] = []
+  let changed : Array[(Int32, Int32)] = []
   let mut a = 0
   let mut b = 0
   for index in 0..<(points.length() - 1) {
@@ -185,7 +185,7 @@ fn Axis::changed_ranges(self : Axis, other : Axis) -> Array[(Int, Int)] {
 }
 
 ///|
-fn Axis::position(self : Axis, index : Int) -> Double {
+fn Axis::position(self : Axis, index : Int32) -> Double {
   let before = index - 1
   let mut position = before.to_double() * self.default_size
   for span in self.spans {
@@ -199,7 +199,7 @@ fn Axis::position(self : Axis, index : Int) -> Double {
 }
 
 ///|
-fn Axis::locate(self : Axis, point : Double) -> Int {
+fn Axis::locate(self : Axis, point : Double) -> Int32 {
   for low = 1, high = self.limit + 1; low < high; {
     let middle = low + (high - low) / 2
     if self.position(middle) + self.size(middle) <= point {
@@ -215,10 +215,10 @@ fn Axis::locate(self : Axis, point : Double) -> Int {
 ///|
 fn Axis::visible(
   self : Axis,
-  first : Int,
-  last : Int,
-) -> Array[Int] raise @failure.Failure {
-  let result : Array[Int] = []
+  first : Int32,
+  last : Int32,
+) -> Array[Int32] raise @failure.Failure {
+  let result : Array[Int32] = []
   let mut index = first
   while index <= last {
     if self.size(index) > 0 {

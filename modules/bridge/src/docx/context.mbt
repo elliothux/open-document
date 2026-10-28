@@ -4,7 +4,7 @@ pub struct Context {
   mut docx : @model.Session?
   mut closed : Bool
   images : @layout.Images
-  mut layout_id : Int
+  mut layout_id : Int32
   mut layout : @layout.Layout?
 }
 

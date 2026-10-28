@@ -1,12 +1,12 @@
 ///|
 fn AxisChange::picture_markers(
   self : AxisChange,
-  first : Int,
+  first : Int32,
   first_offset : Double,
-  last : Int,
+  last : Int32,
   last_offset : Double,
   resize : Bool,
-) -> (Int, Double, Int, Double) raise @failure.Failure {
+) -> (Int32, Double, Int32, Double) raise @failure.Failure {
   let at = self.first - 1
   let end = at + self.count - 1
   let (first, first_offset, last, last_offset) = if self.insert {

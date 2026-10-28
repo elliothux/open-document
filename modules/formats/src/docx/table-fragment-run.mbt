@@ -2,16 +2,16 @@
 fn fragment_run_markup(
   tree : WordTree,
   document : @xml.Document,
-  paragraph : Int,
-  run : Int?,
+  paragraph : Int32,
+  run : Int32?,
   style : RunStyle,
   themes : Map[String, String],
-  pictures : Map[Int, String],
-  limit : Int,
-  start~ : Int = 0,
-  end~ : Int = 2147483647,
+  pictures : Map[Int32, String],
+  limit : Int32,
+  start~ : Int32 = 0,
+  end~ : Int32 = 2147483647,
 ) -> String raise @failure.Failure {
-  let chunks : Array[(String, Int?)] = []
+  let chunks : Array[(String, Int32?)] = []
   let mut pending = StringBuilder()
   if run is Some(run) {
     for child in tree.children[run] {

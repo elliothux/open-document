@@ -1,12 +1,12 @@
 ///|
 pub(all) struct SortKey {
-  index : Int
+  index : Int32
   descending : Bool
   custom_list : Array[String]
   sort_by : String
   color : String
   icon_set : String
-  icon_id : Int
+  icon_id : Int32
 }
 
 ///|
@@ -54,7 +54,7 @@ fn sort_value(
 }
 
 ///|
-fn sort_compare(a : Value, b : Value, descending : Bool) -> Int {
+fn sort_compare(a : Value, b : Value, descending : Bool) -> Int32 {
   let result = match (a, b) {
     (Blank, Blank) => 0
     (Blank, _) => return 1
@@ -148,14 +148,14 @@ fn Session::sort_cells(
     origin: { row: 1, column: 1, },
     names: self.formula_names(),
   }
-  let positions : Array[Int] = []
+  let positions : Array[Int32] = []
   let rules = if settings.keys.any(key => key.sort_by != "value") {
     Some(self.filter_rules(index, work))
   } else {
     None
   }
   let lists = settings.keys.map(key => SortList::new(key.custom_list, work))
-  let keys : Map[Int, Array[SortValue]] = Map([])
+  let keys : Map[Int32, Array[SortValue]] = Map([])
   let start = first + (if settings.header { 1 } else { 0 })
   let rich = self.rich_text_colors(
     index,

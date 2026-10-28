@@ -3,8 +3,8 @@ priv struct SeriesCalendar {
   kind : String
   date1904 : Bool
   unit : String
-  step : Int
-  day : Int
+  step : Int32
+  day : Int32
   time_step : Double
   mut time_offset : Double
   mut previous : Double
@@ -22,8 +22,8 @@ fn series_calendar_kind(format : String) -> String {
 
 ///|
 fn series_calendar_plan(
-  indices : Array[Int],
-  suffixes : Array[(String?, Double, Int)?],
+  indices : Array[Int32],
+  suffixes : Array[(String?, Double, Int32)?],
   kinds : Array[String],
   points : Array[(Double, Double)],
   forward : Bool,

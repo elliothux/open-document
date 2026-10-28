@@ -22,7 +22,7 @@ fn place_text_columns(
   width : Double,
   height : Double,
   place : Bool,
-) -> (Array[@layout.Line], Int, Double) {
+) -> (Array[@layout.Line], Int32, Double) {
   let body = object.body
   let output : Array[@layout.Line] = []
   let mut column = 0

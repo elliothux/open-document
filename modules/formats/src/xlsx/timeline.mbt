@@ -4,8 +4,8 @@ priv struct TimelineCache {
   name : String
   source : String
   pivot_cache : String
-  field : Int
-  connections : Array[(PivotLocation, Int)]
+  field : Int32
+  connections : Array[(PivotLocation, Int32)]
   state : TimelineState
 }
 
@@ -41,7 +41,7 @@ fn timeline_source_field(
   document : @xml.Document,
   name : String,
   timeline : Bool,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   let tree = Tree::new(document)
   let root = tree.root("pivotCacheDefinition")
   let markers = document
@@ -153,7 +153,7 @@ fn Session::read_timeline_cache(
   guard lists.length() <= 1 else {
     @failure.reject("protected-content", "Duplicate timeline connections")
   }
-  let connections : Array[(PivotLocation, Int)] = []
+  let connections : Array[(PivotLocation, Int32)] = []
   let seen : Map[String, Bool] = Map([])
   for list in lists {
     timeline_profile(tree, list, [], ["pivotTable"])
@@ -307,7 +307,7 @@ fn Session::read_timelines(
 /// Reads native timeline views, date state and pivot connections without refreshing or editing.
 pub fn Session::timelines(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)

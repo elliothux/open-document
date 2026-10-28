@@ -1,5 +1,5 @@
 ///|
-fn pie_point_markup(index : Int, color : String) -> String {
+fn pie_point_markup(index : Int32, color : String) -> String {
   "<c:dPt><c:idx val=\"\{index}\"/><c:spPr><a:solidFill><a:srgbClr val=\"\{color}\"/></a:solidFill><a:ln><a:noFill/></a:ln></c:spPr></c:dPt>"
 }
 

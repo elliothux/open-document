@@ -3,7 +3,7 @@ fn Session::markup_text_box(
   self : Session,
   tree : WordTree,
   styles : Styles,
-  id : Int,
+  id : Int32,
   frame : @layout.DrawingFrame,
   shape : @layout.BasicShape,
   text : @layout.DrawingTextBox,
@@ -11,7 +11,7 @@ fn Session::markup_text_box(
   link : String?,
   output : MarkupOutput,
 ) -> String raise @failure.Failure {
-  let nodes : Map[Int, Bool] = Map([])
+  let nodes : Map[Int32, Bool] = Map([])
   for paragraph in text.paragraphs() {
     for child in tree.descendants(paragraph.id) {
       tree.check_text_box_clipboard_metadata(child)

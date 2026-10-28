@@ -131,7 +131,7 @@ fn Session::drag_adjustment(
   candidate : Candidate,
   dx : Double,
   dy : Double,
-  handle : Int,
+  handle : Int32,
 ) -> Json raise @failure.Failure {
   let object = self.adjustment_object()
   let handles = object.adjustment_handles()

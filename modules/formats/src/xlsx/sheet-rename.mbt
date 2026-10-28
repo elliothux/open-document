@@ -60,12 +60,12 @@ fn sheet_reference_formula(
   old : String,
   name : String?,
 ) -> String raise @failure.Failure {
-  let spans : Array[(Int, Int)] = []
+  let spans : Array[(Int32, Int32)] = []
   let tokens = formula_tokens(text, spans~)
   let quoted = name
     .map(name => "'" + name.replace_all(old="'", new="''") + "'")
     .unwrap_or("#REF!")
-  let ranges : Array[(Int, Int)] = []
+  let ranges : Array[(Int32, Int32)] = []
   let mut units = text.length()
   for index, token in tokens {
     if token is Operator("!") && index > 0 {
@@ -271,7 +271,7 @@ fn sheet_reference_changes(
   document : @xml.Document,
   old : String,
   name : String?,
-  deleted_scope~ : Int? = None,
+  deleted_scope~ : Int32? = None,
   sparklines~ : Bool = false,
   charts~ : Bool = false,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
@@ -370,7 +370,7 @@ fn validate_sheet_name(name : String) -> Unit raise @failure.Failure {
 ///|
 fn Session::rename_sheet(
   self : Session,
-  index : Int,
+  index : Int32,
   name : String,
 ) -> Json raise @failure.Failure {
   let reason = self.sheet_rename_reason(
@@ -405,7 +405,7 @@ fn Session::rename_sheet(
     .fold(init=0L, (sum, change) => {
       sum + (change.length.to_int64() + change.xml.length().to_int64()) * 2
     })
-  let plans : Array[(Int, Array[@xml.SourceChange])] = []
+  let plans : Array[(Int32, Array[@xml.SourceChange])] = []
   for index, sheet in self.sheets {
     let edits = sheet_reference_changes(
       sheet.document,

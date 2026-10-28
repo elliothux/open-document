@@ -3,7 +3,7 @@ pub(all) enum SlideEdit {
   AddSlide
   CopySlide
   DeleteSlide
-  MoveSlide(Int)
+  MoveSlide(Int32)
   HideSlide(Bool)
   Transition(SlideTransition?)
   Advance(SlideAdvance)
@@ -18,8 +18,8 @@ pub(all) enum SlideEdit {
   BackgroundImageInsets(Array[Double])
   ThemeColor(String, String)
   ThemeFont(String, String, String)
-  MasterTextStyle(String, Int, TextFormat?)
-  MasterParagraphStyle(String, Int, ParagraphFormat?, String?)
+  MasterTextStyle(String, Int32, TextFormat?)
+  MasterParagraphStyle(String, Int32, ParagraphFormat?, String?)
   ApplyLayout(String)
   ResetLayout
   AddLayout
@@ -42,7 +42,7 @@ pub(all) enum SlideEdit {
   RemoveSection(String)
   RemoveSections
   DeleteSection(String)
-  MoveSection(String, Int)
+  MoveSection(String, Int32)
 }
 
 ///|
@@ -236,7 +236,7 @@ fn Session::slide_order_reason(self : Session) -> String {
 /// Edits slide structure through the same bounded source history.
 pub fn Session::edit_slides(
   self : Session,
-  revision : Int,
+  revision : Int32,
   slide : String,
   change : SlideEdit,
   probe? : @layout.TextProbe,

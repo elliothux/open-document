@@ -1,5 +1,5 @@
 ///|
-fn script_font_class(script : String) -> Int {
+fn script_font_class(script : String) -> Int32 {
   match script {
     "Bopo" | "Hani" | "Hang" | "Hira" | "Kana" | "Yiii" | "Tang" | "Kits" => 1
     "Armn"
@@ -26,7 +26,7 @@ fn script_font_class(script : String) -> Int {
 }
 
 ///|
-fn character_font_class(codepoint : UInt, inherited : Int) -> Int {
+fn character_font_class(codepoint : UInt32, inherited : Int32) -> Int32 {
   match codepoint {
     1U
     | 2U
@@ -64,7 +64,7 @@ fn character_font_class(codepoint : UInt, inherited : Int) -> Int {
 }
 
 ///|
-fn letter_numeric_at(text : String, offset : Int) -> Bool {
+fn letter_numeric_at(text : String, offset : Int32) -> Bool {
   if offset < 0 || offset >= text.length() {
     return false
   }
@@ -94,8 +94,8 @@ fn script_spaces(
   spans : Array[MeasuredSpan],
   text : String,
   bidi : @bidi.BidiParagraph,
-) -> Map[Int, Double] {
-  let spaces : Map[Int, Double] = Map([])
+) -> Map[Int32, Double] {
+  let spaces : Map[Int32, Double] = Map([])
   let mut previous = 0
   let mut offset = 0
   let mut span = 0

@@ -16,7 +16,7 @@ fn ConditionalStop::check(
   self : ConditionalStop,
   anchor : Address,
   sheets : Array[Sheet],
-  index : Int,
+  index : Int32,
   work : FormulaWork,
 ) -> Unit raise @failure.Failure {
   work.spend(amount=self.value.length())
@@ -60,7 +60,7 @@ fn read_conditional_scale(
   theme : Array[String],
   anchor : Address,
   sheets : Array[Sheet],
-  index : Int,
+  index : Int32,
   work : FormulaWork,
 ) -> Array[ConditionalStop] raise @failure.Failure {
   conditional_node(tree, node, [], ["cfvo", "color"])
@@ -95,8 +95,8 @@ fn ConditionalRules::scale_bounds(
   self : ConditionalRules,
   rule : ConditionalRule,
   sheets : Array[Sheet],
-  index : Int,
-  values : Map[(Int, String), Value],
+  index : Int32,
+  values : Map[(Int32, String), Value],
   work : FormulaWork,
 ) -> Array[Double] raise @failure.Failure {
   if self.scales.get(rule.priority) is Some(bounds) {
@@ -223,8 +223,8 @@ fn ConditionalRules::scale_fill(
   rule : ConditionalRule,
   address : Address,
   sheets : Array[Sheet],
-  index : Int,
-  values : Map[(Int, String), Value],
+  index : Int32,
+  values : Map[(Int32, String), Value],
   work : FormulaWork,
 ) -> String? raise @failure.Failure {
   guard calculated_cell(sheets, values, index, address) is Number(value) else {

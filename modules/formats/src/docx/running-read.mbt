@@ -5,7 +5,7 @@ let running_rel_uri = "http://schemas.openxmlformats.org/officeDocument/2006/rel
 fn Session::running_part(
   self : Session,
   tree : WordTree,
-  reference : Int,
+  reference : Int32,
   kind : String,
 ) -> String raise @failure.Failure {
   let node = tree.nodes[reference]
@@ -50,8 +50,8 @@ fn Session::running_paragraphs(
     tree.nodes[0].text.trim().is_empty() else {
     @failure.reject("invalid-docx", "Invalid header or footer root")
   }
-  let paragraphs : Map[Int, @layout.Paragraph] = Map([])
-  let backgrounds : Map[Int, String] = Map([])
+  let paragraphs : Map[Int32, @layout.Paragraph] = Map([])
+  let backgrounds : Map[Int32, String] = Map([])
   let ids = tree.running_nodes()
   for id in ids {
     guard tree.nodes[id].uri == word_uri && tree.nodes[id].name == "p" else {
@@ -110,7 +110,7 @@ fn Session::running_paragraphs(
 fn Session::running_options(
   self : Session,
   tree : WordTree,
-  section : Int?,
+  section : Int32?,
 ) -> (Bool, Bool) raise @failure.Failure {
   let first = section.bind(id => tree.child(id, "titlePg"))
   if first is Some(id) {
@@ -140,7 +140,7 @@ fn Session::running_options(
 fn Session::running_content(
   self : Session,
   tree : WordTree,
-  section : Int,
+  section : Int32,
   styles : Styles,
   diagnostics : Array[String],
   background : String,

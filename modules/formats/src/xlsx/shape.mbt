@@ -140,7 +140,7 @@ fn SheetObject::shape_json(self : SheetObject) -> Json {
 ///|
 pub fn Session::shapes(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   probe : @layout.TextProbe,
   profile : Map[String, String],

@@ -2,7 +2,7 @@
 fn Sheet::row_metadata_changes(
   self : Sheet,
   tree : Tree,
-  metadata : Map[Int, Array[(String, String)]],
+  metadata : Map[Int32, Array[(String, String)]],
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   guard metadata.length() <= 4096 else {
     @failure.reject("limit-exceeded", "Row metadata edit exceeds 4096 rows")
@@ -10,9 +10,9 @@ fn Sheet::row_metadata_changes(
   let changes : Array[@xml.SourceChange] = []
   let data = tree.nodes[self.data]
   let prefix = data.qualified[:data.qualified.length() - 9].to_owned()
-  let insertions : Map[Int, String] = Map([])
+  let insertions : Map[Int32, String] = Map([])
   let rows = tree.all(data.id, "row")
-  let numbers : Map[Int, Int] = Map([])
+  let numbers : Map[Int32, Int32] = Map([])
   for number, id in self.rows {
     numbers[id] = number
   }

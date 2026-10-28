@@ -88,8 +88,8 @@ fn WordTree::check_table_structure(
 fn WordTree::copy_row_properties(
   self : WordTree,
   document : @xml.Document,
-  row : Int,
-  after~ : Int? = None,
+  row : Int32,
+  after~ : Int32? = None,
   review~ : Bool = false,
 ) -> String raise @failure.Failure {
   guard self.table_children(row, "trPr").length() <= 1 else {
@@ -166,8 +166,8 @@ fn WordTree::copy_row_properties(
 fn WordTree::row_grid_change(
   self : WordTree,
   document : @xml.Document,
-  row : Int,
-  after : Int,
+  row : Int32,
+  after : Int32,
 ) -> @xml.SourceChange? raise @failure.Failure {
   if self.row_grid_after(row) == after {
     return None
@@ -258,9 +258,9 @@ fn check_table_layout(
 ///|
 fn table_structure_position(
   model : @layout.Table,
-  row : Int,
-  column : Int,
-) -> Int raise @failure.Failure {
+  row : Int32,
+  column : Int32,
+) -> Int32 raise @failure.Failure {
   for cell in model.rows[row][column:] {
     if cell.get(0) is Some(paragraph) {
       return paragraph.id
@@ -287,7 +287,7 @@ fn table_structure_position(
 ///|
 fn WordTree::remove_body_table(
   self : WordTree,
-  table : Int,
+  table : Int32,
   changes : TableChanges,
 ) -> Unit raise @failure.Failure {
   changes.push(table_remove(self, table))
@@ -313,8 +313,8 @@ fn Session::commit_table_structure(
   tree : WordTree,
   grid : TableGrid,
   changes : Array[@xml.SourceChange],
-  row : Int,
-  column : Int,
+  row : Int32,
+  column : Int32,
   whole : Bool,
   probe : @layout.TextProbe?,
   profile : Map[String, String],

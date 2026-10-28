@@ -1,7 +1,7 @@
 ///|
 pub(all) struct SelectionRect {
-  page : Int
-  line : Int
+  page : Int32
+  line : Int32
   x : Double
   y : Double
   width : Double
@@ -15,8 +15,8 @@ pub extend SelectionRect with ToJson::{to_json}
 /// Highlights logical graphemes using their shaped visual edges, without mutation.
 pub fn Layout::selection_rects(
   self : Layout,
-  anchor : (Int, Int, String),
-  focus : (Int, Int, String),
+  anchor : (Int32, Int32, String),
+  focus : (Int32, Int32, String),
 ) -> Array[SelectionRect] raise @failure.Failure {
   if self.text_box_layout(anchor.0) is Some(story) {
     return story.selection_rects(anchor, focus)
@@ -195,8 +195,8 @@ fn Layout::clip_cell_selection(
 }
 
 ///|
-fn Layout::paragraph_order(self : Layout) -> Map[Int, Int] {
-  let order : Map[Int, Int] = Map([])
+fn Layout::paragraph_order(self : Layout) -> Map[Int32, Int32] {
+  let order : Map[Int32, Int32] = Map([])
   for frame in self.pages {
     for line in frame.lines {
       if !order.contains(line.paragraph) {

@@ -1,9 +1,9 @@
 ///|
 priv struct MeasuredSpan {
   span : Span
-  start : Int
-  end : Int
-  font : Int
+  start : Int32
+  end : Int32
+  font : Int32
 }
 
 ///|
@@ -22,20 +22,20 @@ fn LineSpacing::metrics(
 
 ///|
 priv struct LineGroup {
-  start : Int
-  end : Int
-  font : Int
+  start : Int32
+  end : Int32
+  font : Int32
   style : TextStyle
-  level : Int
+  level : Int32
   drawing : DrawingFrame?
-  field : (Int, String)?
+  field : (Int32, String)?
   tab : Bool
 }
 
 ///|
 priv struct ParagraphSource {
   text : String
-  line : (Int, Double, Double) -> MeasuredLine raise @failure.Failure
+  line : (Int32, Double, Double) -> MeasuredLine raise @failure.Failure
 }
 
 ///|
@@ -44,9 +44,9 @@ fn prepare_paragraph(
   paragraph : Paragraph,
   profile : Map[String, String],
   available : Double,
-  baseLevel? : Int,
+  baseLevel? : Int32,
   inTable~ : Bool = false,
-  startOffset~ : Int = 0,
+  startOffset~ : Int32 = 0,
   wrap~ : Bool = true,
 ) -> ParagraphSource raise @failure.Failure {
   guard paragraph.defaultTab >= 0 && paragraph.defaultTab <= 1584 else {
@@ -193,7 +193,7 @@ fn prepare_paragraph(
   let breaks = @linebreak.linebreaks(text)
   let graphemes = @linebreak.grapheme_indices_uax29(text)
   let boundaries = [0, ..graphemes.map(range => range.1)]
-  let legal : Map[Int, Bool] = Map([])
+  let legal : Map[Int32, Bool] = Map([])
   let advances = Array::make(text.length() + 1, (0.0, 0.0))
   let mut segment = startOffset
   for (boundary, kind) in breaks {
@@ -689,9 +689,9 @@ fn paragraph_lines(
   paragraph : Paragraph,
   profile : Map[String, String],
   available : Double,
-  baseLevel? : Int,
+  baseLevel? : Int32,
   inTable~ : Bool = false,
-  startOffset~ : Int = 0,
+  startOffset~ : Int32 = 0,
   wrap~ : Bool = true,
 ) -> Array[MeasuredLine] raise @failure.Failure {
   let source = prepare_paragraph(

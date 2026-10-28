@@ -6,13 +6,13 @@ fn NotesSource::edit_text(
 ) -> (@xml.Document, Array[@xml.Edit]) raise @failure.Failure {
   let lines = text.split("\n").map(line => line.to_owned()).collect()
   let retained = note.paragraphs[:lines.length().min(note.paragraphs.length())]
-  let by_paragraph : Map[Int, Array[Int]] = Map([])
+  let by_paragraph : Map[Int32, Array[Int32]] = Map([])
   for id in note.texts {
     let paragraph = self.tree.nodes[self.tree.nodes[id].parent].parent
     by_paragraph.get_or_init(paragraph, () => []).push(id)
   }
-  let replacements : Map[Int, String] = Map([])
-  let firsts : Array[(Int, String)] = []
+  let replacements : Map[Int32, String] = Map([])
+  let firsts : Array[(Int32, String)] = []
   for index, paragraph in retained {
     let texts = by_paragraph.get(paragraph).unwrap_or([])
     for offset, id in texts {

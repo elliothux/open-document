@@ -22,7 +22,7 @@ pub struct Context {
   mut docx : @open_document/formats/docx.Session?
   mut closed : Bool
   images : @layout.Images
-  mut layout_id : Int
+  mut layout_id : Int32
   mut layout : @layout.Layout?
 }
 

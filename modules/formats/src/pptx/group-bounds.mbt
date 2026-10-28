@@ -69,8 +69,8 @@ fn Slide::group_bounds(
   self : Slide,
   ids : Array[String],
 ) -> Slide raise @failure.Failure {
-  let by_id : Map[String, Int] = Map([])
-  let children : Map[String, Array[Int]] = Map([])
+  let by_id : Map[String, Int32] = Map([])
+  let children : Map[String, Array[Int32]] = Map([])
   for index, object in self.objects {
     by_id[object.id] = index
     if !object.parent.is_empty() {
@@ -308,7 +308,7 @@ fn Session::normalize_groups(
   self : Session,
   slide : Slide,
   main : Tree,
-  index : Int,
+  index : Int32,
   parts : Map[String, @xml.Document],
 ) -> (Slide, @xml.Edit?) raise @failure.Failure {
   // Page resizing scales native group frames together; rebounding would move their origins.

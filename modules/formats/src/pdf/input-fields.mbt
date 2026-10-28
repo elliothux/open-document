@@ -1,15 +1,15 @@
 ///|
 priv struct FormField {
-  number : Int
+  number : Int32
   id : String
   name : String
   kind : String
   value : Json
-  widgets : Array[(Int, String)]
+  widgets : Array[(Int32, String)]
   attributes : Map[String, @syntax.PdfObject]
   reason : String
   multiline : Bool
-  maxLength : Int
+  maxLength : Int32
   onState : String
 }
 
@@ -27,7 +27,7 @@ fn PdfSession::fields(
   guard roots is PdfArray(roots) else {
     @failure.reject("invalid-pdf", "AcroForm Fields must be an array")
   }
-  let page_widgets : Map[Int, String] = Map([])
+  let page_widgets : Map[Int32, String] = Map([])
   for page in self.pages {
     for
       reference in annotation_refs(
@@ -53,12 +53,12 @@ fn PdfSession::fields(
     ""
   }
   let fields : Array[FormField] = []
-  let visited : Map[Int, Bool] = Map([])
+  let visited : Map[Int32, Bool] = Map([])
   fn walk(
     reference : @syntax.PdfObject,
     parent : Map[String, @syntax.PdfObject],
     prefix : String,
-    depth : Int,
+    depth : Int32,
   ) -> Unit raise @failure.Failure {
     guard depth < 64 &&
       reference is PdfIndirect(id) &&
@@ -112,7 +112,7 @@ fn PdfSession::fields(
     } else {
       kids
     }
-    let widgets : Array[(Int, String)] = []
+    let widgets : Array[(Int32, String)] = []
     let mut reason = base_reason
     for widget in widget_refs {
       guard widget is PdfIndirect(number) else {
@@ -252,7 +252,7 @@ fn field_json(field : FormField) -> Json {
 ///|
 pub fn PdfSession::set_field(
   self : PdfSession,
-  revision : Int,
+  revision : Int32,
   id : String,
   value : Json,
   supplied : @layout.TextProbe,

@@ -1,5 +1,5 @@
 ///|
-fn rotation_components(rotation : Int) -> (Double, Double) {
+fn rotation_components(rotation : Int32) -> (Double, Double) {
   let degrees = if rotation <= 90 { rotation } else { 90 - rotation }
   if rotation == 0 || rotation == 255 {
     (1, 0)
@@ -14,7 +14,10 @@ fn rotation_components(rotation : Int) -> (Double, Double) {
 }
 
 ///|
-fn rotated_size(block : @layout.TextBlock, rotation : Int) -> (Double, Double) {
+fn rotated_size(
+  block : @layout.TextBlock,
+  rotation : Int32,
+) -> (Double, Double) {
   let (cos, sin) = rotation_components(rotation)
   let width = block.widths.fold(init=0.0, (a, b) => a.max(b))
   (
@@ -54,7 +57,7 @@ fn place_rotated_block(
   horizontal : String,
   vertical : String,
   indent : Double,
-  rotation : Int,
+  rotation : Int32,
 ) -> Array[@layout.Border] {
   let (cos, sin) = rotation_components(rotation)
   let (width, height) = rotated_size(block, rotation)

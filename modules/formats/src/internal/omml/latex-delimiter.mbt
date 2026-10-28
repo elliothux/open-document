@@ -47,7 +47,7 @@ fn MathLatex::delimiter_char(self : MathLatex) -> String raise @failure.Failure 
 ///|
 fn MathLatex::delimiter(
   self : MathLatex,
-  depth : Int,
+  depth : Int32,
 ) -> @layout.MathExpression raise @failure.Failure {
   let open = self.delimiter_char()
   let arguments : Array[@layout.MathExpression] = []

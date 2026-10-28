@@ -2,14 +2,14 @@
 pub(all) struct DuplicateSettings {
   range : String
   header : Bool
-  columns : Array[Int]
+  columns : Array[Int32]
 }
 
 ///|
 priv struct DuplicatePlan {
   target : Range
-  kept : Array[Int]
-  removed : Array[Int]
+  kept : Array[Int32]
+  removed : Array[Int32]
   preview : Array[Array[String]]
   filter : AutoFilterState?
   table : StructuredTable?
@@ -37,7 +37,7 @@ fn Session::duplicate_plan(
       "invalid-operation", "Select at least one duplicate comparison column",
     )
   }
-  let selected : Map[Int, Bool] = Map([])
+  let selected : Map[Int32, Bool] = Map([])
   for column in settings.columns {
     guard column >= target.left &&
       column <= target.right &&
@@ -73,8 +73,8 @@ fn Session::duplicate_plan(
   }
   let rules = self.filter_rules(index, work)
   let seen : Map[String, Bool] = Map([])
-  let kept : Array[Int] = []
-  let removed : Array[Int] = []
+  let kept : Array[Int32] = []
+  let removed : Array[Int32] = []
   let preview : Array[Array[String]] = []
   for
     row in (target.top + (if header { 1 } else { 0 }))..<=(target.bottom -
@@ -137,7 +137,7 @@ fn Session::duplicate_plan(
 /// Previews stable first-occurrence removal using formatted values without changing the workbook.
 pub fn Session::duplicates(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   settings : DuplicateSettings,
 ) -> Json raise @failure.Failure {
@@ -167,7 +167,7 @@ fn Session::remove_duplicates(
   self : Session,
   sheet : String,
   settings : DuplicateSettings,
-  source_revision : Int,
+  source_revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(source_revision)
   let plan = self.duplicate_plan(sheet, settings)
@@ -176,7 +176,7 @@ fn Session::remove_duplicates(
   }
   let first = plan.target.top + (if plan.header { 1 } else { 0 })
   let positions = Array::makei(plan.target.bottom - first + 1, i => first + i)
-  let order : Array[Int?] = plan.kept.map(row => Some(row))
+  let order : Array[Int32?] = plan.kept.map(row => Some(row))
   if plan.table is Some({ totals: 1, .. }) {
     order.push(Some(plan.target.bottom))
   }
@@ -198,7 +198,7 @@ fn Session::remove_duplicates(
 fn Session::compact_duplicate_table(
   self : Session,
   table : StructuredTable,
-  removed : Int,
+  removed : Int32,
   parts : Map[String, @xml.Document],
   edits : Array[(String, @xml.Edit)],
 ) -> Range raise @failure.Failure {

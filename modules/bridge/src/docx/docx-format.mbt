@@ -28,7 +28,7 @@ fn edit_docx_format(
   session : @model.Session,
   request : Json,
   operation : String,
-  revision : Int,
+  revision : Int32,
   probe : @layout.TextProbe,
   images : @layout.Images,
 ) -> Json raise @failure.Failure {

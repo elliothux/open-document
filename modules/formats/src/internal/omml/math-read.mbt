@@ -2,13 +2,16 @@
 priv struct MathRead {
   mut base : @layout.TextStyle
   mut style : @layout.TextStyle?
-  mut nodes : Int
-  mut units : Int
+  mut nodes : Int32
+  mut units : Int32
   nary_limit : (String) -> String raise @failure.Failure
 }
 
 ///|
-fn MathRead::node(self : MathRead, depth : Int) -> Unit raise @failure.Failure {
+fn MathRead::node(
+  self : MathRead,
+  depth : Int32,
+) -> Unit raise @failure.Failure {
   self.nodes += 1
   guard depth <= 16 && self.nodes <= 256 else {
     @failure.reject("limit-exceeded", "Math exceeds depth 16 or 256 nodes")
@@ -35,8 +38,8 @@ fn MathRead::appearance(
 fn MathRead::sequence(
   self : MathRead,
   tree : Tree,
-  id : Int,
-  depth : Int,
+  id : Int32,
+  depth : Int32,
 ) -> @layout.MathExpression raise @failure.Failure {
   let children = tree.math_children(id, [
     "r", "f", "sSub", "sSup", "sSubSup", "rad", "d", "nary", "m", "eqArr",
@@ -73,8 +76,8 @@ fn MathRead::sequence(
 fn MathRead::term(
   self : MathRead,
   tree : Tree,
-  id : Int,
-  depth : Int,
+  id : Int32,
+  depth : Int32,
 ) -> @layout.MathExpression raise @failure.Failure {
   self.node(depth)
   let kind = tree.nodes[id].name
@@ -157,8 +160,8 @@ fn MathRead::term(
 fn MathRead::radical(
   self : MathRead,
   tree : Tree,
-  id : Int,
-  depth : Int,
+  id : Int32,
+  depth : Int32,
 ) -> @layout.MathExpression raise @failure.Failure {
   let children = tree.math_children(id, ["radPr", "deg", "e"])
   let properties = children.filter(id => tree.nodes[id].name == "radPr")

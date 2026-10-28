@@ -2,7 +2,7 @@
 fn WordTree::position_section(
   self : WordTree,
   position : Position,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   let offset = self.nodes[position.paragraph].start
   for index, section in self.page_sections() {
     if section.map(id => self.nodes[id].start >= offset).unwrap_or(true) {
@@ -18,7 +18,7 @@ fn Session::prepare_section_position(
   document : @xml.Document,
   tree : WordTree,
   position : Position,
-) -> (PreparedEdit, Int) raise @failure.Failure {
+) -> (PreparedEdit, Int32) raise @failure.Failure {
   let paragraph = tree.nodes[position.paragraph]
   let parent = tree.nodes[paragraph.parent]
   let selection : Selection = { anchor: position, focus: position, }
@@ -73,7 +73,7 @@ fn Session::prepare_section_position(
 /// Inserts a native section break at the selection start as one complete source edit.
 pub fn Session::insert_section_break(
   self : Session,
-  revision : Int,
+  revision : Int32,
   kind : String,
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],

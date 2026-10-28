@@ -1,7 +1,7 @@
 ///|
 fn Session::selection_statistics(
   self : Session,
-  sheet : Int,
+  sheet : Int32,
   range : Range,
   cells : Array[Cell],
 ) -> Json raise @failure.Failure {

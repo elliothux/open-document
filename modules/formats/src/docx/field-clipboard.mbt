@@ -2,10 +2,10 @@
 fn Session::field_values(
   self : Session,
   tree : WordTree,
-  fields : Array[Int],
+  fields : Array[Int32],
   layout : @layout.Layout?,
-) -> Map[Int, String] raise @failure.Failure {
-  let values : Map[Int, String] = Map([])
+) -> Map[Int32, String] raise @failure.Failure {
+  let values : Map[Int32, String] = Map([])
   if fields.is_empty() {
     return values
   }
@@ -20,7 +20,7 @@ fn Session::field_values(
       "unsupported-layout", "Field text requires a complete layout",
     )
   }
-  let sources : Map[(Int, Int), Int] = Map([])
+  let sources : Map[(Int32, Int32), Int32] = Map([])
   for id in fields {
     let run = tree.field_result_run(id).unwrap()
     sources[(tree.nodes[id].parent, tree.child(run, "t").unwrap())] = id
@@ -57,12 +57,12 @@ fn Session::selection_field_values(
   tree : WordTree,
   range : ParagraphRange,
   layout : @layout.Layout?,
-) -> Map[Int, String] raise @failure.Failure {
-  let selected : Array[Int] = []
-  let notes : Array[Int] = []
-  let math : Map[Int, String] = Map([])
+) -> Map[Int32, String] raise @failure.Failure {
+  let selected : Array[Int32] = []
+  let notes : Array[Int32] = []
+  let math : Map[Int32, String] = Map([])
   let paragraphs = Map::from_array(range.paragraphs.map(p => (p, true)))
-  let offsets : Map[Int, Int] = Map([])
+  let offsets : Map[Int32, Int32] = Map([])
   for item in docx_texts(tree) {
     if !paragraphs.contains(item.paragraph) {
       continue
@@ -122,12 +122,12 @@ fn Session::selection_field_values(
 fn Session::field_cache_changes(
   self : Session,
   tree : WordTree,
-  fields : Array[Int],
+  fields : Array[Int32],
   layout : @layout.Layout,
-) -> Map[Int, String] raise @failure.Failure {
+) -> Map[Int32, String] raise @failure.Failure {
   let fields = fields.filter(id => !tree.index_markers.contains(id))
   let values = self.field_values(tree, fields, Some(layout))
-  let changes : Map[Int, String] = Map([])
+  let changes : Map[Int32, String] = Map([])
   for id in fields {
     let primary = tree.child(tree.field_result_run(id).unwrap(), "t").unwrap()
     for text in tree.descendants(id) {
@@ -146,11 +146,11 @@ fn Session::field_cache_changes(
 fn fragment_field_markup(
   tree : WordTree,
   document : @xml.Document,
-  paragraph : Int,
-  field : Int,
+  paragraph : Int32,
+  field : Int32,
   styles : Styles,
   value : String,
-  limit : Int,
+  limit : Int32,
 ) -> String raise @failure.Failure {
   let code = running_field_code(
     tree.nodes[field].attribute("instr", uri=word_uri).unwrap_or(""),

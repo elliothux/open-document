@@ -105,7 +105,7 @@ fn Session::set_timeline_selection(
 /// Filters connected native pivot caches by an absolute date range without refreshing source data.
 pub fn Session::filter_timeline(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   name : String,
   range : (String, String)?,
@@ -116,7 +116,7 @@ pub fn Session::filter_timeline(
 ///|
 fn Session::apply_timeline_filter(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   name : String,
   range : (String, String)?,
@@ -168,8 +168,8 @@ fn Session::apply_timeline_filter(
     TimelineRange::{ start: pair.0, end: pair.1, }
   })
   let linked = self.timeline_filter_group(cache)
-  let connections : Array[(PivotLocation, Int)] = []
-  let seen : Set[(String, Int)] = Set([])
+  let connections : Array[(PivotLocation, Int32)] = []
+  let seen : Set[(String, Int32)] = Set([])
   for other in linked {
     for pair in other.connections {
       let key = (pair.0.part, pair.1)

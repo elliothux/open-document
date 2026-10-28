@@ -27,7 +27,7 @@ pub fn PlacedDrawingFrame::text_lines(self : PlacedDrawingFrame) -> Array[Line] 
 }
 
 ///|
-fn Layout::text_box_layout(self : Layout, paragraph : Int) -> Layout? {
+fn Layout::text_box_layout(self : Layout, paragraph : Int32) -> Layout? {
   for page, frame in self.pages {
     for line in frame.lines {
       for drawing in line.drawings {
@@ -59,7 +59,7 @@ fn Layout::text_box_layout(self : Layout, paragraph : Int) -> Layout? {
 fn Layout::text_box_hit(
   self : Layout,
   drawing : PlacedDrawingFrame,
-  page : Int,
+  page : Int32,
   x : Double,
   y : Double,
 ) -> Hit? raise @failure.Failure {

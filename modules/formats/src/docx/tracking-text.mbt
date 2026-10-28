@@ -1,7 +1,7 @@
 ///|
 priv struct ReviewTextPart {
-  root : Int
-  run : Int
+  root : Int32
+  run : Int32
   text : String
   kind : String
   author : String
@@ -10,7 +10,7 @@ priv struct ReviewTextPart {
 ///|
 fn WordTree::review_text_parts(
   self : WordTree,
-  paragraph : Int,
+  paragraph : Int32,
 ) -> Array[ReviewTextPart] raise @failure.Failure {
   guard self.nodes.get(paragraph) is Some(node) &&
     node.uri == word_uri &&
@@ -166,11 +166,11 @@ fn review_inline_markup(
 fn WordTree::review_run_markup(
   self : WordTree,
   document : @xml.Document,
-  run : Int?,
+  run : Int32?,
   text : String,
   deleted : Bool,
   patch? : CharacterFormat,
-  paragraph? : Int,
+  paragraph? : Int32,
 ) -> String raise @failure.Failure {
   if text.is_empty() {
     return ""
@@ -222,8 +222,8 @@ fn WordTree::review_part_markup(
   self : WordTree,
   document : @xml.Document,
   part : ReviewTextPart,
-  from : Int,
-  to : Int,
+  from : Int32,
+  to : Int32,
 ) -> String raise @failure.Failure {
   if from >= to {
     return ""
@@ -269,17 +269,17 @@ fn revision_author(
 ///|
 fn WordTree::unused_revision_id(
   self : WordTree,
-  reserved : Int?,
-) -> Int raise @failure.Failure {
+  reserved : Int32?,
+) -> Int32 raise @failure.Failure {
   self.unused_revision_ids(1, reserved~)[0]
 }
 
 ///|
 fn WordTree::unused_revision_ids(
   self : WordTree,
-  count : Int,
-  reserved~ : Int? = None,
-) -> Array[Int] raise @failure.Failure {
+  count : Int32,
+  reserved~ : Int32? = None,
+) -> Array[Int32] raise @failure.Failure {
   if count == 0 {
     return []
   }
@@ -291,7 +291,7 @@ fn WordTree::unused_revision_ids(
       }
     }
   }
-  let ids : Array[Int] = []
+  let ids : Array[Int32] = []
   for id in 0..<16384 {
     if reserved != Some(id) && !used.contains(id.to_string()) {
       ids.push(id)
@@ -305,7 +305,7 @@ fn WordTree::unused_revision_ids(
 
 ///|
 fn review_wrapper(
-  id : Int,
+  id : Int32,
   author : String,
   date : String,
   deleted : Bool,
@@ -476,7 +476,7 @@ fn Session::prepare_review_text(
   } else {
     0
   }
-  let mut inherited : Int? = None
+  let mut inherited : Int32? = None
   let mut cursor = 0
   for part in parts {
     let length = part.text.length()
@@ -616,7 +616,7 @@ fn Session::prepare_review_text(
 /// Existing deletions remain visible; deleting the author's own insertion removes it.
 pub fn Session::replace_tracked_text(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   text : String,
   author : String,

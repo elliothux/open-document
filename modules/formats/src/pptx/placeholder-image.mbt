@@ -95,8 +95,8 @@ fn Session::selected_image_replacement(
 fn placeholder_image_change(
   object : Object,
   link : String,
-  pixel_width : Int,
-  pixel_height : Int,
+  pixel_width : Int32,
+  pixel_height : Int32,
 ) -> @xml.SourceChange raise @failure.Failure {
   let geometry = object.geometry.unwrap()
   let mut width = (pixel_width.to_double() * 0.75).max(72 / 25.4)

@@ -196,10 +196,10 @@ fn table_style_parts(
 fn table_style_layers(
   settings : TableStyleSettings,
   parts : Map[String, TableStylePart],
-  row : Int,
-  column : Int,
-  last_row : Int,
-  last_column : Int,
+  row : Int32,
+  column : Int32,
+  last_row : Int32,
+  last_column : Int32,
 ) -> Array[TableStylePart] {
   let names : Array[String] = ["wholeTbl"]
   if settings.band_rows {

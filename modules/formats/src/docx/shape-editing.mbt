@@ -2,8 +2,8 @@
 fn Session::editable_shape(
   self : Session,
   tree : WordTree,
-  id : Int,
-) -> (Int, @layout.DrawingFrame, Int) raise @failure.Failure {
+  id : Int32,
+) -> (Int32, @layout.DrawingFrame, Int32) raise @failure.Failure {
   let paragraph = self.drawing_paragraph(tree, id)
   let (_, data) = tree.drawing_data(id)
   guard data.attribute("uri") == Some(word_shape_uri) else {
@@ -59,7 +59,7 @@ fn Session::editable_shape(
 }
 
 ///|
-fn WordTree::shape_locked(self : WordTree, id : Int, name : String) -> Bool {
+fn WordTree::shape_locked(self : WordTree, id : Int32, name : String) -> Bool {
   self
   .descendants(id)
   .any(child => {
@@ -72,7 +72,7 @@ fn WordTree::shape_locked(self : WordTree, id : Int, name : String) -> Bool {
 ///|
 pub fn Session::shapes(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
@@ -178,9 +178,9 @@ fn shape_fill_markup(color : String, alpha~ : Double = 1) -> String {
 ///|
 fn WordTree::shape_property_change(
   self : WordTree,
-  parent : Int,
-  existing : Int?,
-  before : Int?,
+  parent : Int32,
+  existing : Int32?,
+  before : Int32?,
   markup : String,
 ) -> @xml.SourceChange raise @failure.Failure {
   let node = self.nodes[parent]
@@ -246,8 +246,8 @@ fn check_shape_properties(
 /// Edits an existing ordinary shape in points and RGB colors; empty colors mean no fill.
 pub fn Session::edit_shape(
   self : Session,
-  revision : Int,
-  id : Int,
+  revision : Int32,
+  id : Int32,
   width : Double,
   height : Double,
   fill : String,
@@ -271,7 +271,7 @@ pub fn Session::edit_shape(
 ///|
 fn Session::prepare_shape_edit(
   self : Session,
-  id : Int,
+  id : Int32,
   width : Double,
   height : Double,
   fill : String,
@@ -371,8 +371,8 @@ fn Session::prepare_shape_edit(
 /// Deletes only the drawing source, retaining relationships and shared resources.
 pub fn Session::delete_shape(
   self : Session,
-  revision : Int,
-  id : Int,
+  revision : Int32,
+  id : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let document = self.document()

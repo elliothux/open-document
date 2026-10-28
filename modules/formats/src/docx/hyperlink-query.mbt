@@ -32,7 +32,7 @@ fn check_hyperlink_target(target : String) -> Unit raise @failure.Failure {
 }
 
 ///|
-fn WordTree::run_hyperlink(self : WordTree, run : Int) -> Int? {
+fn WordTree::run_hyperlink(self : WordTree, run : Int32) -> Int32? {
   let parent = self.nodes[run].parent
   if parent >= 0 &&
     self.nodes[parent].uri == word_uri &&
@@ -48,9 +48,9 @@ fn Session::hyperlink_runs(
   self : Session,
   tree : WordTree,
   range : ParagraphRange,
-) -> Array[Int] {
-  let selected : Array[Int] = []
-  let seen : Map[Int, Bool] = Map([])
+) -> Array[Int32] {
+  let selected : Array[Int32] = []
+  let seen : Map[Int32, Bool] = Map([])
   let texts = docx_texts(tree)
   let collapsed = range.start.paragraph == range.end.paragraph &&
     range.start.offset == range.end.offset
@@ -100,7 +100,7 @@ fn Session::hyperlink_runs(
 ///|
 fn hyperlink_target(
   tree : WordTree,
-  run : Int,
+  run : Int32,
   links : Map[String, @opc.Relationship],
   bookmarks : Map[String, Bool],
 ) -> String? raise @failure.Failure {

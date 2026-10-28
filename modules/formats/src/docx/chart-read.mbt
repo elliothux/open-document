@@ -5,7 +5,7 @@ let chart_uri = "http://schemas.openxmlformats.org/drawingml/2006/chart"
 fn Session::read_chart(
   self : Session,
   tree : WordTree,
-  id : Int,
+  id : Int32,
 ) -> @chart.Resource raise @failure.Failure {
   let (_, data) = tree.drawing_data(id)
   guard data.attribute("uri") == Some(chart_uri) &&
@@ -53,9 +53,9 @@ fn Session::chart_workbook(
 fn Session::editable_chart(
   self : Session,
   tree : WordTree,
-  id : Int,
+  id : Int32,
   operation~ : ChartOperation = ChartContent,
-) -> (Int, @chart.Resource) raise @failure.Failure {
+) -> (Int32, @chart.Resource) raise @failure.Failure {
   if operation != ChartCopy && operation != ChartRetain {
     self.check_document_protection()
   }
@@ -97,7 +97,7 @@ fn Session::editable_chart(
 ///|
 pub fn Session::charts(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())

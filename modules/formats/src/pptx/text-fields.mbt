@@ -54,7 +54,7 @@ fn presentation_first_number(main : Tree) -> Double raise @failure.Failure {
 ///|
 fn presentation_number(
   main : Tree,
-  index : Int,
+  index : Int32,
 ) -> String raise @failure.Failure {
   (presentation_first_number(main).to_int64() + index.to_int64()).to_string()
 }

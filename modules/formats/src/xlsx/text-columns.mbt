@@ -1,7 +1,7 @@
 ///|
 pub(all) enum TextColumnSplit {
   Delimited(String)
-  Fixed(Array[Int])
+  Fixed(Array[Int32])
 }
 
 ///|
@@ -16,9 +16,9 @@ pub(all) struct TextColumnSettings {
 priv struct TextColumnPlan {
   target : Range
   preview : Array[Array[String]]
-  overwritten : Int
+  overwritten : Int32
   types : Array[String]
-  split_columns : Int
+  split_columns : Int32
   edit : CellEditPlan
   changed : Bool
 }
@@ -149,7 +149,7 @@ fn Session::text_column_plan(
 /// Previews converted fields and occupied output cells without changing source or history.
 pub fn Session::text_columns(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   settings : TextColumnSettings,
 ) -> Json raise @failure.Failure {
@@ -179,7 +179,7 @@ fn Session::split_text_columns(
   self : Session,
   sheet : String,
   settings : TextColumnSettings,
-  source_revision : Int,
+  source_revision : Int32,
   overwrite : Bool,
 ) -> Json raise @failure.Failure {
   self.check_revision(source_revision)

@@ -4,11 +4,11 @@ fn table_reference_formula(
   table : StructuredTable,
   in_table : Bool,
   name : String,
-  column : Int?,
+  column : Int32?,
 ) -> String raise @failure.Failure {
-  let spans : Array[(Int, Int)] = []
+  let spans : Array[(Int32, Int32)] = []
   let tokens = formula_tokens(text, spans~)
-  let changes : Array[(Int, Int, String)] = []
+  let changes : Array[(Int32, Int32, String)] = []
   for index, token in tokens {
     match token {
       Word(word) if word.to_upper() == table.name.to_upper() &&
@@ -61,7 +61,7 @@ fn table_formula_changes(
   document : @xml.Document,
   table : StructuredTable,
   name : String,
-  column : Int?,
+  column : Int32?,
   owner : String,
   work : FormulaWork,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
@@ -107,9 +107,9 @@ fn table_formula_changes(
 fn Session::rename_table(
   self : Session,
   sheet : String,
-  id : Int,
+  id : Int32,
   name : String,
-  column~ : Int? = None,
+  column~ : Int32? = None,
 ) -> Json raise @failure.Failure {
   let reason = self.sheet_rename_reason(
     structure=false,

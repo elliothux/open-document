@@ -26,7 +26,7 @@ fn Session::delete_table_column(
       "unsupported-layout", "Table columns exceed the page content width",
     )
   }
-  let positions : Array[Int] = [0]
+  let positions : Array[Int32] = [0]
   for width in model.widths {
     positions.push(positions.last().unwrap() + (width * 20).round().to_int())
   }
@@ -36,17 +36,17 @@ fn Session::delete_table_column(
       let left = grid.starts[grid.row][grid.column]
       (left, left + model.columnSpans[grid.row][grid.column])
     })
-  let rows : Array[Int] = []
-  let cells : Array[Array[Int]] = []
-  let edges : Array[Array[Int]] = []
+  let rows : Array[Int32] = []
+  let cells : Array[Array[Int32]] = []
+  let edges : Array[Array[Int32]] = []
   let merges : Array[Array[String]] = []
-  let mut previous : Map[(Int, Int), Int] = Map([])
-  let mut first_deleted : (Int, Int)? = None
+  let mut previous : Map[(Int32, Int32), Int32] = Map([])
+  let mut first_deleted : (Int32, Int32)? = None
   for r, row in grid.cells {
-    let kept : Array[Int] = []
-    let boundaries : Array[Int] = [0]
+    let kept : Array[Int32] = []
+    let boundaries : Array[Int32] = [0]
     let states : Array[String] = []
-    let current : Map[(Int, Int), Int] = Map([])
+    let current : Map[(Int32, Int32), Int32] = Map([])
     for c, cell in row {
       tree.check_merge_cell(cell, self.main, notes=true)
       let start = grid.starts[r][c]
@@ -114,7 +114,7 @@ fn Session::delete_table_column(
       tree.preferred_table_width(id).value > 0
     })
     .unwrap_or(false)
-  let cuts : Array[Int] = [0]
+  let cuts : Array[Int32] = [0]
   for row in edges {
     for c, point in row {
       let value = if fixed {

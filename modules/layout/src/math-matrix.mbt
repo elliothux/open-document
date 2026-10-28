@@ -6,7 +6,7 @@ fn measure_math_matrix(
   style : TextStyle,
   probe : TextProbe,
   profile : Map[String, String],
-  paths : Ref[Int],
+  paths : Ref[Int32],
 ) -> MathBox raise @failure.Failure {
   let placeholder = if rows
     .iter()

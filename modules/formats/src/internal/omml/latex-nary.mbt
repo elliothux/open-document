@@ -19,7 +19,7 @@ let math_nary_commands : Map[String, String] = {
 fn MathLatex::nary(
   self : MathLatex,
   operator : String,
-  depth : Int,
+  depth : Int32,
 ) -> @layout.MathExpression raise @failure.Failure {
   let mut location = if "∫∬∭∮∯∰".contains(operator) {
     "subSup"

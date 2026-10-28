@@ -11,7 +11,7 @@ fn xml_attribute(value : String) -> String raise @failure.Failure {
 ///|
 fn Session::add_slide(
   self : Session,
-  index : Int,
+  index : Int32,
   copy~ : Bool = false,
 ) -> Json raise @failure.Failure {
   guard self.slides.length() < 256 else {

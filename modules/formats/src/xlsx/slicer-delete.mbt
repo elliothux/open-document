@@ -2,7 +2,7 @@
 /// Removes a native slicer view and its drawing while retaining the cached pivot filter.
 pub fn Session::delete_slicer(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   name : String,
 ) -> Json raise @failure.Failure {
@@ -12,7 +12,7 @@ pub fn Session::delete_slicer(
 ///|
 fn Session::delete_analysis_view(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   name : String,
   timeline~ : Bool = false,

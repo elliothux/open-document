@@ -2,7 +2,7 @@
 fn WordTree::note_input_properties(
   self : WordTree,
   document : @xml.Document,
-  id : Int,
+  id : Int32,
 ) -> String raise @failure.Failure {
   formatted_properties(
     self,
@@ -17,10 +17,10 @@ fn WordTree::note_input_properties(
 fn WordTree::note_text_changes(
   self : WordTree,
   document : @xml.Document,
-  id : Int,
+  id : Int32,
   text : String,
-  retained : Int?,
-  limit : Int,
+  retained : Int32?,
+  limit : Int32,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let node = self.nodes[id]
   let run = self.nodes[node.parent]
@@ -70,12 +70,12 @@ fn WordTree::note_text_changes(
 fn WordTree::split_note_input(
   self : WordTree,
   document : @xml.Document,
-  paragraph : Int,
-  insertion : Int,
-  offset : Int,
+  paragraph : Int32,
+  insertion : Int32,
+  offset : Int32,
   parts : Array[String],
   tail : String,
-  limit : Int,
+  limit : Int32,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let node = self.nodes[insertion]
   let run = self.nodes[node.parent]

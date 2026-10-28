@@ -1,15 +1,15 @@
 ///|
 priv struct TableOfContents {
-  paragraphs : Array[Int]
-  markers : Array[Int]
-  first : Int
-  last : Int
+  paragraphs : Array[Int32]
+  markers : Array[Int32]
+  first : Int32
+  last : Int32
   hyperlink : Bool
   outline : Bool
   sequence : String
   instruction : String
   reason : String
-  control : Int?
+  control : Int32?
 }
 
 ///|
@@ -26,7 +26,7 @@ fn TableOfContents::edit_reason(self : TableOfContents) -> String {
 ///|
 fn toc_instruction(
   instruction : String,
-) -> (Int, Int, Bool, Bool, String) raise @failure.Failure {
+) -> (Int32, Int32, Bool, Bool, String) raise @failure.Failure {
   guard instruction.length() <= 256 else {
     @failure.reject(
       "limit-exceeded", "Table of contents instruction exceeds budget",
@@ -122,8 +122,8 @@ fn toc_instruction(
 ///|
 fn WordTree::contents_profile(
   self : WordTree,
-  paragraphs : Array[Int],
-  markers : Array[Int],
+  paragraphs : Array[Int32],
+  markers : Array[Int32],
   instruction : String,
   complete : Bool,
 ) -> TableOfContents {
@@ -261,9 +261,9 @@ fn WordTree::contents_profile(
 ///|
 fn WordTree::read_contents(
   self : WordTree,
-) -> (Map[Int, TableOfContents], Set[Int]) {
-  let contents : Map[Int, TableOfContents] = Map([])
-  let protected_paragraphs : Set[Int] = Set([])
+) -> (Map[Int32, TableOfContents], Set[Int32]) {
+  let contents : Map[Int32, TableOfContents] = Map([])
+  let protected_paragraphs : Set[Int32] = Set([])
   guard self.child(0, "body") is Some(body) else {
     return (contents, protected_paragraphs)
   }
@@ -271,8 +271,8 @@ fn WordTree::read_contents(
   let mut separated = false
   let mut overlong = false
   let mut instruction = ""
-  let mut markers : Array[Int] = []
-  let mut paragraphs : Array[Int] = []
+  let mut markers : Array[Int32] = []
+  let mut paragraphs : Array[Int32] = []
   for id in self.descendants(body) {
     let node = self.nodes[id]
     if node.uri != word_uri {
@@ -398,7 +398,7 @@ fn WordTree::read_contents(
 /// Lists native body TOC fields and their supported heading range without changing source or history.
 pub fn Session::table_of_contents(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())

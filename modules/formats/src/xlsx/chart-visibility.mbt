@@ -3,10 +3,10 @@ fn Session::chart_visible_indices(
   self : Session,
   owner : String,
   formula : String,
-  cached : Int,
+  cached : Int32,
   work : FormulaWork,
   cached_only~ : Bool = false,
-) -> Array[Int] raise @failure.Failure {
+) -> Array[Int32] raise @failure.Failure {
   if broken_chart_reference(formula) {
     return Array::makei(cached, index => index)
   }

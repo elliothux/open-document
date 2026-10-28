@@ -78,7 +78,7 @@ fn Session::builtin_paragraph_style(
 /// Inserts an editable caption beside the current body paragraph or table.
 pub fn Session::insert_caption(
   self : Session,
-  revision : Int,
+  revision : Int32,
   label : String,
   text : String,
   before : Bool,
@@ -86,7 +86,7 @@ pub fn Session::insert_caption(
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],
   images~ : @layout.Images,
-  chapterLevel~ : Int = 0,
+  chapterLevel~ : Int32 = 0,
   separator~ : String = "-",
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)

@@ -24,9 +24,9 @@ fn Sheet::axis_cells(
   let tree = Tree::new(self.document)
   let data = tree.nodes[self.data]
   let edits : Array[@xml.SourceChange] = []
-  let deleted_rows : Map[Int, Bool] = Map([])
-  let by_node : Map[Int, Cell] = Map([])
-  let by_row : Map[Int, Array[Cell]] = Map([])
+  let deleted_rows : Map[Int32, Bool] = Map([])
+  let by_node : Map[Int32, Cell] = Map([])
+  let by_row : Map[Int32, Array[Cell]] = Map([])
   for cell in self.cells.values() {
     let parent = tree.nodes[cell.node].parent
     by_node[cell.node] = cell
@@ -125,7 +125,7 @@ fn Sheet::axis_cells(
     }
     let blank = fn(
       address : Address,
-      style : Int,
+      style : Int32,
     ) -> String raise @failure.Failure {
       "<od:c xmlns:od=\"\{spreadsheet_uri}\" r=\"\{address.name()}\" s=\"\{style}\"/>"
     }
@@ -215,7 +215,7 @@ fn Sheet::axis_cells(
     if cols.empty {
       return join_insertions(edits)
     }
-    let fragments : Array[(Int, String)] = []
+    let fragments : Array[(Int32, String)] = []
     let mut inherited : @xml.Node? = None
     for node in columns {
       let first = natural(node.attribute("min").unwrap_or(""), 16384)

@@ -3,7 +3,7 @@ priv enum BodyBlock {
   BodyParagraph(Paragraph)
   KeptParagraphs(Array[Paragraph], Table?)
   TableStart(Table)
-  TableRows(Table, Int, Int)
+  TableRows(Table, Int32, Int32)
   TableEnd(Table)
 }
 
@@ -193,7 +193,7 @@ fn BodyBlock::retain(
   self : BodyBlock,
   cache : ParagraphCache,
   page : PageSetup,
-  tables : Map[Int, Table],
+  tables : Map[Int32, Table],
 ) -> Unit raise @failure.Failure {
   match self {
     KeptParagraphs(paragraphs, _) =>

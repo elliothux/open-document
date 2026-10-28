@@ -1,7 +1,7 @@
 ///|
 pub(all) struct Address {
-  row : Int
-  column : Int
+  row : Int32
+  column : Int32
 } derive(Eq, ToJson)
 
 ///|
@@ -55,10 +55,10 @@ pub fn Address::name(self : Address) -> String raise @failure.Failure {
 
 ///|
 pub(all) struct Range {
-  top : Int
-  left : Int
-  bottom : Int
-  right : Int
+  top : Int32
+  left : Int32
+  bottom : Int32
+  right : Int32
 } derive(Eq, ToJson)
 
 ///|

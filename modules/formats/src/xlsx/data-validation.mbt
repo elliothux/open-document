@@ -42,7 +42,7 @@ fn ValidationRule::accepts(
   value : Value,
   address : Address,
   sheets : Array[Sheet],
-  sheet : Int,
+  sheet : Int32,
   calculation : Calculation,
   work : FormulaWork,
 ) -> Bool raise @failure.Failure {
@@ -110,7 +110,7 @@ fn Session::validate_inputs(
   self : Session,
   sheets : Array[Sheet],
   calculation : Calculation,
-  targets : Map[Int, Array[String]],
+  targets : Map[Int32, Array[String]],
   accept_warnings : Bool,
 ) -> Unit raise @failure.Failure {
   let work = FormulaWork::{

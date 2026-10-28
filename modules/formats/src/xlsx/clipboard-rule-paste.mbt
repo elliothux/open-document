@@ -3,7 +3,7 @@ fn Session::copied_rule_styles(
   self : Session,
   base : StyleEdit?,
   formats : Array[CellFormat],
-) -> (StyleEdit?, Array[Int?]) raise @failure.Failure {
+) -> (StyleEdit?, Array[Int32?]) raise @failure.Failure {
   if formats.is_empty() {
     return (base, [])
   }
@@ -38,11 +38,11 @@ fn Session::copied_rule_styles(
 fn Session::prepare_copied_rules(
   self : Session,
   plan : CellEditPlan,
-  index : Int,
+  index : Int32,
   target : Range,
   conditional : Array[CopiedConditional],
   validations : Array[CopiedValidation],
-  styles : Array[Int?],
+  styles : Array[Int32?],
   replace_validation : Bool,
 ) -> Unit raise @failure.Failure {
   let sheet = plan.sheets[index]

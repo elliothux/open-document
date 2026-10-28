@@ -3,7 +3,7 @@ pub(all) struct ConnectorEnd {
   x : Double
   y : Double
   target : String
-  site : Int
+  site : Int32
 } derive(Eq, ToJson)
 
 ///|
@@ -147,14 +147,14 @@ fn ConnectorEnd::resolved(
 }
 
 ///|
-fn Object::connection_site_count(self : Object) -> Int {
+fn Object::connection_site_count(self : Object) -> Int32 {
   self.local_connection_sites().length()
 }
 
 ///|
 fn Object::connection_point(
   self : Object,
-  site : Int,
+  site : Int32,
 ) -> (Double, Double) raise @failure.Failure {
   let positions = self.local_connection_sites()
   guard site >= 0 && site < positions.length() else {

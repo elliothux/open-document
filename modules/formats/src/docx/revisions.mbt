@@ -1,13 +1,13 @@
 ///|
 priv struct RevisionEntry {
-  node : Int
+  node : Int32
   source_id : String
   kind : String
   element : String
   author : String
   date : String
   text : String
-  paragraph : Int?
+  paragraph : Int32?
   reason : String
 }
 
@@ -22,8 +22,8 @@ fn revision_element(name : String) -> Bool {
 ///|
 fn WordTree::check_text_revision(
   self : WordTree,
-  id : Int,
-) -> Int raise @failure.Failure {
+  id : Int32,
+) -> Int32 raise @failure.Failure {
   if self.is_paragraph_revision(id) {
     let paragraph = self.check_paragraph_revision(id)
     ignore(self.review_text_parts(paragraph))
@@ -233,7 +233,7 @@ fn Session::check_revision_protection(
 /// Lists body and ordinary table-cell revisions; unsupported structures retain a per-entry reason.
 pub fn Session::revisions(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let entries = WordTree::new(self.document()).revision_entries()
@@ -268,8 +268,8 @@ pub fn Session::revisions(
 fn revision_retained_text(
   document : @xml.Document,
   tree : WordTree,
-  id : Int,
-  limit : Int,
+  id : Int32,
+  limit : Int32,
 ) -> String raise @failure.Failure {
   let content = tree.children[id]
     .map(run => tree.standalone_markup(document, run))
@@ -319,7 +319,7 @@ fn revision_retained_text(
 /// Resolves explicit catalog entries atomically and records one exact source history item.
 pub fn Session::resolve_revisions(
   self : Session,
-  revision : Int,
+  revision : Int32,
   ids : Array[String],
   accept : Bool,
 ) -> Json raise @failure.Failure {
@@ -345,7 +345,7 @@ pub fn Session::resolve_revisions(
   guard entries.length() == ids.length() else {
     @failure.reject("invalid-operation", "Revision entry no longer exists")
   }
-  let affected : Array[Int] = []
+  let affected : Array[Int32] = []
   let paragraph_marks = entries.filter(entry => {
     tree.is_paragraph_revision(entry.node)
   })

@@ -18,7 +18,7 @@ fn SheetNotes::merge_note(self : SheetNotes, range : Range) -> CellNote? {
 }
 
 ///|
-fn SheetNotes::merge_discarded(self : SheetNotes, range : Range) -> Int {
+fn SheetNotes::merge_discarded(self : SheetNotes, range : Range) -> Int32 {
   (self.entries.filter(note => range.contains(note.address)).length() - 1).max(
     0,
   )

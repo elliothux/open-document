@@ -1,9 +1,9 @@
 ///|
 pub(all) enum ListEdit {
   Create(String)
-  Apply(Int, Int)
+  Apply(Int32, Int32)
   Remove
-  Restart(Int)
+  Restart(Int32)
   Level(Bool)
 }
 
@@ -11,7 +11,7 @@ pub(all) enum ListEdit {
 /// Changes list membership and numbering metadata as one bounded history entry.
 pub fn Session::edit_list(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   change : ListEdit,
 ) -> Json raise @failure.Failure {
@@ -30,7 +30,7 @@ pub fn Session::edit_list(
 ///|
 fn Session::edit_list_with_indent(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   change : ListEdit,
   indent : ParagraphFormat,
@@ -52,8 +52,8 @@ fn Session::edit_list_with_indent(
   let parts = self.parts.copy()
   let edits : Map[String, Array[@xml.Edit]] = Map([])
   let created : Map[String, @xml.Document] = Map([])
-  let references : Map[Int, (Int, Int)] = Map([])
-  let plain : Map[Int, Map[String, Map[String, String?]?]] = Map([])
+  let references : Map[Int32, (Int32, Int32)] = Map([])
+  let plain : Map[Int32, Map[String, Map[String, String?]?]] = Map([])
   match change {
     Level(increase) => {
       guard range.paragraphs.any(p => {
@@ -292,7 +292,7 @@ fn Session::edit_list_with_indent(
 /// Lists supported existing numbering instances; unsupported definitions carry a reason.
 pub fn Session::list_catalog(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   if !self
@@ -307,7 +307,7 @@ pub fn Session::list_catalog(
   let context = self.numbering_context()
   let tree = WordTree::new(self.document())
   let styles = self.styles([])
-  let previews : Map[Int, String] = Map([])
+  let previews : Map[Int32, String] = Map([])
   let texts = docx_texts(tree)
   for p in tree.order {
     if tree.nodes[p].uri != word_uri || tree.nodes[p].name != "p" {

@@ -11,9 +11,9 @@ priv struct CellEditPlan {
 ///|
 fn Session::prepare_cells(
   self : Session,
-  updates : Map[Int, Map[String, CellContent]],
-  styles~ : Map[Int, Map[String, Int]] = Map([]),
-  merges~ : Map[Int, Array[Range]] = Map([]),
+  updates : Map[Int32, Map[String, CellContent]],
+  styles~ : Map[Int32, Map[String, Int32]] = Map([]),
+  merges~ : Map[Int32, Array[Range]] = Map([]),
   accept_warnings~ : Bool = false,
   formatting~ : StyleEdit? = None,
   preserve_values~ : Bool = false,
@@ -25,9 +25,9 @@ fn Session::prepare_cells(
   let candidate = self.sheets.copy()
   let edits = formatting.map(plan => plan.edits.copy()).unwrap_or([])
   let cell_styles = formatting.map(plan => plan.styles).unwrap_or(self.styles)
-  let changed : Array[(Int, Range)] = []
+  let changed : Array[(Int32, Range)] = []
   let indices = updates.keys().to_array()
-  let targets : Map[Int, Array[String]] = Map([])
+  let targets : Map[Int32, Array[String]] = Map([])
   indices.sort()
   for index in indices {
     let current = self.sheets[index]
@@ -104,10 +104,10 @@ fn Session::prepare_cells(
 ///|
 fn Session::commit_cells(
   self : Session,
-  updates : Map[Int, Map[String, CellContent]],
+  updates : Map[Int32, Map[String, CellContent]],
   selection : (String, Range),
-  styles~ : Map[Int, Map[String, Int]] = Map([]),
-  merges~ : Map[Int, Array[Range]] = Map([]),
+  styles~ : Map[Int32, Map[String, Int32]] = Map([]),
+  merges~ : Map[Int32, Array[Range]] = Map([]),
   accept_warnings~ : Bool = false,
 ) -> Json raise @failure.Failure {
   guard self.read_only.is_empty() else {

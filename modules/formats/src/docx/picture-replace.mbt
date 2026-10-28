@@ -1,8 +1,8 @@
 ///|
 pub fn Session::replace_picture(
   self : Session,
-  revision : Int,
-  id : Int,
+  revision : Int32,
+  id : Int32,
   bytes : Bytes,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)

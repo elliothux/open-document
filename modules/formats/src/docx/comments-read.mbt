@@ -1,7 +1,7 @@
 ///|
 priv struct DocComment {
   key : String
-  node : Int
+  node : Int32
   author : String
   initials : String
   date : String
@@ -26,7 +26,7 @@ priv struct CommentsSource {
 ///|
 fn comment_markup(
   tree : WordTree,
-  id : Int,
+  id : Int32,
   attributes : Array[String],
   children : Array[String],
 ) -> Unit raise @failure.Failure {
@@ -262,7 +262,7 @@ fn Session::comment_source(
 /// Lists local comments and their logical body anchors without changing history.
 pub fn Session::comments(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   try {

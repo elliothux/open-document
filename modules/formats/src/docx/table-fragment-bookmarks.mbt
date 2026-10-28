@@ -2,13 +2,13 @@
 fn fragment_bookmark_markers(
   tree : WordTree,
   grid : TableGrid,
-  top : Int,
-  bottom : Int,
-  left : Int,
-  right : Int,
-) -> Map[Int, String] raise @failure.Failure {
-  let paragraphs : Map[Int, Bool] = Map([])
-  let selected : Map[Int, Bool] = Map([])
+  top : Int32,
+  bottom : Int32,
+  left : Int32,
+  right : Int32,
+) -> Map[Int32, String] raise @failure.Failure {
+  let paragraphs : Map[Int32, Bool] = Map([])
+  let selected : Map[Int32, Bool] = Map([])
   for row in top..<bottom {
     for column, cell in grid.cells[row] {
       let start = grid.starts[row][column]
@@ -30,17 +30,17 @@ fn fragment_bookmark_markers(
 ///|
 fn fragment_bookmark_nodes(
   tree : WordTree,
-  paragraphs : Map[Int, Bool],
-  selected : Map[Int, Bool],
-) -> Map[Int, String] raise @failure.Failure {
+  paragraphs : Map[Int32, Bool],
+  selected : Map[Int32, Bool],
+) -> Map[Int32, String] raise @failure.Failure {
   if selected.is_empty() {
     return Map([])
   }
   guard selected.length() <= 8192 else {
     @failure.reject("limit-exceeded", "Rich table bookmarks exceed 4096")
   }
-  let markers : Map[Int, String] = Map([])
-  let outside : Map[Int, Int] = Map([])
+  let markers : Map[Int32, String] = Map([])
+  let outside : Map[Int32, Int32] = Map([])
   let mut count = 0
   for id in tree.order {
     let node = tree.nodes[id]

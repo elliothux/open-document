@@ -1,8 +1,8 @@
 ///|
 fn table_span_change(
   cell : DrawingCell,
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
   horizontal : Bool,
   vertical : Bool,
 ) -> @xml.SourceChange raise @failure.Failure {

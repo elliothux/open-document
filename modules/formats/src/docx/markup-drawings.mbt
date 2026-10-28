@@ -106,7 +106,7 @@ fn Session::markup_drawing(
 fn Session::markup_drawing_link(
   self : Session,
   tree : WordTree,
-  id : Int,
+  id : Int32,
   output : MarkupOutput,
 ) -> String? raise @failure.Failure {
   let target = self.drawing_link_target(

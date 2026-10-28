@@ -51,6 +51,6 @@ fn ChartFrame::prepare(
 }
 
 ///|
-fn ChartFrame::cache_units(self : ChartFrame) -> Int {
+fn ChartFrame::cache_units(self : ChartFrame) -> Int32 {
   positioned_cache_units([self.data.query().stringify()], self.primitives)
 }

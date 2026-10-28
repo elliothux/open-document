@@ -2,7 +2,7 @@
 fn Session::slicer_creation_cache(
   self : Session,
   pivot : PivotLocation,
-  field : Int,
+  field : Int32,
   settings : PivotSettings,
   data : PivotCache,
   parts : Map[String, @xml.Document],

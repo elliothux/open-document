@@ -1,18 +1,18 @@
 ///|
 priv struct OutlineGroup {
-  first : Int
-  last : Int
-  level : Int
-  summary : Int
+  first : Int32
+  last : Int32
+  level : Int32
+  summary : Int32
   collapsed : Bool
 }
 
 ///|
 priv struct OutlineAxis {
   summary_after : Bool
-  limit : Int
-  bands : Array[(Int, Int, Int)]
-  collapsed : Map[Int, Bool]
+  limit : Int32
+  bands : Array[(Int32, Int32, Int32)]
+  collapsed : Map[Int32, Bool]
   groups : Array[OutlineGroup]
 }
 
@@ -51,8 +51,8 @@ fn Sheet::outline_axis(
   let (below, right) = outline_settings(tree)
   let after = if rows { below } else { right }
   let limit = if rows { 1048576 } else { 16384 }
-  let bands : Array[(Int, Int, Int)] = []
-  let collapsed : Map[Int, Bool] = Map([])
+  let bands : Array[(Int32, Int32, Int32)] = []
+  let collapsed : Map[Int32, Bool] = Map([])
   let items = if rows {
     self.rows
     .iter()
@@ -88,7 +88,7 @@ fn Sheet::outline_axis(
   bands.sort_by((a, b) => a.0.compare(b.0))
   let groups : Array[OutlineGroup] = []
   for level in 1..<=7 {
-    let intervals : Array[(Int, Int)] = []
+    let intervals : Array[(Int32, Int32)] = []
     for (first, last, value) in bands {
       if value < level {
         continue
@@ -117,7 +117,7 @@ fn Sheet::outline_axis(
 }
 
 ///|
-fn OutlineAxis::level(self : OutlineAxis, index : Int) -> Int {
+fn OutlineAxis::level(self : OutlineAxis, index : Int32) -> Int32 {
   for low = 0, high = self.bands.length(); low < high; {
     let middle = low + (high - low) / 2
     let band = self.bands[middle]

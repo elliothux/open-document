@@ -58,7 +58,7 @@ fn chart_points(
     256,
   ).to_int()
   let values = Array::make(count, "")
-  let seen : Map[Int, Bool] = Map([])
+  let seen : Map[Int32, Bool] = Map([])
   for node in cache.tree.all(cache.node.id, "pt", uri=chart_uri) {
     let index = number(
       node.attribute("idx").unwrap_or(""),
@@ -80,7 +80,10 @@ fn chart_points(
 }
 
 ///|
-fn chart_rich_title(parent : Ref, line? : Int) -> String raise @failure.Failure {
+fn chart_rich_title(
+  parent : Ref,
+  line? : Int32,
+) -> String raise @failure.Failure {
   let rich = chart_child(
     chart_child(chart_child(parent, "title"), "tx"),
     "rich",

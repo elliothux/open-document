@@ -5,11 +5,11 @@ priv struct HtmlContext {
   rtl : Bool
   preserve : Bool
   hidden : Bool
-  quote : Int
-  level : Int
-  list : (Int, Int)?
+  quote : Int32
+  level : Int32
+  list : (Int32, Int32)?
   first : Ref[Bool]
-  heading : Int
+  heading : Int32
   keepNext : Bool
   link : (String, String)?
   cellWidth : Double?
@@ -77,7 +77,7 @@ fn html_rgb(value : String) -> String raise @failure.Failure {
 ///|
 fn html_style(
   document : @html5.Document,
-  id : Int,
+  id : Int32,
   original : HtmlContext,
 ) -> HtmlContext raise @failure.Failure {
   let tag = document.get_tag_name(id).unwrap_or("")

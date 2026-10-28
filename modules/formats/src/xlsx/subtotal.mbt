@@ -1,17 +1,17 @@
 ///|
 pub(all) struct SubtotalSettings {
   range : String
-  groupColumn : Int
-  valueColumn : Int
+  groupColumn : Int32
+  valueColumn : Int32
   operation : String
 }
 
 ///|
 priv struct SubtotalGroup {
   label : String
-  first : Int
-  last : Int
-  total : Int
+  first : Int32
+  last : Int32
+  total : Int32
 }
 
 ///|
@@ -162,7 +162,7 @@ fn Session::subtotal_plan(
   let mut units = 0L
   let mut cells = 0L
   let mut payload = 0L
-  let insert = fn(first : Int) raise @failure.Failure {
+  let insert = fn(first : Int32) raise @failure.Failure {
     units += stage.workbook.source().length().to_int64() +
       stage.sheets.fold(init=0L, (sum, sheet) => {
         sum + sheet.document.source().length().to_int64()
@@ -235,13 +235,13 @@ fn Session::subtotal_plan(
     _ => 1
   }
   let updates : Map[String, CellContent] = Map([])
-  let formats : Map[String, (Int, Int)] = Map([])
+  let formats : Map[String, (Int32, Int32)] = Map([])
   let current = stage.sheets[index]
   let total = fn(
-    row : Int,
+    row : Int32,
     label : String,
-    first : Int,
-    last : Int,
+    first : Int32,
+    last : Int32,
   ) raise @failure.Failure {
     let label_address : Address = { row, column: settings.groupColumn, }
     let value_address : Address = { row, column: settings.valueColumn, }
@@ -291,7 +291,7 @@ fn Session::subtotal_plan(
   )
   edits.append(edit.edits)
   let current = edit.sheets[index]
-  let metadata : Map[Int, Array[(String, String)]] = Map([])
+  let metadata : Map[Int32, Array[(String, String)]] = Map([])
   for group in groups {
     for row in group.first..<=group.last {
       outline_put(metadata, row, "outlineLevel", "2")
@@ -360,7 +360,7 @@ fn Session::subtotal_plan(
 /// Previews adjacent-group subtotal rows, a grand total and outlines without changing source.
 pub fn Session::subtotals(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   settings : SubtotalSettings,
 ) -> Json raise @failure.Failure {
@@ -393,7 +393,7 @@ fn Session::create_subtotals(
   self : Session,
   sheet : String,
   settings : SubtotalSettings,
-  source_revision : Int,
+  source_revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(source_revision)
   let plan = self.subtotal_plan(sheet, settings)

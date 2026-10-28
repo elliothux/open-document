@@ -28,7 +28,7 @@ fn Expression::moved(
   before : String?,
   after : String?,
   independent~ : Bool = false,
-  depth~ : Int = 0,
+  depth~ : Int32 = 0,
 ) -> Expression raise @failure.Failure {
   guard depth <= 64 else {
     @failure.reject("limit-exceeded", "Formula expression depth exceeded")
@@ -123,7 +123,7 @@ fn Session::move_names(
       None
     }
     let text = if print {
-      let spans : Array[(Int, Int)] = []
+      let spans : Array[(Int32, Int32)] = []
       let tokens = formula_tokens(node.text, spans~)
       let pieces : Array[String] = []
       let mut start = 0

@@ -19,7 +19,7 @@ fn Calculation::visibility_dependent(self : Calculation) -> Bool {
 fn subtotal_filtered(
   sheet : Sheet,
   work : FormulaWork,
-) -> Array[Int] raise @failure.Failure {
+) -> Array[Int32] raise @failure.Failure {
   work.spend(amount=sheet.document.nodes().length())
   let filters = work.names.tables
     .filter(table => table.sheet == sheet.id)
@@ -28,7 +28,7 @@ fn subtotal_filtered(
     filters.push(filter)
   }
   // shortcut: Imported active filters have no separate hidden causes; tracked saves distinguish overlap.
-  let result : Array[Int] = []
+  let result : Array[Int32] = []
   for filter in filters {
     if filter.tracked {
       for row in filter.filtered {
@@ -53,10 +53,10 @@ fn subtotal_filtered(
 fn subtotal_function(
   args : Array[Expression],
   sheets : Array[Sheet],
-  sheet : Int,
-  calculated : Map[(Int, String), Value],
+  sheet : Int32,
+  calculated : Map[(Int32, String), Value],
   work : FormulaWork,
-  depth : Int,
+  depth : Int32,
 ) -> Value raise @failure.Failure {
   let selector = numeric_value(
     args[0].evaluate(sheets, sheet, calculated, work, depth + 1),
@@ -72,7 +72,7 @@ fn subtotal_function(
   let exclude_manual = selector >= 100
   let kind = selector.to_int() % 100
   let items : Array[(Value, Bool)] = []
-  let hidden : Map[Int, Array[Int]] = Map([])
+  let hidden : Map[Int32, Array[Int32]] = Map([])
   for arg in args[1:] {
     if arg.aggregate_range(sheets, sheet) is Some(range) {
       if !exclude_manual && !hidden.contains(range.sheet) {

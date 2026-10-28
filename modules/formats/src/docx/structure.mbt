@@ -1,7 +1,7 @@
 ///|
 fn WordTree::namespace_bindings(
   self : WordTree,
-  id : Int,
+  id : Int32,
 ) -> Map[String, String] {
   let ancestors = []
   for id = id; id >= 0; id = self.nodes[id].parent {
@@ -20,7 +20,7 @@ fn WordTree::namespace_bindings(
 fn WordTree::standalone_markup(
   self : WordTree,
   document : @xml.Document,
-  id : Int,
+  id : Int32,
 ) -> String raise @failure.Failure {
   let node = self.nodes[id]
   let attributes = StringBuilder()
@@ -40,8 +40,8 @@ fn WordTree::standalone_markup(
 ///|
 fn WordTree::namespace_additions(
   self : WordTree,
-  id : Int,
-  parent : Int,
+  id : Int32,
+  parent : Int32,
 ) -> String raise @failure.Failure {
   let node = self.nodes[id]
   let destination = self.namespace_bindings(parent)
@@ -59,7 +59,7 @@ fn WordTree::namespace_additions(
 ///|
 fn Session::prepare_empty(
   self : Session,
-  paragraph : Int,
+  paragraph : Int32,
   text : String,
 ) -> PreparedEdit raise @failure.Failure {
   let document = self.document()
@@ -135,7 +135,7 @@ fn structure_opening(node : @xml.Node) -> String raise @failure.Failure {
 fn WordTree::empty_run_properties(
   self : WordTree,
   document : @xml.Document,
-  paragraph : Int,
+  paragraph : Int32,
 ) -> String raise @failure.Failure {
   guard self.child(paragraph, "pPr").bind(id => self.child(id, "rPr"))
     is Some(id) else {
@@ -161,7 +161,7 @@ fn WordTree::empty_run_properties(
 ///|
 fn WordTree::check_structure_paragraph(
   self : WordTree,
-  paragraph : Int,
+  paragraph : Int32,
   running~ : Bool = false,
   sectionBoundary~ : Bool = false,
 ) -> Unit raise @failure.Failure {
@@ -202,7 +202,7 @@ fn WordTree::check_structure_paragraph(
 ///|
 fn WordTree::check_structure_properties(
   self : WordTree,
-  id : Int,
+  id : Int32,
   sectionBoundary~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   if self.index_markers.contains(id) {
@@ -350,7 +350,7 @@ fn WordTree::check_structure_properties(
 fn WordTree::continuation_properties(
   self : WordTree,
   document : @xml.Document,
-  paragraph : Int,
+  paragraph : Int32,
 ) -> String raise @failure.Failure {
   let source = document.source()
   let properties = self.child(paragraph, "pPr")
@@ -382,7 +382,7 @@ fn WordTree::continuation_properties(
 ///|
 fn WordTree::check_editable_paragraph(
   self : WordTree,
-  paragraph : Int,
+  paragraph : Int32,
   part~ : String,
   pictures~ : Bool = false,
   fields~ : Bool = false,
@@ -463,7 +463,7 @@ fn WordTree::check_editable_paragraph(
       )
     }
   }
-  let runs : Array[Int] = []
+  let runs : Array[Int32] = []
   if fields {
     if complexFields {
       ignore(self.running_fields(paragraph))

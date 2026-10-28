@@ -8,13 +8,13 @@ priv struct CellStyle {
   script : String
   fill : String
   borders : Array[CellBorder]
-  border_priority : Array[Int]
+  border_priority : Array[Int32]
   horizontal : String
   vertical : String
   wrap : Bool
   shrink : Bool
-  indent : Int
-  rotation : Int
+  indent : Int32
+  rotation : Int32
   format : String
   diagnostic : String
   bar : ConditionalBar?
@@ -170,7 +170,7 @@ fn read_styles(
   let fonts = children("fonts")
   let fills = children("fills")
   let borders = children("borders")
-  let formats : Map[Int, String] = Map([])
+  let formats : Map[Int32, String] = Map([])
   let bases = children("cellStyleXfs")
   for
     (id, code) in [
@@ -276,7 +276,7 @@ fn read_styles(
       style = { ..style, diagnostic: "Unsupported gradient fill", }
     }
     let edges : Array[CellBorder] = []
-    let border_priority : Array[Int] = []
+    let border_priority : Array[Int32] = []
     if flag(borders[border_id], "diagonalUp") ||
       flag(borders[border_id], "diagonalDown") {
       style = { ..style, diagnostic: "Unsupported diagonal border", }

@@ -3,9 +3,9 @@ let word_uri = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 
 ///|
 priv struct TextNode {
-  id : Int
-  paragraph : Int
-  run : Int
+  id : Int32
+  paragraph : Int32
+  run : Int32
 }
 
 ///|
@@ -17,19 +17,19 @@ pub struct Session {
   priv mut media : Map[String, Bytes]
   priv mut texts : Array[TextNode]
   priv mut selection : Selection?
-  priv mut typing_text : Int?
+  priv mut typing_text : Int32?
   priv mut typing_format : CharacterFormat?
-  priv mut input_group : Int?
+  priv mut input_group : Int32?
   priv mut vertical_x : Double?
-  priv mut navigation_layout : Int
+  priv mut navigation_layout : Int32
   priv history : Array[Edit]
   priv redo : Array[Edit]
-  priv mut history_bytes : Int
-  priv mut revision : Int
+  priv mut history_bytes : Int32
+  priv mut revision : Int32
   priv mut composition : Composition?
-  priv mut composition_id : Int
+  priv mut composition_id : Int32
   priv mut drawing_gesture : DrawingGesture?
-  priv mut drawing_gesture_id : Int
+  priv mut drawing_gesture_id : Int32
   priv mut tracking_context : (String, String)?
   priv mut closed : Bool
   priv diagnostics : Array[String]
@@ -190,10 +190,10 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
 ///|
 pub fn Session::replace(
   self : Session,
-  id : Int,
-  revision : Int,
+  id : Int32,
+  revision : Int32,
   text : String,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   self.check_revision(revision)
   let document = self.document()
   guard self.texts.iter().filter(node => node.id == id).next() is Some(node) else {

@@ -1,8 +1,8 @@
 ///|
 fn projected_analysis_field(
-  mapping : Array[Int],
-  field : Int,
-) -> Int raise @failure.Failure {
+  mapping : Array[Int32],
+  field : Int32,
+) -> Int32 raise @failure.Failure {
   guard mapping.get(field) is Some(next) && next >= 0 else {
     @failure.reject(
       "protected-content", "A pivot or analysis control still uses the removed source field",
@@ -14,10 +14,10 @@ fn projected_analysis_field(
 ///|
 fn analysis_column_mapping(
   source : Range,
-  fields : Int,
+  fields : Int32,
   change : AxisChange,
-) -> Array[Int] {
-  let mapping : Array[Int] = []
+) -> Array[Int32] {
+  let mapping : Array[Int32] = []
   let width = source.right - source.left + 1
   let mut index = 0
   for field in 0..<fields {
@@ -45,8 +45,8 @@ fn analysis_column_mapping(
 ///|
 fn project_analysis_fields(
   document : @xml.Document,
-  mapping : Array[Int],
-  added : Map[Int, String],
+  mapping : Array[Int32],
+  added : Map[Int32, String],
 ) -> (@xml.Document, @xml.Edit) raise @failure.Failure {
   let tree = Tree::new(document)
   let cache = tree.nodes[0].name == "pivotCacheDefinition"
@@ -139,7 +139,7 @@ fn Session::project_analysis_columns(
   change : AxisChange,
   parts : Map[String, @xml.Document],
   edits : Array[(String, @xml.Edit)],
-  projected_records : Map[String, Array[Int]],
+  projected_records : Map[String, Array[Int32]],
   resources : Array[String],
 ) -> Unit raise @failure.Failure {
   let original = self.part_xml(path)
@@ -163,7 +163,7 @@ fn Session::project_analysis_columns(
     )
   }
   let mapping = analysis_column_mapping(source, fields.length(), change)
-  let added : Map[Int, String] = Map([])
+  let added : Map[Int32, String] = Map([])
   if change.insert {
     let names : Array[String] = []
     for part in resources {

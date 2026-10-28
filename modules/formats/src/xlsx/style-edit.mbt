@@ -1,6 +1,6 @@
 ///|
 priv struct StyleEdit {
-  indices : Map[String, Int]
+  indices : Map[String, Int32]
   styles : Array[CellStyle]
   parts : Map[String, @xml.Document]
   edits : Array[(String, @xml.Edit)]
@@ -10,11 +10,11 @@ priv struct StyleEdit {
 ///|
 fn Session::derive_formats(
   self : Session,
-  originals : Map[String, (Int, Int)],
+  originals : Map[String, (Int32, Int32)],
   patches : Array[CellFormat],
-  border_sides~ : Map[Int, Array[String]] = Map([]),
+  border_sides~ : Map[Int32, Array[String]] = Map([]),
 ) -> StyleEdit raise @failure.Failure {
-  let bases : Map[(Int, Int), Bool] = Map([])
+  let bases : Map[(Int32, Int32), Bool] = Map([])
   for key in originals.values() {
     bases[key] = true
   }
@@ -43,7 +43,7 @@ fn Session::derive_formats(
   let fills = StylePool::new(tree, "fills", "fill")
   let borders = StylePool::new(tree, "borders", "border")
   let formats = StylePool::new(tree, "cellXfs", "xf")
-  let mappings : Map[(Int, Int), Int] = Map([])
+  let mappings : Map[(Int32, Int32), Int32] = Map([])
   let (number_ids, new_formats) = format_numbers(tree, patches)
   let mut units = 0
   for key in bases.keys() {
@@ -145,7 +145,7 @@ fn Session::derive_formats(
     created_parts[path] = document
   }
   let styles = read_styles(document, self.theme)
-  let indices : Map[String, Int] = Map([])
+  let indices : Map[String, Int32] = Map([])
   for name, key in originals {
     indices[name] = mappings[key]
   }

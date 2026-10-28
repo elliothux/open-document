@@ -27,7 +27,7 @@ fn MathLatex::matrix_boundary(self : MathLatex) -> Bool {
 ///|
 fn MathLatex::matrix(
   self : MathLatex,
-  depth : Int,
+  depth : Int32,
 ) -> @layout.MathExpression raise @failure.Failure {
   let name = self.matrix_name()
   guard [

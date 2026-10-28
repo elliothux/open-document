@@ -9,7 +9,7 @@ fn supported_format(format : String) -> Bool {
 }
 
 ///|
-fn padded(value : Int, length : Int) -> String {
+fn padded(value : Int32, length : Int32) -> String {
   let text = value.to_string()
   "0".repeat((length - text.length()).max(0)) + text
 }
@@ -17,7 +17,7 @@ fn padded(value : Int, length : Int) -> String {
 ///|
 fn decimal(
   value : Double,
-  places : Int,
+  places : Int32,
   grouped : Bool,
   percent~ : Bool = false,
 ) -> String {

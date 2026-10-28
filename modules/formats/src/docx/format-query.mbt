@@ -15,8 +15,8 @@ fn[T : Eq + ToJson] format_summary(values : Array[T], reason : String) -> Json {
 fn Styles::inherited_character(
   self : Styles,
   tree : WordTree,
-  paragraph : Int,
-  run : Int?,
+  paragraph : Int32,
+  run : Int32?,
   style~ : FormatChange[String] = Keep,
 ) -> RunStyle raise @failure.Failure {
   let layers = self.character_layers(tree, paragraph, run, [], style~)
@@ -153,8 +153,8 @@ fn Session::formatting_styles(
 fn Styles::queried_character(
   self : Styles,
   tree : WordTree,
-  paragraph : Int,
-  run : Int?,
+  paragraph : Int32,
+  run : Int32?,
   pending : CharacterFormat?,
 ) -> (RunStyle, String) raise @failure.Failure {
   let patch = pending.unwrap_or(CharacterFormat::new())
@@ -232,7 +232,7 @@ fn Session::formatting_range(
 /// Queries all effective values in the range; mixed values never use its first character.
 pub fn Session::query_formatting(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   layout? : @layout.Layout,
 ) -> Json raise @failure.Failure {

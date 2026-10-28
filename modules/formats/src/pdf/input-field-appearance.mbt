@@ -3,8 +3,8 @@ fn import_object(
   tx : PdfTransaction,
   source : @pdflite.PdfDocument,
   value : @syntax.PdfObject,
-  imported : Map[Int, Int],
-  depth : Int,
+  imported : Map[Int32, Int32],
+  depth : Int32,
 ) -> @syntax.PdfObject raise @failure.Failure {
   guard depth < 64 else {
     @failure.reject(
@@ -73,7 +73,7 @@ fn widget_color(
 fn field_appearance(
   tx : PdfTransaction,
   field : FormField,
-  widget_id : Int,
+  widget_id : Int32,
   page : SourcePage,
   text : String,
   supplied : @layout.TextProbe,
@@ -319,7 +319,7 @@ fn field_appearance(
     tx.session.budget,
   )
   let source_page = source.lookup_object_or_null(pages[0].number)
-  let imported : Map[Int, Int] = Map([])
+  let imported : Map[Int32, Int32] = Map([])
   let resources = import_object(tx, source, pages[0].resources, imported, 0)
   tx.add(
     appearance_stream(

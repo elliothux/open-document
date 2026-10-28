@@ -78,7 +78,7 @@ fn Session::source_choices(
 fn Session::source_index(
   self : Session,
   part : String,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   self.slides
   .search_by(slide => slide.tree.part == part)
   .unwrap_or_else(() => self.index(self.last_slide))

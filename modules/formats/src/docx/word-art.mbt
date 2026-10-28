@@ -2,7 +2,7 @@
 /// Inserts a solid, editable WordArt text box as one source transaction.
 pub fn Session::insert_word_art(
   self : Session,
-  revision : Int,
+  revision : Int32,
   preset : String,
   text : String,
   probe? : @layout.TextProbe,

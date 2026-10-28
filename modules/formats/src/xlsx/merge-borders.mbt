@@ -145,9 +145,9 @@ fn Session::merge_formats(
     bottom=Some(edges[3]),
   )
   let patches : Array[CellFormat] = []
-  let pool : Map[CellFormat, Int] = Map([])
-  let originals : Map[String, (Int, Int)] = Map([])
-  let border_sides : Map[Int, Array[String]] = Map([])
+  let pool : Map[CellFormat, Int32] = Map([])
+  let originals : Map[String, (Int32, Int32)] = Map([])
+  let border_sides : Map[Int32, Array[String]] = Map([])
   for row in range.top..<=range.bottom {
     for column in range.left..<=range.right {
       let address : Address = { row, column, }

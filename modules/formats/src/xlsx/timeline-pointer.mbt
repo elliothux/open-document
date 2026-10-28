@@ -2,12 +2,12 @@
 /// Previews or commits a continuous date-bar selection using the measured native timeline.
 pub fn Session::timeline_gesture(
   self : Session,
-  revision : Int,
-  layout : Int,
+  revision : Int32,
+  layout : Int32,
   id : String,
-  handle : Int,
-  first : Int,
-  position : Int,
+  handle : Int32,
+  first : Int32,
+  position : Int32,
   x : Double,
   y : Double,
   commit : Bool,

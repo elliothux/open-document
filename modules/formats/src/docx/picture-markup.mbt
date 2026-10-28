@@ -1,6 +1,6 @@
 ///|
 fn picture_markup(
-  identity : Int,
+  identity : Int32,
   link : String,
   width : Double,
   height : Double,

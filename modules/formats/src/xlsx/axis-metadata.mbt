@@ -42,7 +42,7 @@ fn axis_pane_name(
   change : AxisChange,
   name : String,
 ) -> String raise @failure.Failure {
-  let count = fn(key : String, rows : Bool) -> Int raise @failure.Failure {
+  let count = fn(key : String, rows : Bool) -> Int32 raise @failure.Failure {
     let value = natural(
       pane.attribute(key).unwrap_or("0"),
       if rows {
@@ -158,9 +158,9 @@ fn axis_sheet_metadata(
   let tree = Tree::new(sheet.document)
   let own_sheet = sheet.name == target
   let changes : Array[@xml.SourceChange] = []
-  let removed : Map[Int, Bool] = Map([])
+  let removed : Map[Int32, Bool] = Map([])
   changes.append(sheet.axis_sparklines(change, target))
-  let extra : Map[Int, Int] = Map([])
+  let extra : Map[Int32, Int32] = Map([])
   let mut split_rules = false
   let ancestors_removed = fn(node : @xml.Node) {
     let mut parent = node.parent
@@ -393,7 +393,7 @@ fn Session::axis_names(
     let text = if ["_xlnm.Print_Area", "_xlnm.Print_Titles"].contains(
         node.attribute("name").unwrap_or(""),
       ) {
-      let spans : Array[(Int, Int)] = []
+      let spans : Array[(Int32, Int32)] = []
       let tokens = formula_tokens(node.text, spans~)
       let parts : Array[String] = []
       let mut start = 0

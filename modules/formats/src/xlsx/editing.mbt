@@ -29,7 +29,7 @@ fn Sheet::cell_xml(
   tree : Tree,
   address : Address,
   value : CellContent,
-  style~ : Int? = None,
+  style~ : Int32? = None,
 ) -> String raise @failure.Failure {
   let key = address.name()
   let original = self.cells.get(key).map(cell => tree.nodes[cell.node])
@@ -130,7 +130,7 @@ fn insertion(node : @xml.Node, content : String) -> @xml.SourceChange {
 fn Sheet::prepare(
   self : Sheet,
   updates : Map[String, CellContent],
-  styles~ : Map[String, Int] = Map([]),
+  styles~ : Map[String, Int32] = Map([]),
   preserve_values~ : Bool = false,
   fragments~ : Map[String, String] = Map([]),
 ) -> (@xml.Document, @xml.Edit) raise @failure.Failure {
@@ -147,7 +147,7 @@ fn Sheet::prepare(
     })
   }
   let changes : Array[@xml.SourceChange] = []
-  let pending : Map[Int, Array[(Address, CellContent)]] = Map([])
+  let pending : Map[Int32, Array[(Address, CellContent)]] = Map([])
   for name, value in updates {
     let address = Address::parse(name)
     if self.cells.get(name) is Some(cell) {
@@ -174,7 +174,7 @@ fn Sheet::prepare(
     }
   }
   // Combine insertions at the same source offset into one XML patch.
-  let insertions : Map[(Int, Int), String] = Map([])
+  let insertions : Map[(Int32, Int32), String] = Map([])
   let row_numbers = pending.keys().collect()
   row_numbers.sort()
   for row_number in row_numbers {
@@ -244,7 +244,7 @@ fn Sheet::prepare(
 ///|
 pub fn Session::replace(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   range : String,
   values : Array[Array[String]],
@@ -363,7 +363,7 @@ fn Session::validate(
 ///|
 pub fn Session::undo(
   self : Session,
-  revision : Int,
+  revision : Int32,
   redo~ : Bool = false,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
@@ -606,7 +606,7 @@ pub fn Session::save(self : Session) -> Bytes raise @failure.Failure {
 ///|
 fn cell_sources(
   tree : Tree,
-  data : Int,
+  data : Int32,
 ) -> Array[String] raise @failure.Failure {
   let cells : Array[String] = []
   let mut previous_row = 0

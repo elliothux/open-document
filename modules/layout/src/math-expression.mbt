@@ -85,7 +85,10 @@ pub extend MathExpression with ToJson::{to_json}
 fn MathExpression::check(self : MathExpression) -> Unit raise @failure.Failure {
   let mut nodes = 0
   let mut units = 0
-  fn visit(value : MathExpression, depth : Int) -> Unit raise @failure.Failure {
+  fn visit(
+    value : MathExpression,
+    depth : Int32,
+  ) -> Unit raise @failure.Failure {
     nodes += 1
     guard depth <= 16 && nodes <= 256 else {
       @failure.reject("limit-exceeded", "Math exceeds depth 16 or 256 nodes")
@@ -330,6 +333,6 @@ fn MathFormula::copy(self : MathFormula) -> MathFormula {
 }
 
 ///|
-fn MathFormula::cache_units(self : MathFormula) -> Int {
+fn MathFormula::cache_units(self : MathFormula) -> Int32 {
   positioned_cache_units([self.expression.linear_text()], self.primitives)
 }

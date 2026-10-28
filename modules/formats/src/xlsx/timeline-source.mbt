@@ -13,7 +13,7 @@ let timeline_cache_extension = "{D0CA8CA8-9F24-4464-BF8E-62219DCF47F9}"
 ///|
 fn Tree::timeline_children(
   self : Tree,
-  parent : Int,
+  parent : Int32,
   name : String,
 ) -> Array[@xml.Node] {
   self.children
@@ -25,7 +25,7 @@ fn Tree::timeline_children(
 ///|
 fn Tree::timeline_node(
   self : Tree,
-  parent : Int,
+  parent : Int32,
   name : String,
 ) -> @xml.Node raise @failure.Failure {
   guard self.timeline_children(parent, name) is [node] else {

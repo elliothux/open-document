@@ -4,7 +4,7 @@ pub fn chart_data(
   title : String,
   bytes : Bytes,
   budget : @archive.Budget,
-  hole_size~ : Int? = None,
+  hole_size~ : Int32? = None,
   legend~ : String? = None,
 ) -> @layout.ChartData raise @failure.Failure {
   let workbook = Session::open(bytes, budget)
@@ -16,7 +16,7 @@ pub fn chart_data(
     is { "cells": Array(cells), .. } else {
     @failure.reject("invalid-chart", "Chart workbook is unavailable")
   }
-  let values : Map[(Int, Int), Json] = Map([])
+  let values : Map[(Int32, Int32), Json] = Map([])
   let mut rows = 0
   let mut columns = 0
   for cell in cells {
@@ -45,7 +45,7 @@ pub fn chart_data(
       "invalid-chart", "Chart data requires a header row, categories and numeric series",
     )
   }
-  let text = fn(row : Int, column : Int) raise @failure.Failure {
+  let text = fn(row : Int32, column : Int32) raise @failure.Failure {
     match values.get((row, column)) {
       Some({ "kind": String("text"), "value": String(text), .. }) => text
       Some({ "kind": String("number"), "value": Number(value, ..), .. }) =>

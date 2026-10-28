@@ -7,7 +7,7 @@ let table_shading_attributes : Array[String] = [
 ///|
 fn WordTree::table_shading(
   self : WordTree,
-  properties : Int,
+  properties : Int32,
   themes : Map[String, String]?,
 ) -> String? raise @failure.Failure {
   let sources = self.table_children(properties, "shd")
@@ -54,7 +54,7 @@ fn WordTree::table_shading(
 ///|
 fn WordTree::table_fill_patch(
   self : WordTree,
-  cell : Int,
+  cell : Int32,
   attributes : Map[String, String?],
   theme : String?,
   themes : Map[String, String],

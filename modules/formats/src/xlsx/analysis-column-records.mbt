@@ -2,7 +2,7 @@
 fn project_analysis_records(
   document : @xml.Document,
   cache : @xml.Document,
-  mapping : Array[Int],
+  mapping : Array[Int32],
 ) -> (@xml.Document, @xml.Edit) raise @failure.Failure {
   pivot_plain_source(document)
   let tree = Tree::new(document)

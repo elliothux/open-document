@@ -49,7 +49,7 @@ fn Session::snap_resize_size(
   slide : Slide,
   dx : Double,
   dy : Double,
-  handle : Int,
+  handle : Int32,
   tolerance : Double,
   center : Bool,
 ) -> (Double, Double, (Bool, Bool)) raise @failure.Failure {

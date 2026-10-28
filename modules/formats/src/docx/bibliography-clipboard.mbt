@@ -27,7 +27,7 @@ fn citation_source_signature(
 fn Session::fragment_citation_sources(
   self : Session,
   xml : String,
-  limit : Int,
+  limit : Int32,
 ) -> String raise @failure.Failure {
   let document = @xml.Document::parse(
     @utf8.encode(
@@ -127,7 +127,7 @@ fn Session::import_fragment_citations(
   created : Map[String, @xml.Document],
 ) -> @xml.Document raise @failure.Failure {
   let tree = WordTree::new(document)
-  let fields : Array[Int] = []
+  let fields : Array[Int32] = []
   for id in tree.order {
     let node = tree.nodes[id]
     let metadata = node.attribute("citationSource", uri=table_fragment_uri)

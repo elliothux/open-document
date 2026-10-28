@@ -7,7 +7,7 @@ priv struct GraphicsState {
   style : @layout.DrawStyle
   text : @pdflite.PdfContentTextState
   font : SourceFont?
-  clips : Int
+  clips : Int32
   fillSpace : String
   strokeSpace : String
 }
@@ -15,9 +15,9 @@ priv struct GraphicsState {
 ///|
 priv struct MarkedText {
   replacement : String?
-  span : Int
-  chunk : Int
-  offset : Int
+  span : Int32
+  chunk : Int32
+  offset : Int32
 }
 
 ///|
@@ -32,7 +32,7 @@ priv struct ContentContext {
   diagnostics : Array[String]
   spans : Array[TextSpan]
   chunks : Array[String]
-  mut units : Int
+  mut units : Int32
   mut textComplete : Bool
   mut displayComplete : Bool
   fonts : Map[String, SourceFont]
@@ -40,7 +40,7 @@ priv struct ContentContext {
   jpeg : Map[String, JpegImage]
   forms : Map[String, Bool]
   marked : Array[MarkedText]
-  mut nesting : Int
+  mut nesting : Int32
 }
 
 ///|
@@ -257,7 +257,7 @@ fn interpret(
   resources : @syntax.PdfObject,
   identity : String,
   initial : GraphicsState,
-  depth : Int,
+  depth : Int32,
 ) -> Unit raise {
   guard depth < 32 else {
     @failure.reject("limit-exceeded", "PDF Form depth exceeds budget")

@@ -7,7 +7,7 @@ pub(all) enum TableTotal {
 }
 
 ///|
-fn table_total_code(kind : String) -> Int raise @failure.Failure {
+fn table_total_code(kind : String) -> Int32 raise @failure.Failure {
   match kind {
     "average" => 101
     "countNums" => 102
@@ -25,7 +25,7 @@ fn table_total_code(kind : String) -> Int raise @failure.Failure {
 ///|
 fn table_total_content(
   table : StructuredTable,
-  position : Int,
+  position : Int32,
 ) -> CellContent raise @failure.Failure {
   let column = table.columns[position]
   let formula = if column.total_formula is Some(formula) {
@@ -51,7 +51,7 @@ fn table_total_content(
 fn Session::write_table_total(
   self : Session,
   table : StructuredTable,
-  position : Int,
+  position : Int32,
   setting : TableTotal,
   parts : Map[String, @xml.Document],
   edits : Array[(String, @xml.Edit)],
@@ -156,8 +156,8 @@ fn same_table_content(
 fn Session::set_table_total(
   self : Session,
   sheet : String,
-  id : Int,
-  column : Int,
+  id : Int32,
+  column : Int32,
   setting : TableTotal,
 ) -> Json raise @failure.Failure {
   let table = self.table_for_edit(sheet, id)

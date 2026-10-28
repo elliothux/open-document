@@ -1,8 +1,8 @@
 ///|
 pub(all) struct MathTarget {
   object : String
-  revision : Int
-  node : Int
+  revision : Int32
+  node : Int32
 }
 
 ///|

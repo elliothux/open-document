@@ -1,7 +1,7 @@
 ///|
 pub(all) struct SlideTransition {
   kind : String
-  duration : Int
+  duration : Int32
   direction : String
 } derive(Eq, ToJson)
 
@@ -144,7 +144,7 @@ fn Session::transition_query(self : Session, slide : Slide) -> Json {
 ///|
 fn Session::set_transition(
   self : Session,
-  index : Int,
+  index : Int32,
   value : SlideTransition?,
 ) -> Json raise @failure.Failure {
   if value is Some(v) {
@@ -162,7 +162,7 @@ fn Session::set_transition(
 ///|
 fn Session::write_transition(
   self : Session,
-  index : Int,
+  index : Int32,
   value : SlideTransition?,
   advance : SlideAdvance,
 ) -> Json raise @failure.Failure {

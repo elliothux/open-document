@@ -1,7 +1,7 @@
 ///|
 fn Session::set_notes(
   self : Session,
-  index : Int,
+  index : Int32,
   text : String,
 ) -> Json raise @failure.Failure {
   guard text.length() <= 32767 && @xml.valid_text(text) else {

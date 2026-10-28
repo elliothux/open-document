@@ -59,7 +59,7 @@ fn Session::markup_area(
 ///|
 fn MarkupInput::rule(
   self : MarkupInput,
-  indent : Int,
+  indent : Int32,
   width~ : (Bool, Double) = (true, 1),
   stroke~ : String = "808080",
   weight~ : Double = 1.125,
@@ -119,7 +119,7 @@ fn MarkupInput::rule(
 ///|
 fn HtmlInput::rule(
   self : HtmlInput,
-  id : Int,
+  id : Int32,
   context : HtmlContext,
 ) -> Unit raise @failure.Failure {
   self.close_paragraph()

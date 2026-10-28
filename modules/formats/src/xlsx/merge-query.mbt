@@ -106,7 +106,7 @@ fn Session::merge_reason(
 }
 
 ///|
-fn Sheet::merge_discarded(self : Sheet, target : Range) -> Int {
+fn Sheet::merge_discarded(self : Sheet, target : Range) -> Int32 {
   self.cells
   .values()
   .fold(init=0, (count, cell) => {

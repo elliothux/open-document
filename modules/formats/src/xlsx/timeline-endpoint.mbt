@@ -30,12 +30,12 @@ fn timeline_period_end(
 /// Moves one native range endpoint, retaining the opposite timestamp and following it in the measured view.
 pub fn Session::set_timeline_endpoint(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   name : String,
-  handle : Int,
-  level : Int,
-  position : Int,
+  handle : Int32,
+  level : Int32,
+  position : Int32,
 ) -> Json raise @failure.Failure {
   self.apply_timeline_endpoint(revision, sheet, name, handle, level, position)
 }
@@ -43,12 +43,12 @@ pub fn Session::set_timeline_endpoint(
 ///|
 fn Session::apply_timeline_endpoint(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   name : String,
-  handle : Int,
-  level : Int,
-  position : Int,
+  handle : Int32,
+  level : Int32,
+  position : Int32,
   scroll~ : String? = None,
 ) -> Json raise @failure.Failure {
   let view = self.timeline_view_target(revision, sheet, name)

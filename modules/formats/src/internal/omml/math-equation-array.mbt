@@ -2,8 +2,8 @@
 fn MathRead::equation_array(
   self : MathRead,
   tree : Tree,
-  id : Int,
-  depth : Int,
+  id : Int32,
+  depth : Int32,
 ) -> @layout.MathExpression raise @failure.Failure {
   let children = tree.math_children(id, ["eqArrPr", "e"])
   let properties = children.filter(id => tree.nodes[id].name == "eqArrPr")

@@ -21,7 +21,7 @@ fn check_comment_date(value : String) -> Unit raise @failure.Failure {
       @failure.reject("invalid-operation", "Invalid comment date")
     }
   }
-  let digits = fn(start : Int, end : Int) -> Int {
+  let digits = fn(start : Int32, end : Int32) -> Int32 {
     for i in start..<end; total = 0 {
       continue total * 10 + value[i].to_int() - 48
     } nobreak {
@@ -65,7 +65,7 @@ fn check_comment_date(value : String) -> Unit raise @failure.Failure {
 ///|
 fn comment_body(
   document : @xml.Document?,
-  node : Int?,
+  node : Int32?,
   text : String,
   para~ : String = "",
 ) -> String raise @failure.Failure {

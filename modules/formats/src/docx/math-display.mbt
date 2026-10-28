@@ -1,5 +1,5 @@
 ///|
-fn WordTree::math_root(self : WordTree, id : Int) -> Bool {
+fn WordTree::math_root(self : WordTree, id : Int32) -> Bool {
   let node = self.nodes[id]
   node.uri == math_uri &&
   ["oMath", "oMathPara"].contains(node.name) &&
@@ -22,7 +22,7 @@ fn Session::check_display_math_input(
     math=true,
     tables=true,
   )
-  let positions : Map[Int, Int] = Map([])
+  let positions : Map[Int32, Int32] = Map([])
   for item in docx_texts(tree) {
     let offset = positions.get(item.paragraph).unwrap_or(0)
     let length = inline_text(tree.nodes[item.id]).length()
@@ -52,8 +52,8 @@ fn Session::check_display_math_input(
 ///|
 fn WordTree::math_source(
   self : WordTree,
-  id : Int,
-) -> (Int, String?) raise @failure.Failure {
+  id : Int32,
+) -> (Int32, String?) raise @failure.Failure {
   let node = self.nodes[id]
   if node.name == "oMath" {
     return (id, None)
@@ -111,7 +111,7 @@ fn WordTree::math_source(
 fn Session::math_display_alignment(
   self : Session,
   tree : WordTree,
-  id : Int,
+  id : Int32,
 ) -> String? raise @failure.Failure {
   let (_, align) = tree.math_source(id)
   guard align == Some("") else { return align }
@@ -147,7 +147,7 @@ fn Session::math_display_alignment(
 fn WordTree::math_replacement(
   self : WordTree,
   document : @xml.Document,
-  id : Int,
+  id : Int32,
   expression : String,
 ) -> String raise @failure.Failure {
   let node = self.nodes[id]

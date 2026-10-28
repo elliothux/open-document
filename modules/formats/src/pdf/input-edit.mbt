@@ -1,14 +1,14 @@
 ///|
 priv struct PdfTransaction {
   session : PdfSession
-  objects : Map[Int, @syntax.PdfObject]
-  mut next : Int
+  objects : Map[Int32, @syntax.PdfObject]
+  mut next : Int32
 }
 
 ///|
 fn PdfSession::transaction(
   self : PdfSession,
-  revision : Int,
+  revision : Int32,
 ) -> PdfTransaction raise @failure.Failure {
   self.check(revision)
   guard self.readOnlyReason.is_empty() else {
@@ -20,7 +20,7 @@ fn PdfSession::transaction(
 ///|
 fn PdfTransaction::object(
   self : PdfTransaction,
-  number : Int,
+  number : Int32,
 ) -> @syntax.PdfObject {
   self.objects
   .get(number)
@@ -47,7 +47,7 @@ fn PdfTransaction::add(
 ///|
 fn object_size(
   value : @syntax.PdfObject,
-  depth : Int,
+  depth : Int32,
   limit : Int64,
 ) -> Int64 raise @failure.Failure {
   guard depth < 64 else {
@@ -218,7 +218,7 @@ pub fn PdfSession::invalidate(self : PdfSession) -> Unit {
 ///|
 pub fn PdfSession::undo_edit(
   self : PdfSession,
-  revision : Int,
+  revision : Int32,
   redo : Bool,
 ) -> Json raise @failure.Failure {
   self.check(revision)
@@ -309,7 +309,7 @@ pub fn PdfSession::undo_edit(
 ///|
 pub fn PdfSession::save(
   self : PdfSession,
-  revision : Int,
+  revision : Int32,
 ) -> Bytes raise @failure.Failure {
   self.check(revision)
   if self.stateId == 0 {

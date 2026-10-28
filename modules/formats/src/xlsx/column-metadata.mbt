@@ -2,8 +2,8 @@
 fn column_markup(
   tree : Tree,
   node : @xml.Node,
-  first : Int,
-  last : Int,
+  first : Int32,
+  last : Int32,
   attributes : Array[(String, String)],
 ) -> String raise @failure.Failure {
   guard tree.children.get(node.id).unwrap_or([]).is_empty() &&
@@ -37,9 +37,9 @@ fn column_markup(
 fn Sheet::column_metadata_changes(
   self : Sheet,
   tree : Tree,
-  first : Int,
-  last : Int,
-  metadata : Array[(Int, Int, Array[(String, String)])],
+  first : Int32,
+  last : Int32,
+  metadata : Array[(Int32, Int32, Array[(String, String)])],
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let root = tree.root("worksheet")
   let container = tree.one(root.id, "cols")
@@ -50,8 +50,8 @@ fn Sheet::column_metadata_changes(
   columns.sort_by((a, b) => a.0.compare(b.0))
   let prefix = root.qualified[:root.qualified.length() - 9].to_owned()
   let segment = fn(
-    first : Int,
-    last : Int,
+    first : Int32,
+    last : Int32,
     node : @xml.Node?,
   ) raise @failure.Failure {
     if node is Some(original) &&

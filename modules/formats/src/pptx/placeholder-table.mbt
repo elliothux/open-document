@@ -39,8 +39,8 @@ fn Session::table_fill_reason(self : Session, object : Object) -> String {
 ///|
 fn Session::fill_table(
   self : Session,
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
   probe : @layout.TextProbe,
   profile : Map[String, String],
 ) -> Json raise @failure.Failure {

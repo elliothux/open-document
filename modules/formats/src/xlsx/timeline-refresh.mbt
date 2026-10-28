@@ -1,7 +1,7 @@
 ///|
 fn Session::refresh_timeline_pivots(
   self : Session,
-  revision : Int,
+  revision : Int32,
   target : PivotLocation,
   known : Array[PivotLocation],
   replacement~ : (String, PivotSettings)? = None,
@@ -35,7 +35,7 @@ fn Session::refresh_timeline_pivots(
     timelines = linked
     continue
   }
-  let fields : Map[(String, Int), TimelineState] = Map([])
+  let fields : Map[(String, Int32), TimelineState] = Map([])
   for cache in timelines {
     let tree = Tree::new(self.part_xml(cache.part))
     guard cache.state.singleRange &&
@@ -269,7 +269,7 @@ fn Session::timeline_refresh_group(
     let owns = pivots.any(pivot => pivot.part == part)
     if pivots.search_by(pivot => pivot.part == part) is Some(index) {
       let previous = contexts[index].0
-      let linked : Map[Int, Bool] = Map([])
+      let linked : Map[Int32, Bool] = Map([])
       for cache in timelines {
         for (pivot, _) in cache.connections {
           if pivots.any(peer => peer.part == pivot.part) {
@@ -361,9 +361,9 @@ fn Session::timeline_refresh_group(
       "protected-content", "Shared pivot source or grouping is inconsistent",
     )
   }
-  let dates : Map[Int, Bool] = Map([])
+  let dates : Map[Int32, Bool] = Map([])
   let inputs = contexts.mapi((index, context) => {
-    let connected : Array[Int] = []
+    let connected : Array[Int32] = []
     for cache in timelines {
       connected.append(
         cache.connections
@@ -423,7 +423,7 @@ fn Session::timeline_refresh_group(
 ///|
 fn PivotCache::timeline_bounds(
   self : PivotCache,
-  field : Int,
+  field : Int32,
 ) -> TimelineRange raise @failure.Failure {
   for value in self.items[field] {
     if value is Number(date) {

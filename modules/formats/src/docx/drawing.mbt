@@ -2,7 +2,7 @@
 fn Session::drawing_frame(
   self : Session,
   tree : WordTree,
-  id : Int,
+  id : Int32,
 ) -> @layout.DrawingFrame raise @failure.Failure {
   let (_, data) = tree.drawing_data(id)
   if data.attribute("uri") == Some(chart_uri) {
@@ -54,7 +54,7 @@ let drawing_2010_uri = "http://schemas.microsoft.com/office/word/2010/wordproces
 ///|
 fn WordTree::drawing_data(
   self : WordTree,
-  id : Int,
+  id : Int32,
 ) -> (@xml.Node, @xml.Node) raise @failure.Failure {
   guard self.children[id] is [frame] &&
     self.nodes[frame].uri == picture_inline_uri &&
@@ -95,7 +95,7 @@ fn drawing_number(
 ///|
 fn WordTree::drawing_geometry(
   self : WordTree,
-  id : Int,
+  id : Int32,
 ) -> (Double, Double, @layout.DrawingAnchor?) raise @failure.Failure {
   let (frame, _) = self.drawing_data(id)
   let anchor = if frame.name == "anchor" {

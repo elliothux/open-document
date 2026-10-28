@@ -1,9 +1,9 @@
 ///|
 fn WordTree::check_fragment_chart(
   self : WordTree,
-  drawing : Int,
+  drawing : Int32,
   portable~ : Bool = false,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   let root = self.nodes[drawing]
   guard root.uri == word_uri &&
     root.name == "drawing" &&
@@ -171,8 +171,8 @@ fn chart_fragment_relationship(
 fn Session::fragment_chart(
   self : Session,
   tree : WordTree,
-  drawing : Int,
-  limit : Int,
+  drawing : Int32,
+  limit : Int32,
 ) -> String raise @failure.Failure {
   let reference = tree.check_fragment_chart(drawing)
   let (_, chart) = self.editable_chart(tree, drawing, operation=ChartCopy)
@@ -225,14 +225,14 @@ fn Session::fragment_chart(
 fn Session::import_fragment_chart(
   self : Session,
   tree : WordTree,
-  drawing : Int,
+  drawing : Int32,
   identity : String,
   parts : Map[String, @xml.Document],
   edits : Map[String, Array[@xml.Edit]],
   created : Map[String, @xml.Document],
   media : Map[String, Bytes],
   added : Map[String, Bytes],
-) -> (String, Int) raise @failure.Failure {
+) -> (String, Int32) raise @failure.Failure {
   let reference = tree.check_fragment_chart(drawing, portable=true)
   let node = tree.nodes[reference]
   let payload = ["chart", "relations", "workbook"].map(name => {

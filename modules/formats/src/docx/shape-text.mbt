@@ -2,8 +2,8 @@
 fn Session::shape_text(
   self : Session,
   tree : WordTree,
-  shape : Int,
-  text : Int,
+  shape : Int32,
+  text : Int32,
 ) -> @layout.DrawingTextBox raise @failure.Failure {
   let box = tree.nodes[text]
   guard box.text.trim().is_empty() &&

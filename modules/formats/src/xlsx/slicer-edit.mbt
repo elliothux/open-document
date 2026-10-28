@@ -56,10 +56,10 @@ fn Session::protect_slicer_cache(
 /// Applies native cache member indices to connected pivots in one history entry.
 pub fn Session::filter_slicer(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   name : String,
-  indices : Array[Int],
+  indices : Array[Int32],
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let current = self.sheets[self.sheet_index(sheet)]
@@ -118,7 +118,7 @@ pub fn Session::filter_slicer(
       "protected-content", "Use the linked timeline to filter this date field",
     )
   }
-  let selected : Map[Int, Bool] = Map([])
+  let selected : Map[Int32, Bool] = Map([])
   let members = Map::from_array(cache.members.map(item => (item.index, true)))
   for index in indices {
     guard !selected.contains(index) && members.contains(index) else {

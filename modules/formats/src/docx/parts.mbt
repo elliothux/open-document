@@ -79,7 +79,7 @@ fn append_part_xml(
 fn xml_part_edit_bytes(
   edits : Map[String, Array[@xml.Edit]],
   created : Map[String, @xml.Document],
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   let mut bytes = 0
   for _, steps in edits {
     for edit in steps {

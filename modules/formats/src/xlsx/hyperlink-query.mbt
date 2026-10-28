@@ -194,7 +194,7 @@ fn Session::hyperlink_at(
 ///|
 fn Session::hyperlink_destination(
   self : Session,
-  sheet : Int,
+  sheet : Int32,
   origin : Address,
   target : String,
   work? : FormulaWork,
@@ -254,7 +254,7 @@ fn Session::hyperlink_reason(
 fn hyperlink_name_reference(
   text : String,
   sheets : Array[Sheet],
-  context : Int,
+  context : Int32,
   origin : Address,
   work : FormulaWork,
 ) -> Bool raise @failure.Failure {
@@ -273,7 +273,7 @@ fn hyperlink_name_reference(
 fn deleted_name_hyperlinks(
   tree : Tree,
   sheets : Array[Sheet],
-  context : Int,
+  context : Int32,
   before : FormulaWork,
   after : FormulaWork,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {

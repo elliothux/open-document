@@ -1,6 +1,6 @@
 ///|
 pub(all) struct PivotFilter {
-  field : Int
+  field : Int32
   report : Bool
   /// None selects all members; Some([]) selects none.
   values : Array[Value]?
@@ -19,7 +19,7 @@ pub impl ToJson for PivotFilter with fn to_json(self) {
 pub extend PivotFilter with ToJson::{to_json}
 
 ///|
-fn PivotSettings::page_rows(self : PivotSettings) -> Int {
+fn PivotSettings::page_rows(self : PivotSettings) -> Int32 {
   let filters = self.page_filters()
   if filters.is_empty() {
     0
@@ -37,7 +37,7 @@ fn PivotSettings::page_filters(self : PivotSettings) -> Array[PivotFilter] {
 fn PivotCache::filter_indices(
   self : PivotCache,
   filters : Array[PivotFilter],
-) -> Array[(Int, Map[Int, Bool]?)] {
+) -> Array[(Int32, Map[Int32, Bool]?)] {
   filters.map(filter => {
     (
       filter.field,
@@ -45,7 +45,7 @@ fn PivotCache::filter_indices(
         let keys = Map::from_array(
           values.map(value => (pivot_item_key(value), true)),
         )
-        let selected : Map[Int, Bool] = Map([])
+        let selected : Map[Int32, Bool] = Map([])
         for at, value in self.axis_items(filter.field) {
           if keys.contains(pivot_item_key(value)) {
             selected[at] = true
@@ -60,8 +60,8 @@ fn PivotCache::filter_indices(
 ///|
 fn PivotCache::record_visible(
   self : PivotCache,
-  record : Array[Int],
-  filters : Array[(Int, Map[Int, Bool]?)],
+  record : Array[Int32],
+  filters : Array[(Int32, Map[Int32, Bool]?)],
 ) -> Bool {
   !self.source_filters.any(filter => !filter.1.contains(record[filter.0])) &&
   !filters.any(filter => {
@@ -80,7 +80,7 @@ fn PivotCache::record_visible(
 ///|
 fn pivot_field_items(
   cache : Tree,
-  index : Int,
+  index : Int32,
   date1904~ : Bool = false,
 ) -> Array[Value] raise @failure.Failure {
   let fields = cache.all(cache.one(0, "cacheFields").unwrap().id, "cacheField")
@@ -114,7 +114,7 @@ fn pivot_field_items(
 fn pivot_read_member_filters(
   tree : Tree,
   cache : Tree,
-  width : Int,
+  width : Int32,
   date1904~ : Bool = false,
 ) -> Array[PivotFilter] raise @failure.Failure {
   let result : Array[PivotFilter] = []

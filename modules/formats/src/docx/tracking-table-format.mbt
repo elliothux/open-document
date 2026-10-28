@@ -3,10 +3,10 @@ fn Session::record_table_properties(
   self : Session,
   before : @xml.Document,
   candidate : @xml.Document,
-  owners : Array[Int],
+  owners : Array[Int32],
   kind~ : String = "trPr",
   force~ : Bool = false,
-) -> (@xml.Document, Array[@xml.Edit], Int) raise @failure.Failure {
+) -> (@xml.Document, Array[@xml.Edit], Int32) raise @failure.Failure {
   guard self.tracking_context is Some((author, date)) else {
     return (candidate, [], 0)
   }

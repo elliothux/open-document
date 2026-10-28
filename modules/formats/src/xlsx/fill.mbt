@@ -169,10 +169,10 @@ fn Session::check_fill_cells(
 ///|
 fn Session::commit_fill(
   self : Session,
-  index : Int,
+  index : Int32,
   selected : Range,
   updates : Map[String, CellContent],
-  styles : Map[String, Int],
+  styles : Map[String, Int32],
   merges~ : Array[Range]? = None,
   fill~ : (Range, Range)? = None,
 ) -> Json raise @failure.Failure {

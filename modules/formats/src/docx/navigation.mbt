@@ -2,9 +2,9 @@
 /// Updates the authoritative selection without changing document history.
 pub fn Session::navigate(
   self : Session,
-  revision : Int,
+  revision : Int32,
   layout : @layout.Layout,
-  layout_id : Int,
+  layout_id : Int32,
   direction : String,
   extend_selection~ : Bool,
 ) -> @layout.Hit raise @failure.Failure {

@@ -38,7 +38,7 @@ pub fn PageNumbering::validate(
 ///|
 pub fn PageNumbering::variant(
   self : PageNumbering,
-  page : Int,
+  page : Int32,
   first : Bool,
   even : Bool,
 ) -> String {
@@ -55,8 +55,8 @@ pub fn PageNumbering::variant(
 pub fn PageNumbering::field_text(
   self : PageNumbering,
   field : String,
-  page : Int,
-  total : Int,
+  page : Int32,
+  total : Int32,
 ) -> String raise @failure.Failure {
   self.validate()
   let parts = field.split(":").to_array()

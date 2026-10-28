@@ -1,7 +1,7 @@
 ///|
 priv struct FormulaText {
   output : StringBuilder
-  mut units : Int
+  mut units : Int32
 }
 
 ///|
@@ -27,7 +27,7 @@ fn FormulaText::append(
 ///|
 fn formula_text_number(
   values : Array[Value],
-  index : Int,
+  index : Int32,
   default : Double,
 ) -> Value {
   numeric_value(values.get(index).unwrap_or(Number(default)))
@@ -38,10 +38,10 @@ fn text_function(
   name : String,
   args : Array[Expression],
   sheets : Array[Sheet],
-  sheet : Int,
-  calculated : Map[(Int, String), Value],
+  sheet : Int32,
+  calculated : Map[(Int32, String), Value],
   work : FormulaWork,
-  depth : Int,
+  depth : Int32,
 ) -> Value raise @failure.Failure {
   if ["CONCAT", "CONCATENATE", "TEXTJOIN"].contains(name) {
     return join_function(name, args, sheets, sheet, calculated, work, depth)

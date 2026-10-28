@@ -70,7 +70,7 @@ fn Session::move_cells(
   let edits : Array[(String, @xml.Edit)] = []
   let parts = self.parts.copy()
   let created : Map[String, @xml.Document] = Map([])
-  let targets : Map[Int, Array[String]] = Map([])
+  let targets : Map[Int32, Array[String]] = Map([])
   let source_tree = Tree::new(from.document)
   let mut units = 0L
   let rule_work : RuleShiftWork = {
@@ -82,7 +82,7 @@ fn Session::move_cells(
   }
   for index, original in self.sheets {
     let updates : Map[String, CellContent] = Map([])
-    let styles : Map[String, Int] = Map([])
+    let styles : Map[String, Int32] = Map([])
     let fragments : Map[String, String] = Map([])
     if index == from_index {
       for row in source.top..<=source.bottom {

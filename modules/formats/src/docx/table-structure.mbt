@@ -6,22 +6,22 @@ pub(all) enum TableEdit {
   ColumnBefore
   ColumnAfter
   DeleteColumn
-  MergeCells(Int, Int)
+  MergeCells(Int32, Int32)
   UnmergeCell
-  SplitCell(Int, Int)
+  SplitCell(Int32, Int32)
   SplitTable
   PasteCells(String)
   PasteCellFragment(String)
   AutoFit(String)
   TableWidth(Double)
-  ColumnWidth(Int, Double)
+  ColumnWidth(Int32, Double)
   RowHeight(Double, String)
   CellFill(String?, String?)
   CellVerticalAlign(String?)
   CellMargins(@layout.CellMargins?)
   TableMargins(@layout.CellMargins?)
   TableAlign(String)
-  HeaderRows(Int)
+  HeaderRows(Int32)
   RowSplit(Bool)
   TableBorders(Map[String, TableBorderStyle?])
   CellBorders(Map[String, TableBorderStyle?])
@@ -30,8 +30,8 @@ pub(all) enum TableEdit {
 ///|
 priv struct TableChanges {
   items : Array[@xml.SourceChange]
-  mut bytes : Int
-  limit : Int
+  mut bytes : Int32
+  limit : Int32
 }
 
 ///|
@@ -49,16 +49,16 @@ fn TableChanges::push(
 ///|
 fn WordTree::table_children(
   self : WordTree,
-  parent : Int,
+  parent : Int32,
   name : String,
-) -> Array[Int] {
+) -> Array[Int32] {
   self.children[parent].filter(id => {
     self.nodes[id].uri == word_uri && self.nodes[id].name == name
   })
 }
 
 ///|
-fn table_position(paragraph : Int) -> Position {
+fn table_position(paragraph : Int32) -> Position {
   {
     paragraph,
     offset: 0,
@@ -72,8 +72,8 @@ fn table_position(paragraph : Int) -> Position {
 fn WordTree::table_cell_properties(
   self : WordTree,
   document : @xml.Document,
-  cell : Int,
-  width : Int,
+  cell : Int32,
+  width : Int32,
   review~ : Bool = false,
 ) -> String raise @failure.Failure {
   let fields = ["<od:tcW od:type=\"dxa\" od:w=\"\{width}\"/>"]
@@ -108,8 +108,8 @@ fn WordTree::table_cell_properties(
 fn Session::empty_table_cell(
   self : Session,
   tree : WordTree,
-  cell : Int,
-  width : Int,
+  cell : Int32,
+  width : Int32,
   fields~ : Bool = false,
   math~ : Bool = false,
   notes~ : Bool = false,
@@ -201,7 +201,7 @@ fn Session::empty_table_cell(
 }
 
 ///|
-fn table_remove(tree : WordTree, id : Int) -> @xml.SourceChange {
+fn table_remove(tree : WordTree, id : Int32) -> @xml.SourceChange {
   let node = tree.nodes[id]
   {
     node: node.parent,
@@ -215,7 +215,7 @@ fn table_remove(tree : WordTree, id : Int) -> @xml.SourceChange {
 /// Edits supported selected cells, rows or columns in a single source history.
 pub fn Session::edit_table(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   change : TableEdit,
   probe? : @layout.TextProbe,

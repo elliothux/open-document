@@ -16,18 +16,18 @@ pub fn FindOptions::new(
 
 ///|
 priv struct TextMatch {
-  slide : Int
+  slide : Int32
   object : String
-  anchor : Int
-  focus : Int
+  anchor : Int32
+  focus : Int32
   snippet : String
   reason : String
 }
 
 ///|
-fn Object::search_texts(self : Object) -> Array[(String, Int)] {
+fn Object::search_texts(self : Object) -> Array[(String, Int32)] {
   guard self.table is Some(table) else { return [(self.text(), 0)] }
-  let texts : Array[(String, Int)] = []
+  let texts : Array[(String, Int32)] = []
   let mut offset = 0
   for row in table.rows {
     for cell in row.cells {
@@ -111,7 +111,7 @@ fn Session::find_text(
 /// Find literal text in slide/source-object order without changing document state.
 pub fn Session::find(
   self : Session,
-  revision : Int,
+  revision : Int32,
   slide : String,
   text : String,
   options : FindOptions,

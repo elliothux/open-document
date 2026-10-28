@@ -2,15 +2,15 @@
 fn Sheet::automatic_series_values(
   self : Sheet,
   source : Range,
-  lane : Int,
+  lane : Int32,
   vertical : Bool,
-  first : Int,
-  last : Int,
+  first : Int32,
+  last : Int32,
   forward : Bool,
   styles : Array[CellStyle],
   date1904 : Bool,
   copy~ : Bool = false,
-) -> Array[(Value, Int, String?)] raise @failure.Failure {
+) -> Array[(Value, Int32, String?)] raise @failure.Failure {
   let values = if copy {
     Array::make(last - first + 1, (Blank, 0))
   } else {

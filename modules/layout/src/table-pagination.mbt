@@ -94,7 +94,7 @@ fn Table::check_grid(self : Table) -> Unit raise @failure.Failure {
 }
 
 ///|
-fn Table::row_group_end(self : Table, first : Int) -> Int {
+fn Table::row_group_end(self : Table, first : Int32) -> Int32 {
   let mut last = first
   let mut row = first
   while row <= last {
@@ -107,7 +107,7 @@ fn Table::row_group_end(self : Table, first : Int) -> Int {
 }
 
 ///|
-fn Table::cell_width(self : Table, row : Int, cell : Int) -> Double {
+fn Table::cell_width(self : Table, row : Int32, cell : Int32) -> Double {
   let column = self.columnSpans[row][:cell]
     .iter()
     .fold(init=0, (sum, span) => sum + span)
@@ -117,7 +117,7 @@ fn Table::cell_width(self : Table, row : Int, cell : Int) -> Double {
 }
 
 ///|
-fn Table::row_top_margin(self : Table, row : Int) -> Double {
+fn Table::row_top_margin(self : Table, row : Int32) -> Double {
   self.margins[row]
   .iter()
   .fold(init=0.0, (value, margin) => value.max(margin.top))
@@ -129,8 +129,8 @@ fn Pagination::table_rows(
   cache : ParagraphCache,
   probe : TextProbe,
   table : Table,
-  first_row : Int,
-  last_row : Int,
+  first_row : Int32,
+  last_row : Int32,
   profile : Map[String, String],
   images : Images,
   additive : Bool,
@@ -256,7 +256,7 @@ fn Pagination::repeat_table_header(
   cache : ParagraphCache,
   probe : TextProbe,
   table : Table,
-  first_row : Int,
+  first_row : Int32,
   required : Double,
   profile : Map[String, String],
   images : Images,

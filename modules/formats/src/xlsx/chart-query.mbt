@@ -1,7 +1,7 @@
 ///|
 pub fn Session::charts(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   probe : @layout.TextProbe,
   profile : Map[String, String],
@@ -64,7 +64,7 @@ pub fn Session::charts(
 ///|
 pub fn Session::delete_chart(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   id : String,
   probe : @layout.TextProbe,

@@ -16,7 +16,7 @@ fn Session::endnote_position_settings(
 /// Moves all endnotes to document or section ends, preserving numbering and note content.
 pub fn Session::set_endnote_position(
   self : Session,
-  revision : Int,
+  revision : Int32,
   position : String,
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],

@@ -85,7 +85,7 @@ fn Session::theme_edit_reason(self : Session) -> String raise @failure.Failure {
 ///|
 pub fn Session::theme_colors(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let reason = self.theme_edit_reason()
@@ -125,7 +125,7 @@ pub fn Session::theme_colors(
 ///|
 pub fn Session::set_theme_color(
   self : Session,
-  revision : Int,
+  revision : Int32,
   slot : String,
   value : String,
 ) -> Json raise @failure.Failure {

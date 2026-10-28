@@ -4,7 +4,7 @@ fn Object::table_hit_offset(
   text : TextGeometry,
   x : Double,
   y : Double,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   let table = self.table.unwrap()
   let (px, py) = text.matrix.inverse().point(x, y)
   let px = if table.rtl { table.column_edge(0) - px } else { px }

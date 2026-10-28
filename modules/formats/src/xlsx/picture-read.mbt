@@ -30,7 +30,7 @@ priv struct SheetObject {
 ///|
 fn Tree::picture_child(
   self : Tree,
-  parent : Int,
+  parent : Int32,
   name : String,
   uri~ : String = picture_uri,
 ) -> @xml.Node? raise @failure.Failure {
@@ -47,7 +47,7 @@ fn Tree::picture_child(
 ///|
 fn Tree::picture_node(
   self : Tree,
-  parent : Int,
+  parent : Int32,
   name : String,
   uri~ : String = picture_uri,
 ) -> @xml.Node raise @failure.Failure {
@@ -73,7 +73,7 @@ fn picture_integer(
 ///|
 fn Tree::picture_mark(
   self : Tree,
-  parent : Int,
+  parent : Int32,
   name : String,
   dimensions : Dimensions,
 ) -> (Double, Double) raise @failure.Failure {

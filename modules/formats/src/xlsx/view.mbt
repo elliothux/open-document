@@ -76,7 +76,7 @@ fn insert_primary_view(
 ///|
 fn Session::commit_view(
   self : Session,
-  index : Int,
+  index : Int32,
   changes : Array[@xml.SourceChange],
 ) -> Json raise @failure.Failure {
   let current = self.sheets[index]

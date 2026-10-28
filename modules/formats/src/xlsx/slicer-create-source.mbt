@@ -99,7 +99,7 @@ fn Session::slicer_creation_identity(
 ///|
 fn slicer_creation_uid(
   uids : Map[String, Bool],
-  count : Int,
+  count : Int32,
   kind : String,
 ) -> String raise @failure.Failure {
   let value = slicer_creation_uid_value(uids, count, kind)
@@ -112,7 +112,7 @@ fn slicer_creation_uid(
 ///|
 fn slicer_creation_uid_value(
   uids : Map[String, Bool],
-  count : Int,
+  count : Int32,
   kind : String,
 ) -> String raise @failure.Failure {
   if uids.is_empty() {

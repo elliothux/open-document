@@ -1,7 +1,7 @@
 ///|
 priv struct ProductArray {
-  rows : Int
-  columns : Int
+  rows : Int32
+  columns : Int32
   expression : Expression
   ranges : Array[FormulaRange]
 }
@@ -10,10 +10,10 @@ priv struct ProductArray {
 fn Expression::product_array(
   self : Expression,
   sheets : Array[Sheet],
-  sheet : Int,
-  values : Map[(Int, String), Value],
+  sheet : Int32,
+  values : Map[(Int32, String), Value],
   work : FormulaWork,
-  depth : Int,
+  depth : Int32,
 ) -> ProductArray raise @failure.Failure {
   work.spend()
   guard depth <= 64 else {
@@ -64,14 +64,14 @@ fn Expression::product_array(
 ///|
 fn Expression::product_element(
   self : Expression,
-  row : Int,
-  column : Int,
+  row : Int32,
+  column : Int32,
   blank : Bool,
   sheets : Array[Sheet],
-  sheet : Int,
-  values : Map[(Int, String), Value],
+  sheet : Int32,
+  values : Map[(Int32, String), Value],
   work : FormulaWork,
-  depth : Int,
+  depth : Int32,
 ) -> Expression raise @failure.Failure {
   work.spend()
   guard depth <= 64 else {
@@ -140,14 +140,14 @@ fn Expression::product_element(
 ///|
 fn product_at(
   arrays : Array[ProductArray],
-  row : Int,
-  column : Int,
+  row : Int32,
+  column : Int32,
   blank : Bool,
   sheets : Array[Sheet],
-  sheet : Int,
-  values : Map[(Int, String), Value],
+  sheet : Int32,
+  values : Map[(Int32, String), Value],
   work : FormulaWork,
-  depth : Int,
+  depth : Int32,
 ) -> Value raise @failure.Failure {
   let mut product = 1.0
   for array in arrays {
@@ -187,10 +187,10 @@ fn product_at(
 fn sum_product_function(
   args : Array[Expression],
   sheets : Array[Sheet],
-  sheet : Int,
-  values : Map[(Int, String), Value],
+  sheet : Int32,
+  values : Map[(Int32, String), Value],
   work : FormulaWork,
-  depth : Int,
+  depth : Int32,
 ) -> Value raise @failure.Failure {
   let arrays : Array[ProductArray] = []
   let mut rows = 0
@@ -212,8 +212,8 @@ fn sum_product_function(
     arrays.push(array)
   }
   let offsets : Map[Int64, Bool] = Map([])
-  let row_edges : Map[Int, Bool] = Map([(0, true), (rows, true)])
-  let column_edges : Map[Int, Bool] = Map([(0, true), (columns, true)])
+  let row_edges : Map[Int32, Bool] = Map([(0, true), (rows, true)])
+  let column_edges : Map[Int32, Bool] = Map([(0, true), (columns, true)])
   for array in arrays {
     row_edges[array.rows.max(1)] = true
     column_edges[array.columns.max(1)] = true

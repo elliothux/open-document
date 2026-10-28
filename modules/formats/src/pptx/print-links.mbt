@@ -2,7 +2,7 @@
 fn print_link_rect(
   rect : @layout.Border,
   matrix : @layout.Matrix,
-  page : Int,
+  page : Int32,
   width : Double,
   height : Double,
 ) -> @layout.SelectionRect? {
@@ -40,7 +40,7 @@ fn Session::print_link_target(
   self : Session,
   slide : Slide,
   link : ShowLink,
-  destinations : Map[String, Int],
+  destinations : Map[String, Int32],
 ) -> @layout.LinkTarget? raise @failure.Failure {
   guard link.reason.is_empty() else {
     @failure.reject("unsupported-pdf", link.reason, part=slide.tree.part)
@@ -76,11 +76,11 @@ fn Session::print_links(
   self : Session,
   slide : Slide,
   texts : Array[TextGeometry],
-  page : Int,
-  destinations : Map[String, Int],
+  page : Int32,
+  destinations : Map[String, Int32],
   relationships : ReadOnlyArray[@opc.Relationship],
-  remaining : Int,
-) -> (Array[@layout.PageLink], Int) raise @failure.Failure {
+  remaining : Int32,
+) -> (Array[@layout.PageLink], Int32) raise @failure.Failure {
   let links : Array[@layout.PageLink] = []
   let geometry = Map::from_array(texts.map(text => (text.object, text)))
   let mut work = 0

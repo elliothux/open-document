@@ -13,7 +13,7 @@ fn fill_destination(
 }
 
 ///|
-fn fill_merge_size(ranges : Array[Range], scope : Range) -> (Int, Int)? {
+fn fill_merge_size(ranges : Array[Range], scope : Range) -> (Int32, Int32)? {
   guard ranges.get(0) is Some(first) else { return None }
   let width = first.right - first.left + 1
   let height = first.bottom - first.top + 1

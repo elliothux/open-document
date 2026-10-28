@@ -2,12 +2,12 @@
 /// Rechecks the query and commits selected cells or all results as one transaction.
 pub fn Session::replace_matches(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   text : String,
   options : FindOptions,
   replacement : String,
-  index : Int?,
+  index : Int32?,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   guard self.revision < 2147483647 &&
@@ -30,7 +30,7 @@ pub fn Session::replace_matches(
       )
     }
   }
-  let updates : Map[Int, Map[String, CellContent]] = Map([])
+  let updates : Map[Int32, Map[String, CellContent]] = Map([])
   let mut selection = self.selection
   let mut units = 0
   for found, item in matches {

@@ -1,8 +1,8 @@
 ///|
 priv struct ShowLink {
   object : Object
-  start : Int
-  end : Int
+  start : Int32
+  end : Int32
   label : String
   kind : String
   target : String
@@ -23,8 +23,8 @@ fn Session::show_links(
     }
     fn add(
       properties : Ref?,
-      start : Int,
-      end : Int,
+      start : Int32,
+      end : Int32,
       label : String,
     ) -> Unit raise @failure.Failure {
       guard properties.bind(p => p.child("hlinkClick")) is Some(_) else {
@@ -112,7 +112,7 @@ fn Session::invalidate_show_frame(self : Session) -> Unit {
 ///|
 fn Session::current_show_frame(
   self : Session,
-  id : Int,
+  id : Int32,
 ) -> ShowDrawing raise @failure.Failure {
   guard self.showing is Some(current) &&
     self.show_drawing is Some(drawing) &&
@@ -218,7 +218,7 @@ fn Session::show_link_hit(
   drawing : ShowDrawing,
   x : Double,
   y : Double,
-) -> Int? raise @failure.Failure {
+) -> Int32? raise @failure.Failure {
   guard !x.is_nan() &&
     !x.is_inf() &&
     !y.is_nan() &&
@@ -277,7 +277,7 @@ fn Session::show_link_hit(
 fn Session::apply_show_link(
   self : Session,
   drawing : ShowDrawing,
-  index : Int,
+  index : Int32,
   time : Double,
 ) -> Json raise @failure.Failure {
   guard drawing.links.get(index) is Some(link) &&

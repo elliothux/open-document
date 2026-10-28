@@ -1,8 +1,8 @@
 ///|
 fn DrawingTable::edge_paint(
   self : DrawingTable,
-  row : Int,
-  column : Int,
+  row : Int32,
+  column : Int32,
   vertical : Bool,
 ) -> ((String, Double, String, Double), (Ref, Ref?)?) {
   let before = if vertical {
@@ -61,8 +61,8 @@ fn DrawingTable::edge_paint(
 ///|
 fn DrawingTable::edge(
   self : DrawingTable,
-  row : Int,
-  column : Int,
+  row : Int32,
+  column : Int32,
   vertical : Bool,
 ) -> (String, Double, String, Double) {
   self.edge_paint(row, column, vertical).0
@@ -71,8 +71,8 @@ fn DrawingTable::edge(
 ///|
 fn DrawingTable::cell_borders(
   self : DrawingTable,
-  row : Int,
-  column : Int,
+  row : Int32,
+  column : Int32,
 ) -> Array[(String, Double, String, Double)] {
   let cell = self.rows[row].cells[column]
   let edges : Array[(String, Double, String, Double)] = []

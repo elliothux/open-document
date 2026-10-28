@@ -84,13 +84,13 @@ fn content_bytes(
 ///|
 priv struct SourceFont {
   font : @pdflite.PdfFont
-  index : Int?
+  index : Int32?
   gidMap : Bytes?
   cid : Bool
   substituted : Bool
   symbolic : Bool
-  unicodeMap : Map[Int, String?]
-  glyphs : Map[Int, (String, Int)?]
+  unicodeMap : Map[Int32, String?]
+  glyphs : Map[Int32, (String, Int32)?]
 }
 
 ///|
@@ -216,7 +216,7 @@ fn font_resource(
 }
 
 ///|
-fn SourceFont::unicode(self : SourceFont, code : Int) -> String? {
+fn SourceFont::unicode(self : SourceFont, code : Int32) -> String? {
   match self.unicodeMap.get(code) {
     Some(value) => value
     None => {
@@ -228,7 +228,7 @@ fn SourceFont::unicode(self : SourceFont, code : Int) -> String? {
 }
 
 ///|
-fn source_unicode(font : @pdflite.PdfFont, code : Int) -> String? {
+fn source_unicode(font : @pdflite.PdfFont, code : Int32) -> String? {
   guard font.sdk_unicode(code) is Some(points) && !points.is_empty() else {
     return None
   }

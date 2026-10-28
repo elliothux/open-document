@@ -244,7 +244,7 @@ pub fn Package::create(
 }
 
 ///|
-pub fn Package::decoded_bytes(self : Package) -> Int raise @failure.Failure {
+pub fn Package::decoded_bytes(self : Package) -> Int32 raise @failure.Failure {
   self.archive.decoded_bytes()
 }
 

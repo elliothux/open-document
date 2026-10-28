@@ -1,6 +1,6 @@
 ///|
 // Unicode 16 DerivedCoreProperties entries outside the general categories below.
-let formula_cased_extra : FixedArray[(Int, Int)] = [
+let formula_cased_extra : FixedArray[(Int32, Int32)] = [
   (0xaa, 0xaa),
   (0xba, 0xba),
   (0x2b0, 0x2b8),
@@ -35,7 +35,7 @@ let formula_cased_extra : FixedArray[(Int, Int)] = [
 ]
 
 ///|
-let formula_ignorable_extra : FixedArray[Int] = [
+let formula_ignorable_extra : FixedArray[Int32] = [
   0x27, 0x2e, 0x3a, 0xb7, 0x387, 0x55f, 0x5f4, 0x2018, 0x2019, 0x2024, 0x2027, 0xfe13,
   0xfe52, 0xfe55, 0xff07, 0xff0e, 0xff1a,
 ]

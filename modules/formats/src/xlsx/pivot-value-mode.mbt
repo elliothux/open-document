@@ -48,9 +48,9 @@ fn PivotLayout::value_modes(self : PivotLayout) -> PivotLayout {
     value : Value,
     row : Value,
     column : Value,
-    index : Int,
-    row_members : Array[Int],
-    column_members : Array[Int],
+    index : Int32,
+    row_members : Array[Int32],
+    column_members : Array[Int32],
   ) {
     match self.settings.values[index].showDataAs {
       "normal"
@@ -172,10 +172,10 @@ fn Session::pivot_formats(
   layout : PivotLayout,
   range : Range,
   sheet : Sheet,
-  indices : Map[String, Int],
-  previous~ : (Range, Int, Int, Array[PivotValue])? = None,
+  indices : Map[String, Int32],
+  previous~ : (Range, Int32, Int32, Array[PivotValue])? = None,
 ) -> StyleEdit? raise @failure.Failure {
-  let originals : Map[String, (Int, Int)] = Map([])
+  let originals : Map[String, (Int32, Int32)] = Map([])
   let body = layout.settings.body(range)
   let start = range.left + layout.settings.rows.length()
   for row in (body.top + layout.settings.header_rows())..<=range.bottom {

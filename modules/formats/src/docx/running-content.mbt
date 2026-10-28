@@ -92,7 +92,7 @@ fn normalize_running_content(
 ///|
 fn running_content(
   paragraphs : Array[@layout.Paragraph],
-  links : Map[Int, String],
+  links : Map[Int32, String],
 ) -> Array[RunningContent] {
   let result : Array[RunningContent] = []
   for index, paragraph in paragraphs {
@@ -160,7 +160,7 @@ fn running_content_markup(
   story : WordTree,
   current : Array[@layout.Paragraph],
   content : Array[RunningContent],
-  current_links : Map[Int, String],
+  current_links : Map[Int32, String],
   relations : Map[String, String],
 ) -> String raise @failure.Failure {
   let paragraphs = story.running_nodes()
@@ -237,7 +237,7 @@ fn running_content_markup(
 fn refresh_running_fields(
   part : String,
   variant : String,
-  section : Int,
+  section : Int32,
   flow : @layout.Flow,
   layout : @layout.Layout,
   parts : Map[String, @xml.Document],

@@ -1,7 +1,7 @@
 ///|
 fn sheet_protection_reason(
   tree : Tree,
-  root : Int,
+  root : Int32,
   selection~ : Bool = true,
 ) -> String {
   let nodes = tree.all(root, "sheetProtection")

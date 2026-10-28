@@ -2,7 +2,7 @@
 /// Sets the native slicer drawing frame without changing its control or cache.
 pub fn Session::set_slicer_frame(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   id : String,
   anchor : String,
@@ -17,7 +17,7 @@ pub fn Session::set_slicer_frame(
 /// Sets the native timeline drawing frame without changing its control or date filters.
 pub fn Session::set_timeline_frame(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   id : String,
   anchor : String,
@@ -40,7 +40,7 @@ pub fn Session::set_timeline_frame(
 ///|
 fn Session::set_analysis_frame(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   id : String,
   anchor : String,

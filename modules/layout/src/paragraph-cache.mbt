@@ -3,9 +3,9 @@ priv struct ParagraphCache {
   previous : Map[String, Array[MeasuredLine]]
   current : Map[String, Array[MeasuredLine]]
   profile : String
-  mut units : Int
-  mut shaped : Int
-  mut reused : Int
+  mut units : Int32
+  mut shaped : Int32
+  mut reused : Int32
 }
 
 ///|
@@ -28,7 +28,7 @@ fn ParagraphCache::new(
 }
 
 ///|
-fn paragraph_cache_units(key : String, lines : Array[Line]) -> Int {
+fn paragraph_cache_units(key : String, lines : Array[Line]) -> Int32 {
   let mut units = key.length()
   if units > 1048576 {
     return 1048577
@@ -181,9 +181,9 @@ fn ParagraphCache::lines(
   paragraph : Paragraph,
   profile : Map[String, String],
   available : Double,
-  baseLevel? : Int,
+  baseLevel? : Int32,
   inTable~ : Bool = false,
-  startOffset~ : Int = 0,
+  startOffset~ : Int32 = 0,
   wrap~ : Bool = true,
 ) -> Array[MeasuredLine] raise @failure.Failure {
   probe.check()

@@ -1,5 +1,5 @@
 ///|
-fn filter_date_parts(group : String) -> Array[Int] raise @failure.Failure {
+fn filter_date_parts(group : String) -> Array[Int32] raise @failure.Failure {
   let count = match group.length() {
     4 => 1
     7 => 2
@@ -14,7 +14,7 @@ fn filter_date_parts(group : String) -> Array[Int] raise @failure.Failure {
   }
   let offsets = [0, 5, 8, 11, 14, 17]
   let separators = ["-", "-", "T", ":", ":"]
-  let parts : Array[Int] = []
+  let parts : Array[Int32] = []
   for i in 0..<count {
     let start = offsets[i]
     let length = if i == 0 { 4 } else { 2 }

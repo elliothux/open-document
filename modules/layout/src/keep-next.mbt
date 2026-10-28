@@ -55,7 +55,7 @@ fn kept_required(
   page : PageSetup,
   profile : Map[String, String],
   additive : Bool,
-  wrapping : (Pagination, Int, Double)?,
+  wrapping : (Pagination, Int32, Double)?,
 ) -> Array[Double] raise @failure.Failure {
   let heights = []
   let gaps = []
@@ -170,8 +170,8 @@ fn Pagination::kept_paragraphs(
   let measured : Map[String, Array[Double]] = Map([])
   let required_at = fn(
     page : PageSetup,
-    page_index : Int,
-    index : Int,
+    page_index : Int32,
+    index : Int32,
     y : Double,
   ) raise @failure.Failure {
     let square = self.wrapping.any(rect => rect.wrapping == "square")

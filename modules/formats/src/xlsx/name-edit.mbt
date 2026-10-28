@@ -54,7 +54,7 @@ fn name_node_reason(node : @xml.Node, document : @xml.Document) -> String {
 fn Session::name_scope(
   self : Session,
   scope : String?,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   scope.map(id => self.sheet_index(id)).unwrap_or(-1)
 }
 
@@ -148,16 +148,16 @@ fn Session::select_name(
 ///|
 fn name_reference_formula(
   text : String,
-  context : Int,
+  context : Int32,
   sheets : Array[Sheet],
   names : NamedDefinitions,
-  scope : Int,
+  scope : Int32,
   old : String,
   name : String,
   work : FormulaWork,
 ) -> String raise @failure.Failure {
   work.spend(amount=text.length())
-  let spans : Array[(Int, Int)] = []
+  let spans : Array[(Int32, Int32)] = []
   let tokens = formula_tokens(text, spans~)
   let out = StringBuilder()
   let mut cursor = 0

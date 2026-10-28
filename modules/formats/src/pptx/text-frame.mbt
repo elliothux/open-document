@@ -58,7 +58,7 @@ fn text_fit_reason(properties : Ref) -> String {
 fn frame_attribute_start(
   source : Ref,
   attribute : @xml.Attribute,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   let xml = source.tree.document.source()
   let mut end = attribute.start - 1
   while end > source.node.start &&

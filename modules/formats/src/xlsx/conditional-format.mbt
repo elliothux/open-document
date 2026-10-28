@@ -1,13 +1,13 @@
 ///|
 priv struct ConditionalRule {
-  node : Int
-  container : Int
+  node : Int32
+  container : Int32
   ranges : Array[Range]
   anchor : Address
   kind : String
   operator : String
   formulas : Array[String]
-  priority : Int
+  priority : Int32
   stop : Bool
   style : CellFormat
   stops : Array[ConditionalStop]
@@ -25,15 +25,15 @@ priv struct ConditionalRules {
   table_styles : TableStyles
   rules : Array[ConditionalRule]
   reason : String
-  scales : Map[Int, Array[Double]]
-  duplicates : Map[Int, Map[String, Bool]]
+  scales : Map[Int32, Array[Double]]
+  duplicates : Map[Int32, Map[String, Bool]]
 }
 
 ///|
 fn Session::conditional_rules(
   self : Session,
   current : Sheet,
-  index : Int,
+  index : Int32,
   sheets : Array[Sheet],
   work : FormulaWork,
   parts~ : Map[String, @xml.Document] = self.parts,
@@ -42,8 +42,8 @@ fn Session::conditional_rules(
   try {
     let tree = Tree::new(current.document)
     let rules : Array[ConditionalRule] = []
-    let priorities : Map[Int, Bool] = Map([])
-    let styles : Map[Int, CellFormat] = Map([])
+    let priorities : Map[Int32, Bool] = Map([])
+    let styles : Map[Int32, CellFormat] = Map([])
     let mut differential : Tree? = None
     let mut nodes : Array[@xml.Node] = []
     for node in current.document.nodes() {
@@ -385,8 +385,8 @@ fn ConditionalRules::applied(
   source : CellStyle,
   address : Address,
   sheets : Array[Sheet],
-  index : Int,
-  values : Map[(Int, String), Value],
+  index : Int32,
+  values : Map[(Int32, String), Value],
   work : FormulaWork,
 ) -> CellStyle raise @failure.Failure {
   let source = self.table_styles.applied(source, sheets[index], address)

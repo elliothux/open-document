@@ -1,7 +1,7 @@
 ///|
 fn WordTree::table_row_split(
   self : WordTree,
-  row : Int,
+  row : Int32,
 ) -> Bool? raise @failure.Failure {
   guard self.child(row, "trPr") is Some(props) else { return None }
   let flags = self.table_children(props, "cantSplit")
@@ -22,8 +22,8 @@ fn WordTree::table_row_split(
 ///|
 fn WordTree::row_grid_after(
   self : WordTree,
-  row : Int,
-) -> Int raise @failure.Failure {
+  row : Int32,
+) -> Int32 raise @failure.Failure {
   guard self.child(row, "trPr") is Some(props) &&
     self.child(props, "gridAfter") is Some(id) else {
     return 0
@@ -48,7 +48,7 @@ fn WordTree::row_grid_after(
 ///|
 fn WordTree::table_row_height(
   self : WordTree,
-  row : Int,
+  row : Int32,
 ) -> (Double, Bool) raise @failure.Failure {
   guard self.child(row, "trPr") is Some(props) &&
     self.child(props, "trHeight") is Some(id) else {

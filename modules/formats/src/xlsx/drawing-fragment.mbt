@@ -36,7 +36,7 @@ fn drawing_fragment_dimensions() -> Dimensions {
 ///|
 pub fn Session::capture_drawing(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   id : String,
   probe : @layout.TextProbe,
@@ -254,7 +254,7 @@ fn read_drawing_fragment(
 ///|
 pub fn Session::drawing_fragment_image(
   self : Session,
-  revision : Int,
+  revision : Int32,
   fragment : String,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)

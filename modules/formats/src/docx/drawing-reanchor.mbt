@@ -1,7 +1,7 @@
 ///|
 fn Session::prepare_drawing_anchor(
   self : Session,
-  id : Int,
+  id : Int32,
   anchor : @layout.DrawingAnchor?,
   target? : Position,
   probe? : @layout.TextProbe,
@@ -147,7 +147,7 @@ fn WordTree::drawing_anchor_insertion(
   document : @xml.Document,
   position : Position,
   moved : String,
-  limit : Int,
+  limit : Int32,
 ) -> @xml.SourceChange raise @failure.Failure {
   let texts = docx_texts(self).filter(item => {
     item.paragraph == position.paragraph

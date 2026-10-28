@@ -3,7 +3,7 @@ fn position_function(
   name : String,
   args : Array[Expression],
   sheets : Array[Sheet],
-  sheet : Int,
+  sheet : Int32,
   work : FormulaWork,
 ) -> Value raise @failure.Failure {
   let range = if args.is_empty() {
@@ -40,13 +40,13 @@ fn lookup_function(
   name : String,
   args : Array[Expression],
   sheets : Array[Sheet],
-  sheet : Int,
-  calculated : Map[(Int, String), Value],
+  sheet : Int32,
+  calculated : Map[(Int32, String), Value],
   work : FormulaWork,
-  depth : Int,
+  depth : Int32,
   hyperlink~ : Ref[String?]? = None,
 ) -> Value raise @failure.Failure {
-  let argument = (index : Int, default : Value) => {
+  let argument = (index : Int32, default : Value) => {
     match args.get(index) {
       Some(arg) => arg.evaluate(sheets, sheet, calculated, work, depth + 1)
       None => default

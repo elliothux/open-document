@@ -7,8 +7,8 @@ priv struct VisualGrapheme {
 ///|
 fn Line::visual_graphemes(
   self : Line,
-  page : Int,
-  index : Int,
+  page : Int32,
+  index : Int32,
 ) -> Array[VisualGrapheme] {
   let levels = self.bidi_ranges()
   let graphemes : Array[VisualGrapheme] = []
@@ -46,9 +46,9 @@ fn Line::visual_graphemes(
 ///|
 fn horizontal_step(
   line : Line,
-  page : Int,
-  index : Int,
-  offset : Int,
+  page : Int32,
+  index : Int32,
+  offset : Int32,
   right : Bool,
 ) -> Hit? {
   let mut best : Hit? = None
@@ -67,9 +67,9 @@ fn horizontal_step(
 /// Compares logical positions in the current layout's paragraph order.
 pub fn Layout::compare_positions(
   self : Layout,
-  a : (Int, Int),
-  b : (Int, Int),
-) -> Int raise @failure.Failure {
+  a : (Int32, Int32),
+  b : (Int32, Int32),
+) -> Int32 raise @failure.Failure {
   if self.text_box_layout(a.0) is Some(story) {
     return story.compare_positions(a, b)
   }
@@ -91,11 +91,11 @@ pub fn Layout::compare_positions(
 /// Moves on final geometry only; the DOCX session owns selection and preferred x.
 pub fn Layout::move_caret(
   self : Layout,
-  position : (Int, Int, String),
+  position : (Int32, Int32, String),
   direction : String,
   goal_x? : Double,
-  bidi_level? : Int,
-  frame_start? : Int,
+  bidi_level? : Int32,
+  frame_start? : Int32,
 ) -> Hit raise @failure.Failure {
   if self.text_box_layout(position.0) is Some(story) {
     return story.move_caret(
@@ -185,11 +185,11 @@ fn Layout::horizontal_hit(
 ///|
 fn Layout::navigate(
   self : Layout,
-  position : (Int, Int, String),
+  position : (Int32, Int32, String),
   direction : String,
   goal_x? : Double,
-  bidi_level? : Int,
-  frame_start? : Int,
+  bidi_level? : Int32,
+  frame_start? : Int32,
 ) -> Hit raise @failure.Failure {
   guard ["left", "right", "up", "down", "home", "end"].contains(direction) else {
     @failure.reject("invalid-operation", "Unknown navigation direction")
@@ -314,7 +314,7 @@ fn Layout::navigate(
     }
     let down = direction == "down"
     let mut top = 0.0
-    let mut chosen : (Int, Int)? = None
+    let mut chosen : (Int32, Int32)? = None
     let mut same_cell = false
     let mut vertical = 1.0 / 0.0
     let mut horizontal = 1.0 / 0.0

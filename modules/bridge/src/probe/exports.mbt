@@ -11,15 +11,15 @@ pub fn read_text(session : @text.Session) -> String {
 ///|
 pub fn replace_text(
   session : @text.Session,
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
   replacement : String,
-) -> Int {
+) -> Int32 {
   session.replace(start, end, replacement)
 }
 
 ///|
-pub fn undo(session : @text.Session) -> Int {
+pub fn undo(session : @text.Session) -> Int32 {
   session.undo()
 }
 

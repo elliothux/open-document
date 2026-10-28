@@ -1,7 +1,7 @@
 ///|
 pub fn Session::insert_picture(
   self : Session,
-  revision : Int,
+  revision : Int32,
   width : Double,
   height : Double,
   bytes : Bytes,

@@ -1,9 +1,9 @@
 ///|
 priv struct SelectionBox {
-  left : Int
-  top : Int
-  right : Int
-  bottom : Int
+  left : Int32
+  top : Int32
+  right : Int32
+  bottom : Int32
 } derive(Eq)
 
 ///|
@@ -15,15 +15,15 @@ priv struct SelectionEndpoint {
 }
 
 ///|
-fn selection_twips(value : Double) -> Int {
+fn selection_twips(value : Double) -> Int32 {
   (value * 20).round().to_int()
 }
 
 ///|
 fn Line::selection_portion(
   self : Line,
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
   fonts : Array[FontInfo],
 ) -> SelectionBox {
   let mut left = 1.0 / 0.0
@@ -65,7 +65,7 @@ fn Line::selection_portion(
 ///|
 fn Line::selection_endpoint(
   self : Line,
-  offset : Int,
+  offset : Int32,
   fonts : Array[FontInfo],
 ) -> SelectionEndpoint {
   let line : SelectionBox = {

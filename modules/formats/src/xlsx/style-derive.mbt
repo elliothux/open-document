@@ -79,10 +79,10 @@ fn CellFormat::xf_markup(
   self : CellFormat,
   tree : Tree,
   node : @xml.Node,
-  font : Int,
-  fill : Int,
-  border : Int,
-  number_format : Int?,
+  font : Int32,
+  fill : Int32,
+  border : Int32,
+  number_format : Int32?,
   source : CellStyle,
 ) -> String raise @failure.Failure {
   let original = style_fragment(tree, node)

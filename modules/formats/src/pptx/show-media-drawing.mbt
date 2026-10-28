@@ -25,8 +25,8 @@ fn media_fragment(
 fn media_draw_commands(
   commands : Array[@layout.DrawCommand],
   aliases : Map[String, (String, String)],
-  paths : Map[String, Array[Array[Int]]],
-  prefix : Array[Int],
+  paths : Map[String, Array[Array[Int32]]],
+  prefix : Array[Int32],
 ) -> Array[@layout.DrawCommand] {
   commands.mapi((index, command) => {
     match command {
@@ -70,7 +70,7 @@ fn Session::media_drawing(
       }
     }
   }
-  let paths : Map[String, Array[Array[Int]]] = Map([])
+  let paths : Map[String, Array[Array[Int32]]] = Map([])
   let regions = regions.mapi((index, region) => {
     ..region,
     commands: media_draw_commands(region.commands, aliases, paths, [index]),

@@ -14,7 +14,7 @@ fn valid_inline_input(text : String) -> Bool {
 ///|
 fn WordTree::check_region_break_input(
   self : WordTree,
-  paragraph : Int,
+  paragraph : Int32,
   text : String,
 ) -> Unit raise @failure.Failure {
   if !has_region_break(text) {
@@ -44,7 +44,7 @@ fn inline_content(
   text : String,
   opening : String,
   closing : String,
-  limit : Int,
+  limit : Int32,
 ) -> String raise @failure.Failure {
   let out = StringBuilder()
   let part = StringBuilder()
@@ -83,7 +83,7 @@ fn inline_content(
 }
 
 ///|
-fn inline_markup(text : String, limit : Int) -> String raise @failure.Failure {
+fn inline_markup(text : String, limit : Int32) -> String raise @failure.Failure {
   let opening = "<od:t xmlns:od=\"\{word_uri}\" xml:space=\"preserve\">"
   let closing = "</od:t>"
   let content = inline_content(text, opening, closing, limit)
@@ -97,12 +97,12 @@ fn inline_markup(text : String, limit : Int) -> String raise @failure.Failure {
 fn Session::edit_inline_text(
   self : Session,
   document : @xml.Document,
-  replacements : Map[Int, String],
+  replacements : Map[Int32, String],
   source~ : Array[@xml.SourceChange] = [],
-  object_offsets~ : Map[Int, Int] = Map([]),
+  object_offsets~ : Map[Int32, Int32] = Map([]),
   notes~ : Bool = false,
 ) -> (@xml.Document, @xml.Edit) raise @failure.Failure {
-  let plain : Map[Int, String] = Map([])
+  let plain : Map[Int32, String] = Map([])
   let changes = source.copy()
   let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
   let original = document.source()
@@ -226,12 +226,12 @@ fn Session::edit_inline_text(
 fn WordTree::split_control_input(
   self : WordTree,
   document : @xml.Document,
-  paragraph : Int,
-  insertion : Int,
-  offset : Int,
+  paragraph : Int32,
+  insertion : Int32,
+  offset : Int32,
   parts : Array[String],
   tail : String,
-  limit : Int,
+  limit : Int32,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let node = self.nodes[insertion]
   let run = self.nodes[node.parent]

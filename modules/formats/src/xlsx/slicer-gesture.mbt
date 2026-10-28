@@ -2,11 +2,11 @@
 /// Previews or commits an ordered member range using the native visible slicer geometry.
 pub fn Session::slicer_gesture(
   self : Session,
-  revision : Int,
-  layout : Int,
+  revision : Int32,
+  layout : Int32,
   id : String,
-  first : Int,
-  position : Int,
+  first : Int32,
+  position : Int32,
   x : Double,
   y : Double,
   additive : Bool,

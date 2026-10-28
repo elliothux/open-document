@@ -246,7 +246,7 @@ fn layout_empty_placeholder(object : Object) -> Bool {
 ///|
 fn Session::apply_layout(
   self : Session,
-  index : Int,
+  index : Int32,
   id : String,
   reset~ : Bool = false,
   probe? : @layout.TextProbe,
@@ -266,7 +266,7 @@ fn Session::apply_layout(
   }
   let tree = original.tree
   let changes : Array[@xml.SourceChange] = []
-  let used : Map[Int, String] = Map([])
+  let used : Map[Int32, String] = Map([])
   let affected : Map[String, Bool] = Map([])
   let tables : Array[String] = []
   let mut layout : Slide? = None

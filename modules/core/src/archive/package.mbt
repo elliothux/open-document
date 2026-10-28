@@ -1,12 +1,12 @@
 ///|
 pub(all) struct Budget {
-  file_bytes : Int
-  entry_bytes : Int
-  total_bytes : Int
-  retained_bytes : Int
-  entries : Int
-  xml_depth : Int
-  output_bytes : Int
+  file_bytes : Int32
+  entry_bytes : Int32
+  total_bytes : Int32
+  retained_bytes : Int32
+  entries : Int32
+  xml_depth : Int32
+  output_bytes : Int32
 }
 
 ///|
@@ -24,15 +24,15 @@ pub fn Budget::default() -> Budget {
 
 ///|
 struct Entry {
-  compression : Int
-  crc : UInt
-  compressed : Int
-  decoded : Int
-  local_start : Int
-  local_end : Int
-  payload : Int
-  central : Int
-  central_size : Int
+  compression : Int32
+  crc : UInt32
+  compressed : Int32
+  decoded : Int32
+  local_start : Int32
+  local_end : Int32
+  payload : Int32
+  central : Int32
+  central_size : Int32
 }
 
 ///|
@@ -41,7 +41,7 @@ pub struct Package {
   index : Map[String, Entry]
   cache : Map[String, Bytes]
   budget : Budget
-  mut inflated : Int
+  mut inflated : Int32
   mut closed : Bool
 }
 
@@ -106,7 +106,7 @@ pub fn Package::open(
     @failure.reject("malformed-package", "Invalid central directory range")
   }
   let index : Map[String, Entry] = Map([])
-  let ranges : Array[(Int, Int)] = []
+  let ranges : Array[(Int32, Int32)] = []
   let mut cursor = central_start
   for _ in 0..<count {
     ignore(span(source, cursor, 46))
@@ -370,7 +370,7 @@ pub fn Package::read(
 }
 
 ///|
-pub fn Package::decoded_bytes(self : Package) -> Int raise @failure.Failure {
+pub fn Package::decoded_bytes(self : Package) -> Int32 raise @failure.Failure {
   self.check()
   self.inflated
 }

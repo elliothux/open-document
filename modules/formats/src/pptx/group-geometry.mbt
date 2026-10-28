@@ -144,9 +144,9 @@ fn Slide::group_preview(
 fn Tree::standalone_markup(
   self : Tree,
   document : @xml.Document,
-  id : Int,
+  id : Int32,
 ) -> String raise @failure.Failure {
-  let ancestors : Array[Int] = []
+  let ancestors : Array[Int32] = []
   for parent = self.nodes[id].parent
       parent >= 0
       parent = self.nodes[parent].parent {

@@ -44,8 +44,8 @@ fn spacing_axis(
   let spans = neighbors
     .map(box => spacing_span(box, horizontal))
     .filter(other => box.first.max(other.first) < box.last.min(other.last))
-  let mut left : Int? = None
-  let mut right : Int? = None
+  let mut left : Int32? = None
+  let mut right : Int32? = None
   for i, span in spans {
     if span.end <= box.start + tolerance &&
       left.map(index => span.end > spans[index].end).unwrap_or(true) {
@@ -90,7 +90,7 @@ fn spacing_axis(
   }
   if left is Some(index) {
     let near = spans[index]
-    let mut beyond : Int? = None
+    let mut beyond : Int32? = None
     for i, span in spans {
       if i != index &&
         span.end <= near.start &&
@@ -110,7 +110,7 @@ fn spacing_axis(
   }
   if right is Some(index) {
     let near = spans[index]
-    let mut beyond : Int? = None
+    let mut beyond : Int32? = None
     for i, span in spans {
       if i != index &&
         span.start >= near.end &&

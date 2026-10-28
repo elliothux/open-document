@@ -8,7 +8,7 @@ pub(all) enum FillTarget {
 ///|
 pub fn Session::fill_preview(
   self : Session,
-  id : Int,
+  id : Int32,
   target : FillTarget,
   ctrl~ : Bool = false,
 ) -> Json raise @failure.Failure {

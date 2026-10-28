@@ -12,9 +12,9 @@ pub fn open_text(String) -> @text.Session
 
 pub fn read_text(@text.Session) -> String
 
-pub fn replace_text(@text.Session, Int, Int, String) -> Int
+pub fn replace_text(@text.Session, Int32, Int32, String) -> Int32
 
-pub fn undo(@text.Session) -> Int
+pub fn undo(@text.Session) -> Int32
 
 // Errors
 

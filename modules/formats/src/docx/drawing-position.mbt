@@ -2,8 +2,8 @@
 fn Session::editable_drawing_position(
   self : Session,
   tree : WordTree,
-  id : Int,
-) -> (@layout.DrawingFrame, Int) raise @failure.Failure {
+  id : Int32,
+) -> (@layout.DrawingFrame, Int32) raise @failure.Failure {
   let paragraph = self.drawing_paragraph(tree, id)
   if tree.drawing_data(id).1.attribute("uri") == Some(word_shape_uri) {
     let (_, drawing, _) = self.editable_shape(tree, id)
@@ -73,8 +73,8 @@ fn rounded_drawing_anchor(
 /// Target offsets refer to the current document before removing the drawing.
 pub fn Session::set_drawing_anchor(
   self : Session,
-  revision : Int,
-  id : Int,
+  revision : Int32,
+  id : Int32,
   anchor : @layout.DrawingAnchor?,
   target? : Position,
   probe? : @layout.TextProbe,
@@ -99,7 +99,7 @@ pub fn Session::set_drawing_anchor(
 ///|
 fn Session::prepare_drawing_placement(
   self : Session,
-  id : Int,
+  id : Int32,
   anchor : @layout.DrawingAnchor?,
   probe? : @layout.TextProbe,
   profile~ : Map[String, String] = Map([]),

@@ -1,5 +1,5 @@
 ///|
-fn WordTree::valid_numbering_properties(self : WordTree, id : Int) -> Bool {
+fn WordTree::valid_numbering_properties(self : WordTree, id : Int32) -> Bool {
   try {
     let node = self.nodes[id]
     let source = self.source[node.start:node.end]
@@ -28,15 +28,15 @@ fn WordTree::valid_numbering_properties(self : WordTree, id : Int) -> Bool {
 }
 
 ///|
-fn list_properties(instance : Int, level : Int) -> String {
+fn list_properties(instance : Int32, level : Int32) -> String {
   "<od:numPr xmlns:od=\"\{word_uri}\"><od:ilvl od:val=\"\{level}\"/><od:numId od:val=\"\{instance}\"/></od:numPr>"
 }
 
 ///|
 fn NumberingContext::level(
   self : NumberingContext,
-  instance : Int,
-  level : Int,
+  instance : Int32,
+  level : Int32,
 ) -> NumberLevel raise @failure.Failure {
   guard self.definition(instance).levels.get(level) is Some(value) else {
     @failure.reject("invalid-numbering", "Missing numbering level")
@@ -47,9 +47,9 @@ fn NumberingContext::level(
 ///|
 fn Session::list_identities(
   self : Session,
-) -> (Int, Int) raise @failure.Failure {
-  let instances : Map[Int, Bool] = Map([])
-  let abstracts : Map[Int, Bool] = Map([])
+) -> (Int32, Int32) raise @failure.Failure {
+  let instances : Map[Int32, Bool] = Map([])
+  let abstracts : Map[Int32, Bool] = Map([])
   for part in self.style_part_names() {
     for node in self.part_xml(part).nodes() {
       if node.uri != word_uri {
@@ -89,8 +89,8 @@ fn Session::list_identities(
 
 ///|
 fn list_definition(
-  instance : Int,
-  abstract_id : Int,
+  instance : Int32,
+  abstract_id : Int32,
   format : String,
 ) -> String {
   let output = StringBuilder()

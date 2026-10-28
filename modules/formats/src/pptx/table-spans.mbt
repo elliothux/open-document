@@ -6,8 +6,8 @@ fn DrawingCell::owner(self : DrawingCell) -> Bool {
 ///|
 fn table_owners(
   rows : Array[DrawingRow],
-  columns : Int,
-) -> Array[Array[(Int, Int)]] raise @failure.Failure {
+  columns : Int32,
+) -> Array[Array[(Int32, Int32)]] raise @failure.Failure {
   let owners = rows.map(_ => Array::make(columns, (-1, -1)))
   for row, item in rows {
     for column, cell in item.cells {
@@ -53,7 +53,7 @@ fn table_owners(
 ///|
 fn DrawingTable::width(
   self : DrawingTable,
-  column : Int,
+  column : Int32,
   cell : DrawingCell,
 ) -> Double {
   self.widths[column:column + cell.column_span].fold(init=0.0, (sum, width) => {
@@ -64,7 +64,7 @@ fn DrawingTable::width(
 ///|
 fn DrawingTable::height(
   self : DrawingTable,
-  row : Int,
+  row : Int32,
   cell : DrawingCell,
 ) -> Double {
   self.rows[row:row + cell.row_span].fold(init=0.0, (sum, row) => {
@@ -73,7 +73,7 @@ fn DrawingTable::height(
 }
 
 ///|
-fn DrawingTable::column_edge(self : DrawingTable, column : Int) -> Double {
+fn DrawingTable::column_edge(self : DrawingTable, column : Int32) -> Double {
   let before = self.widths[:column].fold(init=0.0, (sum, width) => sum + width)
   if self.rtl {
     self.widths.fold(init=0.0, (sum, width) => sum + width) - before
@@ -85,8 +85,8 @@ fn DrawingTable::column_edge(self : DrawingTable, column : Int) -> Double {
 ///|
 fn DrawingTable::column_left(
   self : DrawingTable,
-  column : Int,
-  span : Int,
+  column : Int32,
+  span : Int32,
 ) -> Double {
   self.column_edge(if self.rtl { column + span } else { column })
 }

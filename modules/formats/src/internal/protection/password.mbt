@@ -8,7 +8,7 @@ pub fn password(password : String) -> Unit raise @failure.Failure {
 }
 
 ///|
-pub fn hash(password : String, salt : Bytes, count : Int) -> Bytes {
+pub fn hash(password : String, salt : Bytes, count : Int32) -> Bytes {
   let context = @crypto.SHA512::new()
   context.update(salt)
   context.update(
@@ -33,7 +33,7 @@ pub fn hash(password : String, salt : Bytes, count : Int) -> Bytes {
 pub fn matches(
   password : String,
   salt : Bytes,
-  count : Int,
+  count : Int32,
   expected : Bytes,
 ) -> Bool {
   if expected.length() != 64 {

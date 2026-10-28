@@ -118,7 +118,7 @@ fn Session::pivot_locations(
 /// Reads native locations and refresh state without treating cached output as a new pivot.
 pub fn Session::pivots(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
@@ -169,7 +169,7 @@ pub fn Session::pivots(
 /// Creates real worksheet-backed cache, records, pivot definition and output in one history entry.
 pub fn Session::create_pivot(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   name : String,
   destination : String,

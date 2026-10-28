@@ -22,8 +22,8 @@ priv struct TileGrid {
   y : Double
   left : Double
   top : Double
-  columns : Int
-  rows : Int
+  columns : Int32
+  rows : Int32
 }
 
 ///|
@@ -68,7 +68,7 @@ fn ImageTile::grid(
   self : ImageTile,
   shape_width : Double,
   shape_height : Double,
-  pixels : (Int, Int),
+  pixels : (Int32, Int32),
 ) -> TileGrid raise @failure.Failure {
   // ONLYOFFICE uses 96 DPI rather than embedded image DPI for texture sizing.
   let width = pixels.0.to_double() * 0.75 * self.sx / 100000
@@ -115,8 +115,8 @@ fn Session::tile_sizes(
   media~ : Map[String, Bytes] = self.media,
   width~ : Double = self.width,
   height~ : Double = self.height,
-) -> Map[String, (Int, Int)] raise @failure.Failure {
-  let sizes : Map[String, (Int, Int)] = Map([])
+) -> Map[String, (Int32, Int32)] raise @failure.Failure {
+  let sizes : Map[String, (Int32, Int32)] = Map([])
   let mut count = 0
   let entries : Array[(String, ImageTile, Double, Double)] = []
   if slide.background is Picture(key, _, _, Some(tile), _) {
@@ -157,7 +157,7 @@ fn ImageTile::paint(
   opacity : Double,
   width : Double,
   height : Double,
-  pixels : (Int, Int),
+  pixels : (Int32, Int32),
 ) -> Array[@layout.PositionedPrimitive] raise @failure.Failure {
   let grid = tile.grid(width, height, pixels)
   let result : Array[@layout.PositionedPrimitive] = []

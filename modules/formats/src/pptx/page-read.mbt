@@ -4,7 +4,7 @@ fn read_slide(
   main : Tree,
   cache : Map[String, Tree],
   tree : Tree,
-  index~ : Int,
+  index~ : Int32,
   parts~ : Map[String, @xml.Document] = Map([]),
   date_time~ : DateTime? = None,
 ) -> Slide raise @failure.Failure {

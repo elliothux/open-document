@@ -2,7 +2,7 @@
 fn Session::table_for_edit(
   self : Session,
   sheet : String,
-  id : Int,
+  id : Int32,
   sparklines~ : Bool = false,
   threads~ : Bool = false,
 ) -> StructuredTable raise @failure.Failure {
@@ -92,7 +92,7 @@ fn table_edit_tree(
 ///|
 fn table_column_node(
   tree : Tree,
-  index : Int,
+  index : Int32,
 ) -> @xml.Node raise @failure.Failure {
   tree.all(
     tree.one(tree.root("table").id, "tableColumns").unwrap().id,
@@ -103,8 +103,8 @@ fn table_column_node(
 ///|
 fn table_column_index(
   table : StructuredTable,
-  id : Int,
-) -> Int raise @failure.Failure {
+  id : Int32,
+) -> Int32 raise @failure.Failure {
   table.columns
   .search_by(column => column.id == id)
   .unwrap_or_error(

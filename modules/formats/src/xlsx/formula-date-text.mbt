@@ -1,5 +1,5 @@
 ///|
-fn date_integer(text : String) -> Int? {
+fn date_integer(text : String) -> Int32? {
   guard !text.is_empty() &&
     text.length() <= 6 &&
     text.iter().all(character => character >= '0' && character <= '9') else {

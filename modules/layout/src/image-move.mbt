@@ -34,11 +34,11 @@ fn image_axis_origin(
 pub fn Layout::move_drawing(
   self : Layout,
   setup : PageSetup,
-  paragraph : Int,
-  start : Int,
+  paragraph : Int32,
+  start : Int32,
   dx : Double,
   dy : Double,
-  page : Int,
+  page : Int32,
 ) -> (DrawingAnchor, Hit?) raise @failure.Failure {
   setup.validate()
   guard !dx.is_nan() &&

@@ -47,11 +47,11 @@ pub fn NoteReference::code(self : NoteReference) -> String {
 ///|
 fn Flow::note_reference_values(
   self : Flow,
-) -> Map[(Int, Int), String] raise @failure.Failure {
+) -> Map[(Int32, Int32), String] raise @failure.Failure {
   let paragraphs = self.body_field_paragraphs()
   let order = Map::from_array(paragraphs.mapi((index, p) => (p.id, index)))
-  let anchors : Array[(Int, Int, String)] = []
-  let fields : Array[(Int, Int, Int, NoteReference)] = []
+  let anchors : Array[(Int32, Int32, String)] = []
+  let fields : Array[(Int32, Int32, Int32, NoteReference)] = []
   let mut work = 0
   for p in paragraphs {
     let mut offset = 0
@@ -70,7 +70,7 @@ fn Flow::note_reference_values(
       offset += span.logical_text().length()
     }
   }
-  let result : Map[(Int, Int), String] = Map([])
+  let result : Map[(Int32, Int32), String] = Map([])
   for (paragraph, node, offset, reference) in fields {
     let mut text = "Error! Bookmark not defined."
     if self.bookmarks.get(reference.bookmark.to_lower())

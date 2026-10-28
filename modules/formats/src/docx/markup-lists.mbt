@@ -1,8 +1,8 @@
 ///|
 priv struct MarkupList {
-  instance : Int
-  level : Int
-  value : Int
+  instance : Int32
+  level : Int32
+  value : Int32
   format : String
   native : Bool
   markdown : Bool
@@ -40,14 +40,14 @@ fn Session::markup_lists(
   tree : WordTree,
   styles : Styles,
   flow : @layout.Flow,
-) -> Map[Int, MarkupList] raise @failure.Failure {
+) -> Map[Int32, MarkupList] raise @failure.Failure {
   let paragraphs = flow.paragraphs.copy()
   paragraphs.append(
     flow.tables.map(table => table.rows.flatten().flatten()).flatten(),
   )
   let models = Map::from_array(paragraphs.map(p => (p.id, p)))
-  let lists : Map[Int, MarkupList] = Map([])
-  let counters : Map[Int, NumberCounter] = Map([])
+  let lists : Map[Int32, MarkupList] = Map([])
+  let counters : Map[Int32, NumberCounter] = Map([])
   let mut context : NumberingContext? = None
   for id in tree.order {
     guard models.get(id) is Some(paragraph) &&
@@ -199,7 +199,7 @@ fn Session::markup_list_markdown(
   paragraphs : Array[@layout.Paragraph],
   output : MarkupOutput,
 ) -> Unit raise @failure.Failure {
-  let stack : Array[(Int, Int, Int)] = []
+  let stack : Array[(Int32, Int32, Int32)] = []
   for paragraph in paragraphs {
     let list = output.lists[paragraph.id]
     while stack.last().map(frame => frame.0 > list.level).unwrap_or(false) {

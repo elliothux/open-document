@@ -1,14 +1,14 @@
 ///|
 priv struct AxisChange {
   rows : Bool
-  first : Int
-  count : Int
+  first : Int32
+  count : Int32
   insert : Bool
-  band : (Int, Int)?
+  band : (Int32, Int32)?
 }
 
 ///|
-fn AxisChange::limit(self : AxisChange) -> Int {
+fn AxisChange::limit(self : AxisChange) -> Int32 {
   if self.rows {
     1048576
   } else {
@@ -19,9 +19,9 @@ fn AxisChange::limit(self : AxisChange) -> Int {
 ///|
 fn AxisChange::interval(
   self : AxisChange,
-  first : Int,
-  last : Int,
-) -> (Int, Int)? {
+  first : Int32,
+  last : Int32,
+) -> (Int32, Int32)? {
   if last < self.first {
     return Some((first, last))
   }
@@ -137,8 +137,8 @@ fn AxisChange::range(self : AxisChange, range : Range) -> Range? {
 ///|
 priv enum AxisReference {
   Cell(FormulaAddress)
-  Row(Int, Bool)
-  Column(Int, Bool)
+  Row(Int32, Bool)
+  Column(Int32, Bool)
 }
 
 ///|
@@ -206,7 +206,7 @@ fn axis_formula(
   target : String,
   change : AxisChange,
 ) -> String raise @failure.Failure {
-  let spans : Array[(Int, Int)] = []
+  let spans : Array[(Int32, Int32)] = []
   let tokens = formula_tokens(text, spans~)
   let output = StringBuilder()
   let mut cursor = 0

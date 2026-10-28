@@ -124,7 +124,7 @@ fn cubic_hit(
   x : Double,
   y : Double,
   margin : Double,
-  depth : Int,
+  depth : Int32,
 ) -> Bool {
   if x < a.0.min(b.0).min(c.0).min(d.0) - margin ||
     x > a.0.max(b.0).max(c.0).max(d.0) + margin ||

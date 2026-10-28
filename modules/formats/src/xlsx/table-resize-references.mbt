@@ -17,9 +17,9 @@ fn resized_table_formula(
   exiting~ : Bool,
   deleted~ : Bool = false,
 ) -> String raise @failure.Failure {
-  let spans : Array[(Int, Int)] = []
+  let spans : Array[(Int32, Int32)] = []
   let tokens = formula_tokens(text, spans~)
-  let changes : Array[(Int, Int, String)] = []
+  let changes : Array[(Int32, Int32, String)] = []
   for index, token in tokens {
     if deleted &&
       token is Word(name) &&

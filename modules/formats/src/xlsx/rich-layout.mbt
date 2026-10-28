@@ -1,6 +1,6 @@
 ///|
 fn Sheet::rich_layout_sources(self : Sheet) -> Map[String, String] {
-  let selected : Map[Int, String] = Map([])
+  let selected : Map[Int32, String] = Map([])
   for name, cell in self.cells {
     if cell.read_only == "Rich text cell is read-only" {
       selected[cell.node] = name

@@ -4,7 +4,7 @@ pub(all) struct SheetChartSettings {
   title : String
   label : String
   legend : String
-  hole_size : Int?
+  hole_size : Int32?
   categories : String
   names : Array[String]
   values : Array[String]
@@ -101,7 +101,7 @@ fn chart_transform(rect : @layout.Border) -> String {
 ///|
 pub fn Session::insert_chart(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   settings : SheetChartSettings,
   width : Double,
@@ -217,7 +217,7 @@ pub fn Session::insert_chart(
 ///|
 pub fn Session::set_chart(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   id : String,
   settings : SheetChartSettings,

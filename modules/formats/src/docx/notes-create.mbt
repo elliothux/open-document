@@ -81,7 +81,7 @@ fn Session::append_note_source(
 fn Session::check_note_paragraph(
   self : Session,
   document : @xml.Document,
-  paragraph : Int,
+  paragraph : Int32,
 ) -> Unit raise @failure.Failure {
   let tree = WordTree::new(document)
   guard tree.nodes.get(paragraph) is Some(node) &&
@@ -168,7 +168,7 @@ fn Session::commit_note_command(
   edits : Map[String, Array[@xml.Edit]],
   created : Map[String, @xml.Document],
   after : Selection?,
-  paragraphs : Array[Int],
+  paragraphs : Array[Int32],
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],
   images~ : @layout.Images,
@@ -211,7 +211,7 @@ fn Session::commit_note_command(
 /// Adds a native note at the ordered end of the selection without replacing selected content.
 pub fn Session::insert_note(
   self : Session,
-  revision : Int,
+  revision : Int32,
   kind : String,
   text : String,
   probe~ : @layout.TextProbe,

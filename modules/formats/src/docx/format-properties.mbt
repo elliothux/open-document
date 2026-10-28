@@ -2,7 +2,7 @@
 fn property_markup(
   tree : WordTree,
   document : @xml.Document,
-  node : Int?,
+  node : Int32?,
   name : String,
   patch : Map[String, String?]?,
 ) -> String raise @failure.Failure {
@@ -50,7 +50,7 @@ fn property_markup(
 fn formatted_properties(
   tree : WordTree,
   document : @xml.Document,
-  parent : Int,
+  parent : Int32,
   kind : String,
   patch : Map[String, Map[String, String?]?],
   nested~ : Map[String, String] = Map([]),
@@ -170,7 +170,7 @@ fn character_properties_markup(
 fn properties_change(
   tree : WordTree,
   document : @xml.Document,
-  parent : Int,
+  parent : Int32,
   kind : String,
   markup : String,
 ) -> @xml.SourceChange? {

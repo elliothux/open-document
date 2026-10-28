@@ -1,11 +1,11 @@
 ///|
 fn TextProbe::math_delimiter(
   self : TextProbe,
-  index : Int,
+  index : Int32,
   character : String,
   target : Double,
   style : TextStyle,
-  budget : Ref[Int],
+  budget : Ref[Int32],
 ) -> MathBox raise @failure.Failure {
   if character.is_empty() {
     return { width: 0, height: 0, ascent: 0, primitives: [], textAscent: None, }

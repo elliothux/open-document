@@ -61,7 +61,7 @@ fn Session::slicer_extension(
 ///|
 fn Tree::slicer_children(
   self : Tree,
-  parent : Int,
+  parent : Int32,
   name : String,
 ) -> Array[@xml.Node] {
   self.children
@@ -73,7 +73,7 @@ fn Tree::slicer_children(
 ///|
 fn Tree::slicer_node(
   self : Tree,
-  parent : Int,
+  parent : Int32,
   name : String,
 ) -> @xml.Node raise @failure.Failure {
   guard self.slicer_children(parent, name) is [node] else {

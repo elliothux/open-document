@@ -15,14 +15,14 @@ priv struct SeriesTrend {
   mean : Double
   slope : Double
   scale : Double
-  style : Int
+  style : Int32
 }
 
 ///|
 fn Sheet::series_trend(
   self : Sheet,
   source : Range,
-  lane : Int,
+  lane : Int32,
   vertical : Bool,
   growth : Bool,
 ) -> SeriesTrend raise @failure.Failure {
@@ -99,7 +99,7 @@ fn series_fit(
   growth : Bool,
   first_value : Double,
   scale : Double,
-  style : Int,
+  style : Int32,
 ) -> SeriesTrend {
   if points.length() == 1 {
     return {
@@ -232,7 +232,7 @@ fn Session::fill_series(
   let first_lane = if vertical { selected.left } else { selected.top }
   let last_lane = if vertical { selected.right } else { selected.bottom }
   let updates : Map[String, CellContent] = Map([])
-  let styles : Map[String, Int] = Map([])
+  let styles : Map[String, Int32] = Map([])
   let mut units = 0
   for lane in first_lane..<=last_lane {
     let mut covered = true
@@ -253,7 +253,7 @@ fn Session::fill_series(
         break
       }
     }
-    let values : Array[(Value, Int, String?)] = if covered &&
+    let values : Array[(Value, Int32, String?)] = if covered &&
       (mode is Linear || mode is Growth || mode is Date(_, _)) {
       current.automatic_series_values(
         source,

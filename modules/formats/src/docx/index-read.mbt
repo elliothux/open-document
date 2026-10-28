@@ -1,9 +1,9 @@
 ///|
 priv struct IndexEntry {
-  id : Int
-  paragraph : Int
+  id : Int32
+  paragraph : Int32
   label : String
-  runs : Array[Int]
+  runs : Array[Int32]
   reason : String
 }
 
@@ -89,10 +89,10 @@ fn index_entry_label(instruction : String) -> String raise @failure.Failure {
 ///|
 fn WordTree::index_entry_profile(
   self : WordTree,
-  id : Int,
-  paragraph : Int,
-  runs : Array[Int],
-  markers : Array[Int],
+  id : Int32,
+  paragraph : Int32,
+  runs : Array[Int32],
+  markers : Array[Int32],
   instruction : String,
   complete : Bool,
 ) -> IndexEntry {
@@ -200,9 +200,9 @@ fn WordTree::index_entry_profile(
 ///|
 fn WordTree::read_index_entries(
   self : WordTree,
-) -> (Map[Int, IndexEntry], Set[Int]) {
-  let entries : Map[Int, IndexEntry] = Map([])
-  let ignored : Set[Int] = Set([])
+) -> (Map[Int32, IndexEntry], Set[Int32]) {
+  let entries : Map[Int32, IndexEntry] = Map([])
+  let ignored : Set[Int32] = Set([])
   for paragraph in self.order {
     let p = self.nodes[paragraph]
     if p.uri != word_uri || p.name != "p" {
@@ -211,8 +211,8 @@ fn WordTree::read_index_entries(
     let mut depth = 0
     let mut first = -1
     let mut code = ""
-    let mut runs : Array[Int] = []
-    let mut markers : Array[Int] = []
+    let mut runs : Array[Int32] = []
+    let mut markers : Array[Int32] = []
     let mut separated = false
     for child in self.children[paragraph] {
       let node = self.nodes[child]
@@ -323,7 +323,7 @@ fn WordTree::read_index_entries(
 /// Lists native index entry fields and generated indexes without changing document history.
 pub fn Session::indexes(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())

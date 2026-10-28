@@ -1,12 +1,12 @@
 ///|
 priv struct Dependency {
-  sheet : Int
+  sheet : Int32
   range : Range
 }
 
 ///|
 priv struct FormulaWork {
-  mut remaining : Int
+  mut remaining : Int32
   date1904 : Bool
   mut origin : Address
   names : NamedDefinitions
@@ -15,7 +15,7 @@ priv struct FormulaWork {
 ///|
 fn FormulaWork::spend(
   self : FormulaWork,
-  amount~ : Int = 1,
+  amount~ : Int32 = 1,
 ) -> Unit raise @failure.Failure {
   guard amount >= 0 && self.remaining >= amount else {
     @failure.reject(
@@ -28,23 +28,23 @@ fn FormulaWork::spend(
 ///|
 priv struct Calculation {
   names : NamedDefinitions
-  sources : Map[(Int, String), String]
-  expressions : Map[(Int, String), Expression]
-  dependencies : Map[(Int, String), Array[Dependency]]
-  values : Map[(Int, String), Value]
-  hyperlinks : Map[(Int, String), String?]
-  order : Array[(Int, String)]
-  uncomputed : Map[(Int, String), String]
-  guarded_ranges : Map[Int, Array[Range]]
+  sources : Map[(Int32, String), String]
+  expressions : Map[(Int32, String), Expression]
+  dependencies : Map[(Int32, String), Array[Dependency]]
+  values : Map[(Int32, String), Value]
+  hyperlinks : Map[(Int32, String), String?]
+  order : Array[(Int32, String)]
+  uncomputed : Map[(Int32, String), String]
+  guarded_ranges : Map[Int32, Array[Range]]
   mut protected_visibility : Bool
 }
 
 ///|
 fn referenced_sheet(
   sheets : Array[Sheet],
-  current : Int,
+  current : Int32,
   name : String?,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   guard name is Some(name) else { return current }
   for index, sheet in sheets {
     if sheet.name.to_lower() == name.to_lower() {
@@ -58,10 +58,10 @@ fn referenced_sheet(
 fn Expression::dependencies(
   self : Expression,
   sheets : Array[Sheet],
-  current : Int,
+  current : Int32,
   work : FormulaWork,
   output : Array[Dependency],
-  depth : Int,
+  depth : Int32,
   hyperlink~ : Ref[Bool]? = None,
   uncomputed~ : Ref[String?]? = None,
 ) -> Unit raise @failure.Failure {
@@ -190,11 +190,11 @@ fn Expression::dependencies(
 ///|
 fn Calculation::visit(
   self : Calculation,
-  key : (Int, String),
-  formulas : Map[Int, Array[(Int, String)]],
-  marks : Map[(Int, String), Int],
+  key : (Int32, String),
+  formulas : Map[Int32, Array[(Int32, String)]],
+  marks : Map[(Int32, String), Int32],
   work : FormulaWork,
-  depth : Int,
+  depth : Int32,
 ) -> Unit raise @failure.Failure {
   work.spend()
   guard depth <= 256 else {
@@ -228,7 +228,7 @@ fn Calculation::visit(
 fn Calculation::build(
   sheets : Array[Sheet],
   previous : Calculation?,
-  changed : Array[(Int, Range)],
+  changed : Array[(Int32, Range)],
   date1904 : Bool,
   workbook : @xml.Document,
   tables~ : Array[StructuredTable],
@@ -270,7 +270,7 @@ fn Calculation::build(
     names,
     origin: { row: 1, column: 1, },
   }
-  let formulas : Map[Int, Array[(Int, String)]] = Map([])
+  let formulas : Map[Int32, Array[(Int32, String)]] = Map([])
   let mut references = 0
   let mut tokens = 0
   for index, sheet in sheets {
@@ -328,7 +328,7 @@ fn Calculation::build(
       }
     }
   }
-  let marks : Map[(Int, String), Int] = Map([])
+  let marks : Map[(Int32, String), Int32] = Map([])
   for key in calculation.sources.keys() {
     calculation.visit(key, formulas, marks, work, 0)
   }

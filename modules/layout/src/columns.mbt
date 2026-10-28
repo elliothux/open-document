@@ -9,7 +9,7 @@ pub extend Column with ToJson::{to_json}
 
 ///|
 pub(all) struct Columns {
-  count : Int
+  count : Int32
   gap : Double
   separator : Bool
   custom : Array[Column]
@@ -20,7 +20,7 @@ pub extend Columns with ToJson::{to_json}
 
 ///|
 pub fn Columns::new(
-  count~ : Int = 1,
+  count~ : Int32 = 1,
   gap~ : Double = 36,
   separator~ : Bool = false,
   custom~ : Array[Column] = [],
@@ -32,7 +32,7 @@ pub fn Columns::new(
 fn Columns::frame(
   self : Columns,
   page : PageSetup,
-  index : Int,
+  index : Int32,
 ) -> (Double, Double) {
   let full = page.width - page.left - page.right
   if self.custom.is_empty() {
@@ -177,14 +177,14 @@ fn column_body(
   endnotes~ : Array[Note]? = None,
   flushFootnotes~ : Bool = true,
   continuation~ : SectionContinuation? = None,
-) -> (Pagination, Array[Array[Line]], Int, Int, PaginationCache?) raise @failure.Failure {
+) -> (Pagination, Array[Array[Line]], Int32, Int32, PaginationCache?) raise @failure.Failure {
   let columns = flow.columns
   let note_references = note_references(probe, flow, cache, profile, images)
   ignore(columns.width(flow.page))
   for setup in setups + page_setups {
     ignore(columns.width(setup))
   }
-  let run = fn(balance : (Int, Double)?) raise @failure.Failure {
+  let run = fn(balance : (Int32, Double)?) raise @failure.Failure {
     let wraps = continuation
       .map(state => !wrapping_rects([state.frame], 1).is_empty())
       .unwrap_or(false) ||

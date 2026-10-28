@@ -3,7 +3,7 @@
 /// Supply the current layout when selected cells contain page fields.
 pub fn Session::table_clipboard(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   cut~ : Bool = false,
   layout? : @layout.Layout,
@@ -76,7 +76,7 @@ pub fn Session::table_clipboard(
   }
   // Each row has one separator per column, including its final LF.
   let mut units = positions.to_int()
-  let fields : Map[(Int, Int), String] = Map([])
+  let fields : Map[(Int32, Int32), String] = Map([])
   for cell in owners {
     let (row, column) = grid.owners[cell]
     let paragraphs = grid.model.rows[row][column]

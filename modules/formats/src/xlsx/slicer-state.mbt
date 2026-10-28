@@ -47,7 +47,7 @@ fn Session::affected_slicer_caches(
 }
 
 ///|
-fn slicer_value_order(left : Value, right : Value) -> Int {
+fn slicer_value_order(left : Value, right : Value) -> Int32 {
   let kind = fn(value : Value) {
     match value {
       Number(_) => 1
@@ -102,7 +102,7 @@ fn Session::sync_slicer_state(
   let filters = data.filter_indices(
     settings.filters.filter(filter => filter.field != cache.field),
   )
-  let available : Map[Int, Bool] = Map([])
+  let available : Map[Int32, Bool] = Map([])
   let available_data = {
     ..data,
     source_filters: data.source_filters.filter(filter => filter.0 != cache.field),

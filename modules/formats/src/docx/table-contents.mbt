@@ -35,7 +35,7 @@ fn Session::prepare_table_contents(
   }
   let targets = cells.owners
   let steps : Array[@xml.Edit] = []
-  let affected : Array[Int] = []
+  let affected : Array[Int32] = []
   let mut candidate = self.document()
   let mut result : PreparedEdit? = None
   let mut bytes = 0
@@ -79,7 +79,7 @@ fn Session::prepare_table_contents(
 ///|
 fn WordTree::cell_contents_selection(
   self : WordTree,
-  cell : Int,
+  cell : Int32,
   texts : Array[TextNode],
 ) -> Selection {
   let paragraphs = self.table_children(cell, "p")

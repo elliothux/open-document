@@ -2,8 +2,8 @@
 fn formatting_boundary(
   tree : WordTree,
   texts : Array[TextNode],
-  offset : Int,
-) -> (Int, Int) {
+  offset : Int32,
+) -> (Int32, Int32) {
   for item in texts; cursor = 0 {
     let length = inline_text(tree.nodes[item.id]).length()
     if offset <= cursor + length {
@@ -102,7 +102,7 @@ fn Session::format_character_document(
       }
       continue
     }
-    let runs : Array[Int] = []
+    let runs : Array[Int32] = []
     for item in texts {
       if !runs.contains(item.run) {
         runs.push(item.run)
@@ -145,7 +145,7 @@ fn Session::format_character_document(
       }
       let run = tree.nodes[id]
       let opening = source[run.start:run.opening_end].to_owned()
-      let boundaries : Array[(Int, Int, String)] = []
+      let boundaries : Array[(Int32, Int32, String)] = []
       if left == 0 {
         if properties_change(tree, document, id, "rPr", markup) is Some(change) {
           changes.push(change)
@@ -171,7 +171,7 @@ fn Session::format_character_document(
       for item in run_texts {
         let node = tree.nodes[item.id]
         let points = boundaries.filter(point => point.0 == item.id)
-        let middle : Array[(Int, String)] = []
+        let middle : Array[(Int32, String)] = []
         for (_, offset, frame) in points {
           units += frame.length()
           guard units <= limit else {
@@ -245,7 +245,7 @@ fn Session::format_character_document(
 /// Applies direct formatting to the explicit range, or to subsequent input at a caret.
 pub fn Session::set_character_format(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   patch : CharacterFormat,
   probe? : @layout.TextProbe,

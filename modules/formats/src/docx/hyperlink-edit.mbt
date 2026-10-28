@@ -83,9 +83,9 @@ fn Session::ensure_hyperlink_relationships(
 fn hyperlink_opening(
   tree : WordTree,
   document : @xml.Document,
-  old : Int?,
+  old : Int32?,
   relation : String,
-  paragraph : Int,
+  paragraph : Int32,
 ) -> (String, String) raise @failure.Failure {
   let internal = relation.has_prefix("#")
   let uri = if internal {
@@ -176,7 +176,7 @@ fn hyperlink_opening(
 fn hyperlink_changes(
   document : @xml.Document,
   range : ParagraphRange,
-  selected : Array[Int],
+  selected : Array[Int32],
   relation : String?,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let tree = WordTree::new(document)
@@ -184,9 +184,9 @@ fn hyperlink_changes(
   let picked = Map::from_array(selected.map(id => (id, true)))
   let mut units = 0
   fn change(
-    paragraph : Int,
-    start : Int,
-    end : Int,
+    paragraph : Int32,
+    start : Int32,
+    end : Int32,
     markup : String,
   ) -> Unit raise @failure.Failure {
     units += markup.length()
@@ -277,7 +277,7 @@ fn hyperlink_changes(
 /// Edits a URL or #bookmark hyperlink; a caret outside a link requires explicit display text.
 pub fn Session::set_hyperlink(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   target : String?,
   text~ : String? = None,

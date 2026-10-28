@@ -3,10 +3,10 @@ fn ConditionalRules::alignment_ranges(
   self : ConditionalRules,
   current : Sheet,
   styles : Array[CellStyle],
-  rows : Map[Int, Bool],
+  rows : Map[Int32, Bool],
   sheets : Array[Sheet],
-  index : Int,
-  values : Map[(Int, String), Value],
+  index : Int32,
+  values : Map[(Int32, String), Value],
   work : FormulaWork,
 ) -> Array[Range] raise @failure.Failure {
   if !styles.any(style => {
@@ -32,8 +32,8 @@ fn ConditionalRules::alignment_ranges(
     }
   })
   let result : Array[Range] = []
-  let mut active : (Int, String, Range)? = None
-  let finish = fn(run : (Int, String, Range)?) {
+  let mut active : (Int32, String, Range)? = None
+  let finish = fn(run : (Int32, String, Range)?) {
     if run is Some((_, _, range)) && range.left < range.right {
       result.push(range)
     }

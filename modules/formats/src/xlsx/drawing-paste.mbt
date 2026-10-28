@@ -37,7 +37,7 @@ fn Session::drawing_fragment_shape(
 ///|
 pub fn Session::paste_drawing(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   fragment : String,
   probe : @layout.TextProbe,

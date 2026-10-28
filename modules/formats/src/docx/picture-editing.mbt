@@ -8,11 +8,11 @@ let picture_inline_uri = "http://schemas.openxmlformats.org/drawingml/2006/wordp
 fn Session::editable_picture(
   self : Session,
   tree : WordTree,
-  id : Int,
+  id : Int32,
   remove~ : Bool = false,
   replace~ : Bool = false,
   position~ : Bool = false,
-) -> (PictureFrame, Int, Int, Int?) raise @failure.Failure {
+) -> (PictureFrame, Int32, Int32, Int32?) raise @failure.Failure {
   let paragraph = self.drawing_paragraph(tree, id)
   let image = self.image_frame(tree, id) catch {
     @failure.Failure(code="unsupported-layout", message~, ..) =>
@@ -27,8 +27,8 @@ fn Session::editable_picture(
 fn Session::drawing_paragraph(
   self : Session,
   tree : WordTree,
-  id : Int,
-) -> Int raise @failure.Failure {
+  id : Int32,
+) -> Int32 raise @failure.Failure {
   self.check_picture_context(tree)
   guard tree.nodes.get(id) is Some(node) &&
     node.uri == word_uri &&
@@ -73,14 +73,14 @@ fn Session::drawing_paragraph(
 ///|
 fn WordTree::picture_content(
   tree : WordTree,
-  id : Int,
+  id : Int32,
   remove~ : Bool,
   replace~ : Bool,
   position~ : Bool,
-) -> (Int, Int?) raise @failure.Failure {
-  let extents : Array[Int] = []
-  let fills : Array[Int] = []
-  let crops : Array[Int] = []
+) -> (Int32, Int32?) raise @failure.Failure {
+  let extents : Array[Int32] = []
+  let fills : Array[Int32] = []
+  let crops : Array[Int32] = []
   for child in tree.descendants(id) {
     let node = tree.nodes[child]
     guard [
@@ -182,7 +182,7 @@ fn WordTree::picture_content(
 ///|
 pub fn Session::pictures(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
@@ -257,8 +257,8 @@ pub fn Session::pictures(
 ///|
 pub fn Session::edit_picture(
   self : Session,
-  revision : Int,
-  id : Int,
+  revision : Int32,
+  id : Int32,
   width : Double,
   height : Double,
   crop : Array[Double],
@@ -278,7 +278,7 @@ pub fn Session::edit_picture(
 ///|
 fn Session::prepare_picture_resize(
   self : Session,
-  id : Int,
+  id : Int32,
   width : Double,
   height : Double,
   crop : Array[Double],

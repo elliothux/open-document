@@ -1,9 +1,9 @@
 ///|
 fn animation_set(
-  id : Int,
+  id : Int32,
   target : String,
   visible : Bool,
-  delay~ : Int = 0,
+  delay~ : Int32 = 0,
 ) -> String {
   let value = if visible { "visible" } else { "hidden" }
   "<od:set><od:cBhvr><od:cTn id=\"\{id}\" dur=\"1\" fill=\"hold\"><od:stCondLst><od:cond delay=\"\{delay}\"/></od:stCondLst></od:cTn><od:tgtEl><od:spTgt spid=\"\{target}\"/></od:tgtEl><od:attrNameLst><od:attrName>style.visibility</od:attrName></od:attrNameLst></od:cBhvr><od:to><od:strVal val=\"\{value}\"/></od:to></od:set>"
@@ -11,8 +11,8 @@ fn animation_set(
 
 ///|
 fn animation_parallel(
-  id : Int,
-  delay : Int?,
+  id : Int32,
+  delay : Int32?,
   content : String,
   automatic~ : Bool = false,
 ) -> String {

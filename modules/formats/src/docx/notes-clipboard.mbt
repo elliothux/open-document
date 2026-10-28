@@ -2,8 +2,8 @@
 fn Session::fragment_note(
   self : Session,
   tree : WordTree,
-  id : Int,
-  limit : Int,
+  id : Int32,
+  limit : Int32,
 ) -> String raise @failure.Failure {
   let node = tree.nodes[id]
   let kind = if node.name == "footnoteReference" {
@@ -27,8 +27,8 @@ fn Session::fragment_note(
       "protected-content", "Note lists require copied note numbering",
     )
   }
-  let markers : Map[Int, (String, String)] = Map([])
-  let objects : Map[Int, String] = Map([])
+  let markers : Map[Int32, (String, String)] = Map([])
+  let objects : Map[Int32, String] = Map([])
   for id in source.tree.descendants(note.node) {
     if source.tree.nodes[id].uri == word_uri &&
       source.tree.nodes[id].name == kind + "Ref" {

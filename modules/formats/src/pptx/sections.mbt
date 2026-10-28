@@ -3,7 +3,7 @@ let section_extension = "{521415D9-36F7-43E2-AB2F-B90AF26B5E84}"
 
 ///|
 priv struct Section {
-  node : Int
+  node : Int32
   id : String
   name : String
   slides : Array[String]
@@ -125,7 +125,7 @@ fn read_sections(tree : Tree) -> Array[Section] raise @failure.Failure {
     @failure.reject("limit-exceeded", "Sections exceed 256")
   }
   let ids = section_slide_ids(tree)
-  let positions : Map[String, Int] = Map([])
+  let positions : Map[String, Int32] = Map([])
   for i, id in ids {
     positions[id] = i
   }

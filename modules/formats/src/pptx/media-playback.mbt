@@ -1,7 +1,7 @@
 ///|
 pub(all) struct MediaPlaybackSettings {
   cycling : Bool
-  volume : Int
+  volume : Int32
   mute : Bool
 } derive(Eq)
 
@@ -206,7 +206,7 @@ fn read_media_nodes(
 fn media_nodes_markup(
   nodes : Map[String, (String, MediaPlaybackSettings)],
   part : String,
-  first : Int,
+  first : Int32,
 ) -> String {
   let keys = nodes.keys().to_array()
   keys.sort()

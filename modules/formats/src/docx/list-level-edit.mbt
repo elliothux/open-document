@@ -2,8 +2,8 @@
 pub(all) struct ListLevelFormat {
   format : String
   pattern : String
-  start : Int
-  restart : Int?
+  start : Int32
+  restart : Int32?
   align : String
   suffix : String
   left : FormatChange[Double]
@@ -15,8 +15,8 @@ pub(all) struct ListLevelFormat {
 pub fn ListLevelFormat::new(
   format : String,
   pattern : String,
-  start~ : Int = 1,
-  restart~ : Int? = None,
+  start~ : Int32 = 1,
+  restart~ : Int32? = None,
   align~ : String = "left",
   suffix~ : String = "tab",
   left~ : FormatChange[Double] = Keep,
@@ -30,9 +30,9 @@ pub fn ListLevelFormat::new(
 /// Updates the effective level's owning definition without requiring a body selection.
 pub fn Session::update_list_level(
   self : Session,
-  revision : Int,
-  instance : Int,
-  index : Int,
+  revision : Int32,
+  instance : Int32,
+  index : Int32,
   format : ListLevelFormat,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
@@ -156,10 +156,10 @@ fn NumberingContext::validate_level_labels(
   self : NumberingContext,
   tree : WordTree,
   styles : Styles,
-  abstracts : Map[Int, Bool],
-) -> Array[Int] raise @failure.Failure {
-  let affected : Array[Int] = []
-  let counters : Map[Int, NumberCounter] = Map([])
+  abstracts : Map[Int32, Bool],
+) -> Array[Int32] raise @failure.Failure {
+  let affected : Array[Int32] = []
+  let counters : Map[Int32, NumberCounter] = Map([])
   for p in tree.order {
     if tree.nodes[p].uri != word_uri || tree.nodes[p].name != "p" {
       continue

@@ -1,9 +1,9 @@
 ///|
 fn WordTree::check_fragment_shape(
   self : WordTree,
-  drawing : Int,
+  drawing : Int32,
 ) -> Unit raise @failure.Failure {
-  let text_nodes : Map[Int, Bool] = Map([])
+  let text_nodes : Map[Int32, Bool] = Map([])
   for
     content in self
     .descendants(drawing)
@@ -23,8 +23,8 @@ fn WordTree::check_fragment_shape(
 ///|
 fn WordTree::check_shape_metadata(
   self : WordTree,
-  drawing : Int,
-  text_nodes : Map[Int, Bool],
+  drawing : Int32,
+  text_nodes : Map[Int32, Bool],
 ) -> Unit raise @failure.Failure {
   let root = self.nodes[drawing]
   guard root.uri == word_uri &&
@@ -156,8 +156,8 @@ fn WordTree::check_shape_metadata(
 fn Session::fragment_drawing(
   self : Session,
   tree : WordTree,
-  id : Int,
-  limit : Int,
+  id : Int32,
+  limit : Int32,
 ) -> String raise @failure.Failure {
   if tree.drawing_data(id).1.attribute("uri") == Some(chart_uri) {
     return self.fragment_chart(tree, id, limit)
@@ -241,7 +241,7 @@ fn Session::fragment_drawing(
 ///|
 fn WordTree::check_text_box_clipboard_metadata(
   self : WordTree,
-  id : Int,
+  id : Int32,
 ) -> Unit raise @failure.Failure {
   let node = self.nodes[id]
   guard (match node.name {
@@ -267,7 +267,7 @@ fn WordTree::check_text_box_clipboard_metadata(
 ///|
 fn WordTree::remap_fragment_drawing_identity(
   self : WordTree,
-  drawing : Int,
+  drawing : Int32,
   identity : String,
   anchor_identity : String,
   changes : Array[@xml.SourceChange],
@@ -311,7 +311,7 @@ fn WordTree::remap_fragment_drawing_identity(
 }
 
 ///|
-fn fragment_anchor_identity(identity : Int) -> String {
+fn fragment_anchor_identity(identity : Int32) -> String {
   let hex = identity.to_string(radix=16).to_upper()
   "0".repeat(8 - hex.length()) + hex
 }

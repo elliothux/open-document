@@ -155,7 +155,7 @@ fn comment_thread_markup(
 ///|
 fn comment_attribute_change(
   tree : WordTree,
-  id : Int,
+  id : Int32,
   uri : String,
   name : String,
   value : String,

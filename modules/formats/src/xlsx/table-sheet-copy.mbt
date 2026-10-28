@@ -32,7 +32,7 @@ fn Session::copy_sheet_tables(
   self : Session,
   source : Sheet,
   target : Sheet,
-  number : Int,
+  number : Int32,
   created : Map[String, @xml.Document],
   remapped : Map[String, String],
   types : StringBuilder,
@@ -50,7 +50,7 @@ fn Session::copy_sheet_tables(
       "limit-exceeded", "Copied tables exceed workbook table or column budget",
     )
   }
-  let ids : Map[Int, Bool] = Map([])
+  let ids : Map[Int32, Bool] = Map([])
   let names : Map[String, Bool] = Map([])
   for table in tables {
     ids[table.id] = true

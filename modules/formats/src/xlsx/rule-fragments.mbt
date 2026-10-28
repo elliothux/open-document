@@ -6,7 +6,7 @@ fn transform_conditional_rules(
   source_position : (Address) -> Address?,
   transform : (String) -> String raise @failure.Failure,
   work : RuleShiftWork,
-) -> (Array[@xml.SourceChange], Int) raise @failure.Failure {
+) -> (Array[@xml.SourceChange], Int32) raise @failure.Failure {
   shift_rule_clone_guard(tree, container)
   let rules = tree.all(container.id, "cfRule")
   let output = StringBuilder()

@@ -2,8 +2,8 @@
 priv struct TextHyperlinkSpan {
   paragraph : TextParagraph
   run : TextRun?
-  start : Int
-  end : Int
+  start : Int32
+  end : Int32
 }
 
 ///|

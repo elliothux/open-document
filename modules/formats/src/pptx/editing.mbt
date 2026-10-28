@@ -258,7 +258,7 @@ fn Session::commit_slides(
 ///|
 pub fn Session::undo(
   self : Session,
-  revision : Int,
+  revision : Int32,
   redo~ : Bool = false,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
@@ -458,7 +458,7 @@ pub fn Session::undo(
 ///|
 pub fn Session::save(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Bytes raise @failure.Failure {
   self.check_revision(revision)
   self.check_candidate_idle()
@@ -509,7 +509,7 @@ fn Session::editable(
 ///|
 pub fn Session::begin(
   self : Session,
-  revision : Int,
+  revision : Int32,
   kind : String,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
@@ -548,8 +548,8 @@ pub fn Session::begin(
 ///|
 fn Session::gesture(
   self : Session,
-  revision : Int,
-  id : Int,
+  revision : Int32,
+  id : Int32,
 ) -> Candidate raise @failure.Failure {
   self.check_revision(revision)
   guard self.candidate is Some(candidate) &&
@@ -563,8 +563,8 @@ fn Session::gesture(
 ///|
 pub fn Session::cancel(
   self : Session,
-  revision : Int,
-  id : Int,
+  revision : Int32,
+  id : Int32,
 ) -> Json raise @failure.Failure {
   ignore(self.gesture(revision, id))
   self.candidate = None
@@ -575,8 +575,8 @@ pub fn Session::cancel(
 ///|
 pub fn Session::finish(
   self : Session,
-  revision : Int,
-  id : Int,
+  revision : Int32,
+  id : Int32,
   probe : @layout.TextProbe,
   profile : Map[String, String],
 ) -> Json raise @failure.Failure {
@@ -627,8 +627,8 @@ pub fn Session::finish(
 ///|
 pub fn Session::transform(
   self : Session,
-  revision : Int,
-  id : Int,
+  revision : Int32,
+  id : Int32,
   x : Double,
   y : Double,
   width : Double,

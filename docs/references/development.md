@@ -76,7 +76,7 @@ Tailwind 在构建时扫描共用控件及领域面板，省略 Preflight。生�
 
 ## 命令与开发预览
 
-使用仓库固定的 MoonBit 和 Bun 工具链：
+使用 `moon-toolchain` 固定的 MoonBit 0.1.20261023 和 `.bun-version` 固定的 Bun 1.4.2。MoonBit 升级后，用 `bun run format` 和 `bun run api` 同步官方格式及生成接口：
 
 ```sh
 bun install --frozen-lockfile

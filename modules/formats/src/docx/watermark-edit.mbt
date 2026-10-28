@@ -16,8 +16,8 @@ fn WordTree::header_watermark(
 /// Reads a section's effective watermarks and document-wide picture resources.
 pub fn Session::watermark(
   self : Session,
-  revision : Int,
-  sectionIndex : Int,
+  revision : Int32,
+  sectionIndex : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision_value(revision)
   guard sectionIndex >= 0 && sectionIndex < 1024 else {
@@ -80,8 +80,8 @@ pub fn Session::watermark(
 /// Sets or removes a native text or picture watermark across all three stored header variants.
 pub fn Session::set_watermark(
   self : Session,
-  revision : Int,
-  sectionIndex : Int,
+  revision : Int32,
+  sectionIndex : Int32,
   value : Watermark?,
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],

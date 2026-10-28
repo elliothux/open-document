@@ -6,7 +6,7 @@ priv struct TimelinePeriod {
 }
 
 ///|
-fn timeline_period_key(value : Double, level : Int) -> Int {
+fn timeline_period_key(value : Double, level : Int32) -> Int32 {
   let (year, month, _) = pivot_calendar_parts(value, false)
   match level {
     0 => year
@@ -17,7 +17,7 @@ fn timeline_period_key(value : Double, level : Int) -> Int {
 }
 
 ///|
-fn timeline_period(key : Int, level : Int) -> TimelinePeriod {
+fn timeline_period(key : Int32, level : Int32) -> TimelinePeriod {
   if level == 3 {
     let (year, month, day) = pivot_calendar_parts(key.to_double(), false)
     return {
@@ -106,16 +106,16 @@ fn TimelineDrawing::header_height(self : TimelineDrawing) -> Double {
 
 ///|
 priv struct TimelineGeometry {
-  lower : Int
-  upper : Int
-  first : Int
+  lower : Int32
+  upper : Int32
+  first : Int32
   header : Double
   line : Double
   width : Double
   column : Double
   selection : (Double, Double)?
-  cells : Array[(Int, TimelinePeriod, @layout.Border)]
-  handles : Array[(Int, Int, String, @layout.Border)]
+  cells : Array[(Int32, TimelinePeriod, @layout.Border)]
+  handles : Array[(Int32, Int32, String, @layout.Border)]
 }
 
 ///|
@@ -168,7 +168,7 @@ fn TimelineDrawing::geometry(
   let bar_height = (height - bar_y - (if view.scrollbar { 18.0 } else { 7.2 }))
     .max(0)
     .min(20)
-  let cells : Array[(Int, TimelinePeriod, @layout.Border)] = []
+  let cells : Array[(Int32, TimelinePeriod, @layout.Border)] = []
   for offset in 0..<count {
     let key = first + offset
     let x = 7.2 + offset.to_double() * column
@@ -185,7 +185,7 @@ fn TimelineDrawing::geometry(
       ),
     )
   }
-  let handles : Array[(Int, Int, String, @layout.Border)] = []
+  let handles : Array[(Int32, Int32, String, @layout.Border)] = []
   if view.selected_range() is Some(range) {
     for (handle, value) in [(1, range.start), (2, range.end)] {
       let date = pivot_date_parse(value, false)

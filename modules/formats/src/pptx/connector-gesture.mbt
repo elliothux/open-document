@@ -47,7 +47,7 @@ fn Session::drag_connector(
   candidate : Candidate,
   dx : Double,
   dy : Double,
-  handle : Int,
+  handle : Int32,
   tolerance : Double,
 ) -> Json raise @failure.Failure {
   guard [1, 2].contains(handle) else {

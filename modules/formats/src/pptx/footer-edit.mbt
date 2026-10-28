@@ -1,7 +1,7 @@
 ///|
 fn Session::set_footer(
   self : Session,
-  index : Int,
+  index : Int32,
   content : FooterContent,
   all : Bool,
   probe : @layout.TextProbe,

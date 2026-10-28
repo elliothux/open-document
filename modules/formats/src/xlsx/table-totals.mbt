@@ -2,7 +2,7 @@
 fn Session::show_table_totals(
   self : Session,
   sheet : String,
-  id : Int,
+  id : Int32,
   visible : Bool,
 ) -> Json raise @failure.Failure {
   let table = self.table_for_edit(sheet, id)

@@ -1,6 +1,6 @@
 ///|
 priv struct SlicerMember {
-  index : Int
+  index : Int32
   value : Value
   selected : Bool
   hasData : Bool
@@ -12,14 +12,14 @@ priv struct SlicerCache {
   name : String
   source : String
   pivot_cache : String
-  field : Int
+  field : Int32
   pivots : Array[PivotLocation]
   members : Array[SlicerMember]
   sort : String
   cross_filter : String
   custom_sort : Bool
   show_missing : Bool
-  source_units : Int
+  source_units : Int32
 }
 
 ///|
@@ -204,7 +204,7 @@ fn Session::read_slicer_cache(
     .unwrap_or(true) else {
     @failure.reject("protected-content", "Slicer member count is inconsistent")
   }
-  let indices : Map[Int, Bool] = Map([])
+  let indices : Map[Int32, Bool] = Map([])
   let members = entries.map(node => {
     slicer_node_profile(tree, node, ["x", "s", "nd"], [])
     let index = natural(node.attribute("x").unwrap_or(""), values.length() - 1)

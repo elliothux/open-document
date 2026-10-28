@@ -57,7 +57,7 @@ fn Session::select_comment(
 /// Cycles through editable open root anchors in source document order without writing history.
 pub fn Session::navigate_comment(
   self : Session,
-  revision : Int,
+  revision : Int32,
   direction : String,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
@@ -81,13 +81,13 @@ pub fn Session::navigate_comment(
   if anchors.is_empty() {
     return { "comment": Json::null(), "state": self.edit_result([]) }
   }
-  let rank : Map[Int, Int] = Map([])
+  let rank : Map[Int32, Int32] = Map([])
   for id in tree.order {
     if tree.nodes[id].uri == word_uri && tree.nodes[id].name == "p" {
       rank[id] = rank.length()
     }
   }
-  let compare = fn(a : Position, b : Position) -> Int {
+  let compare = fn(a : Position, b : Position) -> Int32 {
     let paragraph = rank[a.paragraph].compare(rank[b.paragraph])
     if paragraph == 0 {
       a.offset.compare(b.offset)

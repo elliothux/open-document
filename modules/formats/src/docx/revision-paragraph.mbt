@@ -1,5 +1,5 @@
 ///|
-fn WordTree::is_paragraph_revision(self : WordTree, id : Int) -> Bool {
+fn WordTree::is_paragraph_revision(self : WordTree, id : Int32) -> Bool {
   guard self.nodes.get(id) is Some(node) &&
     node.uri == word_uri &&
     ["ins", "del"].contains(node.name) &&
@@ -16,7 +16,7 @@ fn WordTree::is_paragraph_revision(self : WordTree, id : Int) -> Bool {
 }
 
 ///|
-fn WordTree::paragraph_revision(self : WordTree, paragraph : Int) -> Int? {
+fn WordTree::paragraph_revision(self : WordTree, paragraph : Int32) -> Int32? {
   self
   .child(paragraph, "pPr")
   .bind(id => self.child(id, "rPr"))
@@ -30,8 +30,8 @@ fn WordTree::paragraph_revision(self : WordTree, paragraph : Int) -> Int? {
 ///|
 fn WordTree::check_paragraph_revision(
   self : WordTree,
-  id : Int,
-) -> Int raise @failure.Failure {
+  id : Int32,
+) -> Int32 raise @failure.Failure {
   guard self.is_paragraph_revision(id) else {
     @failure.reject("protected-content", "Invalid paragraph revision parent")
   }
@@ -62,8 +62,8 @@ fn WordTree::check_paragraph_revision(
 ///|
 fn WordTree::revision_next_paragraph(
   self : WordTree,
-  paragraph : Int,
-) -> Int raise @failure.Failure {
+  paragraph : Int32,
+) -> Int32 raise @failure.Failure {
   let siblings = self.children[self.nodes[paragraph].parent]
   let index = siblings.search(paragraph).unwrap()
   guard siblings.get(index + 1) is Some(next) &&
@@ -79,8 +79,8 @@ fn WordTree::revision_next_paragraph(
 ///|
 fn WordTree::paragraph_revision_properties(
   self : WordTree,
-  id : Int,
-) -> Array[Int] raise @failure.Failure {
+  id : Int32,
+) -> Array[Int32] raise @failure.Failure {
   let run = if self.nodes[id].name == "pPr" {
     self.child(id, "rPr")
   } else if self.nodes[id].name == "rPr" &&
@@ -104,7 +104,7 @@ fn WordTree::paragraph_revision_properties(
 fn paragraph_revision_properties(
   tree : WordTree,
   document : @xml.Document,
-  paragraph : Int,
+  paragraph : Int32,
   markup : String,
 ) -> String raise @failure.Failure {
   let run = tree
@@ -125,8 +125,8 @@ fn paragraph_revision_properties(
 fn Session::merge_review_paragraphs(
   self : Session,
   document : @xml.Document,
-  first : Int,
-) -> (@xml.Document, @xml.Edit, Int) raise @failure.Failure {
+  first : Int32,
+) -> (@xml.Document, @xml.Edit, Int32) raise @failure.Failure {
   let tree = WordTree::new(document)
   let last = tree.revision_next_paragraph(first)
   ignore(tree.review_text_parts(first))

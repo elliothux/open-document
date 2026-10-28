@@ -2,14 +2,14 @@
 fn Sheet::shift_cells(
   self : Sheet,
   change : AxisChange,
-  limit : Int,
+  limit : Int32,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let (low, high) = change.band.unwrap()
   let tree = Tree::new(self.document)
   let source = self.document.source()
-  let rows : Map[Int, Array[(Int, String)]] = Map([])
-  let changed : Map[Int, Bool] = Map([])
-  let originals : Map[Int, Cell] = Map([])
+  let rows : Map[Int32, Array[(Int32, String)]] = Map([])
+  let changed : Map[Int32, Bool] = Map([])
+  let originals : Map[Int32, Cell] = Map([])
   let mut added = 0
   let append = fn(
     address : Address,

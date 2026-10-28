@@ -2,12 +2,12 @@
 /// Resolve a source font glyph without shaping or changing its position.
 pub fn TextProbe::source_glyph(
   self : TextProbe,
-  index : Int,
-  glyph : Int,
+  index : Int32,
+  glyph : Int32,
   name : String,
-  codepoint : Int,
+  codepoint : Int32,
   symbolic : Bool,
-) -> (String, Int) raise @failure.Failure {
+) -> (String, Int32) raise @failure.Failure {
   self.check()
   guard index >= 0 && index < self.fonts.length() else {
     @failure.reject("missing-font", "Unknown source font")
@@ -17,7 +17,7 @@ pub fn TextProbe::source_glyph(
     glyph.reinterpret_as_uint()
   } else if symbolic {
     // Symbolic TrueType fonts use their own cmap, independently of ToUnicode.
-    let mut found : UInt? = None
+    let mut found : UInt32? = None
     for code in [codepoint, codepoint + 0xf000] {
       if found is None {
         if font.font.glyph_for_codepoint(code.reinterpret_as_uint())

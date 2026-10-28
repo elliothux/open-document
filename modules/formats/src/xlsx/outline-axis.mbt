@@ -28,7 +28,7 @@ fn Session::axis_outline(
   let filter_source = current
   let mut inserted_hidden = false
   if change.insert && before.level(change.first - 1) > 0 {
-    let metadata : Map[Int, Array[(String, String)]] = Map([])
+    let metadata : Map[Int32, Array[(String, String)]] = Map([])
     inserted_hidden = before.groups.any(group => {
       group.collapsed &&
       group.first < change.first &&
@@ -47,8 +47,8 @@ fn Session::axis_outline(
     current = read(document)
   }
   let after = current.outline_axis(change.rows)
-  let metadata : Map[Int, Array[(String, String)]] = Map([])
-  let retained : Map[Int, Bool] = Map([])
+  let metadata : Map[Int32, Array[(String, String)]] = Map([])
+  let retained : Map[Int32, Bool] = Map([])
   for marker in before.collapsed.keys() {
     if !before.groups.any(group => group.summary == marker) &&
       change.interval(marker, marker) is Some((marker, _)) {

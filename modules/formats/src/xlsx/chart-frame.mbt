@@ -1,7 +1,7 @@
 ///|
 pub fn Session::set_chart_frame(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   id : String,
   anchor : String,

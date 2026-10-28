@@ -17,7 +17,7 @@ priv struct ConsolidatePlan {
   target : Range
   edit : CellEditPlan
   changed : Bool
-  overwritten : Int
+  overwritten : Int32
 }
 
 ///|
@@ -39,8 +39,8 @@ fn Session::consolidate_plan(
   let areas = settings.sources.map(source => {
     (self.sheet_index(source.sheet), Range::parse(source.range))
   })
-  let labels : Map[String, Int] = Map([])
-  let references : Map[(Int, Int), Array[String]] = Map([])
+  let labels : Map[String, Int32] = Map([])
+  let references : Map[(Int32, Int32), Array[String]] = Map([])
   let work : FormulaWork = {
     remaining: 1048576,
     date1904: self.date1904,
@@ -216,7 +216,7 @@ fn Session::consolidate_plan(
 /// Previews linked consolidation output and occupied cells without changing source or history.
 pub fn Session::consolidation(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   settings : ConsolidateSettings,
 ) -> Json raise @failure.Failure {
@@ -243,7 +243,7 @@ fn Session::consolidate_cells(
   self : Session,
   sheet : String,
   settings : ConsolidateSettings,
-  source_revision : Int,
+  source_revision : Int32,
   overwrite : Bool,
 ) -> Json raise @failure.Failure {
   self.check_revision(source_revision)

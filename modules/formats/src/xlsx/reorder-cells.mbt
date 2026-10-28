@@ -4,8 +4,8 @@ fn Session::reorder_cells(
   sheet : String,
   target : Range,
   rows : Bool,
-  positions : Array[Int],
-  order : Array[Int?],
+  positions : Array[Int32],
+  order : Array[Int32?],
   filter~ : AutoFilterState? = None,
   sort~ : StoredSort? = None,
   formatting~ : ConditionalStyleEdit? = None,
@@ -29,9 +29,9 @@ fn Session::reorder_cells(
   }
   let tree = Tree::new(current.document)
   let updates : Map[String, CellContent] = Map([])
-  let styles : Map[String, Int] = Map([])
+  let styles : Map[String, Int32] = Map([])
   let fragments : Map[String, String] = Map([])
-  let moved : Map[Int, Int] = Map([])
+  let moved : Map[Int32, Int32] = Map([])
   for i, destination in positions {
     if order[i] is Some(source) {
       moved[source] = destination

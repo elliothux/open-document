@@ -8,19 +8,19 @@ pub(all) struct FilterCondition {
 pub(all) enum FilterRule {
   Values(Array[String], blank~ : Bool)
   Custom(Array[FilterCondition], all~ : Bool)
-  Rank(Int, top~ : Bool, percent~ : Bool)
+  Rank(Int32, top~ : Bool, percent~ : Bool)
   Average(above~ : Bool)
-  Calendar(String, Int)
+  Calendar(String, Int32)
   Relative(String, (Double, Double)?)
   Dates(Array[String], values~ : Array[String], blank~ : Bool)
   Color(String?, cell_color~ : Bool)
-  ColorStyle(Int, cell_color~ : Bool)
-  Icon(String, Int?)
+  ColorStyle(Int32, cell_color~ : Bool)
+  Icon(String, Int32?)
 } derive(Eq)
 
 ///|
 pub(all) struct FilterColumn {
-  column : Int
+  column : Int32
   rule : FilterRule
 } derive(Eq)
 
@@ -46,10 +46,10 @@ pub extend FilterSettings with Eq::{equal, not_equal}
 priv struct AutoFilterState {
   settings : FilterSettings
   bounds : Range
-  manual : Array[Int]
-  filtered : Array[Int]
+  manual : Array[Int32]
+  filtered : Array[Int32]
   tracked : Bool
-  flags : Map[Int, Array[(String, String)]]
+  flags : Map[Int32, Array[(String, String)]]
   sort : StoredSort?
 } derive(Eq)
 
@@ -60,8 +60,8 @@ let filter_state_uri = "urn:open-document:xlsx:filter-state"
 fn filter_rows(
   text : String,
   range : Range,
-) -> Array[Int] raise @failure.Failure {
-  let result : Array[Int] = []
+) -> Array[Int32] raise @failure.Failure {
+  let result : Array[Int32] = []
   for token in text.split(" ") {
     if token.is_empty() {
       continue
@@ -93,7 +93,7 @@ fn filter_settings(settings : FilterSettings) -> Range raise @failure.Failure {
       "limit-exceeded", "Filters require a header and at most 4096 cells and 256 columns",
     )
   }
-  let seen : Map[Int, Bool] = Map([])
+  let seen : Map[Int32, Bool] = Map([])
   let mut units = 0
   for column in settings.columns {
     guard column.column >= range.left &&
@@ -243,15 +243,15 @@ fn read_filter_node(
   let range = Range::parse(root.attribute("ref").unwrap_or(""))
   ignore(filter_settings({ range: range.name(), columns: [], }))
   let columns : Array[FilterColumn] = []
-  let flags : Map[Int, Array[(String, String)]] = Map([])
+  let flags : Map[Int32, Array[(String, String)]] = Map([])
   let sort = read_sort_state(tree, root.id)
   guard sort.map(state => range.covers(state.bounds)).unwrap_or(true) else {
     @failure.reject(
       "protected-content", "Sort state is outside its filter range",
     )
   }
-  let mut manual : Array[Int] = []
-  let mut filtered : Array[Int] = []
+  let mut manual : Array[Int32] = []
+  let mut filtered : Array[Int32] = []
   let mut tracked = false
   for node in tree.children.get(root.id).unwrap_or([]) {
     guard node.uri == spreadsheet_uri else {

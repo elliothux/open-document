@@ -72,7 +72,7 @@ fn check_sheet_copy_markup(
 ///|
 fn Session::copied_sheet_names(
   self : Session,
-  index : Int,
+  index : Int32,
   name : String,
   tables~ : Array[(StructuredTable, String)] = [],
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
@@ -210,7 +210,7 @@ fn Session::copied_sheet_parts(
   self : Session,
   source : Sheet,
   target : Sheet,
-  number : Int,
+  number : Int32,
 ) -> (
   Map[String, @xml.Document],
   String,

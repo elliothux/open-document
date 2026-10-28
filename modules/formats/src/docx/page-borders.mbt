@@ -1,7 +1,7 @@
 ///|
 fn WordTree::page_borders(
   self : WordTree,
-  section : Int?,
+  section : Int32?,
   themes : Map[String, String],
 ) -> @layout.PageBorders raise @failure.Failure {
   guard section is Some(section) else { return @layout.PageBorders::new() }
@@ -91,7 +91,7 @@ fn WordTree::page_borders(
 fn Session::page_borders_query(
   self : Session,
   tree : WordTree,
-  index : Int,
+  index : Int32,
 ) -> Json {
   try {
     let section = self.editable_page_section(tree, target=Some(index))
@@ -109,8 +109,8 @@ fn Session::page_borders_query(
 ///|
 pub fn Session::set_page_borders(
   self : Session,
-  revision : Int,
-  sectionIndex : Int,
+  revision : Int32,
+  sectionIndex : Int32,
   borders : @layout.PageBorders?,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)

@@ -16,7 +16,7 @@ fn Session::restore_comments(
       present[n.name + ":" + n.attribute("id", uri=word_uri).unwrap_or("")] = true
     }
   }
-  let lost : Map[Int, Bool] = Map([])
+  let lost : Map[Int32, Bool] = Map([])
   for anchor in before.comment_anchors() {
     if !anchor.reason.is_empty() {
       continue

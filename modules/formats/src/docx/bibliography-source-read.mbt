@@ -33,14 +33,14 @@ pub(all) enum BibliographyEdit {
 
 ///|
 priv struct SourceRecord {
-  node : Int
+  node : Int32
   value : BibliographySource
   reason : String
   author_reason : String
 }
 
 ///|
-fn source_text(value : String, limit : Int) -> Bool {
+fn source_text(value : String, limit : Int32) -> Bool {
   value.length() <= limit &&
   @xml.valid_text(value) &&
   value
@@ -85,7 +85,11 @@ fn check_bibliography_source(
 }
 
 ///|
-fn source_children(tree : WordTree, parent : Int, name : String) -> Array[Int] {
+fn source_children(
+  tree : WordTree,
+  parent : Int32,
+  name : String,
+) -> Array[Int32] {
   tree.children[parent].filter(id => {
     tree.nodes[id].uri == tree.nodes[tree.order[0]].uri &&
     tree.nodes[id].name == name
@@ -95,9 +99,9 @@ fn source_children(tree : WordTree, parent : Int, name : String) -> Array[Int] {
 ///|
 fn source_leaf(
   tree : WordTree,
-  parent : Int,
+  parent : Int32,
   name : String,
-  limit : Int,
+  limit : Int32,
 ) -> String raise @failure.Failure {
   let nodes = source_children(tree, parent, name)
   guard nodes.length() <= 1 else {
@@ -121,7 +125,7 @@ fn source_leaf(
 }
 
 ///|
-fn source_author(tree : WordTree, parent : Int) -> (String, String) {
+fn source_author(tree : WordTree, parent : Int32) -> (String, String) {
   let output = StringBuilder()
   let reason = try {
     let roots = source_children(tree, parent, "Author")
@@ -331,7 +335,7 @@ fn Session::bibliography_part(
 /// Lists the document's native bibliography source records without changing its package.
 pub fn Session::bibliography_sources(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let records = self

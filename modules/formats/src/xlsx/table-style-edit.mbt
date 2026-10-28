@@ -8,7 +8,7 @@ pub(all) struct TableStyleSettings {
 }
 
 ///|
-fn table_style_index(name : String?) -> Int? {
+fn table_style_index(name : String?) -> Int32? {
   match name {
     Some("TableStyleMedium1") => Some(0)
     Some("TableStyleMedium2") => Some(1)
@@ -78,7 +78,7 @@ fn table_style_index(name : String?) -> Int? {
 fn Session::set_table_style(
   self : Session,
   sheet : String,
-  id : Int,
+  id : Int32,
   settings : TableStyleSettings,
 ) -> Json raise @failure.Failure {
   let custom = self.custom_table_styles(self.parts)

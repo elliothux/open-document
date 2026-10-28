@@ -4,8 +4,8 @@ priv struct SheetSlicer {
   name : String
   caption : String
   cache : SlicerCache
-  columns : Int
-  start : Int
+  columns : Int32
+  start : Int32
   show_caption : Bool
   row_height : Double
   locked : Bool
@@ -126,7 +126,7 @@ fn Session::read_slicers(
 /// Reads the native slicer cache graph without changing source or refreshing pivots.
 pub fn Session::slicers(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)

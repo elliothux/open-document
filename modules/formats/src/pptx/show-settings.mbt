@@ -1,7 +1,7 @@
 ///|
 pub(all) enum ShowRange {
   ShowAll
-  ShowRange(Int, Int)
+  ShowRange(Int32, Int32)
   ShowCustom(String)
 } derive(Eq)
 
@@ -71,7 +71,7 @@ fn Session::show_properties(
 fn Session::validate_show_settings(
   self : Session,
   value : ShowSettings,
-  count~ : Int = self.slides.length(),
+  count~ : Int32 = self.slides.length(),
 ) -> Unit raise @failure.Failure {
   match value.slides {
     ShowAll => ()
@@ -96,7 +96,7 @@ fn Session::validate_show_settings(
 fn Session::read_show_settings(
   self : Session,
   parts~ : Map[String, @xml.Document] = self.parts,
-  count~ : Int = self.slides.length(),
+  count~ : Int32 = self.slides.length(),
 ) -> ShowSettings raise @failure.Failure {
   guard self.show_properties(parts~) is Some(tree) &&
     tree.one(tree.root("presentationPr").id, "showPr", uri=presentation_uri)
@@ -300,7 +300,7 @@ fn Session::set_show_settings(
 ///|
 fn Session::sync_show_range(
   self : Session,
-  count : Int,
+  count : Int32,
   parts : Map[String, @xml.Document],
   edits : Array[(String, @xml.Edit)],
 ) -> Unit raise @failure.Failure {

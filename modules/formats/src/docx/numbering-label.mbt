@@ -1,8 +1,8 @@
 ///|
 fn numbering_label(
-  levels : Map[Int, NumberLevel],
-  values : Array[Int],
-  level : Int,
+  levels : Map[Int32, NumberLevel],
+  values : Array[Int32],
+  level : Int32,
   reference~ : Bool = false,
 ) -> String raise @failure.Failure {
   let definition = levels[level]

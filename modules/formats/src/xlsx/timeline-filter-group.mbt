@@ -6,7 +6,7 @@ fn Session::timeline_filter_group(
   let result = [target]
   let seen = Set::from_array([target.part])
   for ;; {
-    let connections : Array[(PivotLocation, Int)] = []
+    let connections : Array[(PivotLocation, Int32)] = []
     let pivots : Set[String] = Set([])
     for cache in result {
       for pair in cache.connections {

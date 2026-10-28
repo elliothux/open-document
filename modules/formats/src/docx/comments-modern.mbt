@@ -17,7 +17,7 @@ fn comment_root_attribute(attribute : @xml.Attribute) -> Bool {
 }
 
 ///|
-fn comment_hex(value : Int) -> String {
+fn comment_hex(value : Int32) -> String {
   let out = StringBuilder()
   for j in 0..<8 {
     let digit = (value >> ((7 - j) * 4)) & 15
@@ -77,7 +77,7 @@ fn read_comment_ids(
 ///|
 fn check_comment_presence(
   tree : WordTree,
-  id : Int,
+  id : Int32,
 ) -> Unit raise @failure.Failure {
   let n = tree.nodes[id]
   let extension_uri = "http://schemas.microsoft.com/office/word/2018/wordml"

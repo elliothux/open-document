@@ -36,7 +36,9 @@ fn Session::drawing_identities(
 }
 
 ///|
-fn Session::next_drawing_identity(self : Session) -> Int raise @failure.Failure {
+fn Session::next_drawing_identity(
+  self : Session,
+) -> Int32 raise @failure.Failure {
   let used = self.drawing_identities()
   for id = 1; id <= 16384; id = id + 1 {
     if !used.contains(id.to_string()) {

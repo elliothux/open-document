@@ -121,7 +121,7 @@ fn Session::layer_objects(
       node.uri != presentation_uri ||
       !["nvGrpSpPr", "grpSpPr", "extLst"].contains(node.name)
     })
-  let selected : Map[Int, Bool] = Map([])
+  let selected : Map[Int32, Bool] = Map([])
   for object in objects {
     selected[object.source.node.id] = true
   }

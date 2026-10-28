@@ -4,8 +4,8 @@ fn Pagination::split_table_row(
   cache : ParagraphCache,
   probe : TextProbe,
   table : Table,
-  row : Int,
-  cells : Array[(Int, Int, Array[(Line, Double, Line)], Double)],
+  row : Int32,
+  cells : Array[(Int32, Int32, Array[(Line, Double, Line)], Double)],
   profile : Map[String, String],
   images : Images,
   additive : Bool,
@@ -164,10 +164,10 @@ fn Pagination::split_table_row(
 ///|
 fn Table::kept_paragraph_height(
   self : Table,
-  row : Int,
-  column : Int,
+  row : Int32,
+  column : Int32,
   lines : Array[(Line, Double, Line)],
-  start : Int,
+  start : Int32,
 ) -> Double? {
   let paragraph = lines[start].0.paragraph
   if start > 0 && lines[start - 1].0.paragraph == paragraph {
@@ -205,8 +205,8 @@ fn Table::kept_paragraph_height(
 
 ///|
 fn table_row_pending(
-  cells : Array[(Int, Int, Array[(Line, Double, Line)], Double)],
-  indices : Array[Int],
+  cells : Array[(Int32, Int32, Array[(Line, Double, Line)], Double)],
+  indices : Array[Int32],
 ) -> Bool {
   for index, (_, _, lines, _) in cells {
     if indices[index] < lines.length() {
@@ -219,9 +219,9 @@ fn table_row_pending(
 ///|
 fn Table::fragment_required(
   self : Table,
-  row : Int,
-  cells : Array[(Int, Int, Array[(Line, Double, Line)], Double)],
-  indices : Array[Int],
+  row : Int32,
+  cells : Array[(Int32, Int32, Array[(Line, Double, Line)], Double)],
+  indices : Array[Int32],
   origins : Array[Double],
   minimum : Double,
   full : Double,

@@ -27,7 +27,7 @@ fn chart_range_reference(
 ///|
 pub fn Session::insert_chart_range(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   source : String,
   kind : String,

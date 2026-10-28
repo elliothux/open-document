@@ -5,13 +5,20 @@ fn paginate_running(
   cache : ParagraphCache,
   profile : Map[String, String],
   images : Images,
-  documentTotal~ : Int? = None,
+  documentTotal~ : Int32? = None,
   pendingNotes~ : Array[NoteLine] = [],
   endnotes~ : Array[Note]? = None,
   flushFootnotes~ : Bool = true,
   resolveBodyFields~ : Bool = true,
   continuation~ : SectionContinuation? = None,
-) -> (Pagination, Array[Array[Line]], Int, Int, PaginationCache?, Array[String]) raise @failure.Failure {
+) -> (
+  Pagination,
+  Array[Array[Line]],
+  Int32,
+  Int32,
+  PaginationCache?,
+  Array[String],
+) raise @failure.Failure {
   let (patterns, setups) = running_lines(
     probe,
     flow,

@@ -74,7 +74,10 @@ fn check_picture_rect(
 }
 
 ///|
-fn Tree::picture_markup(self : Tree, id : Int) -> String raise @failure.Failure {
+fn Tree::picture_markup(
+  self : Tree,
+  id : Int32,
+) -> String raise @failure.Failure {
   let node = self.nodes[id]
   let chain : Array[@xml.Node] = []
   for parent = id; parent >= 0; parent = self.nodes[parent].parent {
@@ -145,7 +148,7 @@ fn Session::new_picture_part(
 ///|
 pub fn Session::picture_resource(
   self : Session,
-  revision : Int,
+  revision : Int32,
   bytes : Bytes,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
@@ -156,7 +159,7 @@ pub fn Session::picture_resource(
 ///|
 pub fn Session::pictures(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   probe : @layout.TextProbe,
   profile : Map[String, String],
@@ -197,7 +200,7 @@ pub fn Session::pictures(
 ///|
 pub fn Session::picture_image(
   self : Session,
-  revision : Int,
+  revision : Int32,
   key : String,
 ) -> Bytes raise @failure.Failure {
   self.check_revision(revision)

@@ -3,7 +3,7 @@ fn Session::markup_fields(
   self : Session,
   tree : WordTree,
   layout : @layout.Layout?,
-) -> Map[Int, String] raise @failure.Failure {
+) -> Map[Int32, String] raise @failure.Failure {
   let fields = tree.order.filter(id => {
     tree.nodes[id].uri == word_uri &&
     tree.nodes[id].name == "fldSimple" &&

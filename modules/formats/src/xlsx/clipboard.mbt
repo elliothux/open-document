@@ -1,7 +1,7 @@
 ///|
 pub fn Session::paste(
   self : Session,
-  revision : Int,
+  revision : Int32,
   text : String,
   accept_warnings~ : Bool = false,
 ) -> Json raise @failure.Failure {
@@ -39,7 +39,7 @@ pub fn Session::paste(
 ///|
 fn Session::clear_contents(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let range = self.selection.1
@@ -59,7 +59,7 @@ fn Session::clear_contents(
 ///|
 pub fn Session::copy(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> String raise @failure.Failure {
   self.check_revision(revision)
   let range = self.selection.1

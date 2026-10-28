@@ -1,7 +1,7 @@
 ///|
 fn Session::list_tab(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   backward : Bool,
 ) -> Json? raise @failure.Failure {
@@ -37,10 +37,10 @@ fn Session::list_tab(
 ///|
 fn Session::shift_list_indent(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   context : NumberingContext,
-  instance : Int,
+  instance : Int32,
   backward~ : Bool = false,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)

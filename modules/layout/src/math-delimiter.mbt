@@ -13,7 +13,7 @@ fn measure_math_delimited(
   style : TextStyle,
   probe : TextProbe,
   profile : Map[String, String],
-  paths : Ref[Int],
+  paths : Ref[Int32],
 ) -> MathBox raise @failure.Failure {
   let index = probe.math_font_index(style, profile)
   let axis = 0.6 * probe.math_glyph_height(index, 0x2217, style.size)

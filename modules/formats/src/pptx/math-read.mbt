@@ -10,10 +10,10 @@ let math_text_reason = "Mathematical text editing requires the expression editor
 ///|
 fn Tree::math_copy_nodes(
   self : Tree,
-  start : Int,
-  end : Int,
-) -> Set[Int] raise @failure.Failure {
-  let result : Set[Int] = Set([])
+  start : Int32,
+  end : Int32,
+) -> Set[Int32] raise @failure.Failure {
+  let result : Set[Int32] = Set([])
   for node in self.document.nodes() {
     if node.start < start ||
       node.end > end ||
@@ -139,8 +139,8 @@ fn Ref::read_math(
   self : Ref,
   base : @layout.TextStyle,
 ) -> @layout.MathFormula raise @failure.Failure {
-  let nodes : Map[Int, @xml.Node] = Map([])
-  let children : Map[Int, Array[Int]] = Map([])
+  let nodes : Map[Int32, @xml.Node] = Map([])
+  let children : Map[Int32, Array[Int32]] = Map([])
   let stack = [self.node]
   while stack.pop() is Some(node) {
     guard nodes.length() < 2048 else {

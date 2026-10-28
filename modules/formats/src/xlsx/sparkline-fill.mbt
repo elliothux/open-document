@@ -2,7 +2,7 @@
 fn Session::prepare_fill_sparklines(
   self : Session,
   plan : CellEditPlan,
-  index : Int,
+  index : Int32,
   source : Range,
   target : Range,
 ) -> Bool raise @failure.Failure {

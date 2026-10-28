@@ -2,8 +2,8 @@
 /// Enables independent first/even stories without rewriting their stored content.
 pub fn Session::set_running_options(
   self : Session,
-  revision : Int,
-  sectionIndex : Int,
+  revision : Int32,
+  sectionIndex : Int32,
   first : Bool,
   even : Bool,
   probe~ : @layout.TextProbe,
@@ -134,7 +134,7 @@ fn Session::commit_running(
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],
   images~ : @layout.Images,
-  refresh~ : (String, String, Int)? = None,
+  refresh~ : (String, String, Int32)? = None,
   media~ : Map[String, Bytes] = self.media,
   created_media~ : Map[String, Bytes] = Map([]),
 ) -> Json raise @failure.Failure {

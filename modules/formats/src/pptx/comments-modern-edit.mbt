@@ -1,7 +1,7 @@
 ///|
 fn Session::modern_comment_ids(
   self : Session,
-  count : Int,
+  count : Int32,
   reserved~ : Map[String, Bool] = Map([]),
 ) -> Array[String] raise @failure.Failure {
   let mut work = 0

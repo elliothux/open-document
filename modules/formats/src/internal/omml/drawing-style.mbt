@@ -1,7 +1,7 @@
 ///|
 fn Tree::drawing_style(
   self : Tree,
-  id : Int,
+  id : Int32,
   base : @layout.TextStyle,
 ) -> @layout.TextStyle raise @failure.Failure {
   let node = self.nodes[id]

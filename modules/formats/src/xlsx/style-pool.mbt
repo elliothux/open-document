@@ -52,7 +52,7 @@ fn style_children(
   let tree = Tree::new(document)
   let root = document.nodes()[0]
   let changes : Array[@xml.SourceChange] = []
-  let additions : Map[Int, String] = Map([])
+  let additions : Map[Int32, String] = Map([])
   for (name, markup) in values {
     if tree.one(root.id, name) is Some(child) {
       changes.push({
@@ -123,8 +123,8 @@ priv struct StylePool {
   parent : @xml.Node
   nodes : Array[@xml.Node]
   entries : Array[String]
-  indices : Map[String, Int]
-  original_count : Int
+  indices : Map[String, Int32]
+  original_count : Int32
 }
 
 ///|
@@ -170,7 +170,7 @@ fn StylePool::new(
     @failure.reject("limit-exceeded", "Style component count exceeds 4096")
   }
   let entries = nodes.map(node => style_markup(tree, node))
-  let indices : Map[String, Int] = Map([])
+  let indices : Map[String, Int32] = Map([])
   for i, node in nodes {
     let key = style_key(tree, node).stringify()
     if !indices.contains(key) {
@@ -184,7 +184,7 @@ fn StylePool::new(
 fn StylePool::intern(
   self : StylePool,
   markup : String,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   let document = @xml.Document::parse(
     @utf8.encode(markup),
     "cell-style",

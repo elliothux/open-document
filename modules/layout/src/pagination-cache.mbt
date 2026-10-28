@@ -1,15 +1,15 @@
 ///|
 priv struct PagePosition {
-  page : Int
-  lines : Int
-  borders : Int
-  fills : Int
-  cellAreas : Int
-  count : Int
+  page : Int32
+  lines : Int32
+  borders : Int32
+  fills : Int32
+  cellAreas : Int32
+  count : Int32
   y : Double
   after : Double
   gap : Double
-  table : Int?
+  table : Int32?
   tableWidths : Array[Double]
 }
 

@@ -1,7 +1,7 @@
 ///|
 fn filter_calendar_type(
   unit : String,
-  value : Int,
+  value : Int32,
 ) -> String raise @failure.Failure {
   guard (unit == "month" && value >= 1 && value <= 12) ||
     (unit == "quarter" && value >= 1 && value <= 4) else {
@@ -29,8 +29,8 @@ fn read_calendar_filter(kind : String) -> FilterRule? {
 
 ///|
 fn filter_calendar_matches(
-  first : Int,
-  last : Int,
+  first : Int32,
+  last : Int32,
   value : Double,
   work : FormulaWork,
 ) -> Bool raise @failure.Failure {

@@ -1,15 +1,15 @@
 ///|
 pub(all) struct ImageResource {
   identity : String
-  width : Int
-  height : Int
+  width : Int32
+  height : Int32
   rgba : Bytes
 }
 
 ///|
 pub struct Images {
   entries : Map[String, ImageResource]
-  mut retained : Int
+  mut retained : Int32
 }
 
 ///|
@@ -21,8 +21,8 @@ pub fn Images::new() -> Images {
 pub fn Images::add(
   self : Images,
   key : String,
-  width : Int,
-  height : Int,
+  width : Int32,
+  height : Int32,
   rgba : Bytes,
 ) -> Unit raise @failure.Failure {
   guard !key.is_empty() &&

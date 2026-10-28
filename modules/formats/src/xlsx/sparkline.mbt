@@ -22,7 +22,11 @@ priv struct Sparklines {
 }
 
 ///|
-fn Range::sparkline_offset(self : Range, rows : Int, columns : Int) -> Range {
+fn Range::sparkline_offset(
+  self : Range,
+  rows : Int32,
+  columns : Int32,
+) -> Range {
   {
     top: (self.top + rows).max(1).min(1048576),
     bottom: (self.bottom + rows).max(1).min(1048576),
@@ -59,7 +63,7 @@ fn sparkline_source(
 }
 
 ///|
-fn sparkline_sheet_index(sheets : Array[Sheet], name : String) -> Int? {
+fn sparkline_sheet_index(sheets : Array[Sheet], name : String) -> Int32? {
   for index, sheet in sheets {
     if sheet.name.to_lower() == name.to_lower() {
       return Some(index)

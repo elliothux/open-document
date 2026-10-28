@@ -52,7 +52,7 @@ fn style_toggle(
 fn style_property_change(
   tree : WordTree,
   document : @xml.Document,
-  id : Int,
+  id : Int32,
   field : String,
   markup : String,
 ) -> @xml.SourceChange? {
@@ -88,7 +88,7 @@ fn style_property_change(
 /// Boolean values describe the style's effective value above its basedOn chain.
 pub fn Session::update_style(
   self : Session,
-  revision : Int,
+  revision : Int32,
   key : String,
   character : CharacterFormat,
   paragraph : ParagraphFormat,

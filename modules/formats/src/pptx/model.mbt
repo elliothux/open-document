@@ -13,7 +13,7 @@ priv struct Geometry {
 ///|
 priv struct TextRun {
   source : Ref?
-  date_field : (Int, String)?
+  date_field : (Int32, String)?
   math : @layout.MathFormula?
   text : String
   parts : Array[(@layout.TextStyle, String)]
@@ -40,7 +40,7 @@ priv struct TextParagraph {
   bullet_style : @layout.TextStyle
   bullet_size : TextSpacing
   list : ListFormat
-  level : Int
+  level : Int32
   tabs : Array[ParagraphTab]
   inherited_tabs : Array[ParagraphTab]
   default_tab : Double
@@ -69,7 +69,7 @@ priv struct Body {
   anchor : String
   wrap : Bool
   fit : String
-  columns : Int
+  columns : Int32
   columnGap : Double
   rtlColumns : Bool
   direction : String
@@ -155,8 +155,8 @@ priv struct Selection {
   object : String
   objects : Array[String]
   mode : String
-  anchor : Int
-  focus : Int
+  anchor : Int32
+  focus : Int32
 } derive(ToJson)
 
 ///|
@@ -169,14 +169,14 @@ priv struct History {
   removed : Map[String, @xml.Document]
   before : Selection
   after : Selection
-  bytes : Int
-  media_bytes : Int
+  bytes : Int32
+  media_bytes : Int32
 }
 
 ///|
 priv struct Candidate {
-  id : Int
-  revision : Int
+  id : Int32
+  revision : Int32
   selection : Selection
   slide : Slide
   edit : @xml.Edit?
@@ -192,14 +192,14 @@ priv struct TextGeometry {
   object : String
   matrix : @layout.Matrix
   lines : Array[@layout.Line]
-  transforms : Map[Int, @layout.Matrix]
+  transforms : Map[Int32, @layout.Matrix]
 }
 
 ///|
 priv struct View {
-  id : Int
+  id : Int32
   key : String
-  revision : Int
+  revision : Int32
   slide : String
   texts : Array[TextGeometry]
   result : Json

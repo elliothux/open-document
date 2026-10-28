@@ -6,7 +6,7 @@ fn Session::initial_row_dimensions(
   probe : @layout.TextProbe,
   profile : Map[String, String],
 ) -> Dimensions raise @failure.Failure {
-  let rows : Map[Int, Bool] = Map([])
+  let rows : Map[Int32, Bool] = Map([])
   for cell in sheet.cells.values() {
     let row = cell.address.row
     if sheet.dimensions.automatic_rows.get(row) == Some(false) &&

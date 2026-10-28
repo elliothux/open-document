@@ -251,8 +251,8 @@ fn formatted_properties(
 ///|
 fn format_run(
   run : TextRun,
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
   format : TextFormat?,
   clear~ : Bool = false,
   hyperlink~ : String? = None,

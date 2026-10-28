@@ -1,7 +1,7 @@
 ///|
 pub fn Session::insert_shape(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   kind : String,
   width : Double,
@@ -134,7 +134,7 @@ pub fn Session::insert_shape(
 ///|
 pub fn Session::set_shape(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   id : String,
   settings : ShapeSettings,

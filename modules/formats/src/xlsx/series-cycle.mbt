@@ -1,7 +1,7 @@
 ///|
 priv struct SeriesCycle {
-  id : Int
-  index : Int
+  id : Int32
+  index : Int32
   words : Array[String]
 }
 
@@ -44,9 +44,9 @@ fn cycle_text(text : String) -> String {
 }
 
 ///|
-fn cycle_matches(text : String) -> Array[Int] {
+fn cycle_matches(text : String) -> Array[Int32] {
   let text = cycle_text(text).to_lower()
-  let result : Array[Int] = []
+  let result : Array[Int32] = []
   for id, words in series_cycles {
     if words.any(word => word.to_lower() == text) {
       result.push(id)

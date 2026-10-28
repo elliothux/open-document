@@ -1,9 +1,9 @@
 ///|
 priv struct CommentAnchor {
   key : String
-  start : Int?
-  end : Int?
-  reference : Int
+  start : Int32?
+  end : Int32?
+  reference : Int32
   selection : Selection?
   reason : String
 }
@@ -18,7 +18,7 @@ fn comment_key(value : String) -> String raise @failure.Failure {
 }
 
 ///|
-fn WordTree::is_comment_marker(self : WordTree, id : Int) -> Bool {
+fn WordTree::is_comment_marker(self : WordTree, id : Int32) -> Bool {
   let node = self.nodes[id]
   node.uri == word_uri &&
   ["commentRangeStart", "commentRangeEnd", "commentReference"].contains(
@@ -29,7 +29,7 @@ fn WordTree::is_comment_marker(self : WordTree, id : Int) -> Bool {
 ///|
 fn WordTree::check_comment_marker(
   self : WordTree,
-  id : Int,
+  id : Int32,
 ) -> Unit raise @failure.Failure {
   let node = self.nodes[id]
   ignore(comment_key(node.attribute("id", uri=word_uri).unwrap_or("")))
@@ -50,7 +50,7 @@ fn WordTree::check_comment_marker(
 
 ///|
 fn WordTree::comment_anchors(self : WordTree) -> Array[CommentAnchor] {
-  let markers : Map[String, Array[Int]] = Map([])
+  let markers : Map[String, Array[Int32]] = Map([])
   let keys : Array[String] = []
   for id in self.order {
     if self.is_comment_marker(id) {
@@ -66,7 +66,7 @@ fn WordTree::comment_anchors(self : WordTree) -> Array[CommentAnchor] {
     return []
   }
   let positions = self.inline_marker_positions()
-  let checked : Map[Int, String] = Map([])
+  let checked : Map[Int32, String] = Map([])
   keys.map(key => {
     let ids = markers[key]
     let starts = ids.filter(id => self.nodes[id].name == "commentRangeStart")
@@ -156,7 +156,7 @@ fn check_comment_integrity(
   }
   let after = WordTree::new(candidate)
   let next = Map::from_array(after.comment_anchors().map(a => (a.key, a)))
-  let known : Map[Int, Bool] = Map([])
+  let known : Map[Int32, Bool] = Map([])
   for anchor in before.comment_anchors() {
     if !anchor.reason.is_empty() {
       continue
@@ -172,7 +172,7 @@ fn check_comment_integrity(
       }
     }
   }
-  let remaining : Map[String, Int] = Map([])
+  let remaining : Map[String, Int32] = Map([])
   for id in after.order {
     if after.is_comment_marker(id) {
       let n = after.nodes[id]

@@ -108,16 +108,20 @@ fn table_style_border(
 fn table_style_borders(
   theme : Theme,
   layers : Array[TableStylePart],
-  row : Int,
-  column : Int,
-  rows : Int,
-  columns : Int,
-  row_span : Int,
-  column_span : Int,
+  row : Int32,
+  column : Int32,
+  rows : Int32,
+  columns : Int32,
+  row_span : Int32,
+  column_span : Int32,
   rtl : Bool,
-) -> (Array[(String, Double, String, Double)], Array[Int], Array[(Ref, Ref?)?]) raise @failure.Failure {
+) -> (
+  Array[(String, Double, String, Double)],
+  Array[Int32],
+  Array[(Ref, Ref?)?],
+) raise @failure.Failure {
   let borders : Array[(String, Double, String, Double)] = []
-  let priorities : Array[Int] = []
+  let priorities : Array[Int32] = []
   let sources : Array[(Ref, Ref?)?] = []
   for
     (side, inside, boundary) in [

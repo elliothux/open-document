@@ -28,7 +28,7 @@ fn drawing_click_markup(
 fn Session::export_fragment_drawing_link(
   self : Session,
   document : @xml.Document,
-  drawing : Int,
+  drawing : Int32,
 ) -> @xml.Document raise @failure.Failure {
   let tree = WordTree::new(document)
   guard self.drawing_link_target(tree, drawing) is Some(target) else {
@@ -48,7 +48,7 @@ fn Session::export_fragment_drawing_link(
 ///|
 fn WordTree::fragment_drawing_link_target(
   self : WordTree,
-  id : Int,
+  id : Int32,
 ) -> String raise @failure.Failure {
   let node = self.nodes[id]
   guard self.nodes.get(node.parent) is Some(identity) &&
@@ -81,7 +81,7 @@ fn Session::import_fragment_drawing_links(
   created : Map[String, @xml.Document],
 ) -> @xml.Document raise @failure.Failure {
   let tree = WordTree::new(document)
-  let targets : Map[Int, String] = Map([])
+  let targets : Map[Int32, String] = Map([])
   let addresses : Array[String] = []
   for node in document.nodes() {
     if node.uri != picture_drawing_uri || node.name != "hlinkClick" {

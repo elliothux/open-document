@@ -7,7 +7,7 @@ fn isolated_math_function(name : String) -> Bool {
 ///|
 fn Calculation::protect_dependencies(
   self : Calculation,
-  formulas : Map[Int, Array[(Int, String)]],
+  formulas : Map[Int32, Array[(Int32, String)]],
   work : FormulaWork,
 ) -> Unit raise @failure.Failure {
   if self.uncomputed.is_empty() {
@@ -15,7 +15,7 @@ fn Calculation::protect_dependencies(
   }
   let guarded = Set::from_array(self.uncomputed.keys().to_array())
   let mut count = 0
-  fn add_range(sheet : Int, range : Range) -> Unit raise @failure.Failure {
+  fn add_range(sheet : Int32, range : Range) -> Unit raise @failure.Failure {
     let ranges = self.guarded_ranges
       .get(sheet)
       .unwrap_or_else(() => {
@@ -61,7 +61,7 @@ fn Calculation::protect_dependencies(
 ///|
 fn Calculation::protects(
   self : Calculation,
-  sheet : Int,
+  sheet : Int32,
   address : Address,
 ) -> Bool {
   self.guarded_ranges
@@ -73,7 +73,7 @@ fn Calculation::protects(
 ///|
 fn Session::cell_calculation_reason(
   self : Session,
-  sheet : Int,
+  sheet : Int32,
   address : String,
 ) -> String {
   if !self.read_only.is_empty() {

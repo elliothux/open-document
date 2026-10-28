@@ -1,7 +1,7 @@
 ///|
 fn WordTree::check_review_properties(
   self : WordTree,
-  id : Int,
+  id : Int32,
 ) -> Unit raise @failure.Failure {
   let mark = if self.nodes[id].name == "pPr" {
     self.child(id, "rPr").bind(id => self.child(id, "rPrChange"))
@@ -71,7 +71,7 @@ fn Session::review_format_properties(
   self : Session,
   tree : WordTree,
   document : @xml.Document,
-  parent : Int,
+  parent : Int32,
   kind : String,
   patch : Map[String, Map[String, String?]?],
   ids : Set[String],

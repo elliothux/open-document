@@ -8,7 +8,7 @@ fn check_markup_mode(mode : String) -> Unit raise @failure.Failure {
 ///|
 fn Session::paste_markup_fragment(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   fragment : String,
   mode : String,

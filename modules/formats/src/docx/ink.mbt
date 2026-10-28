@@ -19,9 +19,9 @@ priv struct InkGeometry {
 ///|
 fn Session::ink_page(
   self : Session,
-  revision : Int,
+  revision : Int32,
   layout : @layout.Layout,
-  page : Int,
+  page : Int32,
 ) -> @layout.PageFrame raise @failure.Failure {
   self.check_revision(revision)
   guard layout.revision == revision && layout.diagnostics.is_empty() else {
@@ -103,9 +103,9 @@ fn InkStroke::geometry(
 /// Builds a transparent R0 preview without changing source, selection or history.
 pub fn Session::preview_ink(
   self : Session,
-  revision : Int,
+  revision : Int32,
   layout : @layout.Layout,
-  page : Int,
+  page : Int32,
   stroke : InkStroke,
 ) -> Json raise @failure.Failure {
   let frame = self.ink_page(revision, layout, page)
@@ -139,9 +139,9 @@ pub fn Session::preview_ink(
 /// Anchors a completed stroke to the nearest body paragraph as one undoable edit.
 pub fn Session::insert_ink(
   self : Session,
-  revision : Int,
+  revision : Int32,
   layout : @layout.Layout,
-  page : Int,
+  page : Int32,
   stroke : InkStroke,
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],
@@ -250,9 +250,9 @@ pub fn Session::insert_ink(
 /// Erases the topmost ink stroke under a page-local point; other drawings remain.
 pub fn Session::erase_ink(
   self : Session,
-  revision : Int,
+  revision : Int32,
   layout : @layout.Layout,
-  page : Int,
+  page : Int32,
   x : Double,
   y : Double,
 ) -> Json raise @failure.Failure {

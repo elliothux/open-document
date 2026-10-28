@@ -65,8 +65,8 @@ fn Session::prepare_structural_range_in(
   } nobreak {
     first_texts.last().map(node => node.id)
   }
-  let replacements : Map[Int, String] = Map([])
-  let object_offsets : Map[Int, Int] = Map([])
+  let replacements : Map[Int32, String] = Map([])
+  let object_offsets : Map[Int32, Int32] = Map([])
   let mut insertion_offset = 0
   for node in first_texts; offset = 0 {
     let before = inline_text(tree.nodes[node.id])

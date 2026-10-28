@@ -1,8 +1,8 @@
 ///|
 pub(all) struct ParagraphNumbering {
-  instance : Int
+  instance : Int32
   numeric : Bool
-  values : Array[Int]
+  values : Array[Int32]
   labels : Array[String?]
 }
 

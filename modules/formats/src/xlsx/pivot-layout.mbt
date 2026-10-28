@@ -2,18 +2,18 @@
 priv struct PivotLayout {
   cache : PivotCache
   settings : PivotSettings
-  members : Array[Array[Int]]
-  columns : Array[Array[Int]]
+  members : Array[Array[Int32]]
+  columns : Array[Array[Int32]]
   values : Array[Array[Value]]
   row_totals : Array[Array[Value]]
   column_totals : Array[Array[Value]]
   total : Array[Value]
   parents : Map[String, Array[Value]]
-  filtered_count : Int
+  filtered_count : Int32
 }
 
 ///|
-fn PivotSettings::header_rows(self : PivotSettings) -> Int {
+fn PivotSettings::header_rows(self : PivotSettings) -> Int32 {
   if self.columns.is_empty() {
     1
   } else {
@@ -22,7 +22,7 @@ fn PivotSettings::header_rows(self : PivotSettings) -> Int {
 }
 
 ///|
-fn PivotSettings::data_width(self : PivotSettings, columns : Int) -> Int {
+fn PivotSettings::data_width(self : PivotSettings, columns : Int32) -> Int32 {
   if self.columns.is_empty() {
     self.values.length()
   } else {
@@ -33,7 +33,7 @@ fn PivotSettings::data_width(self : PivotSettings, columns : Int) -> Int {
 }
 
 ///|
-fn pivot_member_order(a : Array[Int], b : Array[Int]) -> Int {
+fn pivot_member_order(a : Array[Int32], b : Array[Int32]) -> Int32 {
   for index in 0..<a.length().min(b.length()) {
     let order = a[index].compare(b[index])
     if order != 0 {
@@ -47,9 +47,9 @@ fn pivot_member_order(a : Array[Int], b : Array[Int]) -> Int {
 fn PivotCache::axis_members(
   self : PivotCache,
   settings : PivotSettings,
-  fields : Array[Int],
-  record : Array[Int],
-) -> Array[Array[Int]] {
+  fields : Array[Int32],
+  record : Array[Int32],
+) -> Array[Array[Int32]] {
   let members = fields.map(field => {
     match self.groups.get(field) {
       Some(group) => group.indices[record[group.base()]]
@@ -71,8 +71,8 @@ fn PivotCache::layout(
   settings : PivotSettings,
 ) -> PivotLayout raise @failure.Failure {
   let settings = pivot_expand_settings(settings, self.axes)
-  let rows : Map[String, (Array[Int], Array[PivotStatistic])] = Map([])
-  let columns : Map[String, (Array[Int], Array[PivotStatistic])] = Map([])
+  let rows : Map[String, (Array[Int32], Array[PivotStatistic])] = Map([])
+  let columns : Map[String, (Array[Int32], Array[PivotStatistic])] = Map([])
   let cells : Map[String, Array[PivotStatistic]] = Map([])
   let parents : Map[String, Array[PivotStatistic]] = Map([])
   let directions = (
@@ -259,10 +259,10 @@ fn PivotLayout::cells(
   cell_styles : Array[CellStyle],
   date1904 : Bool,
   data_caption~ : String = "",
-) -> (Map[String, CellContent], Map[String, Int]) raise @failure.Failure {
+) -> (Map[String, CellContent], Map[String, Int32]) raise @failure.Failure {
   let settings = self.settings
   let updates : Map[String, CellContent] = Map([])
-  let styles : Map[String, Int] = Map([])
+  let styles : Map[String, Int32] = Map([])
   let header = settings.header_rows()
   let body = settings.body(range)
   let page_filters = settings.page_filters()
@@ -277,7 +277,7 @@ fn PivotLayout::cells(
       let data = row - body.top - header
       let value_column = offset - settings.rows.length()
       let key = Address::{ row, column, }.name()
-      let mut style : Int? = None
+      let mut style : Int32? = None
       let value = if row < body.top {
         let at = row - range.top
         if at < page_filters.length() {

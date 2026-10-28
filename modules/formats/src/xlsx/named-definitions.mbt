@@ -1,6 +1,6 @@
 ///|
 priv struct NamedDefinitions {
-  sources : Map[(Int, String), String]
+  sources : Map[(Int32, String), String]
   tables : Array[StructuredTable]
 }
 
@@ -47,7 +47,7 @@ fn name_identifier(text : String) -> Bool {
 ///|
 fn read_named_definitions(
   workbook : @xml.Document,
-  count : Int,
+  count : Int32,
 ) -> NamedDefinitions raise @failure.Failure {
   let tree = Tree::new(workbook)
   let result = NamedDefinitions::empty()
@@ -87,11 +87,11 @@ fn Session::formula_names(self : Session) -> NamedDefinitions {
 fn Expression::resolve_names(
   self : Expression,
   sheets : Array[Sheet],
-  sheet : Int,
+  sheet : Int32,
   origin : Address,
   work : FormulaWork,
-  active~ : Map[(Int, String), Bool] = Map([]),
-  depth~ : Int = 0,
+  active~ : Map[(Int32, String), Bool] = Map([]),
+  depth~ : Int32 = 0,
 ) -> Expression raise @failure.Failure {
   work.spend()
   guard depth <= 64 else {

@@ -72,7 +72,11 @@ fn CellBorder::paint(
 }
 
 ///|
-fn visible_neighbor(indices : Array[Int], value : Int, after : Bool) -> Int? {
+fn visible_neighbor(
+  indices : Array[Int32],
+  value : Int32,
+  after : Bool,
+) -> Int32? {
   for low = 0, high = indices.length(); low < high; {
     let middle = low + (high - low) / 2
     if indices[middle] < value || (after && indices[middle] == value) {
@@ -86,7 +90,7 @@ fn visible_neighbor(indices : Array[Int], value : Int, after : Bool) -> Int? {
 }
 
 ///|
-fn CellBorder::strength(self : CellBorder) -> Int {
+fn CellBorder::strength(self : CellBorder) -> Int32 {
   match self.style {
     "double" => 4
     _ => (self.width() / 0.75).to_int()
@@ -100,11 +104,11 @@ fn Session::border_wins(
   style : CellStyle,
   address : Address,
   range : Range,
-  side : Int,
-  rows : Array[Int],
-  columns : Array[Int],
+  side : Int32,
+  rows : Array[Int32],
+  columns : Array[Int32],
   conditional : ConditionalRules,
-  index : Int,
+  index : Int32,
   work : FormulaWork,
 ) -> Bool raise @failure.Failure {
   let sheet = self.sheets[index]

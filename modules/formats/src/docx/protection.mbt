@@ -1,5 +1,5 @@
 ///|
-fn WordTree::protection_nodes(self : WordTree) -> Array[Int] {
+fn WordTree::protection_nodes(self : WordTree) -> Array[Int32] {
   self.children[0].filter(id => {
     self.nodes[id].uri == word_uri &&
     self.nodes[id].name == "documentProtection"
@@ -7,7 +7,7 @@ fn WordTree::protection_nodes(self : WordTree) -> Array[Int] {
 }
 
 ///|
-fn WordTree::protection_enabled(self : WordTree, id : Int) -> Bool {
+fn WordTree::protection_enabled(self : WordTree, id : Int32) -> Bool {
   !["0", "false", "off"].contains(
     self.nodes[id].attribute("enforcement", uri=word_uri).unwrap_or("0"),
   )
@@ -16,8 +16,8 @@ fn WordTree::protection_enabled(self : WordTree, id : Int) -> Bool {
 ///|
 fn WordTree::protection_credentials(
   self : WordTree,
-  id : Int,
-) -> (Bytes, Bytes, Int)? raise @failure.Failure {
+  id : Int32,
+) -> (Bytes, Bytes, Int32)? raise @failure.Failure {
   let node = self.nodes[id]
   let names = ["algorithmName", "hashValue", "saltValue", "spinCount"]
   if !names.any(name => node.attribute(name, uri=word_uri) is Some(_)) {
@@ -69,7 +69,7 @@ fn WordTree::protection_credentials(
 ///|
 fn WordTree::check_protection_node(
   self : WordTree,
-  id : Int,
+  id : Int32,
 ) -> Unit raise @failure.Failure {
   let node = self.nodes[id]
   let source = self.source[node.start:node.end]
@@ -119,7 +119,7 @@ fn Session::check_document_protection(
 /// Reads editing restrictions without changing the document or exposing credentials.
 pub fn Session::document_protection(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let mut enabled = false
@@ -162,7 +162,7 @@ pub fn Session::document_protection(
 /// Enables read-only editing protection or removes a known restriction after password verification.
 pub fn Session::set_document_protection(
   self : Session,
-  revision : Int,
+  revision : Int32,
   enabled : Bool,
   password : String,
   salt : Bytes,

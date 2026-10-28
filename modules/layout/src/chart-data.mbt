@@ -39,7 +39,7 @@ pub extend ChartSeries with Eq::{equal, not_equal}
 ///|
 pub(all) struct ChartData {
   kind : String
-  hole_size : Int?
+  hole_size : Int32?
   legend : String
   title : String
   label : String
@@ -183,14 +183,14 @@ pub fn ChartData::query(self : ChartData) -> Json {
 }
 
 ///|
-pub fn chart_color(index : Int) -> String {
+pub fn chart_color(index : Int32) -> String {
   [
     "4472c4", "ed7d31", "a5a5a5", "ffc000", "5b9bd5", "70ad47", "264478", "9e480e",
   ][index % 8]
 }
 
 ///|
-pub fn ChartData::bar_values(self : ChartData, index : Int) -> Array[Double?] {
+pub fn ChartData::bar_values(self : ChartData, index : Int32) -> Array[Double?] {
   let values = self.series.map(series => series.values[index])
   if !percent_stacked_chart(self.kind) {
     return values

@@ -1,8 +1,8 @@
 ///|
 fn header_sections(
   source : String,
-  page : Int,
-  total : Int,
+  page : Int32,
+  total : Int32,
   sheet : String,
 ) -> Array[String] raise @failure.Failure {
   guard source.length() <= 255 && @xml.valid_text(source) else {
@@ -43,7 +43,7 @@ fn header_sections(
 }
 
 ///|
-fn print_first_page(sheet : Sheet) -> Int raise @failure.Failure {
+fn print_first_page(sheet : Sheet) -> Int32 raise @failure.Failure {
   let tree = Tree::new(sheet.document)
   let node = tree.one(tree.root("worksheet").id, "pageSetup")
   let first = if node.map(n => flag(n, "useFirstPageNumber")).unwrap_or(false) {
@@ -66,12 +66,12 @@ fn Session::paint_header_footer(
   settings : HeaderFooter,
   setup : @layout.PageSetup,
   scale : Double,
-  ordinal : Int,
-  number : Int,
-  total : Int,
+  ordinal : Int32,
+  number : Int32,
+  total : Int32,
   probe : @layout.TextProbe,
   profile : Map[String, String],
-) -> (Array[@layout.PositionedPrimitive], Int) raise @failure.Failure {
+) -> (Array[@layout.PositionedPrimitive], Int32) raise @failure.Failure {
   let (header, footer) = if settings.differentFirst && ordinal == 0 {
     (settings.firstHeader, settings.firstFooter)
   } else if settings.differentOddEven && ordinal % 2 == 1 {

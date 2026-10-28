@@ -58,7 +58,7 @@ fn reflow_notes(
   }
   let paragraphs : Array[Paragraph] = []
   let area = Pagination::new({ ..page, top: 0, bottom: 0, height: 14400, })
-  let seen : Set[Int] = Set([])
+  let seen : Set[Int32] = Set([])
   for item in pending {
     let line = item.line
     if seen.contains(line.paragraph) {

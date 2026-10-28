@@ -3,8 +3,8 @@ fn Session::markup_note_labels(
   self : Session,
   flow : @layout.Flow,
   layout : @layout.Layout?,
-) -> Map[Int, String] raise @failure.Failure {
-  let labels : Map[Int, String] = Map([])
+) -> Map[Int32, String] raise @failure.Failure {
+  let labels : Map[Int32, String] = Map([])
   if flow.notes.is_empty() {
     return labels
   }

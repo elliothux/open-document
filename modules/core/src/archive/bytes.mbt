@@ -1,8 +1,8 @@
 ///|
 fn span(
   data : Bytes,
-  offset : Int,
-  size : Int,
+  offset : Int32,
+  size : Int32,
 ) -> BytesView raise @failure.Failure {
   guard offset >= 0 &&
     size >= 0 &&
@@ -14,13 +14,13 @@ fn span(
 }
 
 ///|
-fn u16(data : Bytes, offset : Int) -> Int raise @failure.Failure {
+fn u16(data : Bytes, offset : Int32) -> Int32 raise @failure.Failure {
   let bytes = span(data, offset, 2)
   bytes[0].to_int() | (bytes[1].to_int() << 8)
 }
 
 ///|
-fn u32(data : Bytes, offset : Int) -> UInt raise @failure.Failure {
+fn u32(data : Bytes, offset : Int32) -> UInt32 raise @failure.Failure {
   let bytes = span(data, offset, 4)
   bytes[0].to_uint() |
   (bytes[1].to_uint() << 8) |
@@ -29,7 +29,7 @@ fn u32(data : Bytes, offset : Int) -> UInt raise @failure.Failure {
 }
 
 ///|
-fn size32(data : Bytes, offset : Int) -> Int raise @failure.Failure {
+fn size32(data : Bytes, offset : Int32) -> Int32 raise @failure.Failure {
   let value = u32(data, offset)
   guard value <= 0x7fffffffU else {
     @failure.reject(
@@ -42,7 +42,11 @@ fn size32(data : Bytes, offset : Int) -> Int raise @failure.Failure {
 }
 
 ///|
-fn extra(data : Bytes, offset : Int, size : Int) -> Unit raise @failure.Failure {
+fn extra(
+  data : Bytes,
+  offset : Int32,
+  size : Int32,
+) -> Unit raise @failure.Failure {
   ignore(span(data, offset, size))
   let end = offset + size
   for cursor = offset; cursor < end; {
@@ -73,13 +77,13 @@ fn extra(data : Bytes, offset : Int, size : Int) -> Unit raise @failure.Failure 
 }
 
 ///|
-fn put16(out : FixedArray[Byte], offset : Int, value : Int) -> Unit {
+fn put16(out : FixedArray[Byte], offset : Int32, value : Int32) -> Unit {
   out[offset] = value.to_byte()
   out[offset + 1] = (value >> 8).to_byte()
 }
 
 ///|
-fn put32(out : FixedArray[Byte], offset : Int, value : UInt) -> Unit {
+fn put32(out : FixedArray[Byte], offset : Int32, value : UInt32) -> Unit {
   for i in 0..<4 {
     out[offset + i] = (value >> (i * 8)).to_byte()
   }

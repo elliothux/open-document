@@ -1,6 +1,6 @@
 ///|
 priv struct Composition {
-  id : Int
+  id : Int32
   selection : Selection
   prepared : PreparedEdit?
 }
@@ -33,8 +33,8 @@ fn Session::display_document(
 ///|
 fn Session::check_composition(
   self : Session,
-  revision : Int,
-  id : Int,
+  revision : Int32,
+  id : Int32,
 ) -> Composition raise @failure.Failure {
   self.check_revision_value(revision)
   guard self.composition is Some(composition) && composition.id == id else {
@@ -64,7 +64,7 @@ fn Session::prepare_composition(
 /// Begins one tentative replacement at the current selection without changing history.
 pub fn Session::begin_composition(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   self.check_document_protection()
@@ -119,8 +119,8 @@ pub fn Session::begin_composition(
 /// Replaces the current preview from the original range; failed updates keep the last preview.
 pub fn Session::update_composition(
   self : Session,
-  revision : Int,
-  id : Int,
+  revision : Int32,
+  id : Int32,
   text : String,
 ) -> Json raise @failure.Failure {
   let composition = self.check_composition(revision, id)
@@ -147,8 +147,8 @@ pub fn Session::update_composition(
 /// Commits authoritative final text as at most one edit; empty text cancels.
 pub fn Session::commit_composition(
   self : Session,
-  revision : Int,
-  id : Int,
+  revision : Int32,
+  id : Int32,
   text : String,
 ) -> Json raise @failure.Failure {
   let composition = self.check_composition(revision, id)
@@ -169,8 +169,8 @@ pub fn Session::commit_composition(
 /// Discards the tentative document and retains committed selection, revision and history.
 pub fn Session::cancel_composition(
   self : Session,
-  revision : Int,
-  id : Int,
+  revision : Int32,
+  id : Int32,
 ) -> Json raise @failure.Failure {
   let composition = self.check_composition(revision, id)
   self.composition = None

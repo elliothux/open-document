@@ -25,7 +25,7 @@ fn comment_text(value : String) -> String raise @failure.Failure {
 /// Edits local comment bodies, metadata and anchors in one exact source transaction.
 pub fn Session::edit_comment(
   self : Session,
-  revision : Int,
+  revision : Int32,
   change : CommentEdit,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
@@ -44,7 +44,7 @@ pub fn Session::edit_comment(
   let created : Map[String, @xml.Document] = Map([])
   let part_edits : Map[String, Array[@xml.Edit]] = Map([])
   let xml : Array[@xml.Edit] = []
-  let affected : Array[Int] = []
+  let affected : Array[Int32] = []
   let changes : Array[@xml.SourceChange] = []
   let mut document = original
   let mut after = self.selection

@@ -250,7 +250,7 @@ fn Session::format_paragraph_document(
 /// Applies paragraph properties to every paragraph touched by the explicit range.
 pub fn Session::set_paragraph_format(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   patch : ParagraphFormat,
   probe? : @layout.TextProbe,

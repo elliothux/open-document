@@ -1,7 +1,7 @@
 ///|
 fn Session::paint_sparkline(
   self : Session,
-  index : Int,
+  index : Int32,
   item : Sparkline,
   page : PagePaint,
   rect : @layout.Border,

@@ -16,8 +16,8 @@ pub(all) struct DataBar {
   maximum : ConditionalThreshold
   color : String
   showValue : Bool
-  minLength : Int
-  maxLength : Int
+  minLength : Int32
+  maxLength : Int32
 } derive(Eq, ToJson)
 
 ///|
@@ -32,8 +32,8 @@ priv struct ConditionalBar {
   reverse : Bool
   color : String
   showValue : Bool
-  minLength : Int
-  maxLength : Int
+  minLength : Int32
+  maxLength : Int32
 } derive(Eq)
 
 ///|
@@ -41,7 +41,7 @@ fn DataBar::check(
   self : DataBar,
   anchor : Address,
   sheets : Array[Sheet],
-  index : Int,
+  index : Int32,
   work : FormulaWork,
 ) -> Unit raise @failure.Failure {
   guard self.minLength >= 0 &&
@@ -65,7 +65,7 @@ fn read_conditional_bar(
   theme : Array[String],
   anchor : Address,
   sheets : Array[Sheet],
-  index : Int,
+  index : Int32,
   work : FormulaWork,
 ) -> DataBar raise @failure.Failure {
   conditional_node(tree, node, ["minLength", "maxLength", "showValue"], [
@@ -109,8 +109,8 @@ fn ConditionalRules::data_bar(
   rule : ConditionalRule,
   address : Address,
   sheets : Array[Sheet],
-  index : Int,
-  values : Map[(Int, String), Value],
+  index : Int32,
+  values : Map[(Int32, String), Value],
   work : FormulaWork,
 ) -> ConditionalBar? raise @failure.Failure {
   guard rule.bar is Some(bar) &&

@@ -1,5 +1,5 @@
 ///|
-fn line_cap_code(value : String) -> Int raise @failure.Failure {
+fn line_cap_code(value : String) -> Int32 raise @failure.Failure {
   match value {
     "flat" => 0
     "rnd" => 1

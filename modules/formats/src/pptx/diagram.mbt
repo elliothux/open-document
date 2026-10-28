@@ -93,7 +93,11 @@ fn Session::insert_diagram(
     } else {
       (0, 2)
     }
-    let endpoint = fn(g : Geometry, node : Int, site : Int) -> ConnectorEnd {
+    let endpoint = fn(
+      g : Geometry,
+      node : Int32,
+      site : Int32,
+    ) -> ConnectorEnd {
       {
         x: g.x +
         (if site == 1 { 0 } else if site == 3 { g.width } else { g.width / 2 }),

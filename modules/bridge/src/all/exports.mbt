@@ -1,5 +1,5 @@
 ///|
-pub fn abi_version() -> Int {
+pub fn abi_version() -> Int32 {
   1
 }
 

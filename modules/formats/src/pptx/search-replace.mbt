@@ -1,10 +1,10 @@
 ///|
 fn search_position(
-  position : Int,
-  ranges : Array[(Int, Int)],
+  position : Int32,
+  ranges : Array[(Int32, Int32)],
   replacement : String,
   updated : String,
-) -> Int {
+) -> Int32 {
   let mut delta = 0
   let mut target = position
   for (start, end) in ranges {
@@ -28,7 +28,7 @@ fn search_position(
 ///|
 fn plain_search_changes(
   object : Object,
-  ranges : Array[(Int, Int)],
+  ranges : Array[(Int32, Int32)],
   replacement : String,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let changes : Array[@xml.SourceChange] = []
@@ -93,12 +93,12 @@ fn plain_search_changes(
 /// Recheck the query and replace one or all results in a single source transaction.
 pub fn Session::replace_matches(
   self : Session,
-  revision : Int,
+  revision : Int32,
   slide : String,
   text : String,
   options : FindOptions,
   replacement : String,
-  index : Int?,
+  index : Int32?,
   probe : @layout.TextProbe,
   profile : Map[String, String],
 ) -> Json raise @failure.Failure {
@@ -123,7 +123,7 @@ pub fn Session::replace_matches(
       )
     }
   }
-  let targets : Map[String, Array[(Int, Int)]] = Map([])
+  let targets : Map[String, Array[(Int32, Int32)]] = Map([])
   for i, item in found {
     if index is Some(index) && i != index {
       continue

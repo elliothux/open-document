@@ -3,8 +3,8 @@ fn Session::show_neighbor(
   self : Session,
   show : ShowState,
   forward : Bool,
-  position~ : Int = show.position,
-) -> Int? {
+  position~ : Int32 = show.position,
+) -> Int32? {
   for step in 1..<=show.route.length() {
     let next = position + (if forward { step } else { -step })
     if next >= 0 &&
@@ -23,12 +23,12 @@ fn Session::show_neighbor(
 ///|
 pub fn Session::control_show(
   self : Session,
-  revision : Int,
+  revision : Int32,
   action : String,
   slide : String,
   time : Double,
   custom~ : String? = None,
-  layout~ : Int? = None,
+  layout~ : Int32? = None,
   point~ : (Double, Double)? = None,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
@@ -207,7 +207,7 @@ pub fn Session::control_show(
 ///|
 pub fn Session::show_layout(
   self : Session,
-  revision : Int,
+  revision : Int32,
   time : Double,
   probe : @layout.TextProbe,
   profile : Map[String, String],

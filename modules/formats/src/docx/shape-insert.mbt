@@ -2,7 +2,7 @@
 /// Inserts an inline shape; supplying text creates a native editable text box.
 pub fn Session::insert_shape(
   self : Session,
-  revision : Int,
+  revision : Int32,
   preset : String,
   width : Double,
   height : Double,
@@ -112,7 +112,7 @@ fn Session::prepare_shape_insertion(
 
 ///|
 fn shape_markup(
-  identity : Int,
+  identity : Int32,
   preset : String,
   width : Double,
   height : Double,
@@ -141,7 +141,10 @@ fn shape_markup(
 }
 
 ///|
-fn text_box_markup(text : String, limit : Int) -> String raise @failure.Failure {
+fn text_box_markup(
+  text : String,
+  limit : Int32,
+) -> String raise @failure.Failure {
   guard text.length() <= 32767 else {
     @failure.reject("limit-exceeded", "Text box initial text exceeds budget")
   }

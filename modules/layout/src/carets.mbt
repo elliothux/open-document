@@ -1,6 +1,6 @@
 ///|
 pub(all) struct Caret {
-  offset : Int
+  offset : Int32
   before : Double
   after : Double
 } derive(ToJson)
@@ -15,11 +15,11 @@ fn TextProbe::shape_carets(
   glyphs : Array[Glyph],
   runs : Array[GlyphRun],
   controls : Array[Caret],
-  tracking : Map[Int, Double],
+  tracking : Map[Int32, Double],
   caret_units? : Double,
 ) -> Array[Caret] raise @failure.Failure {
   let boundaries = grapheme_boundaries(text)
-  let groups : Map[Int, Array[Glyph]] = Map([])
+  let groups : Map[Int32, Array[Glyph]] = Map([])
   for glyph in glyphs {
     if groups.get(glyph.cluster) is Some(group) {
       group.push(glyph)
@@ -34,8 +34,8 @@ fn TextProbe::shape_carets(
   }
   let offsets = groups.keys().collect()
   offsets.sort()
-  let before : Map[Int, Double] = Map([])
-  let after : Map[Int, Double] = Map([])
+  let before : Map[Int32, Double] = Map([])
+  let after : Map[Int32, Double] = Map([])
   for caret in controls {
     before[caret.offset] = caret.before
     after[caret.offset] = caret.after

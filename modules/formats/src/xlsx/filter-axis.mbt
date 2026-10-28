@@ -1,7 +1,7 @@
 ///|
 fn Session::axis_filter_plan(
   self : Session,
-  index : Int,
+  index : Int32,
   change : AxisChange,
   tables : Array[AxisTable],
 ) -> FilterPlan? raise @failure.Failure {

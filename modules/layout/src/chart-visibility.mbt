@@ -1,13 +1,13 @@
 ///|
 /// Visible zero-based source offsets, independently ordered for categories and each series.
 pub(all) struct ChartVisibility {
-  categories : Array[Int]
-  values : Array[Array[Int]]
+  categories : Array[Int32]
+  values : Array[Array[Int32]]
   colors : Array[String]
 }
 
 ///|
-fn chart_visible_indices(indices : Array[Int], count : Int) -> Bool {
+fn chart_visible_indices(indices : Array[Int32], count : Int32) -> Bool {
   indices.length() <= count &&
   indices.all(index => index >= 0 && index < count) &&
   indices
@@ -98,6 +98,6 @@ fn ChartData::visible_data(
 }
 
 ///|
-fn chart_paint_color(colors : Array[String], index : Int) -> String {
+fn chart_paint_color(colors : Array[String], index : Int32) -> String {
   colors.get(index).unwrap_or_else(() => chart_color(index))
 }

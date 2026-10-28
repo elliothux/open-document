@@ -1,5 +1,5 @@
 ///|
-fn protection_legacy_hash(password : String) -> Int {
+fn protection_legacy_hash(password : String) -> Int32 {
   let mut value = 0
   for index = password.length() - 1; index >= 0; index = index - 1 {
     value = (((value >> 14) & 1) | ((value << 1) & 32767)) ^
@@ -12,7 +12,7 @@ fn protection_legacy_hash(password : String) -> Int {
 fn protection_credentials(
   node : @xml.Node,
   workbook~ : Bool = false,
-) -> (Bytes, Bytes, Int)? raise @failure.Failure {
+) -> (Bytes, Bytes, Int32)? raise @failure.Failure {
   let modern = if workbook {
     [
       "workbookAlgorithmName", "workbookHashValue", "workbookSaltValue", "workbookSpinCount",

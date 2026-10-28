@@ -26,7 +26,7 @@ fn rule_insertion(
 ///|
 fn Session::commit_conditional(
   self : Session,
-  index : Int,
+  index : Int32,
   changes : Array[@xml.SourceChange],
   plan : ConditionalStyleEdit,
 ) -> Json raise @failure.Failure {
@@ -117,9 +117,9 @@ fn Session::set_conditional(
   self : Session,
   id : String,
   source : String,
-  priority : Int?,
+  priority : Int32?,
   settings : ConditionalFormat?,
-  source_revision : Int,
+  source_revision : Int32,
 ) -> Json raise @failure.Failure {
   if priority is Some(_) {
     self.check_revision(source_revision)
@@ -299,9 +299,9 @@ fn Session::set_conditional(
 fn Session::move_conditional(
   self : Session,
   id : String,
-  priority : Int,
-  position : Int,
-  source_revision : Int,
+  priority : Int32,
+  position : Int32,
+  source_revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(source_revision)
   let index = self.sheet_index(id)

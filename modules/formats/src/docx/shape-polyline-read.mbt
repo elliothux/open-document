@@ -1,7 +1,7 @@
 ///|
 fn WordTree::shape_polyline(
   self : WordTree,
-  geometry : Int,
+  geometry : Int32,
 ) -> Array[(Double, Double)] raise @failure.Failure {
   self.shape_children(geometry, [
     "avLst", "gdLst", "ahLst", "cxnLst", "rect", "pathLst",
@@ -92,7 +92,7 @@ fn WordTree::shape_polyline(
 ///|
 fn WordTree::shape_stroke_alpha(
   self : WordTree,
-  line : Int,
+  line : Int32,
 ) -> Double raise @failure.Failure {
   let color = self
     .drawing_child(line, "solidFill")

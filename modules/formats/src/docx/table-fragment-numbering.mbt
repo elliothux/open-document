@@ -1,7 +1,7 @@
 ///|
 fn fragment_numbering_document(
   source : String,
-  limit : Int,
+  limit : Int32,
 ) -> @xml.Document raise @failure.Failure {
   @xml.Document::parse(@utf8.encode(source), "table-numbering", 128, limit)
 }
@@ -18,7 +18,7 @@ fn NumberingContext::check_fragment(
     }) else {
     @failure.reject("protected-content", "Unsupported copied numbering root")
   }
-  let used : Map[Int, Bool] = Map([])
+  let used : Map[Int32, Bool] = Map([])
   for instance in self.instances.keys() {
     guard instance > 0 else {
       @failure.reject(
@@ -68,13 +68,13 @@ fn Session::fragment_numbering(
   self : Session,
   tree : WordTree,
   grid : TableGrid,
-  top : Int,
-  bottom : Int,
-  left : Int,
-  right : Int,
+  top : Int32,
+  bottom : Int32,
+  left : Int32,
+  right : Int32,
   styles : Styles,
-  limit : Int,
-) -> (String, Map[Int, (Int, Int)]) raise @failure.Failure {
+  limit : Int32,
+) -> (String, Map[Int32, (Int32, Int32)]) raise @failure.Failure {
   let selected = []
   for row in top..<bottom {
     for column, cell in grid.cells[row] {
@@ -91,12 +91,12 @@ fn Session::fragment_numbering(
 fn Session::fragment_paragraph_numbering(
   self : Session,
   tree : WordTree,
-  selected : Array[Int],
+  selected : Array[Int32],
   styles : Styles,
-  limit : Int,
-) -> (String, Map[Int, (Int, Int)]) raise @failure.Failure {
-  let instances : Map[Int, Bool] = Map([])
-  let paragraphs : Map[Int, (Int, Int)] = Map([])
+  limit : Int32,
+) -> (String, Map[Int32, (Int32, Int32)]) raise @failure.Failure {
+  let instances : Map[Int32, Bool] = Map([])
+  let paragraphs : Map[Int32, (Int32, Int32)] = Map([])
   for p in selected {
     if styles.numbering_reference(tree, p) is Some((instance, level)) {
       instances[instance] = true
@@ -107,14 +107,14 @@ fn Session::fragment_paragraph_numbering(
     return ("", Map([]))
   }
   let context = self.numbering_context()
-  let abstracts : Map[Int, Bool] = Map([])
+  let abstracts : Map[Int32, Bool] = Map([])
   let changes : Array[@xml.SourceChange] = []
   for instance in instances.keys() {
     abstracts[context.definition(instance).abstract_id] = true
   }
-  let variants : Map[(Int, Bool), Int] = Map([])
-  let first : Map[Int, Int] = Map([])
-  let copied : Map[Int, (Int, Int)] = Map([])
+  let variants : Map[(Int32, Bool), Int32] = Map([])
+  let first : Map[Int32, Int32] = Map([])
+  let copied : Map[Int32, (Int32, Int32)] = Map([])
   let mut sequence = 1
   for p in tree.order {
     guard paragraphs.get(p) is Some((instance, level)) else { continue }
@@ -346,10 +346,10 @@ fn Session::import_fragment_numbering(
   )
   let numbers = NumberingContext::new(incoming, "table-numbering")
   numbers.check_fragment()
-  let references : Map[Int, Int] = Map([])
-  let abstracts : Map[Int, Int] = Map([])
-  let used_num : Map[Int, Bool] = Map([])
-  let used_abstract : Map[Int, Bool] = Map([])
+  let references : Map[Int32, Int32] = Map([])
+  let abstracts : Map[Int32, Int32] = Map([])
+  let used_num : Map[Int32, Bool] = Map([])
+  let used_abstract : Map[Int32, Bool] = Map([])
   for part in self.style_part_names() {
     for node in self.part_xml(part).nodes() {
       if node.uri != word_uri {
@@ -392,7 +392,7 @@ fn Session::import_fragment_numbering(
     }
   }
   let body_changes : Array[@xml.SourceChange] = []
-  let used : Map[Int, Bool] = Map([])
+  let used : Map[Int32, Bool] = Map([])
   for id in tree.order {
     let node = tree.nodes[id]
     if node.uri != word_uri || node.name != "numPr" {

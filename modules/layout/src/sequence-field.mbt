@@ -2,9 +2,9 @@
 pub(all) struct SequenceField {
   sequence : String
   format : String
-  restart : Int?
+  restart : Int32?
   repeat : Bool
-  headingLevel : Int?
+  headingLevel : Int32?
   hidden : Bool
 }
 
@@ -37,9 +37,9 @@ pub fn SequenceField::parse(
     @failure.reject("unsupported-layout", "Invalid sequence field identifier")
   }
   let mut format = ""
-  let mut restart : Int? = None
+  let mut restart : Int32? = None
   let mut repeat = false
-  let mut headingLevel : Int? = None
+  let mut headingLevel : Int32? = None
   let mut hidden = false
   for part in parts[2:] {
     if part == "hidden" && !hidden {
@@ -81,8 +81,8 @@ pub fn SequenceField::parse(
 ///|
 fn sequence_option_number(
   digits : StringView,
-  maximum : Int,
-) -> Int raise @failure.Failure {
+  maximum : Int32,
+) -> Int32 raise @failure.Failure {
   guard !digits.is_empty() &&
     digits.length() <= 10 &&
     digits.iter().all(c => c.is_ascii_digit()) else {
@@ -129,11 +129,11 @@ fn SequenceField::text(
 ///|
 fn Flow::sequence_values(
   self : Flow,
-) -> Map[(Int, Int), String] raise @failure.Failure {
-  let previous : Map[String, Int] = Map([])
+) -> Map[(Int32, Int32), String] raise @failure.Failure {
+  let previous : Map[String, Int32] = Map([])
   let headings = Array::make(9, -1)
-  let entries : Array[(SequenceField, (Int, Int), Int, Int)] = []
-  let values : Map[(Int, Int), String] = Map([])
+  let entries : Array[(SequenceField, (Int32, Int32), Int32, Int32)] = []
+  let values : Map[(Int32, Int32), String] = Map([])
   for paragraph in self.body_field_paragraphs() {
     if self.outlineLevels.get(paragraph.id) is Some(level) {
       guard level >= 0 && level < 9 else {
@@ -162,10 +162,10 @@ fn Flow::sequence_values(
       previous[field.sequence] = entries.length() - 1
     }
   }
-  let cache : Map[(Int, Int), (Int64, Bool)] = Map([])
+  let cache : Map[(Int32, Int32), (Int64, Bool)] = Map([])
   let mut work = 0
   for index, (field, key, _, _) in entries {
-    let pending : Array[(Int, Int, Bool)] = []
+    let pending : Array[(Int32, Int32, Bool)] = []
     let mut state = (1L, false)
     for current = index, boundary = -1 {
       work += 1

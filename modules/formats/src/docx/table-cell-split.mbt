@@ -2,11 +2,11 @@
 fn WordTree::split_cell_properties(
   self : WordTree,
   document : @xml.Document,
-  cell : Int,
-  span : Int,
+  cell : Int32,
+  span : Int32,
   merge : String,
-  part : Int,
-  count : Int,
+  part : Int32,
+  count : Int32,
   review~ : Bool = false,
 ) -> String raise @failure.Failure {
   let props = self.child(cell, "tcPr")
@@ -63,8 +63,8 @@ fn WordTree::split_cell_properties(
 fn Session::split_empty_cell(
   self : Session,
   tree : WordTree,
-  cell : Int,
-  width : Int,
+  cell : Int32,
+  width : Int32,
   props : String,
   review~ : Bool = false,
 ) -> String raise @failure.Failure {
@@ -79,10 +79,10 @@ fn Session::split_empty_cell(
 ///|
 fn Session::split_table_cell(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
   probe : @layout.TextProbe?,
   profile : Map[String, String],
   images : @layout.Images?,
@@ -109,7 +109,7 @@ fn Session::split_table_cell(
   if rows == 1 && columns == 1 {
     return self.edit_state()
   }
-  let extra_rows : Map[Int, Int] = Map([])
+  let extra_rows : Map[Int32, Int32] = Map([])
   for cell in owners {
     let (row, column) = grid.owners[cell]
     let height = grid.model.rowSpans[row][column]
@@ -138,11 +138,11 @@ fn Session::split_table_cell(
     profile,
     table_column_width(flow, grid.model, Some(probe), profile, images),
   )
-  let positions : Array[Int] = [0]
+  let positions : Array[Int32] = [0]
   for width in fitted.widths {
     positions.push(positions.last().unwrap() + (width * 20).round().to_int())
   }
-  let targets : Map[(Int, Int), Array[Int]] = Map([])
+  let targets : Map[(Int32, Int32), Array[Int32]] = Map([])
   let refined = positions.copy()
   for cell in owners {
     let owner = grid.owners[cell]

@@ -1,8 +1,8 @@
 ///|
 fn widow_height(
-  lines : Array[(Int, MeasuredLine)],
-  start : Int,
-  count : Int,
+  lines : Array[(Int32, MeasuredLine)],
+  start : Int32,
+  count : Int32,
   spacing : LineSpacing,
 ) -> Double {
   let mut height = 0.0
@@ -17,7 +17,7 @@ fn Paragraph::kept_start_count(
   self : Paragraph,
   measured : Array[MeasuredLine],
   page : PageSetup,
-) -> Int {
+) -> Int32 {
   if !self.widowControl || measured.any(item => item.line.y < 0) {
     return 1
   }
@@ -47,12 +47,12 @@ fn Pagination::widow_breaks(
   cache : ParagraphCache,
   probe : TextProbe,
   profile : Map[String, String],
-) -> Map[Int, Bool] raise @failure.Failure {
-  let breaks : Map[Int, Bool] = Map([])
+) -> Map[Int32, Bool] raise @failure.Failure {
+  let breaks : Map[Int32, Bool] = Map([])
   if !paragraph.widowControl || measured.any(item => item.line.y < 0) {
     return breaks
   }
-  let lines : Array[(Int, MeasuredLine)] = []
+  let lines : Array[(Int32, MeasuredLine)] = []
   for index, line in measured {
     if !line.line.caretOnly {
       lines.push((index, line))
@@ -84,7 +84,7 @@ fn Pagination::widow_breaks(
     let remaining = lines.length() - start
     let next_width = next.width - next.left - next.right
     if next_width != page.width - page.left - page.right {
-      let next_lines = fn(offset : Int) raise @failure.Failure {
+      let next_lines = fn(offset : Int32) raise @failure.Failure {
         let lines = if self.wrapping.any(rect => rect.wrapping == "square") {
           self.square_lines(
             probe,

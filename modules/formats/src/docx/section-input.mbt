@@ -1,12 +1,12 @@
 ///|
-fn WordTree::paragraph_section(self : WordTree, paragraph : Int) -> Int? {
+fn WordTree::paragraph_section(self : WordTree, paragraph : Int32) -> Int32? {
   self.child(paragraph, "pPr").bind(id => self.child(id, "sectPr"))
 }
 
 ///|
 fn WordTree::paragraph_section_change(
   self : WordTree,
-  paragraph : Int,
+  paragraph : Int32,
   markup : String,
 ) -> @xml.SourceChange {
   if self.child(paragraph, "pPr") is Some(properties) {
@@ -24,7 +24,7 @@ fn WordTree::paragraph_section_change(
 ///|
 fn section_insertion(
   tree : WordTree,
-  parent : Int,
+  parent : Int32,
   markup : String,
   first~ : Bool = false,
 ) -> @xml.SourceChange {
@@ -51,7 +51,7 @@ fn section_insertion(
 fn WordTree::section_reference_source(
   self : WordTree,
   document : @xml.Document,
-  section : Int?,
+  section : Int32?,
 ) -> String raise @failure.Failure {
   section
   .map(id => {
@@ -73,7 +73,7 @@ fn section_range_transition(
   original : @xml.Document,
   candidate : @xml.Document,
   range : ParagraphRange,
-  target : Int,
+  target : Int32,
 ) -> (@xml.Document, Array[@xml.Edit]) raise @failure.Failure {
   let tree = WordTree::new(original)
   let first = range.start.paragraph

@@ -2,14 +2,14 @@
 struct Font {
   font : @font.Font
   identity : String
-  upem : Int
+  upem : Int32
   bytes : Bytes
   sha256 : String
-  ascent : Int
-  descent : Int
-  fs_type : Int
-  bbox : Array[Int]
-  cap_height : Int
+  ascent : Int32
+  descent : Int32
+  fs_type : Int32
+  bbox : Array[Int32]
+  cap_height : Int32
   italic_angle : Double
 }
 
@@ -17,7 +17,7 @@ struct Font {
 fn font_line_extents(
   face : @face.Face,
   os2 : @sfnt.Os2Table?,
-) -> (Int, Int) raise @failure.Failure {
+) -> (Int32, Int32) raise @failure.Failure {
   let hhea = match face.reference_table(@common.Tag::from_string("hhea")) {
     Ok(blob) => blob.as_view()
     Err(_) => @failure.reject("malformed-font", "Missing hhea metrics")
@@ -61,11 +61,11 @@ fn font_line_extents(
 pub struct TextProbe {
   fonts : Array[Font]
   outlines : Map[String, String]
-  mut font_bytes : Int
-  mut outline_bytes : Int
+  mut font_bytes : Int32
+  mut outline_bytes : Int32
   mut closed : Bool
   mut paragraphs : Map[String, Array[MeasuredLine]]
-  mut text_units : Int
+  mut text_units : Int32
   mut pagination : PaginationCache?
 }
 
@@ -96,7 +96,7 @@ pub fn TextProbe::add_font(
   self : TextProbe,
   bytes : Bytes,
   identity : String,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   self.add_font_data(bytes, identity, true)
 }
 
@@ -106,7 +106,7 @@ pub fn TextProbe::add_source_font(
   self : TextProbe,
   bytes : Bytes,
   identity : String,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   self.add_font_data(bytes, identity, false)
 }
 
@@ -116,7 +116,7 @@ fn TextProbe::add_font_data(
   bytes : Bytes,
   identity : String,
   unicode : Bool,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   self.check()
   guard self.fonts.length() < 8 && bytes.length() <= 33554432 - self.font_bytes else {
     @failure.reject("limit-exceeded", "Font budget exceeded")
@@ -219,7 +219,7 @@ fn TextProbe::add_font_data(
 ///|
 pub fn TextProbe::font_bytes(
   self : TextProbe,
-  index : Int,
+  index : Int32,
 ) -> Bytes raise @failure.Failure {
   self.check()
   guard index >= 0 && index < self.fonts.length() else {
@@ -238,7 +238,7 @@ pub fn TextProbe::font_bytes(
 pub fn TextProbe::font_index(
   self : TextProbe,
   identity : String,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   self.check()
   for index, font in self.fonts {
     if font.identity == identity {
@@ -278,8 +278,8 @@ pub fn TextProbe::font_info(
 ///|
 pub fn TextProbe::glyph_width(
   self : TextProbe,
-  index : Int,
-  glyph : UInt,
+  index : Int32,
+  glyph : UInt32,
 ) -> Double raise @failure.Failure {
   self.check()
   guard index >= 0 && index < self.fonts.length() else {
@@ -295,7 +295,7 @@ pub fn TextProbe::glyph_width(
 ///|
 fn TextProbe::line_metrics(
   self : TextProbe,
-  index : Int,
+  index : Int32,
   size : Double,
 ) -> (Double, Double) {
   let font = self.fonts[index]
@@ -304,9 +304,9 @@ fn TextProbe::line_metrics(
 
 ///|
 fn scaled_line_metrics(
-  ascent : Int,
-  descent : Int,
-  upem : Int,
+  ascent : Int32,
+  descent : Int32,
+  upem : Int32,
   size : Double,
 ) -> (Double, Double) {
   // LibreOffice MSO1 rounds font metrics at 8640 DPI before converting to twips.
@@ -321,8 +321,8 @@ fn scaled_line_metrics(
 ///|
 fn TextProbe::outline(
   self : TextProbe,
-  index : Int,
-  glyph : UInt,
+  index : Int32,
+  glyph : UInt32,
 ) -> (String, String, Bool) raise @failure.Failure {
   let key = "\{self.fonts[index].sha256}:\{glyph}"
   if self.outlines.get(key) is Some(path) {

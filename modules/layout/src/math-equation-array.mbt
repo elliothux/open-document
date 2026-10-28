@@ -5,7 +5,7 @@ fn measure_math_equation_array(
   style : TextStyle,
   probe : TextProbe,
   profile : Map[String, String],
-  paths : Ref[Int],
+  paths : Ref[Int32],
   display~ : Bool,
 ) -> MathBox raise @failure.Failure {
   let empty = MathExpression::Text(" ").measure(style, probe, profile, paths)

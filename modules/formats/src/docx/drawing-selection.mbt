@@ -1,5 +1,5 @@
 ///|
-fn Session::selected_drawing(self : Session, tree : WordTree) -> Int? {
+fn Session::selected_drawing(self : Session, tree : WordTree) -> Int32? {
   guard self.selection is Some(selection) &&
     selection.anchor.paragraph == selection.focus.paragraph &&
     (selection.anchor.offset - selection.focus.offset).abs() == 1 else {

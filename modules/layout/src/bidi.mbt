@@ -1,5 +1,5 @@
 ///|
-fn bidi_control(codepoint : UInt) -> Bool {
+fn bidi_control(codepoint : UInt32) -> Bool {
   codepoint == 0x2060U ||
   (codepoint >= 0x202aU && codepoint <= 0x202eU) ||
   (codepoint >= 0x2066U && codepoint <= 0x2069U)
@@ -28,7 +28,7 @@ fn bidi_controls(paragraph : @bidi.BidiParagraph) -> @bidi.BidiParagraph {
 }
 
 ///|
-fn bidi_order(paragraph : @bidi.BidiParagraph) -> Array[Int] {
+fn bidi_order(paragraph : @bidi.BidiParagraph) -> Array[Int32] {
   // Keep zero-width controls in the same visual portions as their source text.
   @bidi.reorder({
     ..paragraph,
@@ -43,7 +43,7 @@ fn bidi_order(paragraph : @bidi.BidiParagraph) -> Array[Int] {
 }
 
 ///|
-fn Line::bidi_ranges(self : Line) -> Array[(Int, Int, Int)] {
+fn Line::bidi_ranges(self : Line) -> Array[(Int32, Int32, Int32)] {
   let ranges = []
   for run in self.runs {
     for range in run.bidi {
@@ -55,7 +55,7 @@ fn Line::bidi_ranges(self : Line) -> Array[(Int, Int, Int)] {
 }
 
 ///|
-fn Line::bidi_level(self : Line, offset : Int, affinity : String) -> Int {
+fn Line::bidi_level(self : Line, offset : Int32, affinity : String) -> Int32 {
   let offset = if affinity == "before" { offset - 1 } else { offset }
   for range in self.bidi_ranges() {
     if range.0 <= offset && offset < range.1 {
@@ -66,8 +66,8 @@ fn Line::bidi_level(self : Line, offset : Int, affinity : String) -> Int {
 }
 
 ///|
-fn Line::bidi_portions(self : Line, depth : Int) -> Array[(Int, Int)] {
-  let portions : Array[(Int, Int)] = []
+fn Line::bidi_portions(self : Line, depth : Int32) -> Array[(Int32, Int32)] {
+  let portions : Array[(Int32, Int32)] = []
   for range in self.bidi_ranges() {
     if range.2 < depth {
       continue
@@ -82,7 +82,11 @@ fn Line::bidi_portions(self : Line, depth : Int) -> Array[(Int, Int)] {
 }
 
 ///|
-fn Line::bidi_bounds(self : Line, start : Int, end : Int) -> (Double, Double) {
+fn Line::bidi_bounds(
+  self : Line,
+  start : Int32,
+  end : Int32,
+) -> (Double, Double) {
   let mut left = 1.0 / 0.0
   let mut right = -1.0 / 0.0
   for index = 0; index + 1 < self.carets.length(); index = index + 1 {
@@ -99,8 +103,8 @@ fn Line::bidi_bounds(self : Line, start : Int, end : Int) -> (Double, Double) {
 ///|
 fn Line::bidi_caret_x(
   self : Line,
-  offset : Int,
-  level : Int,
+  offset : Int32,
+  level : Int32,
   fallback : Double,
 ) -> Double {
   let ranges = self.bidi_ranges()
@@ -143,8 +147,8 @@ fn Line::bidi_caret_x(
 ///|
 fn bidi_slice(
   paragraph : @bidi.BidiParagraph,
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
 ) -> @bidi.BidiParagraph {
   let chars = []
   let original_classes = []
@@ -175,8 +179,8 @@ fn bidi_slice(
 ///|
 fn bidi_line(
   paragraph : @bidi.BidiParagraph,
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
 ) -> @bidi.BidiParagraph {
   let line = bidi_slice(paragraph, start, end)
   let levels = line.levels

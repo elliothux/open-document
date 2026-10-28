@@ -8,7 +8,7 @@ fn Session::axis_analysis(
 ) -> Map[String, Range] raise @failure.Failure {
   let resources = self.analysis_parts()
   let moved : Map[String, Range] = Map([])
-  let projected_records : Map[String, Array[Int]] = Map([])
+  let projected_records : Map[String, Array[Int32]] = Map([])
   for pivot in self.pivot_locations() {
     if pivot.sheet != sheet.id {
       continue

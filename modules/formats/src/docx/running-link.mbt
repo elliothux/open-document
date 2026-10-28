@@ -36,8 +36,8 @@ fn running_rels_path(part : String) -> String {
 /// Links a variant to its predecessor or gives it an independent XML part.
 pub fn Session::set_running_link(
   self : Session,
-  revision : Int,
-  sectionIndex : Int,
+  revision : Int32,
+  sectionIndex : Int32,
   kind : String,
   variant : String,
   linked : Bool,

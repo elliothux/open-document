@@ -24,7 +24,7 @@ fn stream(
 }
 
 ///|
-fn hex16(value : Int) -> String {
+fn hex16(value : Int32) -> String {
   let digits = "0123456789ABCDEF"
   let result = StringBuilder()
   for shift in [12, 8, 4, 0] {
@@ -53,7 +53,7 @@ fn utf16_bytes(text : String) -> Bytes {
 }
 
 ///|
-fn channel(color : String, offset : Int) -> Double {
+fn channel(color : String, offset : Int32) -> Double {
   let digits = "0123456789abcdef"
   let low = color.to_lower()
   let a = digits.find(low[offset:offset + 1]).unwrap()

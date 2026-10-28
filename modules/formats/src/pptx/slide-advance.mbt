@@ -1,7 +1,7 @@
 ///|
 pub(all) struct SlideAdvance {
   click : Bool
-  after : Int?
+  after : Int32?
 } derive(Eq)
 
 ///|
@@ -48,7 +48,7 @@ fn SlideAdvance::json(self : SlideAdvance) -> Json {
 ///|
 fn Session::set_advance(
   self : Session,
-  index : Int,
+  index : Int32,
   value : SlideAdvance,
 ) -> Json raise @failure.Failure {
   value.validate()

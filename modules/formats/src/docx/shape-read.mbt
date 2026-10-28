@@ -1,10 +1,10 @@
 ///|
 fn WordTree::drawing_child(
   self : WordTree,
-  parent : Int,
+  parent : Int32,
   name : String,
   uri~ : String = picture_drawing_uri,
-) -> Int? {
+) -> Int32? {
   self.children[parent]
   .iter()
   .find_first(id => self.nodes[id].uri == uri && self.nodes[id].name == name)
@@ -13,7 +13,7 @@ fn WordTree::drawing_child(
 ///|
 fn WordTree::shape_children(
   self : WordTree,
-  parent : Int,
+  parent : Int32,
   names : Array[String],
   uri~ : String = picture_drawing_uri,
 ) -> Unit raise @failure.Failure {
@@ -37,7 +37,7 @@ fn WordTree::shape_children(
 ///|
 fn WordTree::shape_rgb(
   self : WordTree,
-  parent : Int,
+  parent : Int32,
   alpha~ : Bool = false,
 ) -> String raise @failure.Failure {
   let no_fill = self.drawing_child(parent, "noFill")
@@ -73,8 +73,8 @@ fn WordTree::shape_rgb(
 ///|
 fn WordTree::read_basic_shape(
   self : WordTree,
-  drawing : Int,
-  data : Int,
+  drawing : Int32,
+  data : Int32,
 ) -> @layout.DrawingFrame raise @failure.Failure {
   guard self.nodes[data].attributes.all(a => a.uri.is_empty() && a.name == "uri") &&
     self.children[data] is [shape] &&

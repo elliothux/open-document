@@ -1,5 +1,5 @@
 ///|
-fn style_reference_level(code : String) -> Int raise @failure.Failure {
+fn style_reference_level(code : String) -> Int32 raise @failure.Failure {
   guard code.has_prefix("STYLEREF:") &&
     code.length() == 10 &&
     code[9] >= '1' &&
@@ -12,7 +12,7 @@ fn style_reference_level(code : String) -> Int raise @failure.Failure {
 ///|
 fn Flow::style_reference_values(
   self : Flow,
-) -> Map[(Int, Int), String] raise @failure.Failure {
+) -> Map[(Int32, Int32), String] raise @failure.Failure {
   let paragraphs = self.body_field_paragraphs()
   let first : Array[Paragraph?] = Array::make(9, None)
   let previous : Array[Paragraph?] = Array::make(9, None)
@@ -26,7 +26,7 @@ fn Flow::style_reference_values(
       }
     }
   }
-  let values : Map[(Int, Int), String] = Map([])
+  let values : Map[(Int32, Int32), String] = Map([])
   for p in paragraphs {
     if self.outlineLevels.get(p.id) is Some(level) {
       previous[level] = Some(p)
@@ -60,8 +60,8 @@ fn Flow::style_reference_values(
 ///|
 fn Flow::fixed_body_field_values(
   self : Flow,
-  fields : Map[(Int, Int), String],
-) -> Map[(Int, Int), String] raise @failure.Failure {
+  fields : Map[(Int32, Int32), String],
+) -> Map[(Int32, Int32), String] raise @failure.Failure {
   let values = self.sequence_values()
   if fields.values().any(code => code.has_prefix("NOTEREF:")) {
     for key, value in self.note_reference_values() {

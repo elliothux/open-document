@@ -1,5 +1,5 @@
 ///|
-fn WordTree::contextual_style(self : WordTree, paragraph : Int) -> String? {
+fn WordTree::contextual_style(self : WordTree, paragraph : Int32) -> String? {
   self.child(paragraph, "pPr").bind(id => self.value(id, "pStyle"))
 }
 
@@ -7,7 +7,7 @@ fn WordTree::contextual_style(self : WordTree, paragraph : Int) -> String? {
 fn Styles::contextual_spacing(
   self : Styles,
   tree : WordTree,
-  paragraph : Int,
+  paragraph : Int32,
 ) -> Bool raise @failure.Failure {
   let mut enabled = false
   if self.tree is Some(source) {
@@ -43,15 +43,15 @@ fn Styles::contextual_spacing(
 fn Styles::apply_contextual_spacing(
   self : Styles,
   tree : WordTree,
-  paragraphs : Map[Int, @layout.Paragraph],
+  paragraphs : Map[Int32, @layout.Paragraph],
 ) -> Unit raise @failure.Failure {
-  let keys : Map[Int, String?] = Map([])
-  let enabled : Map[Int, Bool] = Map([])
+  let keys : Map[Int32, String?] = Map([])
+  let enabled : Map[Int32, Bool] = Map([])
   for id, _ in paragraphs {
     keys[id] = tree.contextual_style(id)
     enabled[id] = self.contextual_spacing(tree, id)
   }
-  let neighbors : Map[Int, (Int?, Int?)] = Map([])
+  let neighbors : Map[Int32, (Int32?, Int32?)] = Map([])
   for _, children in tree.children {
     let content = children.filter(id => {
       tree.nodes[id].uri == word_uri &&

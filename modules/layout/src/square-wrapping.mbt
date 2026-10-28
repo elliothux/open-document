@@ -1,13 +1,13 @@
 ///|
 priv struct SquarePlan {
   lines : Array[MeasuredLine]
-  positions : Array[(Int, Double, Bool)]
+  positions : Array[(Int32, Double, Bool)]
 }
 
 ///|
 fn Pagination::square_regions(
   self : Pagination,
-  page : Int,
+  page : Int32,
   y : Double,
   height : Double,
 ) -> Array[(Double, Double)] {
@@ -171,9 +171,9 @@ fn Pagination::square_row(
   self : Pagination,
   source : ParagraphSource,
   paragraph : Paragraph,
-  page : Int,
+  page : Int32,
   y : Double,
-  start : Int,
+  start : Int32,
   first : Bool,
 ) -> (MeasuredLine?, Double) raise @failure.Failure {
   let frame = self.page_at(page)
@@ -223,9 +223,9 @@ fn Pagination::square_lines(
   probe : TextProbe,
   paragraph : Paragraph,
   profile : Map[String, String],
-  start : Int,
+  start : Int32,
   first : Bool,
-  startPage? : Int,
+  startPage? : Int32,
   startY? : Double,
 ) -> SquarePlan raise @failure.Failure {
   let lines = []

@@ -49,7 +49,7 @@ pub extend TextStyle with ToJson::{to_json}
 
 ///|
 pub(all) struct Span {
-  node : Int
+  node : Int32
   text : String
   style : TextStyle
   drawing : DrawingFrame?
@@ -108,8 +108,8 @@ pub extend ParagraphMarker with ToJson::{to_json}
 
 ///|
 pub(all) struct Paragraph {
-  id : Int
-  container : Int
+  id : Int32
+  container : Int32
   nominalSize : Double
   spans : Array[Span]
   defaultTab : Double
@@ -140,7 +140,7 @@ pub(all) struct NoteNumbering {
   format : String
   value : Int64
   restart : String
-  marker : Int
+  marker : Int32
 }
 
 ///|
@@ -172,8 +172,8 @@ pub fn NoteNumbering::text(
 pub(all) struct Note {
   kind : String
   key : String
-  paragraph : Int
-  node : Int
+  paragraph : Int32
+  node : Int32
   numbering : NoteNumbering
   content : Array[Paragraph]
 } derive(ToJson)
@@ -196,7 +196,7 @@ pub extend PageSetup with ToJson::{to_json}
 
 ///|
 pub(all) struct Flow {
-  revision : Int
+  revision : Int32
   sectionBreaks : Array[SectionBreak]
   endnotesAt : String
   footnotesAt : String
@@ -204,8 +204,8 @@ pub(all) struct Flow {
   pageBorders : PageBorders
   page : PageSetup
   pageNumbering : PageNumbering
-  bookmarks : Map[String, (Int, Int, Int, Int)]
-  outlineLevels : Map[Int, Int]
+  bookmarks : Map[String, (Int32, Int32, Int32, Int32)]
+  outlineLevels : Map[Int32, Int32]
   columns : Columns
   paragraphs : Array[Paragraph]
   diagnostics : Array[String]
@@ -225,7 +225,7 @@ pub extend Flow with ToJson::{to_json}
 
 ///|
 pub(all) struct PlacedRun {
-  start : Int
+  start : Int32
   sources : Array[SourceRange]
   color : String
   size : Double
@@ -256,10 +256,10 @@ pub extend PlacedRun with ToJson::{to_json}
 
 ///|
 pub(all) struct SourceRange {
-  node : Int
-  start : Int
-  end : Int
-  offset : Int
+  node : Int32
+  start : Int32
+  end : Int32
+  offset : Int32
 } derive(ToJson)
 
 ///|
@@ -267,12 +267,12 @@ pub extend SourceRange with ToJson::{to_json}
 
 ///|
 pub(all) struct Line {
-  paragraph : Int
-  container : Int
-  baseLevel : Int
+  paragraph : Int32
+  container : Int32
+  baseLevel : Int32
   text : String
-  start : Int
-  end : Int
+  start : Int32
+  end : Int32
   caretOnly : Bool
   repeated : Bool
   x : Double
@@ -302,7 +302,7 @@ pub(all) struct CellArea {
   y : Double
   width : Double
   height : Double
-  paragraphs : Array[Int]
+  paragraphs : Array[Int32]
 } derive(ToJson)
 
 ///|
@@ -325,17 +325,17 @@ pub extend PageFrame with ToJson::{to_json}
 ///|
 pub(all) struct Layout {
   background : String
-  revision : Int
-  shapedParagraphs : Int
-  reusedParagraphs : Int
-  reflowedPages : Int
-  reusedPages : Int
+  revision : Int32
+  shapedParagraphs : Int32
+  reusedParagraphs : Int32
+  reflowedPages : Int32
+  reusedPages : Int32
   profile : Map[String, String]
   pages : Array[PageFrame]
   running : Array[Array[Line]]
   sectionNumbering : Array[PageNumbering]
   /// Section ordinal and local page, or None for a parity spacer.
-  pageSections : Array[(Int, Int)?]
+  pageSections : Array[(Int32, Int32)?]
   diagnostics : Array[String]
   outlines : Array[Outline]
   fonts : Array[FontInfo]
@@ -448,15 +448,15 @@ pub extend TableStroke with ToJson::{to_json}
 
 ///|
 pub(all) struct Table {
-  id : Int
+  id : Int32
   autoFit : Bool
   preferredWidth : PreferredWidth
   preferredWidths : Array[Array[PreferredWidth]]
-  headerRows : Int
-  beforeParagraph : Int
+  headerRows : Int32
+  beforeParagraph : Int32
   rows : Array[Array[Array[Paragraph]]]
-  columnSpans : Array[Array[Int]]
-  rowSpans : Array[Array[Int]]
+  columnSpans : Array[Array[Int32]]
+  rowSpans : Array[Array[Int32]]
   widths : Array[Double]
   align : String
   borders : TableBorders

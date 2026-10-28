@@ -1,9 +1,9 @@
 ///|
 pub(all) struct PivotValue {
-  field : Int
+  field : Int32
   aggregate : String
   baseItem : PivotBaseItem?
-  baseField : Int?
+  baseField : Int32?
   showDataAs : String
   name : String
 }
@@ -31,10 +31,10 @@ pub extend PivotValue with ToJson::{to_json}
 pub(all) struct PivotSettings {
   sourceSheet : String
   source : String
-  rows : Array[Int]
-  columns : Array[Int]
+  rows : Array[Int32]
+  columns : Array[Int32]
   filters : Array[PivotFilter]
-  subtotals : Array[Int]
+  subtotals : Array[Int32]
   numberGroups : Array[PivotNumberGroup]
   dateGroups : Array[PivotDateGroup]
   values : Array[PivotValue]
@@ -46,16 +46,16 @@ pub extend PivotSettings with ToJson::{to_json}
 ///|
 priv struct PivotCache {
   source_table : String?
-  source_filters : Array[(Int, Map[Int, Bool])]
+  source_filters : Array[(Int32, Map[Int32, Bool])]
   headers : Array[String]
   items : Array[Array[Value]]
-  styles : Array[Array[Int]]
-  records : Array[Array[Int]]
-  groups : Map[Int, PivotGroupItems]
+  styles : Array[Array[Int32]]
+  records : Array[Array[Int32]]
+  groups : Map[Int32, PivotGroupItems]
   date1904 : Bool
-  source_width : Int
-  axes : Map[Int, Array[Int]]
-  native_dates : Array[Int]
+  source_width : Int32
+  axes : Map[Int32, Array[Int32]]
+  native_dates : Array[Int32]
 }
 
 ///|
@@ -87,7 +87,7 @@ fn PivotSettings::validate(
       "limit-exceeded", "Pivot source or field count exceeds budget",
     )
   }
-  let seen : Map[Int, Bool] = Map([])
+  let seen : Map[Int32, Bool] = Map([])
   for field in self.rows + self.columns {
     guard field >= 0 && field < width && !seen.contains(field) else {
       @failure.reject(
@@ -102,7 +102,7 @@ fn PivotSettings::validate(
     self.dateGroups
     .filter(group => group.units.length() > 1)
     .map(group => group.field)
-  let selected : Map[Int, Bool] = Map([])
+  let selected : Map[Int32, Bool] = Map([])
   for field in self.subtotals {
     guard subtotal_fields.contains(field) && !selected.contains(field) else {
       @failure.reject(
@@ -112,8 +112,8 @@ fn PivotSettings::validate(
     selected[field] = true
   }
   let mut units = 0
-  let filter_fields : Map[Int, Bool] = Map([])
-  let grouped : Map[Int, Bool] = Map([])
+  let filter_fields : Map[Int32, Bool] = Map([])
+  let grouped : Map[Int32, Bool] = Map([])
   for group in self.numberGroups {
     guard (self.rows + self.columns).contains(group.field) &&
       !grouped.contains(group.field) else {
@@ -233,12 +233,12 @@ fn Session::pivot_cache(
   let calculation = self.calculation.unwrap()
   let headers = self.pivot_source_headers(settings)
   let items : Array[Array[Value]] = headers.map(_ => [])
-  let styles : Array[Array[Int]] = headers.map(_ => [])
-  let maps : Array[Map[String, Int]] = headers.map(_ => Map([]))
-  let records : Array[Array[Int]] = []
+  let styles : Array[Array[Int32]] = headers.map(_ => [])
+  let maps : Array[Map[String, Int32]] = headers.map(_ => Map([]))
+  let records : Array[Array[Int32]] = []
   let mut units = 0
   for row in (range.top + 1)..<=range.bottom {
-    let record : Array[Int] = []
+    let record : Array[Int32] = []
     for column in range.left..<=range.right {
       let offset = column - range.left
       let key = Address::{ row, column, }.name()
@@ -284,7 +284,7 @@ fn Session::pivot_cache(
     }
     records.push(record)
   }
-  let empty = fn(record : Array[Int]) {
+  let empty = fn(record : Array[Int32]) {
     record
     .mapi((index, item) => items[index][item] == Blank)
     .all(value => value)
@@ -301,7 +301,7 @@ fn Session::pivot_cache(
       "invalid-operation", "Pivot value captions must differ from source field names",
     )
   }
-  let grouped_filter = (field : Int) => {
+  let grouped_filter = (field : Int32) => {
     settings.numberGroups.any(group => group.field == field) ||
     settings.dateGroups.any(group => group.field == field)
   }
@@ -350,7 +350,7 @@ fn Session::pivot_cache(
       @failure.reject("limit-exceeded", "Pivot report items exceed budget")
     }
   }
-  let groups : Map[Int, PivotGroupItems] = Map([])
+  let groups : Map[Int32, PivotGroupItems] = Map([])
   for group in settings.numberGroups {
     let data = group.build(items[group.field])
     units += data.items.fold(init=0, (sum, value) => {
@@ -363,7 +363,7 @@ fn Session::pivot_cache(
     }
     groups[group.field] = data
   }
-  let axes : Map[Int, Array[Int]] = Map([])
+  let axes : Map[Int32, Array[Int32]] = Map([])
   let date_groups = settings.dateGroups.copy()
   date_groups.sort_by((a, b) => a.field.compare(b.field))
   let source_width = headers.length()
@@ -379,7 +379,7 @@ fn Session::pivot_cache(
         )
       }
     }
-    let fields : Array[Int] = [group.field]
+    let fields : Array[Int32] = [group.field]
     for offset in 0..<group.units.length() {
       let unit = group.units[group.units.length() - 1 - offset]
       let data = group.build(items[group.field], self.date1904, unit~)
@@ -452,8 +452,8 @@ fn Session::pivot_cache(
 
 ///|
 priv struct PivotStatistic {
-  mut count : Int
-  mut numbers : Int
+  mut count : Int32
+  mut numbers : Int32
   mut sum : Double
   mut product : Double
   mut mean : Double
@@ -554,7 +554,7 @@ fn PivotStatistic::value(self : PivotStatistic, aggregate : String) -> Value {
 /// Returns typed grouped values without changing cells, source or history.
 pub fn Session::pivot_preview(
   self : Session,
-  revision : Int,
+  revision : Int32,
   settings : PivotSettings,
   part~ : String? = None,
 ) -> Json raise @failure.Failure {

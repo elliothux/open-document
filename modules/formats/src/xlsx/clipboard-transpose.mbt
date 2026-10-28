@@ -1,9 +1,9 @@
 ///|
 fn Expression::transpose(
   self : Expression,
-  top : Int,
-  left : Int,
-  depth~ : Int = 0,
+  top : Int32,
+  left : Int32,
+  depth~ : Int32 = 0,
 ) -> Expression raise @failure.Failure {
   guard depth <= 64 else {
     @failure.reject("limit-exceeded", "Formula expression depth exceeded")

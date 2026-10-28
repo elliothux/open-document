@@ -1,5 +1,5 @@
 ///|
-fn fixed_column_field(text : String, first : Int, last : Int) -> String {
+fn fixed_column_field(text : String, first : Int32, last : Int32) -> String {
   let mut last = last
   while last > first && text[last - 1] == 32 {
     last -= 1
@@ -12,7 +12,7 @@ fn fixed_column_field(text : String, first : Int, last : Int) -> String {
 }
 
 ///|
-fn fixed_column_fields(text : String, breaks : Array[Int]) -> Array[String] {
+fn fixed_column_fields(text : String, breaks : Array[Int32]) -> Array[String] {
   let boundaries = @layout.grapheme_boundaries(text)
   let widths = Array::makei(boundaries.length() - 1, index => {
     let mut width = 0

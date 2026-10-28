@@ -1,7 +1,7 @@
 ///|
 priv struct ChartLegendLayout {
   plot : Border
-  entries : Array[(String, Int, Border)]
+  entries : Array[(String, Int32, Border)]
 }
 
 ///|
@@ -132,7 +132,7 @@ fn ChartData::legend_layout(
 ///|
 fn ChartData::paint_legend(
   self : ChartData,
-  entries : Array[(String, Int, Border)],
+  entries : Array[(String, Int32, Border)],
   probe : TextProbe,
   profile : Map[String, String],
   colors : Array[String],

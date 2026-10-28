@@ -7,8 +7,8 @@ pub(all) struct CopiedCell {
 
 ///|
 pub(all) struct CopiedCells {
-  top : Int
-  left : Int
+  top : Int32
+  left : Int32
   date1904 : Bool
   cells : Array[Array[CopiedCell]]
   merges : Array[Range]
@@ -167,7 +167,7 @@ fn CopiedCells::validate(self : CopiedCells) -> Unit raise @failure.Failure {
 /// Captures a bounded logical rectangle, independent of later source edits.
 pub fn Session::capture_cells(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> CopiedCells raise @failure.Failure {
   self.check_revision(revision)
   let (id, selected) = self.selection
@@ -237,7 +237,7 @@ pub fn Session::capture_cells(
 /// Pastes values, formulas and formats as one source/history transaction.
 pub fn Session::paste_cells(
   self : Session,
-  revision : Int,
+  revision : Int32,
   copied : CopiedCells,
   mode : String,
   transpose~ : Bool = false,
@@ -316,9 +316,9 @@ pub fn Session::paste_cells(
       "protected-content", "Pasted sparklines require unmerged cells",
     )
   }
-  let originals : Map[String, (Int, Int)] = Map([])
+  let originals : Map[String, (Int32, Int32)] = Map([])
   let patches : Array[CellFormat] = []
-  let pool : Map[CellFormat, Int] = Map([])
+  let pool : Map[CellFormat, Int32] = Map([])
   for r in 0..<rows {
     for c in 0..<columns {
       let cell = copied.cells[if transpose { c } else { r }][if transpose {

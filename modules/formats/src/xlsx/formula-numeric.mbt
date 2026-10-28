@@ -56,7 +56,7 @@ fn rounded_decimal(value : Double, places : Double, mode : String) -> Value {
 ///|
 fn factorial_product(
   number : Double,
-  step : Int,
+  step : Int32,
   work : FormulaWork,
 ) -> Double raise @failure.Failure {
   let mut result = 1.0
@@ -124,10 +124,10 @@ fn numeric_function(
   name : String,
   args : Array[Expression],
   sheets : Array[Sheet],
-  sheet : Int,
-  values : Map[(Int, String), Value],
+  sheet : Int32,
+  values : Map[(Int32, String), Value],
   work : FormulaWork,
-  depth : Int,
+  depth : Int32,
 ) -> Value raise @failure.Failure {
   let numbers : Array[Double] = []
   for arg in args {

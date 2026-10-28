@@ -86,8 +86,8 @@ fn animation_behavior(
   tree : Tree,
   behavior : @xml.Node,
   property : String?,
-  delay~ : Int = 0,
-) -> (String, Int) raise @failure.Failure {
+  delay~ : Int32 = 0,
+) -> (String, Int32) raise @failure.Failure {
   animation_check(tree, behavior, "cBhvr", ["override"], [
     "cTn", "tgtEl", "attrNameLst",
   ])
@@ -137,7 +137,7 @@ fn animation_visibility(
   tree : Tree,
   set : @xml.Node,
   visible : Bool,
-  delay~ : Int = 0,
+  delay~ : Int32 = 0,
 ) -> String raise @failure.Failure {
   animation_check(tree, set, "set", [], ["cBhvr", "to"])
   let (target, duration) = animation_behavior(

@@ -21,10 +21,10 @@ pub fn Session::content(self : Session) -> String {
 /// Status: 0 success, 1 invalid range, 2 closed, 3 history budget exceeded.
 pub fn Session::replace(
   self : Session,
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
   replacement : String,
-) -> Int {
+) -> Int32 {
   if self.closed {
     return 2
   }
@@ -44,7 +44,7 @@ pub fn Session::replace(
 
 ///|
 /// Status: 0 success, 2 closed, 4 no undo history.
-pub fn Session::undo(self : Session) -> Int {
+pub fn Session::undo(self : Session) -> Int32 {
   if self.closed {
     return 2
   }

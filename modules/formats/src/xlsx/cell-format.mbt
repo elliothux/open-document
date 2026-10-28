@@ -28,8 +28,8 @@ pub struct CellFormat {
   vertical : String?
   wrap : Bool?
   shrinkToFit : Bool?
-  indent : Int?
-  textRotation : Int?
+  indent : Int32?
+  textRotation : Int32?
   locked : Bool?
   formulaHidden : Bool?
   numberFormat : String?
@@ -91,8 +91,8 @@ pub fn CellFormat::new(
   vertical~ : String? = None,
   wrap~ : Bool? = None,
   shrinkToFit~ : Bool? = None,
-  indent~ : Int? = None,
-  textRotation~ : Int? = None,
+  indent~ : Int32? = None,
+  textRotation~ : Int32? = None,
   locked~ : Bool? = None,
   formulaHidden~ : Bool? = None,
   numberFormat~ : String? = None,
@@ -203,7 +203,10 @@ fn CellFormat::validate(self : CellFormat) -> Unit raise @failure.Failure {
 }
 
 ///|
-fn column_style(columns : Array[(Int, Int, Int)], column : Int) -> Int {
+fn column_style(
+  columns : Array[(Int32, Int32, Int32)],
+  column : Int32,
+) -> Int32 {
   for low = 0, high = columns.length(); low < high; {
     let middle = low + (high - low) / 2
     let (first, last, style) = columns[middle]
@@ -222,7 +225,7 @@ fn column_style(columns : Array[(Int, Int, Int)], column : Int) -> Int {
 fn Sheet::style_at(
   self : Sheet,
   address : Address,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   self.cells
   .get(address.name())
   .map(cell => cell.style)

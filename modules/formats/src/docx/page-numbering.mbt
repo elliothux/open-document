@@ -20,7 +20,7 @@ pub extend SectionNumbering with ToJson::{to_json}
 ///|
 fn WordTree::section_numbering(
   self : WordTree,
-  section : Int?,
+  section : Int32?,
 ) -> SectionNumbering raise @failure.Failure {
   let default : SectionNumbering = { start: None, format: "decimal", }
   guard section is Some(section) else { return default }
@@ -69,7 +69,7 @@ fn WordTree::section_numbering(
 ///|
 fn WordTree::page_numbering(
   self : WordTree,
-  section : Int?,
+  section : Int32?,
 ) -> @layout.PageNumbering raise @failure.Failure {
   let value = self.section_numbering(section)
   { start: value.start.unwrap_or(1L), format: value.format, }
@@ -79,7 +79,7 @@ fn WordTree::page_numbering(
 fn Session::page_numbering_query(
   self : Session,
   tree : WordTree,
-  index : Int,
+  index : Int32,
 ) -> Json {
   try {
     let section = self.editable_page_section(tree, target=Some(index))
@@ -94,8 +94,8 @@ fn Session::page_numbering_query(
 /// Changes one section's page numbering and preflights layout in one source transaction.
 pub fn Session::set_page_numbering(
   self : Session,
-  revision : Int,
-  sectionIndex : Int,
+  revision : Int32,
+  sectionIndex : Int32,
   value : SectionNumbering?,
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],

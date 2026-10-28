@@ -2,7 +2,7 @@
 /// Creates a custom paragraph or character style; missing styles metadata is created atomically.
 pub fn Session::create_style(
   self : Session,
-  revision : Int,
+  revision : Int32,
   name : String,
   kind : String,
   based_on~ : String? = None,

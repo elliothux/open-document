@@ -1,7 +1,7 @@
 ///|
 fn Session::print_sheet(
   self : Session,
-  index : Int,
+  index : Int32,
   range : String?,
   probe : @layout.TextProbe,
   profile : Map[String, String],
@@ -139,7 +139,7 @@ fn Session::print_sheet(
     )
   })
   let pages : Array[@layout.PositionedPage] = []
-  let page_units : Array[Int] = []
+  let page_units : Array[Int32] = []
   let printed_cells : Array[PrintedCell] = []
   let page_offset = work.pages
   for (rows, columns) in bands {

@@ -10,7 +10,7 @@ fn Selection::without_visual_hints(self : Selection) -> Selection {
 /// Captures uniform effective properties; mixed properties are omitted.
 pub fn Session::capture_format(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
 ) -> Json raise @failure.Failure {
   let result = self.query_formatting(revision, selection)
@@ -42,7 +42,7 @@ pub fn Session::capture_format(
 /// Applies both property groups atomically as one history entry.
 pub fn Session::apply_format(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   character : CharacterFormat,
   paragraph : ParagraphFormat,

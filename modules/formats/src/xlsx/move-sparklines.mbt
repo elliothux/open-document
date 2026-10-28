@@ -77,7 +77,7 @@ fn Sheet::move_sparklines(
   relocation : CellMove,
   edits : Array[(String, @xml.Edit)],
   strings : Array[(String, Bool)],
-  styles : Int,
+  styles : Int32,
 ) -> @xml.Document raise @failure.Failure {
   let items : Array[Sparkline] = []
   let origins = if self.id == to.id && from.id != to.id {

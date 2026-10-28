@@ -59,7 +59,7 @@ fn Session::ordered_sheets(
 }
 
 ///|
-fn visible_sheet(sheets : Array[Sheet], from : Int) -> Int {
+fn visible_sheet(sheets : Array[Sheet], from : Int32) -> Int32 {
   for index in from..<sheets.length() {
     if sheets[index].state == "visible" {
       return index
@@ -77,7 +77,7 @@ fn visible_sheet(sheets : Array[Sheet], from : Int) -> Int {
 ///|
 fn Session::edit_sheet_current(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   change : SheetEdit,
 ) -> Json raise @failure.Failure {

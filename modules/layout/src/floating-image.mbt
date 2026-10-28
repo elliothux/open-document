@@ -3,8 +3,8 @@
 pub fn Layout::drawing_anchor_offsets(
   self : Layout,
   page : PageSetup,
-  paragraph : Int,
-  start : Int,
+  paragraph : Int32,
+  start : Int32,
 ) -> DrawingAnchor raise @failure.Failure {
   page.validate()
   for frame in self.pages {
@@ -220,8 +220,8 @@ fn Flow::validate_floating_images(self : Flow) -> Unit raise @failure.Failure {
 ///|
 fn PageFrame::floating_images(
   self : PageFrame,
-) -> Array[(Int, PlacedDrawingFrame)] {
-  let result : Array[(Int, PlacedDrawingFrame)] = []
+) -> Array[(Int32, PlacedDrawingFrame)] {
+  let result : Array[(Int32, PlacedDrawingFrame)] = []
   for index, line in self.lines {
     for image in line.drawings {
       if image.anchor is Some(_) {
@@ -338,8 +338,8 @@ fn Layout::image_hit(
   self : Layout,
   line : Line,
   image : PlacedDrawingFrame,
-  page : Int,
-  index : Int,
+  page : Int32,
+  index : Int32,
   x : Double,
 ) -> Hit {
   let leading = (x < image.x + image.width / 2) == (image.level % 2 == 0)
@@ -381,7 +381,7 @@ fn Layout::image_hit(
 ///|
 fn Layout::floating_image_hit(
   self : Layout,
-  page : Int,
+  page : Int32,
   x : Double,
   y : Double,
 ) -> Hit? raise @failure.Failure {

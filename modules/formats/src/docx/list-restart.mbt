@@ -3,10 +3,10 @@ fn NumberingContext::restart_markup(
   self : NumberingContext,
   tree : WordTree,
   styles : Styles,
-  paragraph : Int,
-  instance : Int,
-  abstract_id : Int,
-  start : Int,
+  paragraph : Int32,
+  instance : Int32,
+  abstract_id : Int32,
+  start : Int32,
 ) -> String raise @failure.Failure {
   let (old, target) = styles.numbering_reference(tree, paragraph).unwrap()
   let definition = self.definition(old)
@@ -93,7 +93,7 @@ fn NumberingContext::counter_at(
   self : NumberingContext,
   tree : WordTree,
   styles : Styles,
-  paragraph : Int,
+  paragraph : Int32,
 ) -> NumberCounter raise @failure.Failure {
   let (old, _) = styles.numbering_reference(tree, paragraph).unwrap()
   let definition = self.definition(old)

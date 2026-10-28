@@ -2,7 +2,7 @@
 priv struct ParagraphRange {
   start : Position
   end : Position
-  paragraphs : Array[Int]
+  paragraphs : Array[Int32]
 }
 
 ///|
@@ -66,8 +66,8 @@ fn Session::paragraph_range_in(
   .search(last.id)
   .unwrap() +
   1].to_owned()
-  let paragraphs : Array[Int] = []
-  let continuations : Map[Int, Unit] = Map([])
+  let paragraphs : Array[Int32] = []
+  let continuations : Map[Int32, Unit] = Map([])
   let mut cells = 0L
   let mut table_count = 0
   let table_flow = if tables &&
@@ -184,7 +184,7 @@ fn Session::paragraph_range_in(
 /// Plain-text cut rejects inline objects; rich clipboard validates their portable source.
 pub fn Session::selected_text(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   cut~ : Bool = false,
   layout? : @layout.Layout,

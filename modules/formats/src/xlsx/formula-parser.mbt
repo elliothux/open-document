@@ -30,13 +30,13 @@ priv enum Token {
 ///|
 priv struct FormulaParser {
   tokens : Array[Token]
-  mut cursor : Int
+  mut cursor : Int32
 }
 
 ///|
 fn formula_tokens(
   text : String,
-  spans? : Array[(Int, Int)],
+  spans? : Array[(Int32, Int32)],
 ) -> Array[Token] raise @failure.Failure {
   guard text.length() <= 8192 else {
     @failure.reject("limit-exceeded", "Formula source exceeds budget")
@@ -315,7 +315,7 @@ fn FormulaAddress::range(self : FormulaAddress, last : FormulaAddress) -> Range 
 ///|
 fn FormulaParser::atom(
   self : FormulaParser,
-  depth : Int,
+  depth : Int32,
 ) -> Expression raise @failure.Failure {
   guard depth <= 64 else {
     @failure.reject("limit-exceeded", "Formula parser depth exceeded")
@@ -514,7 +514,7 @@ fn FormulaParser::atom(
 ///|
 fn FormulaParser::primary(
   self : FormulaParser,
-  depth : Int,
+  depth : Int32,
 ) -> Expression raise @failure.Failure {
   let mut value = self.atom(depth)
   while self.accept("%") {
@@ -526,8 +526,8 @@ fn FormulaParser::primary(
 ///|
 fn FormulaParser::expression(
   self : FormulaParser,
-  minimum : Int,
-  depth : Int,
+  minimum : Int32,
+  depth : Int32,
 ) -> Expression raise @failure.Failure {
   let mut left = self.primary(depth)
   while self.tokens[self.cursor] is Operator(operator) {

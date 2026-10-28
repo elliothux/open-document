@@ -6,8 +6,8 @@ fn source_xml(source : Ref) -> String {
 ///|
 fn run_piece(
   run : TextRun,
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
 ) -> String raise @failure.Failure {
   guard start < end && run.source is Some(source) else { return "" }
   if start == 0 && end == run.text.length() {
@@ -25,8 +25,8 @@ fn run_piece(
 ///|
 fn paragraph_piece(
   paragraph : TextParagraph,
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
 ) -> String raise @failure.Failure {
   let output = StringBuilder()
   let mut offset = 0
@@ -44,8 +44,8 @@ fn paragraph_piece(
 ///|
 fn paragraph_location(
   object : Object,
-  position : Int,
-) -> (Int, Int) raise @failure.Failure {
+  position : Int32,
+) -> (Int32, Int32) raise @failure.Failure {
   let mut offset = 0
   for index, paragraph in object.paragraphs {
     let length = paragraph.runs
@@ -86,7 +86,7 @@ fn generated_text(
 ///|
 fn replacement_properties(
   paragraph : TextParagraph,
-  at : Int,
+  at : Int32,
   leading~ : Bool = false,
 ) -> String raise @failure.Failure {
   let (index, _) = caret_run(paragraph, at, leading~)
@@ -203,11 +203,11 @@ fn text_changes(
 ///|
 pub fn Session::replace(
   self : Session,
-  revision : Int,
+  revision : Int32,
   text : String,
   probe : @layout.TextProbe,
   profile : Map[String, String],
-  candidate_id~ : Int? = None,
+  candidate_id~ : Int32? = None,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let object = self.editable(true)
@@ -254,7 +254,7 @@ pub fn Session::replace(
 ///|
 pub fn Session::delete(
   self : Session,
-  revision : Int,
+  revision : Int32,
   backward : Bool,
   probe : @layout.TextProbe,
   profile : Map[String, String],
@@ -297,7 +297,7 @@ pub fn Session::delete(
 ///|
 fn Session::copy_text(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> String raise @failure.Failure {
   self.check_revision(revision)
   self.check_idle()

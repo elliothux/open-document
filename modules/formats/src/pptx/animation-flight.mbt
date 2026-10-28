@@ -1,7 +1,7 @@
 ///|
 fn flight_formulas(
-  direction : Int,
-  axis : Int,
+  direction : Int32,
+  axis : Int32,
   entrance : Bool,
 ) -> (String, String) {
   let prefix = if entrance { "#" } else { "" }
@@ -134,7 +134,7 @@ fn read_flight_animation(
 ///|
 fn flight_animation_markup(
   item : SlideAnimation,
-  id : Int,
+  id : Int32,
   target : String,
 ) -> String {
   let entrance = item.kind == "flyIn"

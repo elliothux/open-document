@@ -158,7 +158,7 @@ fn Context::picture_operation(
 ///|
 fn drawing_hyperlink(
   session : @model.Session,
-  revision : Int,
+  revision : Int32,
   change : Json,
 ) -> Json raise @failure.Failure {
   guard change is { "target": target, .. } else {
@@ -233,7 +233,7 @@ fn drawing_anchor(
 ///|
 fn resize_picture(
   session : @model.Session,
-  revision : Int,
+  revision : Int32,
   picture : Json,
   probe : @layout.TextProbe,
   profile : Map[String, String],

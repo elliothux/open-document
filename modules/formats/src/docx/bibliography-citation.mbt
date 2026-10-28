@@ -53,7 +53,7 @@ fn Session::citation_text(
 /// Inserts one native citation with an author/year cache at the current range.
 pub fn Session::insert_citation(
   self : Session,
-  revision : Int,
+  revision : Int32,
   tag : String,
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],
@@ -72,7 +72,7 @@ pub fn Session::insert_citation(
 /// Explicitly refreshes supported body citations using the basic author/year display.
 pub fn Session::update_citations(
   self : Session,
-  revision : Int,
+  revision : Int32,
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],
   images~ : @layout.Images,
@@ -90,11 +90,11 @@ pub fn Session::update_citations(
       }
     }
   }
-  let changes : Map[Int, String] = Map([])
+  let changes : Map[Int32, String] = Map([])
   let values : Map[String, String] = Map([])
-  let affected : Array[Int] = []
+  let affected : Array[Int32] = []
   for p in paragraphs {
-    let cache : Map[Int, String] = Map([])
+    let cache : Map[Int32, String] = Map([])
     for id, code in tree.running_fields(p.id, cache~) {
       if !cache.contains(id) {
         continue

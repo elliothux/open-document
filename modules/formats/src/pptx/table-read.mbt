@@ -3,7 +3,7 @@ priv struct DrawingTable {
   rtl : Bool
   widths : Array[Double]
   rows : Array[DrawingRow]
-  owners : Array[Array[(Int, Int)]]
+  owners : Array[Array[(Int32, Int32)]]
   style : TableStyleSettings
   styles : TableStyleBook
   fill : String
@@ -19,8 +19,8 @@ priv struct DrawingRow {
 
 ///|
 priv struct DrawingCell {
-  row_span : Int
-  column_span : Int
+  row_span : Int32
+  column_span : Int32
   h_merge : Bool
   v_merge : Bool
   source : Ref
@@ -30,7 +30,7 @@ priv struct DrawingCell {
   alpha : Double
   fill_source : (Ref, Ref?)?
   borders : Array[(String, Double, String, Double)]
-  border_priorities : Array[Int]
+  border_priorities : Array[Int32]
   border_sources : Array[(Ref, Ref?)?]
 }
 

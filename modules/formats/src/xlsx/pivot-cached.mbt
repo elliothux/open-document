@@ -39,8 +39,8 @@ fn Session::cached_pivot(
     decode_text(field.attribute("name").unwrap_or(""))
   })
   let items : Array[Array[Value]] = []
-  let styles : Array[Array[Int]] = []
-  let maps : Array[Map[String, Int]] = []
+  let styles : Array[Array[Int32]] = []
+  let maps : Array[Map[String, Int32]] = []
   let source = if settings.sourceSheet.is_empty() {
     None
   } else {
@@ -62,7 +62,7 @@ fn Session::cached_pivot(
         pivot_cache_value(node)
       }
     })
-    let lookup : Map[String, Int] = Map([])
+    let lookup : Map[String, Int32] = Map([])
     for offset, value in values {
       let key = pivot_item_key(value)
       units += key.length()
@@ -79,7 +79,7 @@ fn Session::cached_pivot(
       lookup[key] = offset
     }
     let formats = values.map(_ => 0)
-    let formatted : Map[Int, Bool] = Map([])
+    let formatted : Map[Int32, Bool] = Map([])
     if index < width && source is Some(source) {
       for row in (range.top + 1)..<=range.bottom {
         let address : Address = { row, column: range.left + index, }
@@ -135,7 +135,7 @@ fn Session::cached_pivot(
     width,
     settings.values.map(value => value.name),
   )
-  let groups : Map[Int, PivotGroupItems] = Map([])
+  let groups : Map[Int32, PivotGroupItems] = Map([])
   for group in settings.numberGroups {
     groups[group.field] = group.build(items[group.field])
   }

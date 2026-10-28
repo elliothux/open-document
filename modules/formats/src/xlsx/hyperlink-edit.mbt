@@ -61,7 +61,7 @@ fn hyperlink_fragment(
   relation : String?,
 ) -> String raise @failure.Failure {
   let source = tree.document.source()
-  let replacements : Array[(Int, Int, String)] = []
+  let replacements : Array[(Int32, Int32, String)] = []
   for a in node.attributes {
     if a.uri.is_empty() && a.name == "ref" {
       replacements.push((a.start, a.end, escaped_attribute(range.name())))
@@ -271,7 +271,7 @@ fn Session::open_hyperlink(
   self : Session,
   id : String,
   source : String,
-  source_revision : Int,
+  source_revision : Int32,
 ) -> Json raise @failure.Failure {
   guard source_revision == self.revision && id == self.selection.0 else {
     @failure.reject(

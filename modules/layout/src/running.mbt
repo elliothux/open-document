@@ -6,8 +6,8 @@ fn running_lines(
   cache : ParagraphCache,
   profile : Map[String, String],
   images : Images,
-  page~ : Int = -1,
-  total~ : Int = 1,
+  page~ : Int32 = -1,
+  total~ : Int32 = 1,
 ) -> (Array[Array[Line]], Array[PageSetup]) raise @failure.Failure {
   flow.pageNumbering.validate()
   let prepared : Map[String, (Array[Line], Double)] = Map([])

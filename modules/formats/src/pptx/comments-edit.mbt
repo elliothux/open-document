@@ -26,7 +26,7 @@ fn check_comment_id(id : String) -> Unit raise @failure.Failure {
 ///|
 fn Session::edit_comments(
   self : Session,
-  index : Int,
+  index : Int32,
   change : SlideEdit,
 ) -> Json raise @failure.Failure {
   let slide = self.slides[index].tree.part

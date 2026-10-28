@@ -1,8 +1,8 @@
 ///|
 fn check_format_merges(
   merges : Array[Range],
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
 ) -> Unit raise @failure.Failure {
   guard merges.length() <= 1024 else {
     @failure.reject(
@@ -39,8 +39,8 @@ fn Sheet::format_merges(
   self : Sheet,
   target : Range,
   pattern : Array[Range],
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
 ) -> Array[Range] raise @failure.Failure {
   check_merge_markup(Tree::new(self.document))
   let result = self.merges.filter(merge => !merge.intersects(target))

@@ -1,9 +1,9 @@
 ///|
 priv struct DocNote {
   key : String
-  node : Int
-  paragraphs : Array[Int]
-  texts : Array[Int]
+  node : Int32
+  paragraphs : Array[Int32]
+  texts : Array[Int32]
   text : String
   reason : String
 }
@@ -30,7 +30,7 @@ fn note_key(value : String) -> String raise @failure.Failure {
 ///|
 fn read_doc_note(
   tree : WordTree,
-  id : Int,
+  id : Int32,
   kind : String,
 ) -> DocNote raise @failure.Failure {
   let node = tree.nodes[id]
@@ -38,7 +38,7 @@ fn read_doc_note(
   let paragraphs = tree.children[id].filter(child => {
     tree.nodes[child].uri == word_uri && tree.nodes[child].name == "p"
   })
-  let texts : Array[Int] = []
+  let texts : Array[Int32] = []
   let content : Array[String] = []
   let mut reason = ""
   if !node.attributes.all(a => {
@@ -186,13 +186,13 @@ fn Session::note_source(
 /// Reads native note bodies without changing their reference or source XML.
 pub fn Session::notes(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let entries : Array[Json] = []
   let tree = WordTree::new(self.document())
   for kind in ["footnote", "endnote"] {
-    let references : Map[String, Int] = Map([])
+    let references : Map[String, Int32] = Map([])
     for id in tree.order {
       let node = tree.nodes[id]
       if node.uri == word_uri && node.name == kind + "Reference" {

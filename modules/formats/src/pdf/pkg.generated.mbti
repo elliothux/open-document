@@ -8,7 +8,7 @@ import {
 }
 
 // Values
-pub fn write(@layout.PositionedDocument, @layout.TextProbe, @layout.Images, Int) -> Bytes raise @failure.Failure
+pub fn write(@layout.PositionedDocument, @layout.TextProbe, @layout.Images, Int32) -> Bytes raise @failure.Failure
 
 // Errors
 
@@ -16,16 +16,16 @@ pub fn write(@layout.PositionedDocument, @layout.TextProbe, @layout.Images, Int)
 type PageDisplay
 
 pub(all) struct PdfBudget {
-  fileBytes : Int
-  objects : Int
-  objectNumber : Int
-  pages : Int
-  revisions : Int
-  depth : Int
-  streamBytes : Int
-  decodedBytes : Int
-  steps : Int
-  outputBytes : Int
+  fileBytes : Int32
+  objects : Int32
+  objectNumber : Int32
+  pages : Int32
+  revisions : Int32
+  depth : Int32
+  streamBytes : Int32
+  decodedBytes : Int32
+  steps : Int32
+  outputBytes : Int32
 } derive(ToJson)
 pub fn PdfBudget::default() -> Self
 pub fn PdfBudget::to_json(Self) -> Json
@@ -36,43 +36,43 @@ pub struct PdfSession {
   document : @pdflite.PdfDocument
   mut original : Bytes
   budget : PdfBudget
-  generations : Map[Int, Int]
+  generations : Map[Int32, Int32]
   mut pages : Array[SourcePage]
-  mut revision : Int
-  mut layoutId : Int
+  mut revision : Int32
+  mut layoutId : Int32
   mut display : PageDisplay?
   mut current : String
-  mut selection : (Int, Int)
-  mut nextObject : Int
-  mut stateId : Int
-  mut nextState : Int
+  mut selection : (Int32, Int32)
+  mut nextObject : Int32
+  mut stateId : Int32
+  mut nextState : Int32
   undo : Array[PdfHistory]
   redo : Array[PdfHistory]
-  mut historyBytes : Int
+  mut historyBytes : Int32
   readOnlyReason : String
   mut closed : Bool
 }
-pub fn PdfSession::add_highlight(Self, Int, Int) -> Json raise @failure.Failure
-pub fn PdfSession::add_note(Self, Int, String, Double, Double, String) -> Json raise @failure.Failure
-pub fn PdfSession::change_annotation(Self, Int, String, String, String, Bool) -> Json raise @failure.Failure
+pub fn PdfSession::add_highlight(Self, Int32, Int32) -> Json raise @failure.Failure
+pub fn PdfSession::add_note(Self, Int32, String, Double, Double, String) -> Json raise @failure.Failure
+pub fn PdfSession::change_annotation(Self, Int32, String, String, String, Bool) -> Json raise @failure.Failure
 pub fn PdfSession::close(Self) -> Unit
-pub fn PdfSession::decoded_image(Self, Int, String, Int, Int, Bytes, @layout.Images) -> Unit raise @failure.Failure
-pub fn PdfSession::delete_pages(Self, Int, Array[String]) -> Json raise @failure.Failure
-pub fn PdfSession::extract(Self, Int, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
-pub fn PdfSession::hit(Self, Int, Double, Double) -> Json raise @failure.Failure
-pub fn PdfSession::image(Self, Int, String, @layout.Images) -> (String, Bytes, Int, Int) raise @failure.Failure
+pub fn PdfSession::decoded_image(Self, Int32, String, Int32, Int32, Bytes, @layout.Images) -> Unit raise @failure.Failure
+pub fn PdfSession::delete_pages(Self, Int32, Array[String]) -> Json raise @failure.Failure
+pub fn PdfSession::extract(Self, Int32, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
+pub fn PdfSession::hit(Self, Int32, Double, Double) -> Json raise @failure.Failure
+pub fn PdfSession::image(Self, Int32, String, @layout.Images) -> (String, Bytes, Int32, Int32) raise @failure.Failure
 pub fn PdfSession::invalidate(Self) -> Unit
 pub fn PdfSession::open(Bytes, PdfBudget) -> Self raise @failure.Failure
 pub fn PdfSession::query(Self) -> Json raise @failure.Failure
-pub fn PdfSession::render(Self, Int, String, @layout.TextProbe, Map[String, String], @layout.Images) -> Json raise @failure.Failure
-pub fn PdfSession::reorder(Self, Int, Array[String]) -> Json raise @failure.Failure
-pub fn PdfSession::rotate_pages(Self, Int, Array[String], Int) -> Json raise @failure.Failure
-pub fn PdfSession::save(Self, Int) -> Bytes raise @failure.Failure
-pub fn PdfSession::search(Self, Int, String, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
-pub fn PdfSession::select_text(Self, Int, Int, Int) -> Json raise @failure.Failure
-pub fn PdfSession::selected_text(Self, Int) -> String raise @failure.Failure
-pub fn PdfSession::set_field(Self, Int, String, Json, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
-pub fn PdfSession::undo_edit(Self, Int, Bool) -> Json raise @failure.Failure
+pub fn PdfSession::render(Self, Int32, String, @layout.TextProbe, Map[String, String], @layout.Images) -> Json raise @failure.Failure
+pub fn PdfSession::reorder(Self, Int32, Array[String]) -> Json raise @failure.Failure
+pub fn PdfSession::rotate_pages(Self, Int32, Array[String], Int32) -> Json raise @failure.Failure
+pub fn PdfSession::save(Self, Int32) -> Bytes raise @failure.Failure
+pub fn PdfSession::search(Self, Int32, String, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
+pub fn PdfSession::select_text(Self, Int32, Int32, Int32) -> Json raise @failure.Failure
+pub fn PdfSession::selected_text(Self, Int32) -> String raise @failure.Failure
+pub fn PdfSession::set_field(Self, Int32, String, Json, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
+pub fn PdfSession::undo_edit(Self, Int32, Bool) -> Json raise @failure.Failure
 
 type SourcePage
 

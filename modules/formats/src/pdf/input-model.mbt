@@ -1,15 +1,15 @@
 ///|
 pub(all) struct PdfBudget {
-  fileBytes : Int
-  objects : Int
-  objectNumber : Int
-  pages : Int
-  revisions : Int
-  depth : Int
-  streamBytes : Int
-  decodedBytes : Int
-  steps : Int
-  outputBytes : Int
+  fileBytes : Int32
+  objects : Int32
+  objectNumber : Int32
+  pages : Int32
+  revisions : Int32
+  depth : Int32
+  streamBytes : Int32
+  decodedBytes : Int32
+  steps : Int32
+  outputBytes : Int32
 } derive(ToJson)
 
 ///|
@@ -33,13 +33,13 @@ pub fn PdfBudget::default() -> PdfBudget {
 
 ///|
 struct SourcePage {
-  number : Int
-  generation : Int
+  number : Int32
+  generation : Int32
   id : String
   resources : @syntax.PdfObject
   media : @syntax.PdfObject
   crop : @syntax.PdfObject
-  rotate : Int
+  rotate : Int32
   unit : Double
   width : Double
   height : Double
@@ -48,8 +48,8 @@ struct SourcePage {
 
 ///|
 struct TextSpan {
-  start : Int
-  end : Int
+  start : Int32
+  end : Int32
   text : String
   quad : Array[Double]
   source : String
@@ -63,8 +63,8 @@ pub extend TextSpan with ToJson::{to_json}
 ///|
 struct PageDisplay {
   page : String
-  id : Int
-  revision : Int
+  id : Int32
+  revision : Int32
   region : @layout.DrawingRegion
   text : String
   spans : Array[TextSpan]
@@ -79,16 +79,16 @@ struct PageDisplay {
 ///|
 priv struct JpegImage {
   bytes : Bytes
-  width : Int
-  height : Int
+  width : Int32
+  height : Int32
   decode : Array[Double]
   alpha : Bytes?
 }
 
 ///|
 priv struct ObjectChange {
-  number : Int
-  generation : Int
+  number : Int32
+  generation : Int32
   before : @syntax.PdfObject?
   after : @syntax.PdfObject
 }
@@ -96,12 +96,12 @@ priv struct ObjectChange {
 ///|
 struct PdfHistory {
   changes : Array[ObjectChange]
-  bytes : Int
+  bytes : Int32
   beforePage : String
   afterPage : String
-  beforeSelection : (Int, Int)
-  beforeState : Int
-  afterState : Int
+  beforeSelection : (Int32, Int32)
+  beforeState : Int32
+  afterState : Int32
 }
 
 ///|
@@ -109,25 +109,25 @@ pub struct PdfSession {
   document : @pdflite.PdfDocument
   mut original : Bytes
   budget : PdfBudget
-  generations : Map[Int, Int]
+  generations : Map[Int32, Int32]
   mut pages : Array[SourcePage]
-  mut revision : Int
-  mut layoutId : Int
+  mut revision : Int32
+  mut layoutId : Int32
   mut display : PageDisplay?
   mut current : String
-  mut selection : (Int, Int)
-  mut nextObject : Int
-  mut stateId : Int
-  mut nextState : Int
+  mut selection : (Int32, Int32)
+  mut nextObject : Int32
+  mut stateId : Int32
+  mut nextState : Int32
   undo : Array[PdfHistory]
   redo : Array[PdfHistory]
-  mut historyBytes : Int
+  mut historyBytes : Int32
   readOnlyReason : String
   mut closed : Bool
 }
 
 ///|
-let pdf_layout_serial : Ref[Int] = Ref(0)
+let pdf_layout_serial : Ref[Int32] = Ref(0)
 
 ///|
 fn[T] pdf_bound(
@@ -173,7 +173,7 @@ fn[T] pdf_bound(
 ///|
 fn PdfSession::check(
   self : PdfSession,
-  revision : Int,
+  revision : Int32,
 ) -> Unit raise @failure.Failure {
   guard !self.closed else {
     @failure.reject("closed-session", "PDF session is closed")

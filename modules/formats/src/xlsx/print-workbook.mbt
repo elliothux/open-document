@@ -8,9 +8,9 @@ pub(all) enum PrintSheets {
 ///|
 priv struct PrintWork {
   mut cells : Int64
-  mut pages : Int
+  mut pages : Int32
   formulas : FormulaWork
-  destinations : Map[(String, Int, Int), @layout.LinkTarget]
+  destinations : Map[(String, Int32, Int32), @layout.LinkTarget]
 }
 
 ///|
@@ -20,9 +20,9 @@ priv struct PrintedSheet {
   setup : @layout.PageSetup
   scale : Double
   headers : HeaderFooter
-  first_page : Int
+  first_page : Int32
   pages : Array[@layout.PositionedPage]
-  units : Array[Int]
+  units : Array[Int32]
   cells : Array[PrintedCell]
   links : Array[(Range, String)]
 }
@@ -31,7 +31,7 @@ priv struct PrintedSheet {
 /// Print current or selected visible sheets in workbook order with shared output limits.
 pub fn Session::print_layout(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   range : String?,
   probe : @layout.TextProbe,
@@ -53,7 +53,7 @@ pub fn Session::print_layout(
           "invalid-sheet", "Select between one and 256 worksheets to print",
         )
       }
-      let selected : Map[Int, Bool] = Map([])
+      let selected : Map[Int32, Bool] = Map([])
       for id in ids {
         let index = self.sheet_index(id)
         guard !selected.contains(index) else {

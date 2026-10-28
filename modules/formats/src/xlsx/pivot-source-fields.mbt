@@ -65,7 +65,7 @@ fn Session::pivot_source_headers(
 fn pivot_source_field(
   headers : Array[String],
   name : String,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   headers
   .search_by(header => header == name)
   .unwrap_or_else(() => {
@@ -83,7 +83,7 @@ fn PivotSettings::remap_source_fields(
   previous : Array[String],
   headers : Array[String],
 ) -> PivotSettings raise @failure.Failure {
-  let field = (index : Int) => pivot_source_field(headers, previous[index])
+  let field = (index : Int32) => pivot_source_field(headers, previous[index])
   {
     ..self,
     rows: self.rows.map(field),
@@ -110,7 +110,7 @@ fn PivotSettings::remap_source_fields(
 }
 
 ///|
-fn PivotSettings::used_source_fields(self : PivotSettings) -> Array[Int] {
+fn PivotSettings::used_source_fields(self : PivotSettings) -> Array[Int32] {
   self.rows +
   self.columns +
   self.subtotals +
@@ -134,7 +134,7 @@ fn Session::pivot_headers_match(
   if previous.length() < width || headers.length() < width {
     return false
   }
-  let fields : Set[Int] = Set([])
+  let fields : Set[Int32] = Set([])
   for item in settings {
     for field in item.used_source_fields() {
       fields.add(field)

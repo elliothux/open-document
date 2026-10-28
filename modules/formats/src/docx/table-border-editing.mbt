@@ -10,7 +10,7 @@ pub(all) struct TableBorderStyle {
 ///|
 fn Session::set_table_borders(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   value : Map[String, TableBorderStyle?],
   whole_table~ : Bool,
@@ -69,7 +69,7 @@ fn Session::set_table_borders(
 fn WordTree::border_markup(
   self : WordTree,
   document : @xml.Document,
-  owner : Int,
+  owner : Int32,
   name : String,
   patch : Map[String, TableBorderStyle?],
   themes : Map[String, String],
@@ -82,7 +82,7 @@ fn WordTree::border_markup(
       "tcPr"
     },
   )
-  let stored : Map[String, Int] = Map([])
+  let stored : Map[String, Int32] = Map([])
   let current = properties
     .map(props => self.read_borders(props, name, Some(themes)))
     .unwrap_or(Map([]))
@@ -193,8 +193,8 @@ fn WordTree::border_markup(
 ///|
 fn cell_border_query(
   table : @layout.Table,
-  row : Int,
-  cell : Int,
+  row : Int32,
+  cell : Int32,
 ) -> Map[String, Json] {
   let start = table.columnSpans[row][:cell].fold(init=0, (sum, n) => sum + n)
   let end = start + table.columnSpans[row][cell]

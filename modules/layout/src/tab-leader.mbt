@@ -3,7 +3,7 @@
 fn TextProbe::tab_leader(
   self : TextProbe,
   leader : String,
-  font : Int,
+  font : Int32,
   size : Double,
   width : Double,
 ) -> Array[Glyph] raise @failure.Failure {

@@ -1,7 +1,7 @@
 ///|
 fn CellStyle::measurement_key(
   self : CellStyle,
-) -> (String, Double, Bool, String, String, Int, String, Bool) {
+) -> (String, Double, Bool, String, String, Int32, String, Bool) {
   (
     self.font,
     self.size,
@@ -16,9 +16,9 @@ fn CellStyle::measurement_key(
 
 ///|
 fn intervals_intersect(
-  spans : Array[(Int, Int)],
-  first : Int,
-  last : Int,
+  spans : Array[(Int32, Int32)],
+  first : Int32,
+  last : Int32,
 ) -> Bool {
   for low = 0, high = spans.length(); low < high; {
     let middle = low + (high - low) / 2
@@ -36,8 +36,8 @@ fn intervals_intersect(
 fn changed_merge_rows(
   before : Array[Range],
   after : Array[Range],
-) -> Array[(Int, Int)] {
-  let intervals : Array[(Int, Int)] = []
+) -> Array[(Int32, Int32)] {
+  let intervals : Array[(Int32, Int32)] = []
   for range in before {
     if !after.contains(range) {
       intervals.push((range.top, range.bottom))
@@ -49,7 +49,7 @@ fn changed_merge_rows(
     }
   }
   intervals.sort_by((a, b) => a.0.compare(b.0))
-  let result : Array[(Int, Int)] = []
+  let result : Array[(Int32, Int32)] = []
   for (first, last) in intervals {
     if result.last() is Some((start, end)) && first <= end + 1 {
       result[result.length() - 1] = (start, end.max(last))
@@ -63,9 +63,9 @@ fn changed_merge_rows(
 ///|
 fn Sheet::rows_affected_by_width(
   self : Sheet,
-  columns : Array[(Int, Int)],
-  automatic : Map[Int, Bool],
-  rows : Map[Int, Bool],
+  columns : Array[(Int32, Int32)],
+  automatic : Map[Int32, Bool],
+  rows : Map[Int32, Bool],
 ) -> Unit {
   if columns.is_empty() {
     return
@@ -82,10 +82,10 @@ fn Sheet::rows_affected_by_width(
 ///|
 fn Sheet::apply_fitted_sizes(
   self : Sheet,
-  sizes : Map[Int, Double],
+  sizes : Map[Int32, Double],
   edits : Array[(String, @xml.Edit)],
   strings : Array[(String, Bool)],
-  styles : Int,
+  styles : Int32,
   rows~ : Bool,
 ) -> Sheet raise @failure.Failure {
   if sizes.is_empty() {
@@ -128,13 +128,13 @@ fn Session::reflow_dimensions(
     parts,
     calculation: Some(calculation),
   }
-  let old : Map[String, (Int, Sheet)] = Map([])
+  let old : Map[String, (Int32, Sheet)] = Map([])
   for index, sheet in self.sheets {
     old[sheet.id] = (index, sheet)
   }
   let original_work = { ..work.formulas, names: self.formula_names(), }
   for index, candidate in sheets {
-    let automatic_rows : Map[Int, Bool] = Map([])
+    let automatic_rows : Map[Int32, Bool] = Map([])
     for row, cached in candidate.dimensions.automatic_rows {
       // An absent height remains a valid automatic declaration for data-only edits.
       if cached || context is Some(_) {
@@ -145,8 +145,8 @@ fn Session::reflow_dimensions(
     if automatic_rows.is_empty() && automatic_columns.is_empty() {
       continue
     }
-    let rows : Map[Int, Bool] = Map([])
-    let columns : Map[Int, Bool] = Map([])
+    let rows : Map[Int32, Bool] = Map([])
+    let columns : Map[Int32, Bool] = Map([])
     let mark = fn(address : Address, value : Value) {
       if automatic_rows.contains(address.row) {
         rows[address.row] = true
@@ -263,7 +263,7 @@ fn Session::reflow_dimensions(
         grow=true,
         parts~,
       )
-      let changed : Map[Int, Double] = Map([])
+      let changed : Map[Int32, Double] = Map([])
       for axis, size in sizes {
         if size != current.dimensions.columns.size(axis) {
           changed[axis] = size

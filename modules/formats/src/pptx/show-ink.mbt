@@ -17,8 +17,8 @@ priv struct ShowInkStroke {
 ///|
 pub fn Session::ink_show(
   self : Session,
-  revision : Int,
-  layout : Int,
+  revision : Int32,
+  layout : Int32,
   time : Double,
   change : ShowInkChange,
 ) -> Json raise @failure.Failure {

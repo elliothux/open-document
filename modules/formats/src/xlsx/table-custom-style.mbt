@@ -1,7 +1,7 @@
 ///|
 pub(all) struct TableStyleElement {
   kind : String
-  size : Int
+  size : Int32
   format : CellFormat
   vertical : CellBorder?
   horizontal : CellBorder?

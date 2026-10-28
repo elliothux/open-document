@@ -2,15 +2,15 @@
 priv struct SlicerGeometry {
   header : Double
   body : @layout.Border
-  buttons : Array[(Int, @layout.Border)]
+  buttons : Array[(Int32, @layout.Border)]
   scroll : @layout.Border?
   thumb : @layout.Border?
   clear : @layout.Border?
   multi : @layout.Border?
   previous : @layout.Border?
   next : @layout.Border?
-  maximum : Int
-  page : Int
+  maximum : Int32
+  page : Int32
 }
 
 ///|
@@ -55,7 +55,7 @@ fn SlicerDrawing::geometry(
     (control.columns - 1).to_double() * gap -
     (if overflow { 11.25 + gap } else { 0 })).max(0) /
     control.columns.to_double()
-  let buttons : Array[(Int, @layout.Border)] = []
+  let buttons : Array[(Int32, @layout.Border)] = []
   for index in control.start..<control.cache.members.length() {
     let position = index - control.start
     let y = body.y +
@@ -186,7 +186,7 @@ fn SlicerDrawing::paint(
   rect : @layout.Border,
   probe : @layout.TextProbe,
   profile : Map[String, String],
-  hover~ : Int? = None,
+  hover~ : Int32? = None,
 ) -> Unit raise @failure.Failure {
   let geometry = self.geometry(rect.width, rect.height, probe, profile)
   primitives.push(Clip(rect))

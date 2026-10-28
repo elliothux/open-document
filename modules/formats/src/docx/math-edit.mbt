@@ -2,8 +2,8 @@
 fn Session::math_target(
   self : Session,
   tree : WordTree,
-  id : Int,
-) -> (Int, @layout.DrawingContent) raise @failure.Failure {
+  id : Int32,
+) -> (Int32, @layout.DrawingContent) raise @failure.Failure {
   self.check_document_protection()
   self.check_picture_context(tree)
   guard tree.nodes.get(id) is Some(node) &&
@@ -47,7 +47,7 @@ fn Session::math_target(
 ///|
 fn Session::math_catalog(
   self : Session,
-  revision : Int,
+  revision : Int32,
   kind : String,
 ) -> Json raise @failure.Failure {
   let scripts = kind == "script"
@@ -62,7 +62,7 @@ fn Session::math_catalog(
   paragraphs.append(
     flow.tables.map(table => table.rows.flatten().flatten()).flatten(),
   )
-  let styles : Map[Int, @layout.TextStyle] = Map([])
+  let styles : Map[Int32, @layout.TextStyle] = Map([])
   for paragraph in paragraphs {
     for span in paragraph.spans {
       if span.drawing is Some({ content, .. }) && content is Math(_) {
@@ -140,7 +140,7 @@ fn Session::math_catalog(
 ///|
 pub fn Session::math_fractions(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.math_catalog(revision, "fraction")
 }
@@ -148,7 +148,7 @@ pub fn Session::math_fractions(
 ///|
 pub fn Session::math_scripts(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.math_catalog(revision, "script")
 }
@@ -157,7 +157,7 @@ pub fn Session::math_scripts(
 /// Native expression identities, canonical supported LaTeX and effective uniform appearances.
 pub fn Session::math_expressions(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.math_catalog(revision, "expression")
 }
@@ -165,9 +165,9 @@ pub fn Session::math_expressions(
 ///|
 fn Session::edit_inline_math(
   self : Session,
-  revision : Int,
+  revision : Int32,
   action : String,
-  id : Int,
+  id : Int32,
   content : @layout.DrawingContent,
   plain~ : Bool,
   probe~ : @layout.TextProbe,
@@ -358,9 +358,9 @@ fn Session::edit_inline_math(
 /// Insert a plain inline fraction, or update/delete an explicitly identified one.
 pub fn Session::edit_math_fraction(
   self : Session,
-  revision : Int,
+  revision : Int32,
   action : String,
-  id : Int,
+  id : Int32,
   numerator : String,
   denominator : String,
   probe~ : @layout.TextProbe,
@@ -390,9 +390,9 @@ pub fn Session::edit_math_fraction(
 /// Insert plain mathematical indices, or update/delete an explicitly identified script expression.
 pub fn Session::edit_math_script(
   self : Session,
-  revision : Int,
+  revision : Int32,
   action : String,
-  id : Int,
+  id : Int32,
   base : String,
   subscript : String,
   superscript : String,

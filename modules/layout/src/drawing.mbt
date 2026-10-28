@@ -15,8 +15,8 @@ pub(all) struct DrawStyle {
   fillAlpha : Double
   strokeAlpha : Double
   evenOdd : Bool
-  cap : Int
-  join : Int
+  cap : Int32
+  join : Int32
   miter : Double
   dash : Array[Double]
   dashOffset : Double
@@ -108,13 +108,13 @@ pub extend DrawingRegion with ToJson::{to_json}
 ///|
 // Reading order and text bounds are independent of the drawing commands.
 pub(all) struct SemanticLine {
-  paragraph : Int
-  container : Int
-  baseLevel : Int
+  paragraph : Int32
+  container : Int32
+  baseLevel : Int32
   text : String
   marker : String?
-  start : Int
-  end : Int
+  start : Int32
+  end : Int32
   x : Double
   areaX : Double
   areaWidth : Double
@@ -146,7 +146,7 @@ pub fn Layout::drawing(
 
 ///|
 pub fn Layout::semantics(self : Layout) -> Array[SemanticPage] {
-  let detached : Map[Int, Array[PlacedDrawingFrame]] = Map([])
+  let detached : Map[Int32, Array[PlacedDrawingFrame]] = Map([])
   for page in self.pages {
     for line in page.lines {
       if line.caretOnly && !line.drawings.is_empty() {

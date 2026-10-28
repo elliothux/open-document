@@ -25,8 +25,8 @@ fn Session::running_links(
   self : Session,
   part : String?,
   paragraphs : Array[@layout.Paragraph],
-) -> Map[Int, String] raise @failure.Failure {
-  let result : Map[Int, String] = Map([])
+) -> Map[Int32, String] raise @failure.Failure {
+  let result : Map[Int32, String] = Map([])
   guard part is Some(part) else { return result }
   let tree = WordTree::new(self.part_xml(part))
   let relations = Map::from_array(

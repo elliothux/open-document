@@ -1,9 +1,9 @@
 ///|
 fn WordTree::page_sections(
   self : WordTree,
-) -> Array[Int?] raise @failure.Failure {
+) -> Array[Int32?] raise @failure.Failure {
   let body = self.child(0, "body").unwrap()
-  let sections : Array[Int?] = []
+  let sections : Array[Int32?] = []
   for id in self.children[body] {
     let node = self.nodes[id]
     if node.uri != word_uri {
@@ -59,8 +59,8 @@ fn WordTree::page_sections(
 fn page_section(
   document : @xml.Document,
   tree : WordTree,
-  section : Int?,
-) -> (@xml.Document, Array[@xml.Edit], Int) raise @failure.Failure {
+  section : Int32?,
+) -> (@xml.Document, Array[@xml.Edit], Int32) raise @failure.Failure {
   if section is Some(id) {
     return (document, [], id)
   }
@@ -89,7 +89,7 @@ fn page_section(
 ///|
 fn WordTree::section_start_type(
   self : WordTree,
-  section : Int?,
+  section : Int32?,
 ) -> String raise @failure.Failure {
   let kinds = section
     .map(id => {
@@ -115,7 +115,7 @@ fn WordTree::section_start_type(
 fn WordTree::section_start_change(
   self : WordTree,
   document : @xml.Document,
-  section : Int,
+  section : Int32,
   kind : String,
 ) -> @xml.SourceChange? raise @failure.Failure {
   ignore(self.section_start_type(Some(section)))

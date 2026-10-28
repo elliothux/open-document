@@ -2,7 +2,7 @@
 /// Replace a picture's image resource while preserving its native frame and metadata.
 pub fn Session::replace_picture(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   id : String,
   bytes : Bytes,

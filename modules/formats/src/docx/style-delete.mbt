@@ -2,7 +2,7 @@
 /// Deletes a custom style and remaps its WordprocessingML references to an explicit replacement.
 pub fn Session::delete_style(
   self : Session,
-  revision : Int,
+  revision : Int32,
   key : String,
   replacement : String,
 ) -> Json raise @failure.Failure {

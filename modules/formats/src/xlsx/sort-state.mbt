@@ -7,7 +7,7 @@ priv struct StoredSort {
 ///|
 fn read_sort_state(
   tree : Tree,
-  parent : Int,
+  parent : Int32,
 ) -> StoredSort? raise @failure.Failure {
   let entries = tree.all(parent, "sortState")
   guard entries.length() <= 1 else {
@@ -121,7 +121,7 @@ fn read_sort_state(
 fn stored_sort(
   target : Range,
   settings : SortSettings,
-  indices : Array[Int?],
+  indices : Array[Int32?],
 ) -> StoredSort raise @failure.Failure {
   let bounds = if settings.header {
     if settings.rows {

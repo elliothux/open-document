@@ -1,9 +1,9 @@
 ///|
 fn WordTree::drawing_link_node(
   self : WordTree,
-  drawing : Int,
+  drawing : Int32,
   portable~ : Bool = false,
-) -> (Int, Int?) raise @failure.Failure {
+) -> (Int32, Int32?) raise @failure.Failure {
   let frame = self.drawing_data(drawing).0
   let identity = self.anchor_child(frame.id, "docPr")
   self.shape_children(identity, ["hlinkClick"]) catch {
@@ -63,7 +63,7 @@ fn WordTree::drawing_link_node(
 fn Session::drawing_link_target(
   self : Session,
   tree : WordTree,
-  id : Int,
+  id : Int32,
   links? : Map[String, @opc.Relationship],
   bookmarks? : Map[String, Bool],
 ) -> String? raise @failure.Failure {
@@ -100,8 +100,8 @@ fn Session::drawing_link_target(
 fn Session::editable_drawing_link(
   self : Session,
   tree : WordTree,
-  id : Int,
-) -> Int raise @failure.Failure {
+  id : Int32,
+) -> Int32 raise @failure.Failure {
   let paragraph = self.drawing_paragraph(tree, id)
   if tree.drawing_data(id).1.attribute("uri") == Some(word_shape_uri) {
     ignore(self.editable_shape(tree, id))
@@ -118,7 +118,7 @@ fn Session::editable_drawing_link(
 fn Session::drawing_link_summary(
   self : Session,
   tree : WordTree,
-  id : Int,
+  id : Int32,
   links? : Map[String, @opc.Relationship],
   bookmarks? : Map[String, Bool],
 ) -> Json {
@@ -141,8 +141,8 @@ fn Session::drawing_link_summary(
 /// Edits an ordinary picture or shape's URL or #bookmark click target without changing its geometry.
 pub fn Session::set_drawing_hyperlink(
   self : Session,
-  revision : Int,
-  id : Int,
+  revision : Int32,
+  id : Int32,
   target : String?,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)

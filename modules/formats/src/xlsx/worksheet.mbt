@@ -1,12 +1,12 @@
 ///|
 priv struct Cell {
   address : Address
-  node : Int
-  style : Int
+  node : Int32
+  style : Int32
   value : Value
   formula : String?
-  group : Int?
-  shared : Int?
+  group : Int32?
+  shared : Int32?
   read_only : String
   calculation_supported : Bool
 }
@@ -18,14 +18,14 @@ priv struct Sheet {
   state : String
   document : @xml.Document
   cells : Map[String, Cell]
-  rows : Map[Int, Int]
+  rows : Map[Int32, Int32]
   merges : Array[Range]
   locked : Bool
   protection_reason : String
-  data : Int
+  data : Int32
   dimensions : Dimensions
-  row_styles : Map[Int, Int]
-  column_styles : Array[(Int, Int, Int)]
+  row_styles : Map[Int32, Int32]
+  column_styles : Array[(Int32, Int32, Int32)]
   frozen : Frozen
   view : ViewSettings
   sparklines : Sparklines
@@ -38,7 +38,7 @@ fn Sheet::read(
   state : String,
   document : @xml.Document,
   strings : Array[(String, Bool)],
-  style_count : Int,
+  style_count : Int32,
 ) -> Sheet raise @failure.Failure {
   let tree = Tree::new(document)
   let root = tree.root("worksheet")
@@ -67,9 +67,9 @@ fn Sheet::read(
     })
     .unwrap_or(false)
   let cells : Map[String, Cell] = Map([])
-  let rows : Map[Int, Int] = Map([])
-  let row_styles : Map[Int, Int] = Map([])
-  let column_styles : Array[(Int, Int, Int)] = []
+  let rows : Map[Int32, Int32] = Map([])
+  let row_styles : Map[Int32, Int32] = Map([])
+  let column_styles : Array[(Int32, Int32, Int32)] = []
   if tree.one(root.id, "cols") is Some(cols) {
     for column in tree.all(cols.id, "col") {
       if column.attribute("style") is Some(style) {
@@ -135,7 +135,7 @@ fn Sheet::read(
       let kind = node.attribute("t").unwrap_or("n")
       let raw = tree.one(node.id, "v").map(node => node.text)
       let mut rich = false
-      let mut shared : Int? = None
+      let mut shared : Int32? = None
       let value = match kind {
         "n" => raw.map(value => Value::Number(number(value))).unwrap_or(Blank)
         "b" =>

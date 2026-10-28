@@ -11,14 +11,14 @@ let relationship_uri = "http://schemas.openxmlformats.org/officeDocument/2006/re
 priv struct Tree {
   part : String
   document : @xml.Document
-  nodes : Map[Int, @xml.Node]
-  children : Map[Int, Array[@xml.Node]]
+  nodes : Map[Int32, @xml.Node]
+  children : Map[Int32, Array[@xml.Node]]
 }
 
 ///|
 fn Tree::new(part : String, document : @xml.Document) -> Tree {
   let nodes = Map([])
-  let children : Map[Int, Array[@xml.Node]] = Map([])
+  let children : Map[Int32, Array[@xml.Node]] = Map([])
   for node in document.nodes() {
     nodes[node.id] = node
     if children.get(node.parent) is Some(items) {
@@ -33,7 +33,7 @@ fn Tree::new(part : String, document : @xml.Document) -> Tree {
 ///|
 fn Tree::all(
   self : Tree,
-  parent : Int,
+  parent : Int32,
   name : String,
   uri~ : String = drawing_uri,
 ) -> Array[@xml.Node] {
@@ -46,7 +46,7 @@ fn Tree::all(
 ///|
 fn Tree::one(
   self : Tree,
-  parent : Int,
+  parent : Int32,
   name : String,
   uri~ : String = drawing_uri,
 ) -> @xml.Node? raise @failure.Failure {
@@ -60,7 +60,7 @@ fn Tree::one(
 ///|
 fn Tree::required(
   self : Tree,
-  parent : Int,
+  parent : Int32,
   name : String,
   uri~ : String = drawing_uri,
 ) -> @xml.Node raise @failure.Failure {

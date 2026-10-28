@@ -160,7 +160,7 @@ fn PdfSession::build_display(
 /// Render one page; derived resources replace the previous displayed page.
 pub fn PdfSession::render(
   self : PdfSession,
-  revision : Int,
+  revision : Int32,
   page : String,
   supplied : @layout.TextProbe,
   profile : Map[String, String],
@@ -207,7 +207,7 @@ pub fn PdfSession::render(
 ///|
 fn PdfSession::current_display(
   self : PdfSession,
-  id : Int,
+  id : Int32,
 ) -> PageDisplay raise @failure.Failure {
   self.check(self.revision)
   guard self.display is Some(display) &&
@@ -222,7 +222,7 @@ fn PdfSession::current_display(
 /// Extract in content order without changing the displayed page or its selection.
 pub fn PdfSession::extract(
   self : PdfSession,
-  revision : Int,
+  revision : Int32,
   page : String,
   supplied : @layout.TextProbe,
   profile : Map[String, String],
@@ -259,7 +259,7 @@ fn text_result(display : PageDisplay) -> Json {
 ///|
 pub fn PdfSession::search(
   self : PdfSession,
-  revision : Int,
+  revision : Int32,
   page : String,
   query : String,
   supplied : @layout.TextProbe,
@@ -328,9 +328,9 @@ fn search_result(
 ///|
 pub fn PdfSession::select_text(
   self : PdfSession,
-  layout_id : Int,
-  anchor : Int,
-  focus : Int,
+  layout_id : Int32,
+  anchor : Int32,
+  focus : Int32,
 ) -> Json raise @failure.Failure {
   let display = self.current_display(layout_id)
   guard anchor >= 0 &&
@@ -369,7 +369,7 @@ pub fn PdfSession::select_text(
 ///|
 pub fn PdfSession::selected_text(
   self : PdfSession,
-  layout_id : Int,
+  layout_id : Int32,
 ) -> String raise @failure.Failure {
   let display = self.current_display(layout_id)
   let (a, b) = self.selection
@@ -386,7 +386,7 @@ pub fn PdfSession::selected_text(
 ///|
 pub fn PdfSession::hit(
   self : PdfSession,
-  layout_id : Int,
+  layout_id : Int32,
   x : Double,
   y : Double,
 ) -> Json raise @failure.Failure {
@@ -432,10 +432,10 @@ pub fn PdfSession::hit(
 ///|
 pub fn PdfSession::image(
   self : PdfSession,
-  layout_id : Int,
+  layout_id : Int32,
   key : String,
   images : @layout.Images,
-) -> (String, Bytes, Int, Int) raise @failure.Failure {
+) -> (String, Bytes, Int32, Int32) raise @failure.Failure {
   let display = self.current_display(layout_id)
   guard display.images.contains(key) else {
     @failure.reject("missing-image", "Unknown PDF page image")
@@ -451,10 +451,10 @@ pub fn PdfSession::image(
 ///|
 pub fn PdfSession::decoded_image(
   self : PdfSession,
-  layout_id : Int,
+  layout_id : Int32,
   key : String,
-  width : Int,
-  height : Int,
+  width : Int32,
+  height : Int32,
   rgba : Bytes,
   images : @layout.Images,
 ) -> Unit raise @failure.Failure {

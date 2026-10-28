@@ -2,7 +2,7 @@
 /// Body Tab applies list rules or inserts a tab; cell Tab changes selection.
 pub fn Session::tab(
   self : Session,
-  revision : Int,
+  revision : Int32,
   backward : Bool,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
@@ -46,7 +46,7 @@ pub fn Session::tab(
     @failure.reject("protected-content", "Tab is inside a protected container")
   }
   let table = tree.nodes[tree.nodes[parent.parent].parent]
-  let cells : Array[Int] = []
+  let cells : Array[Int32] = []
   for row in tree.children[table.id] {
     if tree.nodes[row].uri == word_uri && tree.nodes[row].name == "tr" {
       for cell in tree.children[row] {

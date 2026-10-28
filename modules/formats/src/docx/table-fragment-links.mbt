@@ -4,7 +4,7 @@ let table_fragment_uri = "urn:open-document:table-fragment"
 ///|
 fn fragment_link_opening(
   tree : WordTree,
-  id : Int,
+  id : Int32,
   links : Map[String, @opc.Relationship],
   bookmarks : Map[String, Bool],
 ) -> String raise @failure.Failure {
@@ -77,7 +77,7 @@ fn Session::import_fragment_links(
   created : Map[String, @xml.Document],
 ) -> @xml.Document raise @failure.Failure {
   let tree = WordTree::new(document)
-  let targets : Map[Int, String] = Map([])
+  let targets : Map[Int32, String] = Map([])
   let external : Array[String] = []
   for node in document.nodes() {
     if node.uri != word_uri || node.name != "hyperlink" {

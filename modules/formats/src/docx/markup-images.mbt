@@ -68,7 +68,7 @@ fn MarkupInput::image(
 ///|
 fn html_picture_dimension(
   document : @html5.Document,
-  id : Int,
+  id : Int32,
   name : String,
 ) -> Double? raise @failure.Failure {
   let mut value = document.get_attribute(id, name)
@@ -102,7 +102,7 @@ fn html_picture_dimension(
 /// Preflights local markup resources without changing source, selection or history.
 pub fn Session::markup_images(
   self : Session,
-  revision : Int,
+  revision : Int32,
   kind : String,
   input : String,
   mode~ : String = "source",

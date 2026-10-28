@@ -1,13 +1,13 @@
 ///|
 fn Layout::frame_caret(
   self : Layout,
-  paragraph : Int,
-  offset : Int,
+  paragraph : Int32,
+  offset : Int32,
   affinity : String,
-  frame_start : Int,
-  bidi_level : Int?,
+  frame_start : Int32,
+  bidi_level : Int32?,
 ) -> Hit? {
-  let mut previous : (Int, Line)? = None
+  let mut previous : (Int32, Line)? = None
   for page, frame in self.pages {
     for index, line in frame.lines {
       if line.repeated {

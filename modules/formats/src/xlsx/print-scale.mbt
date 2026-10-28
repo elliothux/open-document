@@ -1,10 +1,10 @@
 ///|
 fn print_axis_fits(
   axis : Axis,
-  indices : Array[Int],
+  indices : Array[Int32],
   available : Double,
-  limit : Int,
-  titles : Array[Int],
+  limit : Int32,
+  titles : Array[Int32],
 ) -> Bool {
   try {
     let count = print_groups(axis, indices, available, titles).length()
@@ -19,15 +19,15 @@ fn print_scale(
   settings : PrintSetup,
   setup : @layout.PageSetup,
   dimensions : Dimensions,
-  rows : Array[Int],
-  columns : Array[Int],
-  title_rows : Array[Int],
-  title_columns : Array[Int],
+  rows : Array[Int32],
+  columns : Array[Int32],
+  title_rows : Array[Int32],
+  title_columns : Array[Int32],
 ) -> Double raise @failure.Failure {
   if settings.fitWidth == 0 && settings.fitHeight == 0 {
     return settings.scale.to_double() / 100
   }
-  let fits = fn(percent : Int) {
+  let fits = fn(percent : Int32) {
     let scale = percent.to_double() / 100
     print_axis_fits(
       dimensions.rows,

@@ -1,5 +1,5 @@
 ///|
-fn fragment_paragraph_length(tree : WordTree, paragraph : Int) -> Int {
+fn fragment_paragraph_length(tree : WordTree, paragraph : Int32) -> Int32 {
   docx_texts(tree)
   .filter(text => text.paragraph == paragraph)
   .fold(init=0, (sum, text) => sum + inline_text(tree.nodes[text.id]).length())
@@ -9,7 +9,7 @@ fn fragment_paragraph_length(tree : WordTree, paragraph : Int) -> Int {
 /// Inserts portable paragraphs and tables using the existing range and resource transaction.
 pub fn Session::paste_body_fragment(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   fragment : String,
   probe : @layout.TextProbe,

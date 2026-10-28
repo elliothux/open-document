@@ -1,8 +1,8 @@
 ///|
 priv struct NumberLevel {
-  node : Int
-  start : Int
-  restart : Int
+  node : Int32
+  start : Int32
+  restart : Int32
   format : String
   pattern : String
   align : String
@@ -11,24 +11,24 @@ priv struct NumberLevel {
 
 ///|
 priv struct NumberDefinition {
-  abstract_id : Int
-  base_levels : Map[Int, NumberLevel]
-  levels : Map[Int, NumberLevel]
-  overrides : Map[Int, Int]
+  abstract_id : Int32
+  base_levels : Map[Int32, NumberLevel]
+  levels : Map[Int32, NumberLevel]
+  overrides : Map[Int32, Int32]
 }
 
 ///|
 priv struct NumberCounter {
-  values : Array[Int]
-  seen : Map[Int, Bool]
-  mut previous : Int
+  values : Array[Int32]
+  seen : Map[Int32, Bool]
+  mut previous : Int32
 }
 
 ///|
 fn numbering_integer(
   value : String,
-  maximum : Int,
-) -> Int raise @failure.Failure {
+  maximum : Int32,
+) -> Int32 raise @failure.Failure {
   let number = @string.parse_int(value[:]) catch {
     _ => @failure.reject("invalid-numbering", "Invalid numbering integer")
   }
@@ -41,7 +41,7 @@ fn numbering_integer(
 ///|
 fn WordTree::numbering_shape(
   self : WordTree,
-  id : Int,
+  id : Int32,
   attributes : Array[String],
   children : Array[String],
   repeated~ : String = "",
@@ -71,7 +71,7 @@ fn WordTree::numbering_shape(
 ///|
 fn WordTree::numbering_value(
   self : WordTree,
-  parent : Int,
+  parent : Int32,
   name : String,
 ) -> String? raise @failure.Failure {
   guard self.child(parent, name) is Some(id) else { return None }
@@ -86,14 +86,14 @@ fn WordTree::numbering_value(
 fn Styles::numbering_reference(
   self : Styles,
   tree : WordTree,
-  paragraph : Int,
+  paragraph : Int32,
   style~ : FormatChange[String] = Keep,
-) -> (Int, Int)? raise @failure.Failure {
+) -> (Int32, Int32)? raise @failure.Failure {
   fn merge(
     tree : WordTree,
-    parent : Int,
-    previous : (Int?, Int),
-  ) -> (Int?, Int) raise @failure.Failure {
+    parent : Int32,
+    previous : (Int32?, Int32),
+  ) -> (Int32?, Int32) raise @failure.Failure {
     guard tree.child(parent, "numPr") is Some(id) else { return previous }
     tree.numbering_shape(id, [], ["numId", "ilvl"])
     (
@@ -117,7 +117,7 @@ fn Styles::numbering_reference(
         None => self.default_paragraph
       }
   }
-  let mut reference : (Int?, Int) = (None, 0)
+  let mut reference : (Int32?, Int32) = (None, 0)
   if key is Some(key) && self.tree is Some(style_tree) {
     for style in self.chain(key, []) {
       if style_tree.child(style, "pPr") is Some(p) {
@@ -137,9 +137,9 @@ fn Styles::numbering_reference(
 ///|
 fn WordTree::number_definition(
   self : WordTree,
-  id : Int,
-  instances : Map[Int, Int],
-  abstracts : Map[Int, Int],
+  id : Int32,
+  instances : Map[Int32, Int32],
+  abstracts : Map[Int32, Int32],
 ) -> NumberDefinition raise @failure.Failure {
   guard instances.get(id) is Some(instance) else {
     @failure.reject(
@@ -167,7 +167,7 @@ fn WordTree::number_definition(
     ["nsid", "multiLevelType", "tmpl", "name", "lvl"],
     repeated="lvl",
   )
-  let levels : Map[Int, NumberLevel] = Map([])
+  let levels : Map[Int32, NumberLevel] = Map([])
   for node in self.children[definition] {
     if self.nodes[node].name == "lvl" {
       let (index, level) = self.number_level(node)
@@ -178,8 +178,8 @@ fn WordTree::number_definition(
     }
   }
   let base_levels = levels.copy()
-  let overrides : Map[Int, Int] = Map([])
-  let seen : Map[Int, Bool] = Map([])
+  let overrides : Map[Int32, Int32] = Map([])
+  let seen : Map[Int32, Bool] = Map([])
   for item in self.children[instance] {
     if self.nodes[item].name != "lvlOverride" {
       continue
@@ -213,8 +213,8 @@ fn WordTree::number_definition(
 fn NumberCounter::advance(
   self : NumberCounter,
   definition : NumberDefinition,
-  id : Int,
-  level : Int,
+  id : Int32,
+  level : Int32,
 ) -> Unit raise @failure.Failure {
   // ONLYOFFICE DocumentNumberingInfoEngine: parent resets and first-instance overrides.
   if self.previous < 0 {
@@ -268,10 +268,10 @@ fn Session::apply_numbering(
   self : Session,
   tree : WordTree,
   styles : Styles,
-  paragraphs : Map[Int, @layout.Paragraph],
-  backgrounds : Map[Int, String],
+  paragraphs : Map[Int32, @layout.Paragraph],
+  backgrounds : Map[Int32, String],
 ) -> Unit raise @failure.Failure {
-  let references : Map[Int, (Int, Int)] = Map([])
+  let references : Map[Int32, (Int32, Int32)] = Map([])
   for id in tree.order {
     if paragraphs.contains(id) {
       if styles.numbering_reference(tree, id) is Some(reference) {
@@ -284,7 +284,7 @@ fn Session::apply_numbering(
   }
   let context = self.numbering_context()
   let numbers = context.tree
-  let counters : Map[Int, NumberCounter] = Map([])
+  let counters : Map[Int32, NumberCounter] = Map([])
   for id in tree.order {
     guard references.get(id) is Some((instance, index)) else { continue }
     let definition = context.definition(instance)

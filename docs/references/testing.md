@@ -793,6 +793,8 @@ P10 共享页边区域独立操作用两例新增核心及三例现有页边检�
 | 私有 `bun run test:browser` | Playwright Chromium；按受影响用例选择，需可用的目标产物 |
 | 私有 `bun run browsers` | 仅安装锁定 Chromium；已有可用环境不重复安装 |
 
+测试还需 `unzip`、`xmllint`、Poppler 工具、HarfBuzz 14.4.0 和 qpdf 12.4.1。字体与 PDF 诊断基线依赖这两个固定版本。`unzip -l` 支持月日年与 ISO 日期输出。ZIP 全语料检查使用 30 秒预算，保留逐成员和 CRC 校验。
+
 完整 loop 冻结源码、输入与预期，构建一次；MoonBit、安装后的 Node 包和生产 Worker 消费同次产物。`cases/suites.json` 管理必选用例与包内容。局部运行是对应范围的证据，不冒充完整运行。
 
 局部 Chromium 检查使用 `bun run test:browser -- <spec-file> --grep '<case-name>' --reporter=list`，按需增加 JSON 报告器。默认完整报告器核对全部必选清单，会拒绝局部选择；它用于完整 loop，规则保持。局部结果只报告实际执行的用例和环境。

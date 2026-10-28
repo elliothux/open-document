@@ -11,7 +11,7 @@ priv struct PictureFrame {
 fn Session::image_frame(
   self : Session,
   tree : WordTree,
-  id : Int,
+  id : Int32,
 ) -> PictureFrame raise @failure.Failure {
   let (_, data) = tree.drawing_data(id)
   guard data.uri == picture_drawing_uri &&
@@ -130,11 +130,11 @@ fn Session::table(
   self : Session,
   tree : WordTree,
   styles : Styles,
-  id : Int,
-  before_paragraph : Int,
+  id : Int32,
+  before_paragraph : Int32,
   diagnostics : Array[String],
   background~ : String,
-  note_refs~ : Map[Int, (String, String)] = Map([]),
+  note_refs~ : Map[Int32, (String, String)] = Map([]),
 ) -> @layout.Table raise @failure.Failure {
   let widths : Array[Double] = []
   let (auto_fit, preferred_width) = table_sizing(tree, styles, id, diagnostics)
@@ -143,7 +143,7 @@ fn Session::table(
   let mut default_vertical_align = "top"
   let mut default_split_row = true
   let mut default_fill = ""
-  let style_margins : Array[(WordTree, Int)] = []
+  let style_margins : Array[(WordTree, Int32)] = []
   let inherited_diagnostics : Array[String] = []
   let mut default_margins = table_margin_defaults(
     tree, styles, id, inherited_diagnostics,
@@ -232,9 +232,9 @@ fn Session::table(
   let fills : Array[Array[String]] = []
   let vertical_aligns : Array[Array[String]] = []
   let margins : Array[Array[@layout.CellMargins]] = []
-  let column_spans : Array[Array[Int]] = []
-  let row_spans : Array[Array[Int]] = []
-  let mut previous : Map[(Int, Int), (Int, Int)] = Map([])
+  let column_spans : Array[Array[Int32]] = []
+  let row_spans : Array[Array[Int32]] = []
+  let mut previous : Map[(Int32, Int32), (Int32, Int32)] = Map([])
   for row in tree.children[id] {
     if tree.nodes[row].name != "tr" {
       continue
@@ -256,9 +256,9 @@ fn Session::table(
     let alignments : Array[String] = []
     let cell_margins : Array[@layout.CellMargins] = []
     let cell_widths : Array[@layout.PreferredWidth] = []
-    let spans : Array[Int] = []
-    let vertical : Array[Int] = []
-    let current : Map[(Int, Int), (Int, Int)] = Map([])
+    let spans : Array[Int32] = []
+    let vertical : Array[Int32] = []
+    let current : Map[(Int32, Int32), (Int32, Int32)] = Map([])
     let mut column = 0
     let (height, exact) = tree.table_row_height(row)
     exact_heights.push(exact)
@@ -386,7 +386,7 @@ fn Session::table(
     widths.length(),
     diagnostics,
   )
-  let properties : Array[(WordTree, Int)] = []
+  let properties : Array[(WordTree, Int32)] = []
   if props.bind(props => tree.value(props, "tblStyle")) is Some(key) &&
     styles.tree is Some(style_tree) {
     for style in styles.chain(key, diagnostics) {

@@ -2,9 +2,9 @@
 /// Create, replace or delete an inline expression using the supported bounded LaTeX syntax.
 pub fn Session::edit_math(
   self : Session,
-  revision : Int,
+  revision : Int32,
   action : String,
-  id : Int,
+  id : Int32,
   latex : String,
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],

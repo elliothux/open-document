@@ -16,7 +16,7 @@ fn image_opacity(blip : Ref) -> Double raise @failure.Failure {
 }
 
 ///|
-fn image_opacity_amount(value : Double) -> Int raise @failure.Failure {
+fn image_opacity_amount(value : Double) -> Int32 raise @failure.Failure {
   guard !value.is_nan() && !value.is_inf() && value >= 0 && value <= 1 else {
     @failure.reject("invalid-operation", "Invalid picture opacity")
   }
@@ -26,7 +26,7 @@ fn image_opacity_amount(value : Double) -> Int raise @failure.Failure {
 ///|
 fn image_opacity_change(
   blip : Ref,
-  amount : Int,
+  amount : Int32,
 ) -> @xml.SourceChange raise @failure.Failure {
   let markup = if amount == 100000 {
     ""

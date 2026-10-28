@@ -15,12 +15,12 @@ fn Object::paint_table(
   self : Object,
   probe : @layout.TextProbe,
   profile : Map[String, String],
-  transforms~ : Map[Int, @layout.Matrix] = Map([]),
+  transforms~ : Map[Int32, @layout.Matrix] = Map([]),
 ) -> (
   Array[@layout.PositionedPrimitive],
   Array[@layout.Line],
   Array[String],
-  Int,
+  Int32,
 ) raise @failure.Failure {
   let table = self.table.unwrap()
   let output : Array[@layout.PositionedPrimitive] = []

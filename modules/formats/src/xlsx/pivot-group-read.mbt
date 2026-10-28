@@ -25,9 +25,9 @@ fn pivot_field_name(base : String, names : Array[String]) -> String {
 fn pivot_read_groups(
   cache : Tree,
   date1904 : Bool,
-  width : Int,
+  width : Int32,
   captions : Array[String],
-) -> (Array[PivotNumberGroup], Array[PivotDateGroup], Map[Int, Array[Int]]) raise @failure.Failure {
+) -> (Array[PivotNumberGroup], Array[PivotDateGroup], Map[Int32, Array[Int32]]) raise @failure.Failure {
   let fields = cache.all(cache.one(0, "cacheFields").unwrap().id, "cacheField")
   guard fields.length() >= width && fields.length() <= 80 else {
     @failure.reject(
@@ -35,7 +35,7 @@ fn pivot_read_groups(
     )
   }
   let numbers : Array[PivotNumberGroup] = []
-  let components : Map[Int, Array[(String, Int)]] = Map([])
+  let components : Map[Int32, Array[(String, Int32)]] = Map([])
   let mut count = 0
   for index, field in fields {
     let derived = index >= width
@@ -171,7 +171,7 @@ fn pivot_read_groups(
     }
   }
   let dates : Array[PivotDateGroup] = []
-  let axes : Map[Int, Array[Int]] = Map([])
+  let axes : Map[Int32, Array[Int32]] = Map([])
   let names = fields[:width].map(field => {
       decode_text(field.attribute("name").unwrap_or(""))
     }) +

@@ -4,8 +4,8 @@ fn Session::layout_notes(
   tree : WordTree,
   styles : Styles,
   background : String,
-) -> (Map[Int, (String, String)], Array[@layout.Note], String) raise @failure.Failure {
-  let references : Map[Int, (String, String)] = Map([])
+) -> (Map[Int32, (String, String)], Array[@layout.Note], String) raise @failure.Failure {
+  let references : Map[Int32, (String, String)] = Map([])
   let notes : Array[@layout.Note] = []
   let mut story_id = -1000000000
   let sections = tree.note_sections()
@@ -30,7 +30,7 @@ fn Session::layout_notes(
     if kind == "endnote" {
       endnotes_at = defaults.position
     }
-    let settings : Map[Int, NoteSettings] = Map([])
+    let settings : Map[Int32, NoteSettings] = Map([])
     for special in source.tree.children[0] {
       let role = source.tree.nodes[special]
         .attribute("type", uri=word_uri)
@@ -119,7 +119,7 @@ fn Session::layout_notes(
       }
       let label = numbering.text()
       section_count += 1
-      let markers : Map[Int, (String, String)] = Map([])
+      let markers : Map[Int32, (String, String)] = Map([])
       for child in source.tree.descendants(entry.node) {
         if source.tree.nodes[child].uri == word_uri &&
           source.tree.nodes[child].name == kind + "Ref" {

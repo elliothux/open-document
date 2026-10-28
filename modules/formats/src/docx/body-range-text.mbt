@@ -3,8 +3,8 @@ fn Session::range_paragraph_text(
   self : Session,
   tree : WordTree,
   range : ParagraphRange,
-  paragraph : Int,
-  fields : Map[Int, String],
+  paragraph : Int32,
+  fields : Map[Int32, String],
 ) -> String raise @failure.Failure {
   let texts = self.editable_texts(paragraph, notes=true)
   let start = if paragraph == range.start.paragraph {
@@ -46,7 +46,7 @@ fn Session::mixed_range_text(
   self : Session,
   tree : WordTree,
   range : ParagraphRange,
-  fields : Map[Int, String],
+  fields : Map[Int32, String],
 ) -> String raise @failure.Failure {
   let siblings = tree.children[tree.nodes[range.start.paragraph].parent]
   let blocks = siblings[siblings.search(range.start.paragraph).unwrap():siblings

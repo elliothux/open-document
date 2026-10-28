@@ -1,5 +1,5 @@
 ///|
-fn math_u16(data : BytesView, offset : Int) -> Int raise @failure.Failure {
+fn math_u16(data : BytesView, offset : Int32) -> Int32 raise @failure.Failure {
   guard offset >= 0 && offset <= data.length() - 2 else {
     @failure.reject("malformed-font", "Truncated mathematical font table")
   }
@@ -9,9 +9,9 @@ fn math_u16(data : BytesView, offset : Int) -> Int raise @failure.Failure {
 ///|
 fn math_coverage(
   data : BytesView,
-  offset : Int,
-  glyph : Int,
-) -> Int? raise @failure.Failure {
+  offset : Int32,
+  glyph : Int32,
+) -> Int32? raise @failure.Failure {
   let format = math_u16(data, offset)
   let count = math_u16(data, offset + 2)
   guard format == 1 || format == 2 else {
@@ -45,7 +45,7 @@ fn math_coverage(
 
 ///|
 priv struct MathGlyphPart {
-  glyph : UInt
+  glyph : UInt32
   start : Double
   end : Double
   advance : Double
@@ -55,10 +55,10 @@ priv struct MathGlyphPart {
 ///|
 fn math_assembly(
   data : BytesView,
-  offset : Int,
+  offset : Int32,
   minimum : Double,
   target : Double,
-) -> Array[(UInt, Double)] raise @failure.Failure {
+) -> Array[(UInt32, Double)] raise @failure.Failure {
   let count = math_u16(data, offset + 4)
   guard count > 0 && count <= 64 else {
     @failure.reject("limit-exceeded", "Mathematical assembly exceeds 64 parts")
@@ -132,7 +132,7 @@ fn math_assembly(
         high = middle
       }
     }
-    let positions : Array[(UInt, Double)] = []
+    let positions : Array[(UInt32, Double)] = []
     let mut position = 0.0
     for i, part in expanded {
       positions.push((part.glyph, position))
@@ -150,10 +150,10 @@ fn math_assembly(
 ///|
 fn TextProbe::math_variant(
   self : TextProbe,
-  index : Int,
-  glyph : UInt,
+  index : Int32,
+  glyph : UInt32,
   target : Double,
-) -> Array[(UInt, Double)] raise @failure.Failure {
+) -> Array[(UInt32, Double)] raise @failure.Failure {
   let font = self.fonts[index].font
   guard font.get_face().reference_table(@common.Tag::from_string("MATH"))
     is Ok(blob) else {

@@ -41,7 +41,7 @@ fn Session::paint_opacity_reason(
 fn opacity_color_markup(
   source : Ref,
   placeholder : Ref?,
-  amount : Int,
+  amount : Int32,
 ) -> String raise @failure.Failure {
   let tree = source.tree
   let colors = tree.children.get(source.node.id).unwrap_or([])

@@ -103,7 +103,7 @@ fn Grid::drawing_regions(self : Grid, object : SheetObject) -> Array[Json] {
 ///|
 fn Session::drawing_grid(
   self : Session,
-  id : Int,
+  id : Int32,
 ) -> Grid raise @failure.Failure {
   self.check()
   guard self.grid is Some(grid) &&
@@ -132,8 +132,8 @@ fn Session::drawing_pointer_state(
 ///|
 pub fn Session::select_drawing(
   self : Session,
-  revision : Int,
-  layout : Int,
+  revision : Int32,
+  layout : Int32,
   id : String?,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
@@ -164,7 +164,7 @@ pub fn Session::select_drawing(
 fn SheetObject::pointer_rect(
   self : SheetObject,
   grid : Grid,
-  handle : Int,
+  handle : Int32,
   dx : Double,
   dy : Double,
 ) -> @layout.Border raise @failure.Failure {
@@ -279,9 +279,9 @@ fn SheetObject::pointer_rect(
 ///|
 pub fn Session::drawing_gesture(
   self : Session,
-  revision : Int,
-  layout : Int,
-  handle : Int,
+  revision : Int32,
+  layout : Int32,
+  handle : Int32,
   dx : Double,
   dy : Double,
   commit : Bool,

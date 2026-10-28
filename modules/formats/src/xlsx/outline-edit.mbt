@@ -1,7 +1,7 @@
 ///|
 fn outline_put(
-  metadata : Map[Int, Array[(String, String)]],
-  index : Int,
+  metadata : Map[Int32, Array[(String, String)]],
+  index : Int32,
   name : String,
   value : String,
 ) -> Unit {
@@ -14,7 +14,7 @@ fn outline_put(
 fn Sheet::outline_metadata(
   self : Sheet,
   rows : Bool,
-  metadata : Map[Int, Array[(String, String)]],
+  metadata : Map[Int32, Array[(String, String)]],
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   guard metadata.length() <= 4096 else {
     @failure.reject("limit-exceeded", "Outline edit exceeds 4096 axis items")
@@ -77,7 +77,7 @@ fn outline_summary_changes(
 fn outline_level_changes(
   sheet : Sheet,
   rows : Bool,
-  maximum : Int,
+  maximum : Int32,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let tree = Tree::new(sheet.document)
   let root = tree.root("worksheet")
@@ -121,8 +121,8 @@ fn Session::edit_outline(
   }
   let rows = axis == "rows"
   let outline = original.outline_axis(rows)
-  let metadata : Map[Int, Array[(String, String)]] = Map([])
-  let hidden : Map[Int, Bool] = Map([])
+  let metadata : Map[Int32, Array[(String, String)]] = Map([])
+  let hidden : Map[Int32, Bool] = Map([])
   let mut summary = None
   let mut levels = false
   match change {
@@ -274,7 +274,7 @@ fn Session::edit_outline(
   )
   if levels {
     let next = current.outline_axis(rows)
-    let cleanup : Map[Int, Array[(String, String)]] = Map([])
+    let cleanup : Map[Int32, Array[(String, String)]] = Map([])
     for group in outline.groups {
       if group.collapsed &&
         !next.groups.any(other => other.summary == group.summary) {

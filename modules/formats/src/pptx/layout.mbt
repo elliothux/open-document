@@ -228,7 +228,7 @@ fn paint_slide(
   height : Double,
   probe : @layout.TextProbe,
   profile : Map[String, String],
-  tile_sizes : Map[String, (Int, Int)],
+  tile_sizes : Map[String, (Int32, Int32)],
   parts~ : Array[(String, Array[@layout.PositionedPrimitive])]? = None,
 ) -> (@layout.PositionedPage, Array[TextGeometry], Array[String]) raise @failure.Failure {
   let primitives : Array[@layout.PositionedPrimitive] = []
@@ -547,7 +547,7 @@ pub fn Session::layout(
 ///|
 pub fn Session::print_layout(
   self : Session,
-  revision : Int,
+  revision : Int32,
   all : Bool,
   hidden : Bool,
   probe : @layout.TextProbe,

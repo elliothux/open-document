@@ -2,7 +2,7 @@
 /// Removes one ordinary note and its uniquely owned body reference in one transaction.
 pub fn Session::remove_note(
   self : Session,
-  revision : Int,
+  revision : Int32,
   kind : String,
   key : String,
   probe~ : @layout.TextProbe,
@@ -22,7 +22,7 @@ pub fn Session::remove_note(
   }
   let document = self.document()
   let tree = WordTree::new(document)
-  let references : Array[Int] = []
+  let references : Array[Int32] = []
   for part in self.style_part_names() {
     let current = self.part_xml(part)
     for node in current.nodes() {
@@ -45,7 +45,7 @@ pub fn Session::remove_note(
   }
   let mut candidate = document
   let xml : Array[@xml.Edit] = []
-  let paragraphs : Array[Int] = []
+  let paragraphs : Array[Int32] = []
   let mut after = self.selection
   if references.get(0) is Some(id) {
     let node = tree.nodes[id]

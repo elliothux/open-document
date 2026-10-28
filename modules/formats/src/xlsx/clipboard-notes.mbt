@@ -175,7 +175,7 @@ fn Session::capture_notes(
 fn Session::prepare_copied_notes(
   self : Session,
   plan : CellEditPlan,
-  index : Int,
+  index : Int32,
   target : Range,
   copied : CopiedCells,
   transpose : Bool,

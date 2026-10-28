@@ -1,6 +1,6 @@
 ///|
 priv struct FormulaRange {
-  sheet : Int
+  sheet : Int32
   bounds : Range
 }
 
@@ -8,10 +8,10 @@ priv struct FormulaRange {
 fn Expression::scalar_argument(
   self : Expression,
   sheets : Array[Sheet],
-  sheet : Int,
-  values : Map[(Int, String), Value],
+  sheet : Int32,
+  values : Map[(Int32, String), Value],
   work : FormulaWork,
-  depth : Int,
+  depth : Int32,
 ) -> Value raise @failure.Failure {
   guard self.aggregate_range(sheets, sheet) is Some(range) else {
     return self.evaluate(sheets, sheet, values, work, depth)
@@ -38,7 +38,7 @@ fn Expression::scalar_argument(
 fn Expression::aggregate_range(
   self : Expression,
   sheets : Array[Sheet],
-  sheet : Int,
+  sheet : Int32,
 ) -> FormulaRange? raise @failure.Failure {
   guard self is Reference(target, first, last) else { return None }
   Some({
@@ -73,7 +73,7 @@ fn FormulaRange::value(
   self : FormulaRange,
   offset : Int64,
   sheets : Array[Sheet],
-  calculated : Map[(Int, String), Value],
+  calculated : Map[(Int32, String), Value],
   work : FormulaWork,
 ) -> Value raise @failure.Failure {
   work.spend()

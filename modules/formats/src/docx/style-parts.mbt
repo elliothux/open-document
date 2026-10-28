@@ -52,7 +52,7 @@ fn Session::validate_style_transition(
   after : Styles,
   document : @xml.Document,
   parts~ : Map[String, @xml.Document] = self.parts,
-) -> Array[Int] raise @failure.Failure {
+) -> Array[Int32] raise @failure.Failure {
   guard after.ids.length() <= 4096 else {
     @failure.reject("limit-exceeded", "Too many styles for a shared style edit")
   }
@@ -126,7 +126,7 @@ fn Session::validate_style_transition(
     }
   }
   if after_numbers is Some(numbers) {
-    let abstracts : Map[Int, Bool] = Map([])
+    let abstracts : Map[Int32, Bool] = Map([])
     for definition in numbers.definitions.values() {
       abstracts[definition.abstract_id] = true
     }

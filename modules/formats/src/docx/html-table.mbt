@@ -1,16 +1,16 @@
 ///|
 priv struct HtmlCell {
-  node : Int
-  row : Int
-  rows : Int
-  columns : Int
+  node : Int32
+  row : Int32
+  rows : Int32
+  columns : Int32
   context : HtmlContext
 }
 
 ///|
 fn html_table_style(
   document : @html5.Document,
-  id : Int,
+  id : Int32,
   name : String,
 ) -> String? {
   let mut value = document.get_attribute(id, name)
@@ -27,10 +27,10 @@ fn html_table_style(
 ///|
 fn html_table_span(
   document : @html5.Document,
-  id : Int,
+  id : Int32,
   name : String,
-  maximum : Int,
-) -> Int raise @failure.Failure {
+  maximum : Int32,
+) -> Int32 raise @failure.Failure {
   let value = document.get_attribute(id, name).unwrap_or("1").trim().to_owned()
   let span = @string.parse_int(value) catch {
     _ => @failure.reject("unsupported-input", "Invalid HTML table span")
@@ -44,14 +44,14 @@ fn html_table_span(
 ///|
 fn HtmlInput::table_rows(
   self : HtmlInput,
-  id : Int,
+  id : Int32,
   context : HtmlContext,
-  depth : Int,
-) -> Array[(Int, HtmlContext, Int, Bool)] raise @failure.Failure {
+  depth : Int32,
+) -> Array[(Int32, HtmlContext, Int32, Bool)] raise @failure.Failure {
   guard self.document.get_node(id) is Some(ElementNode(table)) else {
     @failure.reject("unsupported-input", "Missing HTML table")
   }
-  let rows : Array[(Int, HtmlContext, Int, Bool)] = []
+  let rows : Array[(Int32, HtmlContext, Int32, Bool)] = []
   // HTML lays out header and footer groups before and after body groups.
   let groups = table.children.filter(id => {
       self.document.get_tag_name(id) == Some("thead")
@@ -80,7 +80,7 @@ fn HtmlInput::table_rows(
     guard self.document.get_node(child) is Some(ElementNode(element)) else {
       @failure.reject("unsupported-input", "Missing HTML row group")
     }
-    let visible : Array[(Int, HtmlContext)] = []
+    let visible : Array[(Int32, HtmlContext)] = []
     for row in element.children {
       let tag = self.document.get_tag_name(row).unwrap_or("")
       if tag.is_empty() || html_ignored_element(tag) {
@@ -112,9 +112,9 @@ fn HtmlInput::table_rows(
 ///|
 fn HtmlInput::table(
   self : HtmlInput,
-  id : Int,
+  id : Int32,
   context : HtmlContext,
-  depth : Int,
+  depth : Int32,
 ) -> Unit raise @failure.Failure {
   guard !self.inTable else {
     @failure.reject("unsupported-input", "Nested HTML tables require support")
@@ -298,9 +298,9 @@ fn HtmlInput::table(
 ///|
 fn HtmlInput::table_caption(
   self : HtmlInput,
-  table : Int,
+  table : Int32,
   context : HtmlContext,
-  depth : Int,
+  depth : Int32,
   bottom : Bool,
 ) -> Unit raise @failure.Failure {
   guard self.document.get_node(table) is Some(ElementNode(element)) else {
@@ -346,13 +346,13 @@ fn HtmlInput::table_caption(
 ///|
 fn HtmlInput::table_columns(
   self : HtmlInput,
-  id : Int,
-  depth : Int,
-) -> Array[(Bool, Int)?] raise @failure.Failure {
+  id : Int32,
+  depth : Int32,
+) -> Array[(Bool, Int32)?] raise @failure.Failure {
   guard self.document.get_node(id) is Some(ElementNode(table)) else {
     @failure.reject("unsupported-input", "Missing HTML table")
   }
-  let widths : Array[(Bool, Int)?] = []
+  let widths : Array[(Bool, Int32)?] = []
   for child in table.children {
     if self.document.get_tag_name(child) != Some("colgroup") {
       continue
@@ -396,7 +396,7 @@ fn HtmlInput::table_columns(
 ///|
 fn html_table_width(
   document : @html5.Document,
-  id : Int,
+  id : Int32,
 ) -> String raise @failure.Failure {
   let source = html_table_style(document, id, "width")
     .unwrap_or("100%")
@@ -408,7 +408,7 @@ fn html_table_width(
 }
 
 ///|
-fn html_table_measure(source : String) -> (Bool, Int) raise @failure.Failure {
+fn html_table_measure(source : String) -> (Bool, Int32) raise @failure.Failure {
   let source = source.trim().to_owned().to_lower()
   let percent = source.has_suffix("%")
   let points = source.has_suffix("pt")
@@ -431,8 +431,8 @@ fn html_table_measure(source : String) -> (Bool, Int) raise @failure.Failure {
 ///|
 fn html_cell_properties(
   document : @html5.Document,
-  cell : Int,
-  table : Int,
+  cell : Int32,
+  table : Int32,
 ) -> String raise @failure.Failure {
   let out = StringBuilder()
   let fill = html_table_style(document, cell, "background-color")
@@ -477,8 +477,8 @@ fn html_cell_properties(
 ///|
 fn html_table_border_size(
   document : @html5.Document,
-  table : Int,
-) -> Int raise @failure.Failure {
+  table : Int32,
+) -> Int32 raise @failure.Failure {
   guard document.get_attribute(table, "border") is Some(value) else { return 0 }
   let width = @string.parse_double(value) catch {
     _ => @failure.reject("unsupported-input", "Invalid HTML table border")

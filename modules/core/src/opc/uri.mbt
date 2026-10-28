@@ -1,5 +1,5 @@
 ///|
-fn hex(ch : UInt16) -> Int {
+fn hex(ch : UInt16) -> Int32 {
   if ch >= '0' && ch <= '9' {
     ch.to_int() - 48
   } else if ch >= 'A' && ch <= 'F' {

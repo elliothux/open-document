@@ -4,15 +4,15 @@ fn fragment_paragraph(
   paragraph : @layout.Paragraph,
   styles : Styles,
   document : @xml.Document,
-  limit : Int,
+  limit : Int32,
   links : Map[String, @opc.Relationship],
   bookmarks : Map[String, Bool],
-  markers : Map[Int, String],
-  numbers : Map[Int, (Int, Int)],
-  pictures : Map[Int, String],
-  fields~ : Map[Int, String] = Map([]),
-  start~ : Int = 0,
-  end~ : Int = 2147483647,
+  markers : Map[Int32, String],
+  numbers : Map[Int32, (Int32, Int32)],
+  pictures : Map[Int32, String],
+  fields~ : Map[Int32, String] = Map([]),
+  start~ : Int32 = 0,
+  end~ : Int32 = 2147483647,
 ) -> String raise @failure.Failure {
   guard paragraph.readOnlyReason.is_empty() &&
     tree.children[paragraph.id].all(id => {
@@ -116,7 +116,7 @@ fn fragment_paragraph(
       }
     }
   }
-  let runs : Array[Int?] = []
+  let runs : Array[Int32?] = []
   for id in tree.children[paragraph.id] {
     if tree.nodes[id].name == "hyperlink" {
       runs.append(tree.children[id].map(child => Some(child)))
@@ -127,7 +127,7 @@ fn fragment_paragraph(
   if tree.paragraph_runs(paragraph.id, running=true, math=true).is_empty() {
     runs.push(tree.child(paragraph.id, "pPr"))
   }
-  let mut active_link : Int? = None
+  let mut active_link : Int32? = None
   let mut cursor = 0
   for run in runs {
     if run is Some(id) && tree.index_markers.contains(id) {
@@ -309,16 +309,16 @@ fn Session::fragment_cell(
   self : Session,
   tree : WordTree,
   grid : TableGrid,
-  row : Int,
-  column : Int,
+  row : Int32,
+  column : Int32,
   styles : Styles,
-  limit : Int,
+  limit : Int32,
   links : Map[String, @opc.Relationship],
   bookmarks : Map[String, Bool],
-  markers : Map[Int, String],
-  numbers : Map[Int, (Int, Int)],
-  pictures : Map[Int, String],
-  fields : Map[Int, String],
+  markers : Map[Int32, String],
+  numbers : Map[Int32, (Int32, Int32)],
+  pictures : Map[Int32, String],
+  fields : Map[Int32, String],
 ) -> String raise @failure.Failure {
   let cell = grid.cells[row][column]
   tree.check_merge_cell(
@@ -429,14 +429,14 @@ fn Session::capture_table_fragment(
   self : Session,
   tree : WordTree,
   grid : TableGrid,
-  top : Int,
-  bottom : Int,
-  left : Int,
-  right : Int,
-  owners : Array[Int],
-  fields : Map[Int, String],
-  numbers? : Map[Int, (Int, Int)],
-  markers? : Map[Int, String],
+  top : Int32,
+  bottom : Int32,
+  left : Int32,
+  right : Int32,
+  owners : Array[Int32],
+  fields : Map[Int32, String],
+  numbers? : Map[Int32, (Int32, Int32)],
+  markers? : Map[Int32, String],
   body~ : Bool = false,
 ) -> String raise @failure.Failure {
   let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
@@ -480,7 +480,7 @@ fn Session::capture_table_fragment(
   let markers = markers.unwrap_or_else(() => {
     fragment_bookmark_markers(tree, grid, top, bottom, left, right)
   })
-  let pictures : Map[Int, String] = Map([])
+  let pictures : Map[Int32, String] = Map([])
   for row in top..<bottom {
     for column, cell in grid.cells[row] {
       let start = grid.starts[row][column]

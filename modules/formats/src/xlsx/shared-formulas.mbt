@@ -3,7 +3,7 @@ fn Sheet::expand_shared(
   self : Sheet,
   tree : Tree,
 ) -> Unit raise @failure.Failure {
-  let groups : Map[Int, (Address, Range, String)] = Map([])
+  let groups : Map[Int32, (Address, Range, String)] = Map([])
   for cell in self.cells.values() {
     if cell.group is Some(group) &&
       cell.formula is Some(source) &&

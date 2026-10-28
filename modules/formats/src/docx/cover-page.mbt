@@ -4,7 +4,7 @@ let cover_bookmark = "_OpenDocumentCoverPage"
 ///|
 fn WordTree::cover_page(
   self : WordTree,
-) -> (Array[Int], String)? raise @failure.Failure {
+) -> (Array[Int32], String)? raise @failure.Failure {
   let covers = self
     .bookmarks()
     .filter(b => b.name.to_lower() == cover_bookmark.to_lower())
@@ -71,8 +71,8 @@ fn cover_markup(
   let end = "<od:bookmarkEnd od:id=\"\{key}\"/>"
   let paragraph = fn(
     text : String,
-    size : Int,
-    before : Int,
+    size : Int32,
+    before : Int32,
     marker : String,
     bold : Bool,
   ) raise @failure.Failure {
@@ -87,7 +87,7 @@ fn cover_markup(
 /// Inserts or replaces an editable title cover; null removes the owned cover.
 pub fn Session::set_cover_page(
   self : Session,
-  revision : Int,
+  revision : Int32,
   title : String?,
   subtitle : String,
   probe~ : @layout.TextProbe,

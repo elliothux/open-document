@@ -4,8 +4,8 @@ fn Session::markup_charts(
   tree : WordTree,
   flow : @layout.Flow,
   layout : @layout.Layout?,
-) -> (Map[Int, @layout.PlacedDrawingFrame], Map[String, String]) raise @failure.Failure {
-  let expected : Map[Int, @layout.DrawingFrame] = Map([])
+) -> (Map[Int32, @layout.PlacedDrawingFrame], Map[String, String]) raise @failure.Failure {
+  let expected : Map[Int32, @layout.DrawingFrame] = Map([])
   let paragraphs = flow.paragraphs.copy()
   for table in flow.tables {
     for row in table.rows {
@@ -32,8 +32,8 @@ fn Session::markup_charts(
       "unsupported-layout", "Chart markup requires a complete layout",
     )
   }
-  let keys : Map[(Int, Int), Int] = Map([])
-  let offsets : Map[Int, Int] = Map([])
+  let keys : Map[(Int32, Int32), Int32] = Map([])
+  let offsets : Map[Int32, Int32] = Map([])
   for item in docx_texts(tree) {
     let offset = offsets.get(item.paragraph).unwrap_or(0)
     if expected.contains(item.id) {
@@ -41,7 +41,7 @@ fn Session::markup_charts(
     }
     offsets[item.paragraph] = offset + inline_text(tree.nodes[item.id]).length()
   }
-  let charts : Map[Int, @layout.PlacedDrawingFrame] = Map([])
+  let charts : Map[Int32, @layout.PlacedDrawingFrame] = Map([])
   for page in layout.pages {
     for line in page.lines {
       for frame in line.drawings {

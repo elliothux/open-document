@@ -2,7 +2,7 @@
 /// Removes a native timeline view and its drawing while retaining the cached pivot filter.
 pub fn Session::delete_timeline(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   name : String,
 ) -> Json raise @failure.Failure {

@@ -4,7 +4,7 @@
 // https://www.unicode.org/Public/16.0.0/ucd/DerivedCoreProperties.txt
 
 ///|
-let text_column_wide : FixedArray[(Int, Int)] = [
+let text_column_wide : FixedArray[(Int32, Int32)] = [
   (0x1100, 0x115f),
   (0x231a, 0x231b),
   (0x2329, 0x232a),
@@ -130,7 +130,7 @@ let text_column_wide : FixedArray[(Int, Int)] = [
 ]
 
 ///|
-let text_column_ignorable : FixedArray[(Int, Int)] = [
+let text_column_ignorable : FixedArray[(Int32, Int32)] = [
   (0xad, 0xad),
   (0x34f, 0x34f),
   (0x61c, 0x61c),
@@ -151,7 +151,10 @@ let text_column_ignorable : FixedArray[(Int, Int)] = [
 ]
 
 ///|
-fn text_column_property(point : Int, ranges : FixedArray[(Int, Int)]) -> Bool {
+fn text_column_property(
+  point : Int32,
+  ranges : FixedArray[(Int32, Int32)],
+) -> Bool {
   let mut low = 0
   let mut high = ranges.length()
   while low < high {
@@ -166,7 +169,7 @@ fn text_column_property(point : Int, ranges : FixedArray[(Int, Int)]) -> Bool {
 }
 
 ///|
-fn text_column_width(character : Char) -> Int {
+fn text_column_width(character : Char) -> Int32 {
   let point = character.to_int()
   if text_column_property(point, text_column_wide) {
     2

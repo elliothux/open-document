@@ -87,7 +87,7 @@ fn validate_paragraph_style_values(
 /// Lists existing paragraph or character styles without changing document state.
 pub fn Session::style_catalog(
   self : Session,
-  revision : Int,
+  revision : Int32,
   kind : String,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)

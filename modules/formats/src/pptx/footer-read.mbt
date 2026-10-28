@@ -2,7 +2,7 @@
 /// A fixed label or date format 1–13 with en-US, zh-CN or zh-TW language.
 pub(all) enum FooterDate {
   Fixed(String)
-  Automatic(Int, String)
+  Automatic(Int32, String)
 } derive(Eq)
 
 ///|

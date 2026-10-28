@@ -1,7 +1,7 @@
 ///|
 fn Session::icon_sort_key(
   self : Session,
-  index : Int,
+  index : Int32,
   address : Address,
   key : SortKey,
   rules : ConditionalRules,

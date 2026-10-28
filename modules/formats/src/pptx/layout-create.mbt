@@ -8,7 +8,7 @@ fn Session::layout_identity(
 ///|
 fn Session::layout_identities(
   self : Session,
-  count : Int,
+  count : Int32,
 ) -> Array[(String, String, Int64)] raise @failure.Failure {
   if count == 0 {
     return []

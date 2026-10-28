@@ -78,7 +78,7 @@ pub fn PageBorders::validate(self : PageBorders) -> Unit raise @failure.Failure 
 pub fn PageBorders::fills(
   self : PageBorders,
   page : PageSetup,
-  index : Int,
+  index : Int32,
 ) -> Array[Fill] raise @failure.Failure {
   self.validate()
   if (self.display == "firstPage" && index != 0) ||

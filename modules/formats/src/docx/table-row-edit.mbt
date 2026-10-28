@@ -1,7 +1,7 @@
 ///|
 fn Session::edit_table_rows(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   change : TableEdit,
   append~ : Bool = false,
@@ -193,7 +193,7 @@ fn Session::remove_table_rows(
   document : @xml.Document,
   tree : WordTree,
   grid : TableGrid,
-  rows : Array[Int],
+  rows : Array[Int32],
   changes : TableChanges,
   review~ : Bool = false,
 ) -> Unit raise @failure.Failure {

@@ -3,7 +3,7 @@
 fn line_decorations(
   carets : Array[Caret],
   spans : Array[MeasuredSpan],
-  start : Int,
+  start : Int32,
   width : Double,
 ) -> Array[TextDecoration] {
   let result : Array[TextDecoration] = []

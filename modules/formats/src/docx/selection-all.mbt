@@ -2,7 +2,7 @@
 /// Selects the current body or text box story without changing document history.
 pub fn Session::select_all(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())

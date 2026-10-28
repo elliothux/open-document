@@ -1,5 +1,5 @@
 ///|
-fn normal_xf(tree : Tree) -> (@xml.Node?, Int?) raise @failure.Failure {
+fn normal_xf(tree : Tree) -> (@xml.Node?, Int32?) raise @failure.Failure {
   let root = tree.root("styleSheet")
   let formats = tree
     .one(root.id, "cellStyleXfs")
@@ -82,7 +82,7 @@ fn normal_font(
 ///|
 fn Session::normal_style(
   self : Session,
-) -> (Int, Array[CellStyle], Array[(String, @xml.Document, @xml.Edit)]) raise @failure.Failure {
+) -> (Int32, Array[CellStyle], Array[(String, @xml.Document, @xml.Edit)]) raise @failure.Failure {
   guard self.styles_part(self.parts) is Some(path) else {
     return (0, self.styles, [])
   }

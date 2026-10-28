@@ -14,8 +14,8 @@ pub fn FindOptions::new(
 
 ///|
 priv struct SearchGroup {
-  paragraphs : Array[Int]
-  starts : Array[Int]
+  paragraphs : Array[Int32]
+  starts : Array[Int32]
   text : String
 }
 
@@ -28,7 +28,7 @@ priv struct SearchResult {
 ///|
 fn SearchGroup::position(
   self : SearchGroup,
-  offset : Int,
+  offset : Int32,
   affinity : String,
 ) -> Position {
   let index = self.index(offset)
@@ -42,7 +42,7 @@ fn SearchGroup::position(
 }
 
 ///|
-fn SearchGroup::index(self : SearchGroup, offset : Int) -> Int {
+fn SearchGroup::index(self : SearchGroup, offset : Int32) -> Int32 {
   let index = match self.starts.binary_search(offset) {
     Ok(index) => index
     Err(index) => index - 1
@@ -55,7 +55,7 @@ fn Session::search_groups(
   self : Session,
   tree : WordTree,
 ) -> Array[SearchGroup] raise @failure.Failure {
-  let by_paragraph : Map[Int, StringBuilder] = Map([])
+  let by_paragraph : Map[Int32, StringBuilder] = Map([])
   let fields = Map::from_array(
     docx_texts(tree)
     .filter(item => {
@@ -121,13 +121,13 @@ fn Session::search_groups(
   }
   let body = tree.child(0, "body").unwrap()
   let groups : Array[SearchGroup] = []
-  let mut paragraphs : Array[Int] = []
-  let mut starts : Array[Int] = []
+  let mut paragraphs : Array[Int32] = []
+  let mut starts : Array[Int32] = []
   let mut content = StringBuilder()
   let mut length = 0
   let mut parent = -1
   let mut previous = -1
-  let cursors : Map[Int, Int] = Map([])
+  let cursors : Map[Int32, Int32] = Map([])
   let box_paragraphs = tree.order.filter(id => {
     tree.text_box_drawing(id) is Some(_)
   })
@@ -225,7 +225,7 @@ fn Session::find_matches(
   } noraise {
     value => Ok(value)
   }
-  let reasons : Map[Int, String] = Map([])
+  let reasons : Map[Int32, String] = Map([])
   let matches : Array[(Selection, String, String)] = []
   for group in self.search_groups(tree) {
     for (start, end) in pattern.matches(group.text) {
@@ -297,7 +297,7 @@ fn Session::find_matches(
 /// Finds nonoverlapping literal matches in body paragraph/cell order, bound to revision.
 pub fn Session::find(
   self : Session,
-  revision : Int,
+  revision : Int32,
   text : String,
   options : FindOptions,
 ) -> Json raise @failure.Failure {

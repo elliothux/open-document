@@ -28,7 +28,7 @@ fn Justification::position(self : Justification, x : Double) -> Double {
 }
 
 ///|
-fn justify_space(text : String, start : Int, end : Int) -> Bool {
+fn justify_space(text : String, start : Int32, end : Int32) -> Bool {
   end == start + 1 && (text[start] == 32 || text[start] == 0x3000)
 }
 
@@ -111,14 +111,14 @@ fn justified_line(
     }
   }
   if !wordsOnly && plan.stops.is_empty() && line.baseLevel % 2 == 0 {
-    let clusters : Map[Int, Bool] = Map([])
+    let clusters : Map[Int32, Bool] = Map([])
     for run in line.runs {
       for glyph in run.glyphs {
         clusters[run.start + run.logical_cluster(glyph)] = true
       }
     }
     let close_word = limit - width <= 0.05 * limit
-    let legal : Map[Int, Bool] = Map([])
+    let legal : Map[Int32, Bool] = Map([])
     for (offset, _) in @linebreak.linebreaks(text) {
       legal[offset] = true
     }

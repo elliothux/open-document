@@ -1,6 +1,6 @@
 ///|
 priv struct ConditionalStyleEdit {
-  indices : Array[Int?]
+  indices : Array[Int32?]
   parts : Map[String, @xml.Document]
   edits : Array[(String, @xml.Edit)]
   created_parts : Map[String, @xml.Document]
@@ -9,7 +9,7 @@ priv struct ConditionalStyleEdit {
 ///|
 fn CellFormat::dxf_markup(
   self : CellFormat,
-  number_id : Int?,
+  number_id : Int32?,
   inner~ : Array[CellBorder?] = [None, None],
 ) -> String raise @failure.Failure {
   guard self.locked is None && self.formulaHidden is None else {

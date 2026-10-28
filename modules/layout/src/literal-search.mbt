@@ -1,7 +1,7 @@
 ///|
 pub struct LiteralPattern {
   priv chars : Array[Char]
-  priv prefix : Array[Int]
+  priv prefix : Array[Int32]
   priv match_case : Bool
   priv whole_word : Bool
 }
@@ -48,15 +48,15 @@ fn search_word_char(ch : Char) -> Bool {
 pub fn LiteralPattern::matches(
   self : LiteralPattern,
   text : String,
-) -> Array[(Int, Int)] {
-  let chars : Array[(Int, Char)] = []
+) -> Array[(Int32, Int32)] {
+  let chars : Array[(Int32, Char)] = []
   let mut offset = 0
   for ch in text {
     chars.push((offset, ch))
     offset += if ch.to_int() > 0xffff { 2 } else { 1 }
   }
   let boundaries = grapheme_boundaries(text)
-  let matches : Array[(Int, Int)] = []
+  let matches : Array[(Int32, Int32)] = []
   let mut matched = 0
   for index, (offset, ch) in chars {
     let value = if self.match_case { ch } else { @ucd.to_lowercase(ch) }

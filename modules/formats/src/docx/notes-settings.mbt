@@ -9,7 +9,7 @@ priv struct NoteSettings {
 fn NoteSettings::read(
   self : NoteSettings,
   tree : WordTree,
-  owner : Int,
+  owner : Int32,
   kind : String,
   document~ : Bool,
 ) -> NoteSettings raise @failure.Failure {
@@ -102,8 +102,8 @@ fn Session::note_settings(
 }
 
 ///|
-fn WordTree::note_sections(self : WordTree) -> Map[Int, Int] {
-  let result : Map[Int, Int] = Map([])
+fn WordTree::note_sections(self : WordTree) -> Map[Int32, Int32] {
+  let result : Map[Int32, Int32] = Map([])
   let body = self.child(0, "body").unwrap()
   let mut section = -1
   for id in self.children[body].rev() {
@@ -132,7 +132,7 @@ fn WordTree::note_sections(self : WordTree) -> Map[Int, Int] {
 fn Session::section_footnotes_at(
   self : Session,
   tree : WordTree,
-  section : Int?,
+  section : Int32?,
 ) -> String raise @failure.Failure {
   self.section_note_settings(tree, section, "footnote").position
 }
@@ -141,7 +141,7 @@ fn Session::section_footnotes_at(
 fn WordTree::footnotes_at_change(
   self : WordTree,
   document : @xml.Document,
-  section : Int,
+  section : Int32,
   position : String,
 ) -> @xml.SourceChange? raise @failure.Failure {
   if self.child(section, "footnotePr") is Some(properties) {
@@ -166,7 +166,7 @@ fn WordTree::footnotes_at_change(
 ///|
 fn WordTree::new_note_properties(
   self : WordTree,
-  section : Int,
+  section : Int32,
   kind : String,
   contents : String,
 ) -> @xml.SourceChange {

@@ -1,9 +1,9 @@
 ///|
 priv struct Run {
-  start : Int
-  end : Int
-  font : Int
-  level : Int
+  start : Int32
+  end : Int32
+  font : Int32
+  level : Int32
   script : @common.Script
 }
 
@@ -13,8 +13,8 @@ pub fn TextProbe::shape(
   text : String,
   size : Double,
   language : String,
-  primary~ : Int = 0,
-  base~ : Int = -1,
+  primary~ : Int32 = 0,
+  base~ : Int32 = -1,
 ) -> ShapeBatch raise @failure.Failure {
   self.check()
   guard text.length() <= 4096 else {
@@ -47,13 +47,13 @@ fn TextProbe::shape_paragraph(
   text : String,
   size : Double,
   language : String,
-  primary : Int,
+  primary : Int32,
   paragraph : @bidi.BidiParagraph,
   geometry~ : Bool,
   caret_units? : Double,
-  spacing~ : Map[Int, Double] = Map([]),
-  advances? : (Array[(Double, Double)], Int),
-  context? : (Array[Char], Int),
+  spacing~ : Map[Int32, Double] = Map([]),
+  advances? : (Array[(Double, Double)], Int32),
+  context? : (Array[Char], Int32),
   tracking~ : Double = 0,
 ) -> ShapeBatch raise @failure.Failure {
   self.check()
@@ -98,7 +98,7 @@ fn TextProbe::shape_paragraph(
       )
     }
   }
-  let offsets : Array[Int] = []
+  let offsets : Array[Int32] = []
   let mut offset = 0
   for ch in chars {
     offsets.push(offset)
@@ -112,7 +112,7 @@ fn TextProbe::shape_paragraph(
     }
   }
   let runs : Array[Run] = []
-  let char_runs : Array[Int] = []
+  let char_runs : Array[Int32] = []
   let diagnostics : Array[GlyphDiagnostic] = []
   let mut inherited = @common.Script::from_string("Latn")
   for i, ch in chars {
@@ -172,15 +172,15 @@ fn TextProbe::shape_paragraph(
     }
     char_runs.push(runs.length() - 1)
   }
-  let visual : Array[Int] = []
+  let visual : Array[Int32] = []
   for i in bidi_order(paragraph) {
     let index = char_runs[i]
     if visual.last() != Some(index) {
       visual.push(index)
     }
   }
-  let trailing_space : Map[Int, Double] = Map([])
-  let tracked : Map[Int, Double] = Map([])
+  let trailing_space : Map[Int32, Double] = Map([])
+  let tracked : Map[Int32, Double] = Map([])
   let glyphs : Array[Glyph] = []
   let outlines : Array[Outline] = []
   let run_views : Array[GlyphRun] = []
@@ -269,7 +269,7 @@ fn TextProbe::shape_paragraph(
       trailing_space[offsets[run.end]] = gap
     }
     // The MoonBit shaper returns logical order; emit horizontal RTL in visual order.
-    let cluster_widths : Map[Int, Double] = Map([])
+    let cluster_widths : Map[Int32, Double] = Map([])
     if tracking != 0 {
       for i in 0..<buffer.len() {
         let cluster = buffer.infos()[i].cluster

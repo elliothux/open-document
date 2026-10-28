@@ -7,14 +7,14 @@ let relationship_uri = "http://schemas.openxmlformats.org/officeDocument/2006/re
 ///|
 priv struct Tree {
   document : @xml.Document
-  nodes : Map[Int, @xml.Node]
-  children : Map[Int, Array[@xml.Node]]
+  nodes : Map[Int32, @xml.Node]
+  children : Map[Int32, Array[@xml.Node]]
 }
 
 ///|
 fn Tree::new(document : @xml.Document) -> Tree {
-  let nodes : Map[Int, @xml.Node] = Map([])
-  let children : Map[Int, Array[@xml.Node]] = Map([])
+  let nodes : Map[Int32, @xml.Node] = Map([])
+  let children : Map[Int32, Array[@xml.Node]] = Map([])
   for node in document.nodes() {
     nodes[node.id] = node
     if children.get(node.parent) is Some(items) {
@@ -27,7 +27,7 @@ fn Tree::new(document : @xml.Document) -> Tree {
 }
 
 ///|
-fn Tree::all(self : Tree, parent : Int, name : String) -> Array[@xml.Node] {
+fn Tree::all(self : Tree, parent : Int32, name : String) -> Array[@xml.Node] {
   self.children
   .get(parent)
   .unwrap_or([])
@@ -37,7 +37,7 @@ fn Tree::all(self : Tree, parent : Int, name : String) -> Array[@xml.Node] {
 ///|
 fn Tree::one(
   self : Tree,
-  parent : Int,
+  parent : Int32,
   name : String,
 ) -> @xml.Node? raise @failure.Failure {
   let nodes = self.all(parent, name)
@@ -57,7 +57,7 @@ fn Tree::root(self : Tree, name : String) -> @xml.Node raise @failure.Failure {
 }
 
 ///|
-fn Tree::text(self : Tree, id : Int) -> (String, Bool) raise @failure.Failure {
+fn Tree::text(self : Tree, id : Int32) -> (String, Bool) raise @failure.Failure {
   let runs = self.all(id, "r")
   let rich = !runs.is_empty() || !self.all(id, "rPh").is_empty()
   let text = if !runs.is_empty() {

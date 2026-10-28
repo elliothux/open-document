@@ -59,8 +59,8 @@ fn Session::edit_filter(
     .map(s => s.columns.map(c => color_filter_format(c.rule)))
     .unwrap_or([]),
   )
-  let manual : Map[Int, Bool] = Map([])
-  let previous_filtered : Map[Int, Bool] = Map([])
+  let manual : Map[Int32, Bool] = Map([])
+  let previous_filtered : Map[Int32, Bool] = Map([])
   for state in states.values() {
     for row in state.manual {
       manual[row] = true
@@ -69,7 +69,7 @@ fn Session::edit_filter(
       previous_filtered[row] = true
     }
   }
-  let hidden : Map[Int, Bool] = Map([])
+  let hidden : Map[Int32, Bool] = Map([])
   if old is Some(state) {
     for row in (state.bounds.top + 1)..<=state.bounds.bottom {
       hidden[row] = manual.contains(row)
@@ -94,7 +94,7 @@ fn Session::edit_filter(
         )
       }
     }
-    let rows : Array[Int] = []
+    let rows : Array[Int32] = []
     for row in (bounds.top + 1)..<=bounds.bottom {
       if current.dimensions.rows.size(row) == 0 &&
         !previous_filtered.contains(row) {
@@ -189,8 +189,8 @@ fn Session::filter_dimension_changes(
   self : Session,
   original : Sheet,
   document : @xml.Document,
-  first : Int,
-  last : Int,
+  first : Int32,
+  last : Int32,
   size : Double,
   parts : Map[String, @xml.Document],
 ) -> (@xml.Document, Array[(String, @xml.Edit)]) raise @failure.Failure {
@@ -200,7 +200,7 @@ fn Session::filter_dimension_changes(
     .any(state => last > state.bounds.top && first <= state.bounds.bottom) {
     return (document, [])
   }
-  let hidden : Map[Int, Bool] = Map([])
+  let hidden : Map[Int32, Bool] = Map([])
   for part in states.keys().to_array() {
     let state = states[part]
     let manual = state.manual.filter(row => row < first || row > last)

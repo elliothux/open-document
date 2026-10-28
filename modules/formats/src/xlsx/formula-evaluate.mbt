@@ -27,7 +27,7 @@ fn finite_result(value : Double) -> Value {
 }
 
 ///|
-fn comparable(left : Value, right : Value) -> Int {
+fn comparable(left : Value, right : Value) -> Int32 {
   match (left, right) {
     (Blank, Blank) => 0
     (Blank, Text(text)) => "".compare(text.to_lower())
@@ -50,8 +50,8 @@ fn comparable(left : Value, right : Value) -> Int {
 ///|
 fn calculated_cell(
   sheets : Array[Sheet],
-  values : Map[(Int, String), Value],
-  sheet : Int,
+  values : Map[(Int32, String), Value],
+  sheet : Int32,
   address : Address,
 ) -> Value raise @failure.Failure {
   let name = address.name()
@@ -79,10 +79,10 @@ fn calculated_cell(
 fn Expression::evaluate(
   self : Expression,
   sheets : Array[Sheet],
-  sheet : Int,
-  values : Map[(Int, String), Value],
+  sheet : Int32,
+  values : Map[(Int32, String), Value],
   work : FormulaWork,
-  depth : Int,
+  depth : Int32,
   hyperlink~ : Ref[String?]? = None,
 ) -> Value raise @failure.Failure {
   if hyperlink is Some(hyperlink) {

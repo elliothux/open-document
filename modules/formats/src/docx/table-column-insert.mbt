@@ -2,9 +2,9 @@
 fn WordTree::column_cell_properties(
   self : WordTree,
   document : @xml.Document,
-  cell : Int,
-  width : Int,
-  span : Int,
+  cell : Int32,
+  width : Int32,
+  span : Int32,
   merge : String,
 ) -> String raise @failure.Failure {
   let props = self.merged_cell_properties(document, cell, width, span, merge)
@@ -46,7 +46,7 @@ fn Session::insert_table_column(
       "unsupported-layout", "Table columns exceed the page content width",
     )
   }
-  let positions : Array[Int] = [0]
+  let positions : Array[Int32] = [0]
   for width in model.widths {
     positions.push(positions.last().unwrap() + (width * 20).round().to_int())
   }
@@ -88,7 +88,7 @@ fn Session::insert_table_column(
       "unsupported-layout", "Table columns exceed the page content width",
     )
   }
-  let scale = fn(point : Int) {
+  let scale = fn(point : Int32) {
     if fixed {
       ((point.to_int64() * total.to_int64() + (total + added).to_int64() / 2) /
       (total + added).to_int64()).to_int()
@@ -96,9 +96,9 @@ fn Session::insert_table_column(
       point
     }
   }
-  let insertions : Array[Int] = []
-  let row_edges : Array[Array[Int]] = []
-  let cuts : Array[Int] = [0]
+  let insertions : Array[Int32] = []
+  let row_edges : Array[Array[Int32]] = []
+  let cuts : Array[Int32] = [0]
   for r, cells in grid.cells {
     let mut index = 0
     for c in 0..<cells.length() {
@@ -111,7 +111,7 @@ fn Session::insert_table_column(
       }
     }
     insertions.push(index)
-    let edges : Array[Int] = [0]
+    let edges : Array[Int32] = [0]
     let mut point = 0
     for c in 0..<=cells.length() {
       if c == index {
@@ -159,8 +159,8 @@ fn Session::insert_table_column(
     is Some(change) {
     changes.push(change)
   }
-  let mut previous_template : Int? = None
-  let mut previous_bounds : Array[(Int, Int)] = []
+  let mut previous_template : Int32? = None
+  let mut previous_bounds : Array[(Int32, Int32)] = []
   for r, cells in grid.cells {
     let index = insertions[r]
     let edges = row_edges[r]
@@ -198,7 +198,7 @@ fn Session::insert_table_column(
     let template = cells[index.min(cells.length() - 1)]
     let (owner_row, owner_column) = grid.owners[template]
     let owner = grid.cells[owner_row][owner_column]
-    let current_bounds : Array[(Int, Int)] = []
+    let current_bounds : Array[(Int32, Int32)] = []
     let markup = StringBuilder()
     for copy in 0..<repeat {
       let bounds = (edges[index + copy], edges[index + copy + 1])

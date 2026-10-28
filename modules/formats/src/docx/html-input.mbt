@@ -140,9 +140,9 @@ fn HtmlInput::text(
 ///|
 fn HtmlInput::walk(
   self : HtmlInput,
-  id : Int,
+  id : Int32,
   context : HtmlContext,
-  depth : Int,
+  depth : Int32,
 ) -> Unit raise @failure.Failure {
   self.output.visit(depth)
   match self.document.get_node(id) {
@@ -296,7 +296,7 @@ fn HtmlInput::walk(
 /// Imports declared HTML semantics without executing code or fetching external resources.
 pub fn Session::paste_html(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   html : String,
   probe : @layout.TextProbe,

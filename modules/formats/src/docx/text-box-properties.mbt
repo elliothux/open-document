@@ -2,8 +2,8 @@
 /// Edits a native text box's text area as one source transaction, preserving content and selection.
 pub fn Session::edit_text_box(
   self : Session,
-  revision : Int,
-  id : Int,
+  revision : Int32,
+  id : Int32,
   properties : @layout.DrawingTextBoxProperties,
   probe? : @layout.TextProbe,
   profile~ : Map[String, String] = Map([]),

@@ -2,7 +2,7 @@
 fn validation_values(
   expression : Expression,
   sheets : Array[Sheet],
-  sheet : Int,
+  sheet : Int32,
   calculation : Calculation,
   work : FormulaWork,
 ) -> Array[Value] raise @failure.Failure {
@@ -53,7 +53,7 @@ fn validation_values(
 ///|
 fn Session::validation_options(
   self : Session,
-  sheet : Int,
+  sheet : Int32,
   range : Range,
   rule : DataValidation,
 ) -> Array[Value] raise @failure.Failure {
@@ -95,8 +95,8 @@ fn Session::validation_options(
 fn Session::pick_validation(
   self : Session,
   id : String,
-  index : Int,
-  source_revision : Int,
+  index : Int32,
+  source_revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(source_revision)
   guard id == self.selection.0 else {

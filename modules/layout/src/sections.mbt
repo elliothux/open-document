@@ -1,8 +1,8 @@
 ///|
 /// Page properties take effect after the preceding body paragraph and table counts.
 pub(all) struct SectionBreak {
-  beforeParagraph : Int
-  beforeTable : Int
+  beforeParagraph : Int32
+  beforeTable : Int32
   kind : String
   restartNumbering : Bool
   footnotesAt : String
@@ -24,7 +24,7 @@ pub extend SectionBreak with ToJson::{to_json}
 ///|
 fn Flow::section_body(
   self : Flow,
-  index : Int,
+  index : Int32,
   numbering : PageNumbering,
 ) -> Flow {
   let previous = self.sectionBreaks.get(index - 1)
@@ -61,7 +61,7 @@ fn Flow::section_body(
         differentEven: section.differentEven,
       }
   }
-  let ids : Set[Int] = Set([])
+  let ids : Set[Int32] = Set([])
   for p in part.paragraphs {
     ids.add(p.id)
   }
@@ -127,7 +127,7 @@ fn paginate_sections(
   Array[Array[Line]],
   Array[String],
   Array[PageNumbering],
-  Array[(Int, Int)?],
+  Array[(Int32, Int32)?],
 ) raise @failure.Failure {
   let fields = flow.body_fields()
   let fixed = flow.fixed_body_field_values(fields)
@@ -137,10 +137,10 @@ fn paginate_sections(
     let combined = Pagination::new(flow.page)
     combined.pages.clear()
     let running : Array[Array[Line]] = []
-    let contexts : Array[(PageNumbering, Int)] = []
+    let contexts : Array[(PageNumbering, Int32)] = []
     let diagnostics : Array[String] = []
     let section_numbering : Array[PageNumbering] = []
-    let page_sections : Array[(Int, Int)?] = []
+    let page_sections : Array[(Int32, Int32)?] = []
     let mut numbering = flow.pageNumbering
     let mut lines = 0
     let mut pending : Array[NoteLine] = []

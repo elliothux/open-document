@@ -1,6 +1,6 @@
 ///|
 priv struct TableColumn {
-  id : Int
+  id : Int32
   name : String
   formula : String?
   total_function : String?
@@ -12,11 +12,11 @@ priv struct TableColumn {
 priv struct StructuredTable {
   sheet : String
   part : String
-  id : Int
+  id : Int32
   name : String
   range : Range
-  headers : Int
-  totals : Int
+  headers : Int32
+  totals : Int32
   columns : Array[TableColumn]
   style : String?
   first_column : Bool
@@ -64,7 +64,7 @@ fn read_table(
       ),
     )
   let columns : Array[TableColumn] = []
-  let ids : Map[Int, Bool] = Map([])
+  let ids : Map[Int32, Bool] = Map([])
   let names : Map[String, Bool] = Map([])
   let mut units = name.length()
   for node in tree.all(parent.id, "tableColumn") {
@@ -295,7 +295,7 @@ fn Session::table_definitions(
     replacements=self.replacements(sheets, workbook, parts),
     removed~,
   )
-  let ids : Map[Int, Bool] = Map([])
+  let ids : Map[Int32, Bool] = Map([])
   let names : Map[String, Bool] = Map([])
   let paths : Map[String, Bool] = Map([])
   let mut columns = 0
@@ -394,7 +394,7 @@ fn Session::calculate(
   self : Session,
   sheets : Array[Sheet],
   previous : Calculation?,
-  changed : Array[(Int, Range)],
+  changed : Array[(Int32, Range)],
   workbook : @xml.Document,
   parts~ : Map[String, @xml.Document] = self.parts,
   removed~ : Array[String] = self.removed,

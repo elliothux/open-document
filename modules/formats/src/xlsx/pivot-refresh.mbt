@@ -117,7 +117,7 @@ fn Session::pivot_settings(
     })
     .filter(field => field.1)
     .map(field => field.0)
-  let subtotals : Array[Int] = []
+  let subtotals : Array[Int32] = []
   for field in native_subtotals {
     let base = if field < width {
       field
@@ -439,7 +439,7 @@ fn Session::pivot_settings(
 /// Refreshes a supported native row pivot atomically; expansion never overwrites existing content.
 pub fn Session::refresh_pivot(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   part : String,
 ) -> Json raise @failure.Failure {
@@ -453,7 +453,7 @@ pub fn Session::refresh_pivot(
 /// Replaces the supported source and row/value fields using the same atomic refresh transaction.
 pub fn Session::update_pivot(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   part : String,
   settings : PivotSettings,
@@ -472,7 +472,7 @@ pub fn Session::update_pivot(
 ///|
 fn Session::write_pivot(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   part : String,
   replacement : PivotSettings?,
@@ -513,7 +513,7 @@ fn Session::write_pivot(
 ///|
 fn Session::prepare_pivot(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   part : String,
   replacement : PivotSettings?,

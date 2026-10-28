@@ -2,13 +2,13 @@
 fn PivotCache::add_parent_values(
   self : PivotCache,
   settings : PivotSettings,
-  record : Array[Int],
-  rows : Array[Array[Int]],
-  columns : Array[Array[Int]],
+  record : Array[Int32],
+  rows : Array[Array[Int32]],
+  columns : Array[Array[Int32]],
   parents : Map[String, Array[PivotStatistic]],
   directions : (Bool, Bool),
-  work : Int,
-) -> Int raise @failure.Failure {
+  work : Int32,
+) -> Int32 raise @failure.Failure {
   let keys : Map[String, Bool] = Map([])
   if directions.0 {
     for row in rows {

@@ -1,7 +1,7 @@
 ///|
 fn Session::timeline_view_target(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   name : String,
 ) -> SheetTimeline raise @failure.Failure {
@@ -66,10 +66,10 @@ fn Session::commit_timeline_view(
 /// Changes the native display grain while retaining its absolute scroll and selected range.
 pub fn Session::set_timeline_level(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   name : String,
-  level : Int,
+  level : Int32,
 ) -> Json raise @failure.Failure {
   let view = self.timeline_view_target(revision, sheet, name)
   guard level >= 0 && level <= 3 else {
@@ -85,11 +85,11 @@ pub fn Session::set_timeline_level(
 /// Saves the first visible period without filtering or refreshing connected pivot caches.
 pub fn Session::scroll_timeline(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   name : String,
-  level : Int,
-  position : Int,
+  level : Int32,
+  position : Int32,
 ) -> Json raise @failure.Failure {
   let view = self.timeline_view_target(revision, sheet, name)
   guard level == view.level else {

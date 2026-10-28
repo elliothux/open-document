@@ -1,8 +1,8 @@
 ///|
 fn check_fragment_content(
   tree : WordTree,
-  nodes : Array[Int],
-  objects : Map[Int, Bool],
+  nodes : Array[Int32],
+  objects : Map[Int32, Bool],
   fields~ : Bool = false,
   notes~ : Bool = false,
 ) -> Unit raise @failure.Failure {

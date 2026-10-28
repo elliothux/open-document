@@ -7,7 +7,7 @@ fn Session::flow_sections(
   background : String,
 ) -> Array[@layout.SectionBreak] raise @failure.Failure {
   let body = tree.child(0, "body").unwrap()
-  let ends : Array[(Int, Int, Int)] = []
+  let ends : Array[(Int32, Int32, Int32)] = []
   let mut paragraphs = 0
   let mut tables = 0
   for id in tree.children[body] {
@@ -52,7 +52,7 @@ fn Session::flow_sections(
   let profiles : Array[@layout.SectionBreak] = []
   let headers : Map[String, Array[@layout.Paragraph]] = Map([])
   let footers : Map[String, Array[@layout.Paragraph]] = Map([])
-  let identities : Map[(String, Int), Int] = Map([])
+  let identities : Map[(String, Int32), Int32] = Map([])
   let has_footnotes = tree.order.any(id => {
     tree.nodes[id].uri == word_uri && tree.nodes[id].name == "footnoteReference"
   })

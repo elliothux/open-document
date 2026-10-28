@@ -3,7 +3,7 @@ priv enum StyleResetProfile {
   Plain
   Bold
   Italic
-  Heading(Int)
+  Heading(Int32)
   Preset(String, String)
 }
 

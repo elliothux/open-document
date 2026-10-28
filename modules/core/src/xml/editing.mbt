@@ -1,13 +1,13 @@
 ///|
 priv struct SourcePatch {
-  node : Int
-  offset : Int
-  after_offset : Int
-  position : Int
+  node : Int32
+  offset : Int32
+  after_offset : Int32
+  position : Int32
   before : String
   after : String
-  before_ids : Array[Int]
-  after_ids : Array[Int]
+  before_ids : Array[Int32]
+  after_ids : Array[Int32]
 }
 
 ///|
@@ -18,17 +18,17 @@ pub struct Edit {
 
 ///|
 priv struct AbsolutePatch {
-  start : Int
-  end : Int
+  start : Int32
+  end : Int32
   text : String
-  index : Int
+  index : Int32
 }
 
 ///|
 pub(all) struct SourceChange {
-  node : Int
-  offset : Int
-  length : Int
+  node : Int32
+  offset : Int32
+  length : Int32
   xml : String
 }
 
@@ -50,8 +50,8 @@ pub fn escape_text(text : String) -> String raise @failure.Failure {
 ///|
 fn Document::node_index(
   self : Document,
-  id : Int,
-) -> Int raise @failure.Failure {
+  id : Int32,
+) -> Int32 raise @failure.Failure {
   for index, node in self.nodes {
     if node.id == id {
       return index
@@ -66,7 +66,10 @@ fn Document::node_index(
 }
 
 ///|
-pub fn Document::node(self : Document, id : Int) -> Node raise @failure.Failure {
+pub fn Document::node(
+  self : Document,
+  id : Int32,
+) -> Node raise @failure.Failure {
   self.nodes[self.node_index(id)]
 }
 
@@ -104,9 +107,9 @@ pub fn Edit::payload_bytes(self : Edit) -> Int64 {
 ///|
 fn Document::source_patch(
   self : Document,
-  id : Int,
-  start : Int,
-  end : Int,
+  id : Int32,
+  start : Int32,
+  end : Int32,
   text : String,
 ) -> SourcePatch raise @failure.Failure {
   let node = self.node(id)
@@ -246,7 +249,7 @@ fn Document::prepare_edit(
     )
   }
   let output = StringBuilder()
-  let inserted : Array[(Int, Int, Int)] = []
+  let inserted : Array[(Int32, Int32, Int32)] = []
   let mut cursor = 0
   let mut shift = 0
   for patch in absolute {
@@ -276,7 +279,7 @@ fn Document::prepare_edit(
     self.depth_limit,
     self.byte_limit,
   )
-  let survivors : Map[Int, Int] = Map([])
+  let survivors : Map[Int32, Int32] = Map([])
   let before_ids = Array::makei(patches.length(), _ => [])
   for node in self.nodes {
     let mut shift = 0
@@ -298,8 +301,8 @@ fn Document::prepare_edit(
     }
   }
   let after_ids = Array::makei(patches.length(), _ => [])
-  let ids : Array[Int] = []
-  let used : Map[Int, Bool] = Map([])
+  let ids : Array[Int32] = []
+  let used : Map[Int32, Bool] = Map([])
   let mut next_id = self.next_id
   for node in candidate.nodes {
     let insertion = inserted

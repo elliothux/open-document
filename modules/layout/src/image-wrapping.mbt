@@ -1,8 +1,8 @@
 ///|
 priv struct WrappingRect {
-  page : Int
-  paragraph : Int
-  start : Int
+  page : Int32
+  paragraph : Int32
+  start : Int32
   left : Double
   top : Double
   right : Double
@@ -14,7 +14,7 @@ priv struct WrappingRect {
 ///|
 fn wrapping_rects(
   pages : Array[PageFrame],
-  columns : Int,
+  columns : Int32,
 ) -> Array[WrappingRect] {
   let result = []
   for page, frame in pages {
@@ -51,7 +51,7 @@ fn wrapping_rects(
 ///|
 fn Pagination::wrapping_floor(
   self : Pagination,
-  page : Int,
+  page : Int32,
   y : Double,
   height : Double,
   square~ : Bool = true,

@@ -1,7 +1,7 @@
 ///|
 fn WordTree::diagnose_properties(
   self : WordTree,
-  id : Int,
+  id : Int32,
   part : String,
   diagnostics : Array[String],
 ) -> Unit {
@@ -226,7 +226,7 @@ fn WordTree::diagnose_properties(
 }
 
 ///|
-fn WordTree::valid_on_off_property(self : WordTree, id : Int) -> Bool {
+fn WordTree::valid_on_off_property(self : WordTree, id : Int32) -> Bool {
   let node = self.nodes[id]
   node.uri == word_uri &&
   self.children[node.parent]

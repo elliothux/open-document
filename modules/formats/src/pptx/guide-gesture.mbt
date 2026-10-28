@@ -1,6 +1,6 @@
 ///|
 priv struct GuideDrag {
-  index : Int
+  index : Int32
   start : Double
   position : Double
 }
@@ -9,7 +9,7 @@ priv struct GuideDrag {
 /// Begins a visible guide drag, or leaves the session unchanged when no guide is hit.
 pub fn Session::begin_guide(
   self : Session,
-  revision : Int,
+  revision : Int32,
   x : Double,
   y : Double,
   tolerance : Double,
@@ -65,7 +65,7 @@ fn Session::drag_guide(
   drag : GuideDrag,
   dx : Double,
   dy : Double,
-  handle : Int,
+  handle : Int32,
 ) -> Json raise @failure.Failure {
   guard handle == 0 else {
     @failure.reject(

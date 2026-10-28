@@ -40,7 +40,7 @@ fn Session::merge_cells(
   }
   let plan = if unmerge { None } else { self.merge_formats(current, target) }
   let updates : Map[String, CellContent] = Map([])
-  let changed : Array[(Int, Range)] = []
+  let changed : Array[(Int32, Range)] = []
   if !unmerge {
     for key, cell in current.cells {
       if target.contains(cell.address) &&

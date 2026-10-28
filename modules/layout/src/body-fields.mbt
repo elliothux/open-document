@@ -1,11 +1,11 @@
 ///|
 fn Flow::body_fields(
   self : Flow,
-) -> Map[(Int, Int), String] raise @failure.Failure {
+) -> Map[(Int32, Int32), String] raise @failure.Failure {
   guard self.bookmarks.length() <= 4096 else {
     @failure.reject("limit-exceeded", "Field targets exceed limits")
   }
-  let fields : Map[(Int, Int), String] = Map([])
+  let fields : Map[(Int32, Int32), String] = Map([])
   let mut ordinary = 0
   let page_notes = Map::from_array(
     self.notes
@@ -49,8 +49,8 @@ fn Flow::body_fields(
 ///|
 fn Flow::resolve_body_fields(
   self : Flow,
-  values : Map[(Int, Int), String],
-  total : Int,
+  values : Map[(Int32, Int32), String],
+  total : Int32,
 ) -> (Flow, Bool) raise @failure.Failure {
   let mut stable = true
   let resolve = fn(paragraph : Paragraph) raise @failure.Failure {

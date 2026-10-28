@@ -1,5 +1,5 @@
 ///|
-pub fn field_int(json : Json, key : String) -> Int raise @failure.Failure {
+pub fn field_int(json : Json, key : String) -> Int32 raise @failure.Failure {
   guard json is Object(fields) &&
     fields.get(key) is Some(Number(value, ..)) &&
     value >= 0.0 &&
@@ -34,7 +34,10 @@ pub fn optional_string(
 }
 
 ///|
-pub fn input_bytes(json : Json, ceiling : Int) -> Bytes raise @failure.Failure {
+pub fn input_bytes(
+  json : Json,
+  ceiling : Int32,
+) -> Bytes raise @failure.Failure {
   let encoded = field_string(json, "bytes")
   guard encoded.length().to_int64() <= (ceiling.to_int64() + 2) / 3 * 4 else {
     @failure.reject("limit-exceeded", "Encoded byte input exceeds budget")

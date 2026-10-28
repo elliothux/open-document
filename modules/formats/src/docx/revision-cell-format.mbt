@@ -1,8 +1,8 @@
 ///|
 fn WordTree::check_cell_format_properties(
   self : WordTree,
-  properties : Int,
-  change~ : Int? = None,
+  properties : Int32,
+  change~ : Int32? = None,
 ) -> Unit raise @failure.Failure {
   let node = self.nodes[properties]
   let source = self.source[node.start:node.end]
@@ -71,8 +71,8 @@ fn WordTree::check_cell_format_properties(
 ///|
 fn WordTree::check_cell_property_revision(
   self : WordTree,
-  id : Int,
-) -> Int raise @failure.Failure {
+  id : Int32,
+) -> Int32 raise @failure.Failure {
   let change = self.nodes[id]
   guard change.uri == word_uri &&
     change.name == "tcPrChange" &&

@@ -313,7 +313,7 @@ fn render_appearances(
 ///|
 pub fn PdfSession::add_note(
   self : PdfSession,
-  revision : Int,
+  revision : Int32,
   page_id : String,
   x : Double,
   y : Double,
@@ -374,8 +374,8 @@ pub fn PdfSession::add_note(
 ///|
 pub fn PdfSession::add_highlight(
   self : PdfSession,
-  revision : Int,
-  layout_id : Int,
+  revision : Int32,
+  layout_id : Int32,
 ) -> Json raise @failure.Failure {
   let tx = self.transaction(revision)
   let display = self.current_display(layout_id)
@@ -457,7 +457,7 @@ pub fn PdfSession::add_highlight(
 ///|
 pub fn PdfSession::change_annotation(
   self : PdfSession,
-  revision : Int,
+  revision : Int32,
   page_id : String,
   annotation : String,
   text : String,
@@ -470,7 +470,7 @@ pub fn PdfSession::change_annotation(
     self.document,
     self.document.lookup_object_or_null(page.number),
   )
-  let mut target : Int? = None
+  let mut target : Int32? = None
   for reference in refs {
     if reference is PdfIndirect(n) &&
       "\{n}:\{self.generations.get(n).unwrap_or(0)}" == annotation {
@@ -484,7 +484,7 @@ pub fn PdfSession::change_annotation(
   let reason = annotation_reason(object)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   if delete {
-    let targets : Map[Int, Bool] = Map([(n, true)])
+    let targets : Map[Int32, Bool] = Map([(n, true)])
     for (id, _, object) in self.document.parsed_object_entries() {
       if id == n || id == page.number {
         continue

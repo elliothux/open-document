@@ -24,7 +24,7 @@ fn TextProbe::math_font_index(
   self : TextProbe,
   style : TextStyle,
   profile : Map[String, String],
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   guard font_profile_identity(profile, style.font) is Some(identity) else {
     @failure.reject(
       "missing-font",
@@ -37,8 +37,8 @@ fn TextProbe::math_font_index(
 ///|
 fn TextProbe::math_glyph_metrics(
   self : TextProbe,
-  index : Int,
-  codepoint : UInt,
+  index : Int32,
+  codepoint : UInt32,
   size : Double,
 ) -> (Double, Double) raise @failure.Failure {
   let font = self.fonts[index]
@@ -65,8 +65,8 @@ fn TextProbe::math_glyph_metrics(
 ///|
 fn TextProbe::math_glyph_height(
   self : TextProbe,
-  index : Int,
-  codepoint : UInt,
+  index : Int32,
+  codepoint : UInt32,
   size : Double,
 ) -> Double raise @failure.Failure {
   self.math_glyph_metrics(index, codepoint, size).0

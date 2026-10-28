@@ -344,7 +344,7 @@ fn BackgroundFill::paint(
   self : BackgroundFill,
   width : Double,
   height : Double,
-  tile_sizes~ : Map[String, (Int, Int)] = Map([]),
+  tile_sizes~ : Map[String, (Int32, Int32)] = Map([]),
 ) -> Array[@layout.PositionedPrimitive] raise @failure.Failure {
   if self is Radial(stops) {
     return [RadialGradientRectangle({ x: 0, y: 0, width, height, }, stops)]

@@ -2,7 +2,7 @@
 /// Clears contents, formats, or all supported cell data in one history entry.
 pub fn Session::clear(
   self : Session,
-  revision : Int,
+  revision : Int32,
   mode~ : String = "contents",
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
@@ -26,8 +26,8 @@ pub fn Session::clear(
   }
   let all = mode == "all"
   let updates : Map[String, CellContent] = Map([])
-  let indices : Map[String, Int] = Map([])
-  let changed : Array[(Int, Range)] = []
+  let indices : Map[String, Int32] = Map([])
+  let changed : Array[(Int32, Range)] = []
   for row in target.top..<=target.bottom {
     for column in target.left..<=target.right {
       let address : Address = { row, column, }

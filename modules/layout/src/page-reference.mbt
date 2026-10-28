@@ -67,7 +67,7 @@ fn PageReference::text(
   numbering : PageNumbering,
   origin : Hit?,
   target : Hit?,
-  total : Int,
+  total : Int32,
 ) -> String raise @failure.Failure {
   guard target is Some(target) else { return "Error! Bookmark not defined." }
   if !self.relative {

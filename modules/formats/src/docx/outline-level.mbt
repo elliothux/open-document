@@ -1,8 +1,8 @@
 ///|
 fn WordTree::outline_level(
   self : WordTree,
-  properties : Int,
-) -> Int? raise @failure.Failure {
+  properties : Int32,
+) -> Int32? raise @failure.Failure {
   let nodes = self.children[properties].filter(id => {
     self.nodes[id].uri == word_uri && self.nodes[id].name == "outlineLvl"
   })
@@ -33,14 +33,14 @@ fn WordTree::outline_level(
 fn Styles::outline_level(
   self : Styles,
   tree : WordTree,
-  paragraph : Int,
-) -> Int? raise @failure.Failure {
+  paragraph : Int32,
+) -> Int32? raise @failure.Failure {
   let properties = tree.child(paragraph, "pPr")
   let key = match properties.bind(id => tree.value(id, "pStyle")) {
     Some(key) => Some(key)
     None => self.default_paragraph
   }
-  let mut level : Int? = None
+  let mut level : Int32? = None
   if self.tree is Some(source) {
     if source
       .child(0, "docDefaults")

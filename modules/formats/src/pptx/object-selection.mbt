@@ -206,11 +206,11 @@ fn Session::transform_collection(
 ///|
 fn Session::drag_collection(
   self : Session,
-  revision : Int,
-  id : Int,
+  revision : Int32,
+  id : Int32,
   dx : Double,
   dy : Double,
-  handle : Int,
+  handle : Int32,
   aspect : Bool,
   center : Bool,
 ) -> Json raise @failure.Failure {

@@ -2,7 +2,7 @@
 fn Session::resize_table(
   self : Session,
   sheet : String,
-  id : Int,
+  id : Int32,
   range : String,
 ) -> Json raise @failure.Failure {
   let reason = self.sheet_rename_reason(
@@ -121,7 +121,7 @@ fn Session::resize_table(
   let removed = table.columns
     .filter(column => !retained.contains(column.name))
     .map(column => column.name.to_upper())
-  let added : Array[Int] = []
+  let added : Array[Int32] = []
   let labels : Array[String] = []
   let seen : Map[String, Bool] = Map([])
   for column in table.columns {
@@ -170,7 +170,7 @@ fn Session::resize_table(
     .fold(init=table.name.length(), (sum, name) => sum + name.length()),
   )
   let updates : Map[String, CellContent] = Map([])
-  let ids : Map[Int, Bool] = Map([])
+  let ids : Map[Int32, Bool] = Map([])
   for column in table.columns {
     ids[column.id] = true
   }
@@ -242,7 +242,7 @@ fn Session::resize_table(
     }
   }
   let new_rows = (range.bottom - table.range.bottom).max(0)
-  let calculated : Array[Int] = []
+  let calculated : Array[Int32] = []
   for offset, column in table.columns {
     if column.formula is Some(_) &&
       table.range.left + offset >= range.left &&

@@ -114,7 +114,7 @@ fn PivotCache::record_markup(self : PivotCache) -> String {
 fn PivotLayout::definition(
   self : PivotLayout,
   name : String,
-  cache : Int,
+  cache : Int32,
   range : Range,
   data_caption~ : String = "",
 ) -> String raise @failure.Failure {

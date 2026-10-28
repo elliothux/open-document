@@ -2,7 +2,7 @@
 fn Session::copy_sheet_pivots(
   self : Session,
   source : Sheet,
-  number : Int,
+  number : Int32,
   created : Map[String, @xml.Document],
   remapped : Map[String, String],
   types : StringBuilder,

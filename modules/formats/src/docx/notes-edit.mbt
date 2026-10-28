@@ -20,7 +20,7 @@ fn check_note_text(text : String) -> Unit raise @failure.Failure {
 /// Updates a plain note body while retaining its marker, run properties and body references.
 pub fn Session::edit_note(
   self : Session,
-  revision : Int,
+  revision : Int32,
   kind : String,
   key : String,
   text : String,

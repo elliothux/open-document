@@ -233,7 +233,7 @@ fn Session::format_table_cells(
       )
     }
   }
-  let grow_rows : Map[Int, Bool] = Map([])
+  let grow_rows : Map[Int32, Bool] = Map([])
   for r, row in table.rows {
     for c, cell in row.cells {
       if !cell.owner() {

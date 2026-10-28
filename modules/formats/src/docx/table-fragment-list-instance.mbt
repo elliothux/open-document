@@ -3,11 +3,11 @@ fn NumberingContext::fragment_instance(
   self : NumberingContext,
   source : @xml.Document,
   tree : WordTree,
-  original : Int,
-  copied : Int,
+  original : Int32,
+  copied : Int32,
   underline : Bool,
   first : Bool,
-  limit : Int,
+  limit : Int32,
 ) -> String raise @failure.Failure {
   let definition = self.definition(original)
   let output = StringBuilder()

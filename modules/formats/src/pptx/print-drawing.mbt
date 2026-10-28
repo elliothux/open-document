@@ -2,7 +2,7 @@
 /// Returns the same committed pages as PDF without changing the editing layout.
 pub fn Session::print_drawing(
   self : Session,
-  revision : Int,
+  revision : Int32,
   all : Bool,
   hidden : Bool,
   probe : @layout.TextProbe,

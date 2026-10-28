@@ -1,7 +1,7 @@
 ///|
 fn WordTree::running_reference_change(
   self : WordTree,
-  section : Int,
+  section : Int32,
   kind : String,
   variant : String,
   relationship : String,

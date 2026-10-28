@@ -9,7 +9,7 @@ fn worksheet_color_valid(color : String) -> Bool {
 }
 
 ///|
-fn WorksheetChart::color(self : WorksheetChart, index : Int) -> String {
+fn WorksheetChart::color(self : WorksheetChart, index : Int32) -> String {
   self.colors.get(index).unwrap_or_else(() => @layout.chart_color(index))
 }
 

@@ -1,7 +1,7 @@
 ///|
 priv struct Grid {
-  id : Int
-  revision : Int
+  id : Int32
+  revision : Int32
   sheet : String
   key : String
   dimensions : Dimensions
@@ -89,7 +89,7 @@ pub fn Session::viewport(
   profile : Map[String, String],
   reveal~ : Bool = false,
   images~ : @layout.Images = @layout.Images::new(),
-  slicer_hover~ : (String, Int)? = None,
+  slicer_hover~ : (String, Int32)? = None,
 ) -> Json raise @failure.Failure {
   let index = self.sheet_index(sheet)
   if slicer_hover is Some((object, member_index)) {
@@ -327,7 +327,7 @@ pub fn Session::viewport(
 ///|
 pub fn Session::hit(
   self : Session,
-  id : Int,
+  id : Int32,
   x : Double,
   y : Double,
 ) -> String raise @failure.Failure {
@@ -386,7 +386,7 @@ pub fn Session::invalidate_geometry(self : Session) -> Unit {
 ///|
 pub fn Session::selection_geometry(
   self : Session,
-  id : Int,
+  id : Int32,
 ) -> Json raise @failure.Failure {
   self.check()
   guard self.grid is Some(grid) &&
@@ -418,7 +418,7 @@ pub fn Session::selection_geometry(
 ///|
 pub fn Session::navigate(
   self : Session,
-  revision : Int,
+  revision : Int32,
   direction : String,
   extend_selection : Bool,
 ) -> Json raise @failure.Failure {

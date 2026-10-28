@@ -1,5 +1,5 @@
 ///|
-fn caret_u16(data : BytesView, offset : Int) -> Int raise @failure.Failure {
+fn caret_u16(data : BytesView, offset : Int32) -> Int32 raise @failure.Failure {
   guard offset >= 0 && offset <= data.length() - 2 else {
     @failure.reject("malformed-font", "Truncated GDEF caret table")
   }
@@ -9,9 +9,9 @@ fn caret_u16(data : BytesView, offset : Int) -> Int raise @failure.Failure {
 ///|
 fn caret_coverage(
   data : BytesView,
-  offset : Int,
-  glyph : UInt,
-) -> Int? raise @failure.Failure {
+  offset : Int32,
+  glyph : UInt32,
+) -> Int32? raise @failure.Failure {
   let format = caret_u16(data, offset)
   let count = caret_u16(data, offset + 2)
   let stride = if format == 1 { 2 } else { 6 }
@@ -46,9 +46,9 @@ fn caret_coverage(
 // The pinned shaper exposes GDEF headers but no LigCaretList reader.
 fn ligature_values(
   data : BytesView,
-  list : Int,
-  glyph : UInt,
-) -> Array[(Int, Int)] raise @failure.Failure {
+  list : Int32,
+  glyph : UInt32,
+) -> Array[(Int32, Int32)] raise @failure.Failure {
   let coverage = caret_u16(data, list)
   let count = caret_u16(data, list + 2)
   guard coverage > 0 && list + 4 + count * 2 <= data.length() else {
@@ -69,7 +69,7 @@ fn ligature_values(
   guard base + 2 + count * 2 <= data.length() else {
     @failure.reject("malformed-font", "Truncated GDEF caret offsets")
   }
-  let values : Array[(Int, Int)] = []
+  let values : Array[(Int32, Int32)] = []
   for i in 0..<count {
     let relative = caret_u16(data, base + 2 + i * 2)
     guard relative > 0 else {

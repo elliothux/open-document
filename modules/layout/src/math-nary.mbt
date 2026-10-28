@@ -4,7 +4,7 @@ fn TextProbe::math_nary_sign(
   operator : String,
   style : TextStyle,
   profile : Map[String, String],
-  paths : Ref[Int],
+  paths : Ref[Int32],
   display~ : Bool = false,
 ) -> MathBox raise @failure.Failure {
   let index = self.math_font_index(style, profile)

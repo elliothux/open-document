@@ -2,8 +2,8 @@
 fn Session::set_table_column_formula(
   self : Session,
   sheet : String,
-  id : Int,
-  column : Int,
+  id : Int32,
+  column : Int32,
   formula : String?,
 ) -> Json raise @failure.Failure {
   let table = self.table_for_edit(sheet, id)

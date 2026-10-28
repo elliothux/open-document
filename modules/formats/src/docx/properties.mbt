@@ -1,20 +1,20 @@
 ///|
 priv struct WordTree {
   source : String
-  nodes : Map[Int, @xml.Node]
-  order : Array[Int]
-  children : Map[Int, Array[Int]]
-  contents : Map[Int, TableOfContents]
-  field_spans : Set[Int]
-  index_entries : Map[Int, IndexEntry]
-  index_markers : Set[Int]
+  nodes : Map[Int32, @xml.Node]
+  order : Array[Int32]
+  children : Map[Int32, Array[Int32]]
+  contents : Map[Int32, TableOfContents]
+  field_spans : Set[Int32]
+  index_entries : Map[Int32, IndexEntry]
+  index_markers : Set[Int32]
 }
 
 ///|
 fn WordTree::new(document : @xml.Document) -> WordTree {
-  let nodes : Map[Int, @xml.Node] = Map([])
-  let order : Array[Int] = []
-  let children : Map[Int, Array[Int]] = Map([])
+  let nodes : Map[Int32, @xml.Node] = Map([])
+  let order : Array[Int32] = []
+  let children : Map[Int32, Array[Int32]] = Map([])
   for node in document.nodes() {
     nodes[node.id] = node
     order.push(node.id)
@@ -42,9 +42,9 @@ fn WordTree::new(document : @xml.Document) -> WordTree {
 }
 
 ///|
-fn WordTree::descendants(self : WordTree, id : Int) -> Array[Int] {
+fn WordTree::descendants(self : WordTree, id : Int32) -> Array[Int32] {
   let stack = [id]
-  let result : Array[Int] = []
+  let result : Array[Int32] = []
   while stack.pop() is Some(item) {
     result.push(item)
     let children = self.children[item]
@@ -56,7 +56,7 @@ fn WordTree::descendants(self : WordTree, id : Int) -> Array[Int] {
 }
 
 ///|
-fn WordTree::child(self : WordTree, parent : Int, name : String) -> Int? {
+fn WordTree::child(self : WordTree, parent : Int32, name : String) -> Int32? {
   for id in self.children[parent] {
     if self.nodes[id].uri == word_uri && self.nodes[id].name == name {
       return Some(id)
@@ -66,7 +66,7 @@ fn WordTree::child(self : WordTree, parent : Int, name : String) -> Int? {
 }
 
 ///|
-fn WordTree::value(self : WordTree, parent : Int, name : String) -> String? {
+fn WordTree::value(self : WordTree, parent : Int32, name : String) -> String? {
   self
   .child(parent, name)
   .bind(id => self.nodes[id].attribute("val", uri=word_uri))
@@ -75,7 +75,7 @@ fn WordTree::value(self : WordTree, parent : Int, name : String) -> String? {
 ///|
 fn WordTree::number(
   self : WordTree,
-  parent : Int,
+  parent : Int32,
   name : String,
   attribute : String,
 ) -> Double? raise @failure.Failure {
@@ -129,7 +129,7 @@ fn RunStyle::text_color(
   }
   fn channel(
     background : String,
-    offset : Int,
+    offset : Int32,
   ) -> Double raise @failure.Failure {
     let value = (@string.parse_int(background[offset:offset + 2], base=16).to_double() /
     255) catch {
@@ -156,7 +156,7 @@ fn RunStyle::text_color(
 ///|
 fn run_properties(
   tree : WordTree,
-  id : Int,
+  id : Int32,
   base : RunStyle,
   themes : Map[String, String],
   inherited~ : Bool = false,
@@ -208,7 +208,7 @@ fn run_properties(
 ///|
 fn WordTree::character_toggle(
   self : WordTree,
-  id : Int,
+  id : Int32,
   name : String,
   fallback : Bool,
   inherited : Bool,
@@ -236,7 +236,7 @@ fn WordTree::character_toggle(
 ///|
 fn paragraph_properties(
   tree : WordTree,
-  id : Int,
+  id : Int32,
   base : @layout.Paragraph,
 ) -> @layout.Paragraph raise @failure.Failure {
   let (inherited_rule, inherited_value) = match base.line {
@@ -342,7 +342,7 @@ fn paragraph_properties(
 priv struct Styles {
   tree : WordTree?
   part : String
-  ids : Map[String, Int]
+  ids : Map[String, Int32]
   defaults : RunStyle
   paragraph : @layout.Paragraph
   default_paragraph : String?
@@ -428,7 +428,7 @@ fn Session::styles(
   guard tree.nodes[0].uri == word_uri && tree.nodes[0].name == "styles" else {
     @failure.reject("invalid-style", "Invalid styles root", part=path.target)
   }
-  let ids : Map[String, Int] = Map([])
+  let ids : Map[String, Int32] = Map([])
   let mut default_paragraph = None
   for id in tree.children[0] {
     let node = tree.nodes[id]
@@ -478,7 +478,7 @@ fn Styles::chain(
   self : Styles,
   key : String,
   diagnostics : Array[String],
-) -> Array[Int] raise @failure.Failure {
+) -> Array[Int32] raise @failure.Failure {
   let result = []
   let mut current = Some(key)
   while current is Some(key) {

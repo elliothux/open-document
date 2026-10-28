@@ -1,7 +1,7 @@
 ///|
 fn Session::fill_table_cell(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   color : String?,
   theme : String?,
@@ -43,14 +43,14 @@ fn Session::fill_table_cell(
 ///|
 fn Session::change_table_property(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   name : String,
   attributes : Map[String, String?]?,
   markup~ : String? = None,
   whole_table~ : Bool = false,
   whole_row~ : Bool = false,
-  header_rows~ : Int? = None,
+  header_rows~ : Int32? = None,
   border_patch~ : Map[String, TableBorderStyle?]? = None,
   fill_theme~ : String? = None,
 ) -> Json raise @failure.Failure {
@@ -239,7 +239,7 @@ fn Session::change_table_property(
 ///|
 fn WordTree::cell_vertical_alignment(
   self : WordTree,
-  props : Int,
+  props : Int32,
 ) -> String? raise @failure.Failure {
   guard self.child(props, "vAlign") is Some(id) else { return None }
   let node = self.nodes[id]

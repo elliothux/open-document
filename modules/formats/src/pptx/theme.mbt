@@ -93,7 +93,7 @@ fn color_rgba(
   theme : Theme,
   container : Ref,
   placeholder~ : Ref? = None,
-  depth~ : Int = 0,
+  depth~ : Int32 = 0,
 ) -> (String, Double) raise @failure.Failure {
   guard depth < 8 else {
     @failure.reject("malformed-pptx", "Cyclic theme color")

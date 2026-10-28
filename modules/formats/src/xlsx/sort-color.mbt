@@ -46,7 +46,7 @@ fn SortKey::sort_format(self : SortKey) -> CellFormat raise @failure.Failure {
 ///|
 fn Session::effective_cell_color(
   self : Session,
-  index : Int,
+  index : Int32,
   address : Address,
   cell_color : Bool,
   rules : ConditionalRules,
@@ -75,7 +75,7 @@ fn Session::effective_cell_color(
 ///|
 fn Session::color_sort_key(
   self : Session,
-  index : Int,
+  index : Int32,
   address : Address,
   key : SortKey,
   rules : ConditionalRules,
@@ -103,7 +103,7 @@ fn Session::check_sort_metadata(
   let root = tree.root(if table { "table" } else { "worksheet" })
   let parents = [root.id]
   parents.append(tree.all(root.id, "autoFilter").map(node => node.id))
-  let references : Array[Int] = []
+  let references : Array[Int32] = []
   for parent in parents {
     ignore(read_sort_state(tree, parent))
     if tree.one(parent, "sortState") is Some(state) {

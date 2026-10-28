@@ -285,7 +285,7 @@ fn Session::normalize_connectors(
   self : Session,
   slide : Slide,
   main : Tree,
-  index : Int,
+  index : Int32,
   parts : Map[String, @xml.Document],
 ) -> (Slide, @xml.Edit?) raise @failure.Failure {
   let before = if self.slides

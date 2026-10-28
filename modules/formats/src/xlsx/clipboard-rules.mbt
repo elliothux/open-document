@@ -136,7 +136,7 @@ fn Range::clipboard_intersections(
 fn Session::capture_cell_rules(
   self : Session,
   sheet : Sheet,
-  index : Int,
+  index : Int32,
   selected : Range,
 ) -> (Array[CopiedConditional], Array[CopiedValidation]) raise @failure.Failure {
   let work : FormulaWork = {

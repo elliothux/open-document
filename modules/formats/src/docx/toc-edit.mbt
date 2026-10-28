@@ -1,18 +1,18 @@
 ///|
 pub(all) enum TocEdit {
-  InsertToc(Int)
+  InsertToc(Int32)
   InsertCaptionToc(String)
-  UpdateToc(Int)
-  DeleteToc(Int)
+  UpdateToc(Int32)
+  DeleteToc(Int32)
 }
 
 ///|
 priv enum GeneratedIndexEdit {
-  Insert(Int)
+  Insert(Int32)
   InsertCaptions(String)
   InsertBibliography(String)
-  Update(Int)
-  Delete(Int)
+  Update(Int32)
+  Delete(Int32)
 }
 
 ///|
@@ -26,7 +26,7 @@ priv enum GeneratedIndexKind {
 /// Inserts, updates or removes one native table of contents.
 pub fn Session::edit_table_of_contents(
   self : Session,
-  revision : Int,
+  revision : Int32,
   change : TocEdit,
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],
@@ -50,7 +50,7 @@ pub fn Session::edit_table_of_contents(
 /// Inserts a native TOC before the selected body paragraph, or replaces/removes one complete supported field.
 fn Session::edit_generated_index(
   self : Session,
-  revision : Int,
+  revision : Int32,
   change : GeneratedIndexEdit,
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],
@@ -179,7 +179,7 @@ fn Session::edit_generated_index(
   } else {
     self.toc_entries(tree, flow, layout, first, last, sequence~)
   }
-  let styles : Map[Int, String] = Map([])
+  let styles : Map[Int32, String] = Map([])
   for entry in entries {
     if !styles.contains(entry.level) {
       styles[entry.level] = self.builtin_paragraph_style(

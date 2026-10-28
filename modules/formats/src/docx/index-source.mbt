@@ -19,9 +19,9 @@ fn Session::index_rows(
       )
     }
   }
-  let anchors : Map[(Int, Int), String] = Map([])
+  let anchors : Map[(Int32, Int32), String] = Map([])
   let labels : Map[String, Array[String]] = Map([])
-  let references : Map[String, Array[(Int, String)]] = Map([])
+  let references : Map[String, Array[(Int32, String)]] = Map([])
   let changes : Array[@xml.SourceChange] = []
   let mut next = 0
   let mut work = 0

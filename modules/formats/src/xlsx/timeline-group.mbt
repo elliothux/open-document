@@ -8,8 +8,8 @@ fn Session::timeline_filtered_cache(
   if !data.groups.values().any(group => group.settings is DateBuckets(_, ..)) {
     return data
   }
-  let filters : Array[(Int, Map[Int, Bool])] = []
-  let seen : Map[Int, TimelineState] = Map([])
+  let filters : Array[(Int32, Map[Int32, Bool])] = []
+  let seen : Map[Int32, TimelineState] = Map([])
   for cache in self.affected_timeline_caches([pivot]) {
     for (target, _) in cache.connections {
       if target.part != pivot.part {
@@ -47,7 +47,7 @@ fn Session::timeline_filtered_cache(
       if range is Some(range) {
         let start = pivot_date_parse(range.start, self.date1904)
         let end = pivot_date_parse(range.end, self.date1904)
-        let selected : Map[Int, Bool] = Map([])
+        let selected : Map[Int32, Bool] = Map([])
         for index, value in data.items[field] {
           if value is Number(date) && date >= start && date <= end {
             selected[index] = true
@@ -65,13 +65,13 @@ fn Session::timeline_filtered_cache(
 ///|
 fn PivotCache::timeline_members(
   self : PivotCache,
-  field : Int,
+  field : Int32,
   range : TimelineRange?,
 ) -> Array[Value]? raise @failure.Failure {
   range.map(range => {
     let start = pivot_date_parse(range.start, self.date1904)
     let end = pivot_date_parse(range.end, self.date1904)
-    let selected : Map[Int, Bool] = Map([])
+    let selected : Map[Int32, Bool] = Map([])
     for index, value in self.items[field] {
       if value is Number(date) && date >= start && date <= end {
         selected[self.groups

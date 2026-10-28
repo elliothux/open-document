@@ -31,7 +31,7 @@ fn Session::chart_reference_range(
   formula : String,
   owner : String,
   work : FormulaWork,
-) -> (Int, Range) raise @failure.Failure {
+) -> (Int32, Range) raise @failure.Failure {
   guard formula.length() <= 1024 &&
     parse_formula(formula) is Reference(target, first, last) else {
     @failure.reject(

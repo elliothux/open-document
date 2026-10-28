@@ -153,7 +153,7 @@ fn filter_source_changes(
 fn filter_write(
   sheet : Sheet,
   next : AutoFilterState?,
-  hidden : Map[Int, Bool],
+  hidden : Map[Int32, Bool],
   active~ : Bool = next
     .map(state => !state.settings.columns.is_empty())
     .unwrap_or(false),
@@ -175,7 +175,7 @@ fn filter_write(
       xml: "<od:sheetPr xmlns:od=\"\{spreadsheet_uri}\" filterMode=\"1\"/>",
     })
   }
-  let rows : Map[Int, Array[(String, String)]] = Map([])
+  let rows : Map[Int32, Array[(String, String)]] = Map([])
   for row, value in hidden {
     if (sheet.dimensions.rows.size(row) == 0) != value {
       rows[row] = [("hidden", if value { "1" } else { "0" })]

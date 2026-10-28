@@ -246,9 +246,9 @@ fn SheetObject::grid_object(
 ///|
 fn Session::slicer_target(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
-  layout : Int,
+  layout : Int32,
   id : String,
 ) -> (Grid, SheetObject, SlicerDrawing, SlicerGeometry) raise @failure.Failure {
   self.check_revision(revision)
@@ -277,11 +277,11 @@ fn Session::slicer_target(
 /// Selects a visible native member, or clears the filter when index is absent.
 pub fn Session::select_slicer(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
-  layout : Int,
+  layout : Int32,
   id : String,
-  index : Int?,
+  index : Int32?,
   additive : Bool,
 ) -> Json raise @failure.Failure {
   let (grid, object, slicer, geometry) = self.slicer_target(
@@ -332,11 +332,11 @@ pub fn Session::select_slicer(
 /// Sets the absolute native slicer row in session view state without adding document history.
 pub fn Session::scroll_slicer(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
-  layout : Int,
+  layout : Int32,
   id : String,
-  position : Int,
+  position : Int32,
 ) -> Json raise @failure.Failure {
   let (_, _, slicer, geometry) = self.slicer_target(revision, sheet, layout, id)
   guard position >= 0 && position <= 4095 && geometry.scroll is Some(_) else {

@@ -11,7 +11,7 @@ fn Session::animation_query(self : Session, slide : Slide) -> Json {
 ///|
 fn Session::set_animations(
   self : Session,
-  index : Int,
+  index : Int32,
   items : Array[SlideAnimation],
 ) -> Json raise @failure.Failure {
   let original = self.slides[index]

@@ -9,7 +9,7 @@ import {
 }
 
 // Values
-pub fn abi_version() -> Int
+pub fn abi_version() -> Int32
 
 pub fn docx_add_font(@docx.Context, String, String) -> String
 

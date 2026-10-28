@@ -1,6 +1,6 @@
 ///|
 /// Returns the word at a UTF-16 grapheme boundary, preferring the word on its right.
-pub fn word_range_at(text : String, offset : Int) -> (Int, Int)? {
+pub fn word_range_at(text : String, offset : Int32) -> (Int32, Int32)? {
   if offset < 0 ||
     offset > text.length() ||
     grapheme_boundaries(text).binary_search(offset) is Err(_) {

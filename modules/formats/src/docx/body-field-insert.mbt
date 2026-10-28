@@ -136,7 +136,7 @@ fn Session::paragraph_inline_source(
 /// Replaces the current range with one page field, caching its actual layout value.
 pub fn Session::insert_body_page_field(
   self : Session,
-  revision : Int,
+  revision : Int32,
   field : String,
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],

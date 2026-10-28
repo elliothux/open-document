@@ -48,7 +48,7 @@ fn Session::timeline_creation_identity(
 ///|
 fn timeline_cache_directory(
   workbook : @xml.Document,
-  cache : Int,
+  cache : Int32,
   relation : String,
 ) -> (@xml.Document, @xml.Edit) raise @failure.Failure {
   let uri = "{A2CB5862-8E78-49C6-8D9D-AF26E26ADB89}"
@@ -111,7 +111,7 @@ fn timeline_graphic_source(
 fn Session::timeline_date_members(
   self : Session,
   pivot : PivotLocation,
-  field : Int,
+  field : Int32,
   settings : PivotSettings,
   data : PivotCache,
   parts : Map[String, @xml.Document],

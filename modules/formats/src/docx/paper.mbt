@@ -2,7 +2,7 @@
 // Standard paper dimensions in 1/100 mm, in LibreOffice's first-match order.
 // Factual size data: LibreOffice/core libreoffice-25.8.2.2 i18nutil/source/utility/paper.cxx.
 // Independently implemented; no upstream executable code is copied.
-let paper_dimensions : Array[Int] = [
+let paper_dimensions : Array[Int32] = [
   84100, 118900, 59400, 42000, 29700, 21000, 14800, 25000, 35300, 17600, 21590, 27940,
   35560, 43180, 12500, 22900, 32400, 16200, 11400, 11000, 22000, 18000, 27000, 28000,
   55880, 86360, 111760, 18415, 26670, 33020, 9843, 19050, 9208, 16510, 22543, 10478,

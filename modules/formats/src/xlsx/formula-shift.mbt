@@ -1,6 +1,6 @@
 ///|
 fn stored_formula_names(formula : String) -> String raise @failure.Failure {
-  let spans : Array[(Int, Int)] = []
+  let spans : Array[(Int32, Int32)] = []
   let tokens = formula_tokens(formula, spans~)
   let output = StringBuilder()
   let mut copied = 0
@@ -26,8 +26,8 @@ fn stored_formula_names(formula : String) -> String raise @failure.Failure {
 ///|
 fn FormulaAddress::shift(
   self : FormulaAddress,
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
 ) -> FormulaAddress raise @failure.Failure {
   let address = {
     row: self.address.row + (if self.fixed_row { 0 } else { rows }),
@@ -52,9 +52,9 @@ fn FormulaAddress::source(
 ///|
 fn Expression::source(
   self : Expression,
-  rows~ : Int = 0,
-  columns~ : Int = 0,
-  depth~ : Int = 0,
+  rows~ : Int32 = 0,
+  columns~ : Int32 = 0,
+  depth~ : Int32 = 0,
   invalid_ref~ : Bool = false,
 ) -> String raise @failure.Failure {
   guard depth <= 64 else {

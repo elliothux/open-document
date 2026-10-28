@@ -2,7 +2,7 @@
 fn install_links(
   document : @pdflite.PdfDocument,
   layout : @layout.PositionedDocument,
-  output_limit : Int,
+  output_limit : Int32,
 ) -> Unit raise {
   let links = layout.links
   guard links.length() <= 65536 else {
@@ -12,7 +12,7 @@ fn install_links(
     return
   }
   let pages = document.page_reference_numbers()
-  let annotations : Map[Int, Array[@syntax.PdfObject]] = Map([])
+  let annotations : Map[Int32, Array[@syntax.PdfObject]] = Map([])
   let mut bytes = 0
   for link in links {
     let rect = link.rect

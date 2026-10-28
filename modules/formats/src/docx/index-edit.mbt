@@ -1,11 +1,11 @@
 ///|
 pub(all) enum IndexEdit {
   MarkIndexEntry(String)
-  UpdateIndexEntry(Int, String)
-  DeleteIndexEntry(Int)
+  UpdateIndexEntry(Int32, String)
+  DeleteIndexEntry(Int32)
   InsertIndex
-  UpdateIndex(Int)
-  DeleteIndex(Int)
+  UpdateIndex(Int32)
+  DeleteIndex(Int32)
 }
 
 ///|
@@ -114,7 +114,7 @@ fn WordTree::index_instruction_changes(
 /// Marks a term or edits/removes complete native XE and INDEX fields.
 pub fn Session::edit_index(
   self : Session,
-  revision : Int,
+  revision : Int32,
   change : IndexEdit,
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],

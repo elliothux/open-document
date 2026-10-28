@@ -1,6 +1,6 @@
 ///|
 fn review_paragraph_markup(
-  id : Int,
+  id : Int32,
   author : String,
   date : String,
   deleted : Bool,
@@ -70,7 +70,7 @@ fn Session::split_review_paragraph(
   let after = StringBuilder()
   let mut units = 0
   let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
-  let mut inherited : Int? = None
+  let mut inherited : Int32? = None
   for part in parts; cursor = 0 {
     let length = part.text.length()
     if inherited is None && position.offset <= cursor + length {
@@ -182,11 +182,11 @@ fn Session::split_review_paragraph(
 ///|
 fn Session::delete_review_boundary(
   self : Session,
-  first : Int,
+  first : Int32,
   author : String,
   date : String,
   track : Bool,
-) -> (PreparedEdit, Int?) raise @failure.Failure {
+) -> (PreparedEdit, Int32?) raise @failure.Failure {
   let document = self.document()
   let tree = WordTree::new(document)
   let last = tree.revision_next_paragraph(first)

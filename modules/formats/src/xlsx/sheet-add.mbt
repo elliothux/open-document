@@ -11,7 +11,7 @@ fn workbook_relations(main : String) -> String {
 fn Session::prepare_sheet_add(
   self : Session,
   copy~ : Sheet? = None,
-) -> (Sheet, Int, String, Array[(String, @xml.Document, @xml.Edit)]) raise @failure.Failure {
+) -> (Sheet, Int32, String, Array[(String, @xml.Document, @xml.Edit)]) raise @failure.Failure {
   guard self.sheets.length() < 256 else {
     @failure.reject("limit-exceeded", "Worksheet count exceeds budget")
   }

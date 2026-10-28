@@ -1,8 +1,8 @@
 ///|
 fn note_reference_counts(
   document : @xml.Document,
-) -> Map[(String, String), Int] raise @failure.Failure {
-  let result : Map[(String, String), Int] = Map([])
+) -> Map[(String, String), Int32] raise @failure.Failure {
+  let result : Map[(String, String), Int32] = Map([])
   for node in document.nodes() {
     if note_reference(node) {
       let kind = if node.name == "footnoteReference" {
@@ -26,7 +26,7 @@ fn Session::note_transition(
   self : Session,
   document : @xml.Document,
   parts : Map[String, @xml.Document],
-) -> (Map[String, @xml.Document], Map[String, Array[@xml.Edit]], Int) raise @failure.Failure {
+) -> (Map[String, @xml.Document], Map[String, Array[@xml.Edit]], Int32) raise @failure.Failure {
   if !self.document().nodes().any(note_reference) {
     return (parts, Map([]), 0)
   }

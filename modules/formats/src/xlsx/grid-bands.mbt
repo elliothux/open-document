@@ -1,6 +1,6 @@
 ///|
 priv struct GridBand {
-  indices : Array[Int]
+  indices : Array[Int32]
   scroll : Double
   start : Double
   size : Double
@@ -120,10 +120,10 @@ fn Grid::range_rect(
 ///|
 fn Axis::bands(
   self : Axis,
-  frozen : Int,
+  frozen : Int32,
   scroll : Double,
   viewport : Double,
-  extent : Int,
+  extent : Int32,
 ) -> Array[GridBand] raise @failure.Failure {
   let result : Array[GridBand] = []
   let size = self.position(frozen + 1).min(viewport)
@@ -215,7 +215,7 @@ fn grid_intersection(
 ///|
 fn Session::paint_grid(
   self : Session,
-  index : Int,
+  index : Int32,
   dimensions : Dimensions,
   rows : Array[GridBand],
   columns : Array[GridBand],
@@ -225,7 +225,7 @@ fn Session::paint_grid(
   profile : Map[String, String],
   notes : Map[String, CellNote],
   objects : Array[SheetObject],
-  slicer_hover : (String, Int)?,
+  slicer_hover : (String, Int32)?,
 ) -> (
   Array[@layout.PositionedPrimitive],
   Array[Json],

@@ -185,7 +185,7 @@ fn Session::axis_tables(
     } else {
       []
     }
-    let used : Map[Int, Bool] = Map([])
+    let used : Map[Int32, Bool] = Map([])
     for column in table.columns {
       used[column.id] = true
     }

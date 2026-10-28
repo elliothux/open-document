@@ -2,10 +2,10 @@
 fn determinant_function(
   arg : Expression,
   sheets : Array[Sheet],
-  sheet : Int,
-  values : Map[(Int, String), Value],
+  sheet : Int32,
+  values : Map[(Int32, String), Value],
   work : FormulaWork,
-  depth : Int,
+  depth : Int32,
 ) -> Value raise @failure.Failure {
   guard arg is Reference(_, _, Some(_)) else {
     ignore(arg.evaluate(sheets, sheet, values, work, depth + 1))

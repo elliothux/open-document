@@ -1,13 +1,13 @@
 ///|
 fn Pagination::body_field_values(
   self : Pagination,
-  fields : Map[(Int, Int), String],
+  fields : Map[(Int32, Int32), String],
   flow : Flow,
-  fixed_values : Map[(Int, Int), String],
-  contexts~ : Array[(PageNumbering, Int)] = [],
+  fixed_values : Map[(Int32, Int32), String],
+  contexts~ : Array[(PageNumbering, Int32)] = [],
   noteRunning~ : Array[Array[Line]] = [],
-) -> (Map[(Int, Int), String], Array[String]) raise @failure.Failure {
-  let values : Map[(Int, Int), String] = Map([])
+) -> (Map[(Int32, Int32), String], Array[String]) raise @failure.Failure {
+  let values : Map[(Int32, Int32), String] = Map([])
   let diagnostics : Array[String] = []
   if fields.is_empty() {
     return (values, diagnostics)
@@ -21,13 +21,13 @@ fn Pagination::body_field_values(
   } else {
     flow.resolve_body_fields(note_values, self.pages.length()).0.note_reference_values()
   }
-  let references : Map[(Int, Int), PageReference] = Map([])
+  let references : Map[(Int32, Int32), PageReference] = Map([])
   for key, code in fields {
     if code.has_prefix("PAGEREF:") {
       references[key] = PageReference::parse(code)
     }
   }
-  let origins : Map[(Int, Int), Hit] = Map([])
+  let origins : Map[(Int32, Int32), Hit] = Map([])
   let mut work = 0
   for page, frame in self.pages {
     for index, line in frame.lines {

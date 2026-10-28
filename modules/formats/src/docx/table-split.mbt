@@ -1,7 +1,7 @@
 ///|
 fn Session::split_table(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
@@ -19,7 +19,7 @@ fn Session::prepare_table_split(
   document : @xml.Document,
   tree : WordTree,
   grid : TableGrid,
-) -> (PreparedEdit, Int) raise @failure.Failure {
+) -> (PreparedEdit, Int32) raise @failure.Failure {
   guard grid.row > 0 else {
     @failure.reject(
       "invalid-operation", "Select a row after the first table row",

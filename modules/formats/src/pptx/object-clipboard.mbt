@@ -151,7 +151,7 @@ fn Session::clipboard_object_links(
 /// Captures supported selected native objects with resolved formatting and only their resources.
 fn Session::copy_object_fragment(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   self.check_idle()
@@ -274,7 +274,7 @@ fn Session::copy_object_fragment(
 /// Returns validated local images for platform decoding before the paste commits.
 pub fn Session::object_fragment_images(
   self : Session,
-  revision : Int,
+  revision : Int32,
   value : String,
 ) -> Array[String] raise @failure.Failure {
   self.check_revision(revision)

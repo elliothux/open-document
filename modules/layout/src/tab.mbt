@@ -95,7 +95,7 @@ fn TabLayout::needs_following(self : TabLayout, width : Double) -> Bool {
 }
 
 ///|
-fn tab_segment_end(text : String, start : Int) -> Int {
+fn tab_segment_end(text : String, start : Int32) -> Int32 {
   for i in start..<text.length() {
     if text[i] == 9 || text[i] == 10 || text[i] == 12 {
       return i
@@ -105,7 +105,12 @@ fn tab_segment_end(text : String, start : Int) -> Int {
 }
 
 ///|
-fn tab_decimal(text : String, start : Int, end : Int, symbol : String) -> Int {
+fn tab_decimal(
+  text : String,
+  start : Int32,
+  end : Int32,
+  symbol : String,
+) -> Int32 {
   for i in start..<end {
     if i + symbol.length() <= end &&
       text[i:i + symbol.length()].to_owned() == symbol {
@@ -120,7 +125,7 @@ fn TabLayout::estimated_advance(
   self : TabLayout,
   width : Double,
   text : String,
-  offset : Int,
+  offset : Int32,
   advances : Array[(Double, Double)],
 ) -> Double {
   if !self.needs_following(width) {
@@ -147,7 +152,7 @@ fn LineGroup::tab_run(
   probe : TextProbe,
   width : Double,
   x : Double,
-  start : Int,
+  start : Int32,
   spans : Array[MeasuredSpan],
   leader : String,
 ) -> PlacedRun raise @failure.Failure {

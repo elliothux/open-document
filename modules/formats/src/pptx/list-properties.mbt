@@ -2,7 +2,7 @@
 pub(all) enum ListFormat {
   NoList
   Bullet(String)
-  Numbered(String, Int)
+  Numbered(String, Int32)
 } derive(Eq)
 
 ///|
@@ -127,7 +127,7 @@ fn read_list(styles : Array[Ref]) -> ListFormat raise @failure.Failure {
 ///|
 fn list_label(
   list : ListFormat,
-  level : Int,
+  level : Int32,
   previous : Array[TextParagraph],
 ) -> String raise @failure.Failure {
   match list {

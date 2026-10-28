@@ -1,7 +1,7 @@
 ///|
 pub fn Session::insert_picture(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   width : Double,
   height : Double,
@@ -185,7 +185,7 @@ fn SheetObject::check_change(
 ///|
 pub fn Session::set_picture(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   id : String,
   anchor : String,
@@ -267,7 +267,7 @@ pub fn Session::set_picture(
 ///|
 pub fn Session::delete_picture(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   id : String,
   probe : @layout.TextProbe,
@@ -279,7 +279,7 @@ pub fn Session::delete_picture(
 ///|
 pub fn Session::delete_shape(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   id : String,
   probe : @layout.TextProbe,
@@ -291,7 +291,7 @@ pub fn Session::delete_shape(
 ///|
 fn Session::delete_sheet_object(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   id : String,
   shape : Bool,

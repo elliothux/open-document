@@ -1,9 +1,9 @@
 ///|
 fn Sheet::fill_row_count(
   self : Sheet,
-  row : Int,
+  row : Int32,
   source : Range,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   let mut count = 0
   for column in source.left..<=source.right {
     let address : Address = { row, column, }
@@ -16,7 +16,7 @@ fn Sheet::fill_row_count(
 }
 
 ///|
-fn fill_edge(values : Array[Int], first : Int, last : Int) -> Bool {
+fn fill_edge(values : Array[Int32], first : Int32, last : Int32) -> Bool {
   let index = match values.binary_search(first) {
     Ok(index) | Err(index) => index
   }
@@ -27,8 +27,8 @@ fn fill_edge(values : Array[Int], first : Int, last : Int) -> Bool {
 fn fill_region(
   source : Range,
   bounds : Range,
-  rows : Map[Int, Array[Int]],
-  columns : Map[Int, Array[Int]],
+  rows : Map[Int32, Array[Int32]],
+  columns : Map[Int32, Array[Int32]],
 ) -> Range {
   let mut range = source
   for ;; {
@@ -70,7 +70,7 @@ fn fill_region(
 ///|
 fn Session::adjacent_fill(
   self : Session,
-  index : Int,
+  index : Int32,
   source : Range,
 ) -> Range raise @failure.Failure {
   let sheet = self.sheets[index]
@@ -95,8 +95,8 @@ fn Session::adjacent_fill(
     }
     return { ..source, bottom, }
   }
-  let rows : Map[Int, Array[Int]] = Map([])
-  let columns : Map[Int, Array[Int]] = Map([])
+  let rows : Map[Int32, Array[Int32]] = Map([])
+  let columns : Map[Int32, Array[Int32]] = Map([])
   for cell in sheet.cells.values() {
     let value = self.calculation
       .bind(c => c.values.get((index, cell.address.name())))

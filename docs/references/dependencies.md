@@ -2,7 +2,7 @@
 
 生产依赖用 `moon.mod` 固定精确版本，不使用根 `references/` 研究副本构建。MoonBit 标准库随工具链固定；下表列直接依赖，传递依赖由 Moon 固定版本解析。
 
-MoonBit 0.1.20261010 要求新配置格式。[依赖准备工具](../../tools/prepare-dependencies.mbtx)先用官方 `moonfmt` 转换固定 HarfBuzz 和 HTML 测试依赖 QuickCheck 0.14.0 的 JSON 配置，再核对并应用既有补丁。解析器可在首份旧配置处停止下载，工具最多完成两轮元数据迁移；最终依赖解析仍须通过。源码内容不参与配置转换。颜色结构中与新关键字冲突的 `extend` 改为 `extendMode`，调用方一并修改；两份源码补丁保留原始与结果 hash。依赖版本和许可证保持原值。
+MoonBit 0.1.20261023 使用新配置格式。[依赖准备工具](../../tools/prepare-dependencies.mbtx)先用官方 `moonfmt` 转换固定 HarfBuzz 和 HTML 测试依赖 QuickCheck 0.14.0 的 JSON 配置，再核对并应用既有补丁。解析器可在首份旧配置处停止下载，工具最多完成两轮元数据迁移；最终依赖解析仍须通过。源码内容不参与配置转换。颜色结构中与新关键字冲突的 `extend` 改为 `extendMode`，调用方一并修改；两份源码补丁保留原始与结果 hash。依赖版本和许可证保持原值。
 
 | 固定 module | 用到的能力 / 许可 | 必要本地工作 |
 | --- | --- | --- |

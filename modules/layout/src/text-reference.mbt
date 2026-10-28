@@ -71,13 +71,13 @@ pub fn TextReference::code(self : TextReference) -> String {
 ///|
 fn Flow::text_reference_values(
   self : Flow,
-  values : Map[(Int, Int), String],
-) -> (Map[(Int, Int), String], Array[String]) raise @failure.Failure {
+  values : Map[(Int32, Int32), String],
+) -> (Map[(Int32, Int32), String], Array[String]) raise @failure.Failure {
   let paragraphs = self.body_field_paragraphs()
   let by_id = Map::from_array(paragraphs.map(p => (p.id, p)))
-  let references : Map[(Int, Int), Span] = Map([])
-  let order : Map[Int, Int] = Map([])
-  let offsets : Map[(Int, Int), Int] = Map([])
+  let references : Map[(Int32, Int32), Span] = Map([])
+  let order : Map[Int32, Int32] = Map([])
+  let offsets : Map[(Int32, Int32), Int32] = Map([])
   for index, p in paragraphs {
     order[p.id] = index
     let mut offset = 0
@@ -89,11 +89,14 @@ fn Flow::text_reference_values(
       offset += span.logical_text().length()
     }
   }
-  let resolved : Map[(Int, Int), String] = Map([])
-  let failed : Map[(Int, Int), Bool] = Map([])
-  let active : Map[(Int, Int), Bool] = Map([])
+  let resolved : Map[(Int32, Int32), String] = Map([])
+  let failed : Map[(Int32, Int32), Bool] = Map([])
+  let active : Map[(Int32, Int32), Bool] = Map([])
   let mut work = 0
-  fn evaluate(key : (Int, Int), depth : Int) -> String raise @failure.Failure {
+  fn evaluate(
+    key : (Int32, Int32),
+    depth : Int32,
+  ) -> String raise @failure.Failure {
     guard !failed.contains(key) else {
       @failure.reject("unsupported-layout", "invalid-text-reference-dependency")
     }

@@ -16,7 +16,7 @@ pub fn math_properties_markup(@layout.TextStyle, drawing? : Bool) -> String rais
 
 pub fn parse_latex(String) -> @layout.MathExpression raise @failure.Failure
 
-pub fn read(Map[Int, @xml.Node], Map[Int, Array[Int]], Int, @layout.TextStyle, (String) -> String raise @failure.Failure) -> @layout.MathFormula raise @failure.Failure
+pub fn read(Map[Int32, @xml.Node], Map[Int32, Array[Int32]], Int32, @layout.TextStyle, (String) -> String raise @failure.Failure) -> @layout.MathFormula raise @failure.Failure
 
 // Errors
 

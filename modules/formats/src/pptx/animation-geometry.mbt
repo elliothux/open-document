@@ -137,7 +137,7 @@ fn read_geometric_animation(
 ///|
 fn geometric_animation_markup(
   item : SlideAnimation,
-  id : Int,
+  id : Int32,
   target : String,
   width : Double,
   height : Double,

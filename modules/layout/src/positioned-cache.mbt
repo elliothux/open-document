@@ -2,7 +2,7 @@
 fn positioned_cache_units(
   texts : Array[String],
   primitives : Array[PositionedPrimitive],
-) -> Int {
+) -> Int32 {
   let mut units = texts.fold(init=0, (sum, text) => sum + text.length())
   for primitive in primitives {
     units += 16

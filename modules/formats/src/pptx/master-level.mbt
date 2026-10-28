@@ -2,7 +2,7 @@
 fn master_level_change(
   tree : Tree,
   kind : String,
-  level : Int,
+  level : Int32,
   markup : String,
 ) -> @xml.SourceChange raise @failure.Failure {
   let (styles, category, paragraph) = master_text_style(tree, kind, level)
@@ -74,7 +74,7 @@ fn master_style_sources(
   tree : Tree,
   main : Tree,
   kind : String,
-  level : Int,
+  level : Int32,
 ) -> Array[Ref] raise @failure.Failure {
   let (_, category, own) = master_text_style(tree, kind, level)
   let defaults = main

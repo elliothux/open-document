@@ -106,7 +106,7 @@ pub fn Session::import_delimited(
     _ => @failure.reject("invalid-delimited", "CSV/TSV requires valid UTF-8")
   }
   let rows = delimited_rows(source, delimiter)
-  let formats : Map[String, (Int, Int)] = Map([])
+  let formats : Map[String, (Int32, Int32)] = Map([])
   let codes = ["yyyy-mm-dd", "hh:mm:ss", "m/d/yy h:mm"]
   let converted = rows.map(row => {
     row.map(text => {
@@ -138,7 +138,7 @@ pub fn Session::import_delimited(
   let blank = Session::create(budget)
   defer blank.close()
   let replacements : Map[String, Bytes] = Map([])
-  let indices : Map[String, Int] = Map([])
+  let indices : Map[String, Int32] = Map([])
   if !formats.is_empty() {
     let styles = blank.derive_formats(
       formats,
@@ -199,7 +199,7 @@ pub fn Session::import_delimited(
 /// Exports logical values with CRLF and quotes; dangerous text prefixes gain a literal apostrophe.
 pub fn Session::export_csv(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection~ : Bool = false,
 ) -> Bytes raise @failure.Failure {
   self.check_revision(revision)

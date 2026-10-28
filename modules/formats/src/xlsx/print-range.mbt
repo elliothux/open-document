@@ -41,7 +41,7 @@ fn print_areas(value : String) -> Array[Range] raise @failure.Failure {
 fn print_title(
   value : String,
   rows : Bool,
-) -> (Int, Int) raise @failure.Failure {
+) -> (Int32, Int32) raise @failure.Failure {
   guard value.length() <= 32 else {
     @failure.reject("invalid-address", "Print title exceeds address budget")
   }
@@ -51,7 +51,7 @@ fn print_title(
       "invalid-address", "Expected a whole-row or whole-column interval",
     )
   }
-  let parsed : Array[Int] = []
+  let parsed : Array[Int32] = []
   for end in ends {
     let text = end.strip_prefix("$").unwrap_or(end).to_owned().to_upper()
     for offset in 0..<text.length() {
@@ -75,7 +75,7 @@ fn print_title(
 }
 
 ///|
-fn print_column(index : Int) -> String raise @failure.Failure {
+fn print_column(index : Int32) -> String raise @failure.Failure {
   let address : Address = { row: 1, column: index, }
   let name = address.name()
   name[:name.length() - 1].to_owned()
@@ -110,7 +110,7 @@ fn PrintRange::normalized(
 ///|
 fn Session::print_names(
   self : Session,
-  index : Int,
+  index : Int32,
 ) -> Array[@xml.Node] raise @failure.Failure {
   let tree = Tree::new(self.workbook)
   guard tree.one(tree.root("workbook").id, "definedNames") is Some(parent) else {
@@ -148,14 +148,14 @@ fn Session::print_names(
 ///|
 fn Session::read_print_range(
   self : Session,
-  index : Int,
+  index : Int32,
 ) -> PrintRange raise @failure.Failure {
   let areas : Array[String] = []
   let mut rows = ""
   let mut columns = ""
   for node in self.print_names(index) {
     let is_area = node.attribute("name") == Some("_xlnm.Print_Area")
-    let spans : Array[(Int, Int)] = []
+    let spans : Array[(Int32, Int32)] = []
     let tokens = formula_tokens(node.text, spans~)
     let mut start = 0
     for cursor, token in tokens {
@@ -209,7 +209,7 @@ fn Session::read_print_range(
 }
 
 ///|
-fn Session::print_range_query(self : Session, index : Int) -> Json {
+fn Session::print_range_query(self : Session, index : Int32) -> Json {
   let (settings, reason) = (
     self.read_print_range(index),
     self.print_range_reason(index),
@@ -227,7 +227,7 @@ fn Session::print_range_query(self : Session, index : Int) -> Json {
 ///|
 fn Session::print_range_reason(
   self : Session,
-  index : Int,
+  index : Int32,
 ) -> String raise @failure.Failure {
   let reason = self.dimension_reason(self.sheets[index])
   if !reason.is_empty() {

@@ -2,7 +2,7 @@
 fn Session::check_drawing_text(
   self : Session,
   tree : WordTree,
-  id : Int,
+  id : Int32,
   remove~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   if tree.drawing_data(id).1.attribute("uri") == Some(word_shape_uri) {
@@ -33,7 +33,7 @@ fn Session::check_drawing_text(
 fn Session::check_native_drawings(
   self : Session,
   tree : WordTree,
-  paragraph : Int,
+  paragraph : Int32,
 ) -> Unit raise @failure.Failure {
   self.check_text_box_paragraph(tree, paragraph)
   for id in tree.descendants(paragraph) {
@@ -49,8 +49,8 @@ fn Session::check_native_drawings(
 fn WordTree::has_drawing_range(
   self : WordTree,
   texts : Array[TextNode],
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
   fields~ : Bool = false,
 ) -> Bool {
   for item in texts; cursor = 0 {
@@ -110,10 +110,10 @@ fn Session::check_drawing_range(
 fn Session::drawing_text_changes(
   self : Session,
   tree : WordTree,
-  id : Int,
+  id : Int32,
   text : String,
-  image_offset : Int?,
-  limit : Int,
+  image_offset : Int32?,
+  limit : Int32,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let node = tree.nodes[id]
   // Splitting a paragraph moves runs; anchor changes to its unchanged container.
@@ -159,12 +159,12 @@ fn Session::drawing_text_changes(
 fn WordTree::split_drawing_input(
   self : WordTree,
   document : @xml.Document,
-  paragraph : Int,
-  insertion : Int,
-  offset : Int,
+  paragraph : Int32,
+  insertion : Int32,
+  offset : Int32,
   parts : Array[String],
   tail : String,
-  limit : Int,
+  limit : Int32,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let node = self.nodes[insertion]
   let run = self.nodes[node.parent]

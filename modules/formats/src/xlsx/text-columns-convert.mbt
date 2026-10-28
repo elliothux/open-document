@@ -90,9 +90,9 @@ fn Session::prepare_text_columns(
   let index = self.sheet_index(sheet)
   let current = self.sheets[index]
   let updates : Map[String, CellContent] = Map([])
-  let originals : Map[String, (Int, Int)] = Map([])
+  let originals : Map[String, (Int32, Int32)] = Map([])
   let patches : Array[CellFormat] = []
-  let codes : Map[String, Int] = Map([])
+  let codes : Map[String, Int32] = Map([])
   for row, fields in values {
     let mut column = target.left
     for at, text in fields {

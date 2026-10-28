@@ -3,7 +3,7 @@ fn Session::prepare_plain_range(
   self : Session,
   selection : Selection,
   text : String,
-  input_group~ : Int? = None,
+  input_group~ : Int32? = None,
   check_graphemes~ : Bool = true,
   notes~ : Bool = false,
 ) -> PreparedEdit? raise @failure.Failure {
@@ -116,8 +116,8 @@ fn Session::prepare_plain_range(
   } nobreak {
     texts.last().unwrap().id
   }
-  let changes : Map[Int, String] = Map([])
-  let object_offsets : Map[Int, Int] = Map([])
+  let changes : Map[Int32, String] = Map([])
+  let object_offsets : Map[Int32, Int32] = Map([])
   let mut offset = 0
   for node in texts {
     let before = inline_text(nodes[node.id])

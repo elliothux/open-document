@@ -23,8 +23,8 @@ fn note_references(
   cache : ParagraphCache,
   profile : Map[String, String],
   images : Images,
-) -> Map[(Int, Int), Array[NoteLine]] raise @failure.Failure {
-  let result : Map[(Int, Int), Array[NoteLine]] = Map([])
+) -> Map[(Int32, Int32), Array[NoteLine]] raise @failure.Failure {
+  let result : Map[(Int32, Int32), Array[NoteLine]] = Map([])
   let mut count = 0
   for note in flow.notes {
     if note.kind != "footnote" {
@@ -75,7 +75,7 @@ fn Flow::validate_notes(self : Flow) -> Unit raise @failure.Failure {
   guard self.notes.length() <= 8192 else {
     @failure.reject("limit-exceeded", "Note count exceeds limits")
   }
-  let anchors : Map[(Int, Int), String] = Map([])
+  let anchors : Map[(Int32, Int32), String] = Map([])
   for p in self.body_field_paragraphs() {
     for s in p.spans {
       if s.field.has_prefix("NOTE:") {
@@ -87,7 +87,7 @@ fn Flow::validate_notes(self : Flow) -> Unit raise @failure.Failure {
     }
   }
   let identities : Set[String] = Set([])
-  let content_ids : Set[Int] = Set([])
+  let content_ids : Set[Int32] = Set([])
   for note in self.notes {
     PageNumbering::new(format=note.numbering.format).validate()
     let identity = note.kind + ":" + note.key
@@ -138,8 +138,8 @@ fn Flow::validate_notes(self : Flow) -> Unit raise @failure.Failure {
 fn Pagination::fresh_notes(
   self : Pagination,
   lines : Array[Line],
-) -> Array[(Int, Int)] {
-  let found : Set[(Int, Int)] = Set([])
+) -> Array[(Int32, Int32)] {
+  let found : Set[(Int32, Int32)] = Set([])
   for line in lines {
     if line.repeated {
       continue
@@ -276,7 +276,7 @@ fn Pagination::finish_notes(
   flushFootnotes~ : Bool = true,
 ) -> Array[Array[Line]] raise @failure.Failure {
   let stories = endnotes.unwrap_or(flow.notes).filter(n => n.kind == "endnote")
-  let endnotes : Map[Int, Array[Line]] = Map([])
+  let endnotes : Map[Int32, Array[Line]] = Map([])
   let counts = self.pages.map(page => page.lines.length())
   guard self.noteCount + self.notePending.length() - self.noteCursor <=
     32768 - self.count else {

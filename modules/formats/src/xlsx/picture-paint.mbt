@@ -5,7 +5,7 @@ fn SheetObject::paint(
   rect : @layout.Border,
   probe : @layout.TextProbe,
   profile : Map[String, String],
-  slicer_hover~ : Int? = None,
+  slicer_hover~ : Int32? = None,
 ) -> Unit raise @failure.Failure {
   if self.timeline is Some(timeline) {
     if self.visible && rect.width > 0 && rect.height > 0 {
@@ -99,7 +99,7 @@ fn drawing_diagnostic(
 ///|
 pub fn Session::picture_keys(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Array[String] raise @failure.Failure {
   self.check_revision(revision)
   let relations = self.relationships()

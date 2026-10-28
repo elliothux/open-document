@@ -1,5 +1,5 @@
 ///|
-fn WordTree::field_result_run(self : WordTree, field : Int) -> Int? {
+fn WordTree::field_result_run(self : WordTree, field : Int32) -> Int32? {
   self.children[field]
   .iter()
   .find_first(id => {
@@ -12,7 +12,7 @@ fn WordTree::field_result_run(self : WordTree, field : Int) -> Int? {
 ///|
 fn WordTree::simple_page_fields(
   self : WordTree,
-  paragraph : Int,
+  paragraph : Int32,
 ) -> Unit raise @failure.Failure {
   ignore(self.running_fields(paragraph)) catch {
     @failure.Failure(code="limit-exceeded", ..) as error => raise error
@@ -36,7 +36,7 @@ fn WordTree::simple_page_fields(
 fn WordTree::paragraph_object_properties(
   self : WordTree,
   document : @xml.Document,
-  id : Int,
+  id : Int32,
 ) -> String raise @failure.Failure {
   if self.nodes[id].name == "fldSimple" {
     self
@@ -53,10 +53,10 @@ fn WordTree::paragraph_object_properties(
 fn paragraph_object_text_changes(
   tree : WordTree,
   document : @xml.Document,
-  id : Int,
+  id : Int32,
   text : String,
-  retained : Int?,
-  limit : Int,
+  retained : Int32?,
+  limit : Int32,
   notes~ : Bool = false,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let node = tree.nodes[id]
@@ -108,12 +108,12 @@ fn paragraph_object_text_changes(
 fn WordTree::split_paragraph_object_input(
   self : WordTree,
   document : @xml.Document,
-  paragraph : Int,
-  insertion : Int,
-  offset : Int,
+  paragraph : Int32,
+  insertion : Int32,
+  offset : Int32,
   parts : Array[String],
   tail : String,
-  limit : Int,
+  limit : Int32,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let node = self.nodes[insertion]
   let p = self.nodes[paragraph]

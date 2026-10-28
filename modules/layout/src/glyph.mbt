@@ -1,16 +1,16 @@
 ///|
 pub(all) struct Glyph {
-  id : UInt
-  cluster : Int
-  font : Int
+  id : UInt32
+  cluster : Int32
+  font : Int32
   outline : String
   x : Double
   y : Double
   scale : Double
-  advance : Int
-  yAdvance : Int
-  xOffset : Int
-  yOffset : Int
+  advance : Int32
+  yAdvance : Int32
+  xOffset : Int32
+  yOffset : Int32
 } derive(ToJson)
 
 ///|
@@ -27,10 +27,10 @@ pub extend Outline with ToJson::{to_json}
 
 ///|
 pub(all) struct GlyphRun {
-  start : Int
-  end : Int
-  level : Int
-  font : Int
+  start : Int32
+  end : Int32
+  level : Int32
+  font : Int32
   script : String
   language : String
 } derive(ToJson)
@@ -41,14 +41,14 @@ pub extend GlyphRun with ToJson::{to_json}
 ///|
 pub(all) struct FontInfo {
   identity : String
-  face : Int
+  face : Int32
   variation : String
-  upem : Int
+  upem : Int32
   sha256 : String
-  ascent : Int
-  descent : Int
-  bbox : Array[Int]
-  capHeight : Int
+  ascent : Int32
+  descent : Int32
+  bbox : Array[Int32]
+  capHeight : Int32
   italicAngle : Double
 } derive(ToJson)
 
@@ -58,8 +58,8 @@ pub extend FontInfo with ToJson::{to_json}
 ///|
 pub(all) struct GlyphDiagnostic {
   code : String
-  cluster : Int
-  codepoint : Int
+  cluster : Int32
+  codepoint : Int32
 } derive(ToJson)
 
 ///|
@@ -75,8 +75,8 @@ pub(all) struct ShapeBatch {
   fonts : Array[FontInfo]
   diagnostics : Array[GlyphDiagnostic]
   width : Double
-  fontBytes : Int
-  outlineBytes : Int
+  fontBytes : Int32
+  outlineBytes : Int32
 } derive(ToJson)
 
 ///|

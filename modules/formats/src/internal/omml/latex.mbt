@@ -1,8 +1,8 @@
 ///|
 priv struct MathLatex {
   chars : Array[Char]
-  mut offset : Int
-  mut units : Int
+  mut offset : Int32
+  mut units : Int32
 }
 
 ///|
@@ -106,7 +106,7 @@ fn MathLatex::literal(
 ///|
 fn MathLatex::group(
   self : MathLatex,
-  depth : Int,
+  depth : Int32,
 ) -> @layout.MathExpression raise @failure.Failure {
   self.space()
   guard self.take() == '{' else { self.invalid() }
@@ -118,7 +118,7 @@ fn MathLatex::group(
 ///|
 fn MathLatex::atom(
   self : MathLatex,
-  depth : Int,
+  depth : Int32,
 ) -> @layout.MathExpression raise @failure.Failure {
   self.space()
   guard depth <= 64 else {
@@ -168,7 +168,7 @@ fn MathLatex::atom(
 ///|
 fn MathLatex::indices(
   self : MathLatex,
-  depth : Int,
+  depth : Int32,
 ) -> (@layout.MathExpression?, @layout.MathExpression?) raise @failure.Failure {
   let mut lower : @layout.MathExpression? = None
   let mut upper : @layout.MathExpression? = None
@@ -190,7 +190,7 @@ fn MathLatex::indices(
 ///|
 fn MathLatex::scripted(
   self : MathLatex,
-  depth : Int,
+  depth : Int32,
 ) -> @layout.MathExpression raise @failure.Failure {
   let base = self.atom(depth)
   let (lower, upper) = self.indices(depth)
@@ -204,7 +204,7 @@ fn MathLatex::scripted(
 ///|
 fn MathLatex::sequence(
   self : MathLatex,
-  depth : Int,
+  depth : Int32,
   stop~ : Char = '}',
   delimited~ : Bool = false,
   matrix~ : Bool = false,

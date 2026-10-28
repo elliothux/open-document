@@ -1,8 +1,8 @@
 ///|
 fn table_markup(
   id : String,
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
   x : Double,
   y : Double,
   width : Double,
@@ -47,8 +47,8 @@ fn table_markup(
 ///|
 fn Session::insert_table(
   self : Session,
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
   x : Double,
   y : Double,
   width : Double,

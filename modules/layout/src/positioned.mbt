@@ -18,8 +18,8 @@ pub(all) struct PathStyle {
   fillAlpha : Double
   strokeAlpha : Double
   dash : Array[Double]
-  cap : Int
-  join : Int
+  cap : Int32
+  join : Int32
   miter : Double
 }
 

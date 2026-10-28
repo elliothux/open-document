@@ -1,8 +1,8 @@
 ///|
 pub(all) enum BibliographyFieldEdit {
   InsertBibliography(String)
-  UpdateBibliography(Int)
-  DeleteBibliography(Int)
+  UpdateBibliography(Int32)
+  DeleteBibliography(Int32)
 }
 
 ///|
@@ -99,7 +99,7 @@ fn Session::bibliography_rows(
 /// Generates, explicitly updates or removes one native bibliography in one history item.
 pub fn Session::edit_bibliography(
   self : Session,
-  revision : Int,
+  revision : Int32,
   change : BibliographyFieldEdit,
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],

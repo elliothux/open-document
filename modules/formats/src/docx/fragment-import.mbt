@@ -80,7 +80,7 @@ fn Session::read_body_fragment(
 /// Preflights copied image resources without changing document state.
 pub fn Session::body_fragment_images(
   self : Session,
-  revision : Int,
+  revision : Int32,
   fragment : String,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)

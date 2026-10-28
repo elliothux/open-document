@@ -25,7 +25,7 @@ fn MathExpression::measure(
   style : TextStyle,
   probe : TextProbe,
   profile : Map[String, String],
-  paths : Ref[Int],
+  paths : Ref[Int32],
   display~ : Bool = false,
 ) -> MathBox raise @failure.Failure {
   let box = match self {

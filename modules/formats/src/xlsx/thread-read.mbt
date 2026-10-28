@@ -305,7 +305,7 @@ fn read_thread_parts(
 /// Lists native messages for the cell or merged-cell owner without changing selection.
 pub fn Session::threads(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   cell : String,
 ) -> Json raise @failure.Failure {

@@ -1,7 +1,7 @@
 ///|
 pub fn ChartData::pie_slices(
   self : ChartData,
-  series~ : Int = 0,
+  series~ : Int32 = 0,
 ) -> Array[(Double, Double)] {
   let values = self.series[series].values.map(v => v.unwrap_or(0).abs())
   let maximum = values.fold(init=0.0, (a, b) => a.max(b))

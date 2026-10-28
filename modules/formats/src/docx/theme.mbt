@@ -32,9 +32,9 @@ fn Session::theme_part(self : Session) -> String? raise @failure.Failure {
 ///|
 fn theme_child(
   tree : WordTree,
-  parent : Int,
+  parent : Int32,
   name : String,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   let nodes = tree.children[parent].filter(id => {
     tree.nodes[id].uri == theme_uri && tree.nodes[id].name == name
   })
@@ -51,7 +51,7 @@ fn theme_child(
 fn theme_color_node(
   tree : WordTree,
   slot : String,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   let elements = theme_child(tree, 0, "themeElements")
   let scheme = theme_child(tree, elements, "clrScheme")
   let id = theme_child(tree, scheme, slot)
@@ -79,7 +79,7 @@ fn theme_color_node(
 }
 
 ///|
-fn theme_rgb(tree : WordTree, id : Int) -> String raise @failure.Failure {
+fn theme_rgb(tree : WordTree, id : Int32) -> String raise @failure.Failure {
   let node = tree.nodes[id]
   let value = node
     .attribute(if node.name == "sysClr" { "lastClr" } else { "val" })
@@ -209,7 +209,7 @@ fn theme_hex(value : StringView) -> Double raise @failure.Failure {
 ///|
 fn theme_text_color(
   tree : WordTree,
-  parent : Int,
+  parent : Int32,
   fallback : String,
   values : Map[String, String],
 ) -> String raise @failure.Failure {

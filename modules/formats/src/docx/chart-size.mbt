@@ -1,7 +1,7 @@
 ///|
 fn Session::prepare_chart_resize(
   self : Session,
-  id : Int,
+  id : Int32,
   width : Double,
   height : Double,
 ) -> PreparedEdit? raise @failure.Failure {

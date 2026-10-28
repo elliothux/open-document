@@ -1,10 +1,10 @@
 ///|
 fn Session::paint_cells(
   self : Session,
-  index : Int,
+  index : Int32,
   dimensions : Dimensions,
-  rows : Array[Int],
-  columns : Array[Int],
+  rows : Array[Int32],
+  columns : Array[Int32],
   page : PagePaint,
   dx : Double,
   dy : Double,

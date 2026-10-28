@@ -1,12 +1,12 @@
 ///|
 priv struct TableSelector {
   sections : Array[String]
-  columns : Array[(String, Int, Int)]
+  columns : Array[(String, Int32, Int32)]
 }
 
 ///|
 // Apostrophes escape structural characters inside a column heading.
-fn structured_end(text : String, start : Int) -> Int raise @failure.Failure {
+fn structured_end(text : String, start : Int32) -> Int32 raise @failure.Failure {
   let mut depth = 0
   let mut index = start
   while index < text.length() {
@@ -75,7 +75,7 @@ fn table_selector(text : String) -> TableSelector raise @failure.Failure {
     @failure.reject("formula-syntax", "Invalid structured reference")
   }
   let sections : Array[String] = []
-  let columns : Array[(String, Int, Int)] = []
+  let columns : Array[(String, Int32, Int32)] = []
   let mut start = 1
   let end = text.length() - 1
   if start < end && text[start] == 64 {
@@ -167,7 +167,7 @@ fn structured_reference(
   name : String?,
   selector : String,
   sheets : Array[Sheet],
-  sheet : Int,
+  sheet : Int32,
   origin : Address,
   work : FormulaWork,
 ) -> Expression raise @failure.Failure {
@@ -225,7 +225,7 @@ fn structured_reference(
     top = table.range.top
     bottom = table.range.bottom
   } else {
-    let rows : Array[(Int, Int)] = []
+    let rows : Array[(Int32, Int32)] = []
     for section in sections {
       let interval = match section {
         "#HEADERS" if table.headers == 1 => (table.range.top, table.range.top)

@@ -139,7 +139,7 @@ fn Session::write_chart(
   probe : @layout.TextProbe,
   profile : Map[String, String],
   fill~ : Bool = false,
-  hole_size~ : Int? = None,
+  hole_size~ : Int32? = None,
   legend~ : String? = None,
 ) -> Json raise @failure.Failure {
   guard source.length() <= 65536 else {

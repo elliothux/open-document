@@ -79,7 +79,7 @@ fn place_block(
   horizontal : String,
   vertical : String,
   indent : Double,
-  rotation~ : Int = 0,
+  rotation~ : Int32 = 0,
 ) -> Array[@layout.Border] raise @failure.Failure {
   if rotation != 0 && rotation != 255 {
     return place_rotated_block(

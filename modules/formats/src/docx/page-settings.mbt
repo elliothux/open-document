@@ -1,7 +1,7 @@
 ///|
 fn WordTree::page_values(
   self : WordTree,
-  section : Int,
+  section : Int32,
   base : @layout.PageSetup,
 ) -> @layout.PageSetup raise @failure.Failure {
   {
@@ -63,8 +63,8 @@ fn validate_page_setup(page : @layout.PageSetup) -> Unit raise @failure.Failure 
 fn Session::editable_page_section(
   self : Session,
   tree : WordTree,
-  target~ : Int? = None,
-) -> Int? raise @failure.Failure {
+  target~ : Int32? = None,
+) -> Int32? raise @failure.Failure {
   let body = tree.child(0, "body").unwrap()
   let sections = tree.page_sections()
   guard target is Some(_) ||
@@ -178,8 +178,8 @@ fn Session::editable_page_section(
 ///|
 pub fn Session::page_setup(
   self : Session,
-  revision : Int,
-  section~ : Int = 0,
+  revision : Int32,
+  section~ : Int32 = 0,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
@@ -236,8 +236,8 @@ pub fn Session::page_setup(
 /// Changes one section's page geometry and optional start type in one source transaction.
 pub fn Session::set_page_setup(
   self : Session,
-  revision : Int,
-  sectionIndex : Int,
+  revision : Int32,
+  sectionIndex : Int32,
   page : @layout.PageSetup,
   orientation~ : String? = None,
   startType~ : String? = None,

@@ -1,7 +1,7 @@
 ///|
 fn WordTree::page_columns(
   self : WordTree,
-  section : Int?,
+  section : Int32?,
 ) -> @layout.Columns raise @failure.Failure {
   guard section is Some(section) else { return @layout.Columns::new() }
   let nodes = self.table_children(section, "cols")
@@ -83,7 +83,7 @@ fn WordTree::page_columns(
 ///|
 fn Session::section_page_setup(
   self : Session,
-  index : Int,
+  index : Int32,
 ) -> @layout.PageSetup raise @failure.Failure {
   let flow = self.flow()
   if index == 0 {
@@ -99,7 +99,7 @@ fn Session::section_page_setup(
 fn Session::page_columns_query(
   self : Session,
   tree : WordTree,
-  index : Int,
+  index : Int32,
 ) -> Json {
   try {
     let section = self.editable_page_section(tree, target=Some(index))
@@ -124,8 +124,8 @@ fn Session::page_columns_query(
 ///|
 pub fn Session::set_page_columns(
   self : Session,
-  revision : Int,
-  sectionIndex : Int,
+  revision : Int32,
+  sectionIndex : Int32,
   value : @layout.Columns?,
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],

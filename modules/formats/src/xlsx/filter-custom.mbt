@@ -18,10 +18,10 @@ priv enum PreparedFilter {
   Ranking(Double?, top~ : Bool)
   Mean(Double?, above~ : Bool)
   DateLabels(Array[(Double, Double)], Map[String, Bool], blank~ : Bool)
-  CalendarMonths(Int, Int)
+  CalendarMonths(Int32, Int32)
   DateInterval(Double, Double)
   Color(String, cell_color~ : Bool)
-  Icon(String, Int?)
+  Icon(String, Int32?)
 }
 
 ///|

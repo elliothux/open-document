@@ -26,10 +26,10 @@ fn logical_function(
   name : String,
   args : Array[Expression],
   sheets : Array[Sheet],
-  sheet : Int,
-  values : Map[(Int, String), Value],
+  sheet : Int32,
+  values : Map[(Int32, String), Value],
   work : FormulaWork,
-  depth : Int,
+  depth : Int32,
   hyperlink~ : Ref[String?]? = None,
 ) -> Value raise @failure.Failure {
   if name == "AND" || name == "OR" {

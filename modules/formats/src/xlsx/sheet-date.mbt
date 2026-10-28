@@ -2,7 +2,7 @@
 /// Uses the supplied calendar date for this and subsequent operations; failures restore it.
 pub fn Session::edit_sheet(
   self : Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   change : SheetEdit,
   date~ : String? = None,

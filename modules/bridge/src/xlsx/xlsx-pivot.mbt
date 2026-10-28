@@ -194,7 +194,7 @@ fn xlsx_pivot_settings(
 ///|
 fn xlsx_pivot_edit(
   session : @model.Session,
-  revision : Int,
+  revision : Int32,
   sheet : String,
   change : Json,
 ) -> Json raise @failure.Failure {

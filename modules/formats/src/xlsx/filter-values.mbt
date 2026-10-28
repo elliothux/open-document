@@ -1,7 +1,7 @@
 ///|
 fn Session::filter_rules(
   self : Session,
-  index : Int,
+  index : Int32,
   work : FormulaWork,
 ) -> ConditionalRules raise @failure.Failure {
   let rules = self.conditional_rules(
@@ -19,9 +19,9 @@ fn Session::filter_rules(
 ///|
 fn Session::filter_raw(
   self : Session,
-  sheet : Int,
-  row : Int,
-  column : Int,
+  sheet : Int32,
+  row : Int32,
+  column : Int32,
 ) -> Value raise @failure.Failure {
   let current = self.sheets[sheet]
   let address : Address = { row, column, }
@@ -46,9 +46,9 @@ fn Session::filter_raw(
 ///|
 fn Session::filter_cell(
   self : Session,
-  sheet : Int,
-  row : Int,
-  column : Int,
+  sheet : Int32,
+  row : Int32,
+  column : Int32,
   rules : ConditionalRules,
   work : FormulaWork,
 ) -> (String, Bool) raise @failure.Failure {
@@ -88,9 +88,9 @@ fn filter_normalized(
 ///|
 fn Session::filtered_rows(
   self : Session,
-  sheet : Int,
+  sheet : Int32,
   settings : FilterSettings,
-) -> Array[Int] raise @failure.Failure {
+) -> Array[Int32] raise @failure.Failure {
   let range = filter_settings(settings)
   let work : FormulaWork = {
     remaining: 1048576,
@@ -121,7 +121,7 @@ fn Session::filtered_rows(
   let normalized = settings.columns.map(column => {
     self.prepare_filter(sheet, range, column, work)
   })
-  let hidden : Array[Int] = []
+  let hidden : Array[Int32] = []
   for row in (range.top + 1)..<=range.bottom {
     for i, column in settings.columns {
       let (value, date) = self.filter_cell(
@@ -170,7 +170,7 @@ fn Session::filtered_rows(
 ///|
 fn Session::filter_query(
   self : Session,
-  index : Int,
+  index : Int32,
   table~ : StructuredTable? = None,
   states~ : Map[String, AutoFilterState]? = None,
   failure~ : String = "",
@@ -221,7 +221,7 @@ fn Session::filter_query(
         .iter()
         .find_first(c => c.column == column)
       let selected : Map[String, Bool] = Map([])
-      let values : Map[String, Int] = Map([])
+      let values : Map[String, Int32] = Map([])
       let labels : Map[String, String] = Map([])
       if criterion is Some({ rule: Values(allowed, ..), .. }) {
         for value in allowed {

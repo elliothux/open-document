@@ -1,5 +1,5 @@
 ///|
-fn xlsx_slicer_hover(request : Json) -> (String, Int)? raise @failure.Failure {
+fn xlsx_slicer_hover(request : Json) -> (String, Int32)? raise @failure.Failure {
   guard request is { "slicerHover": value, .. } else { return None }
   guard value is Object(fields) &&
     fields.length() == 2 &&

@@ -16,14 +16,14 @@ pub struct Session {
   priv mut last_slide : String
   priv mut source_view : Slide?
   priv mut selection : Selection
-  priv mut revision : Int
+  priv mut revision : Int32
   priv history : Array[History]
   priv redo : Array[History]
-  priv mut history_bytes : Int
+  priv mut history_bytes : Int32
   priv mut candidate : Candidate?
   priv mut view : View?
-  priv mut sequence : Int
-  priv mut media_sequence : Int
+  priv mut sequence : Int32
+  priv mut media_sequence : Int32
   priv mut object_sequence : Int64
   priv mut closed : Bool
   priv mut date_time : DateTime?
@@ -192,7 +192,7 @@ fn Session::check_candidate_idle(self : Session) -> Unit raise @failure.Failure 
 ///|
 fn Session::check_revision(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Unit raise @failure.Failure {
   self.check()
   guard revision == self.revision else {
@@ -201,7 +201,10 @@ fn Session::check_revision(
 }
 
 ///|
-fn Session::index(self : Session, slide : String) -> Int raise @failure.Failure {
+fn Session::index(
+  self : Session,
+  slide : String,
+) -> Int32 raise @failure.Failure {
   self.check()
   for index, item in self.slides {
     if item.tree.part == slide {
@@ -453,12 +456,12 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
 ///|
 pub fn Session::select(
   self : Session,
-  revision : Int,
+  revision : Int32,
   slide : String,
   object : String,
   mode : String,
-  anchor : Int,
-  focus : Int,
+  anchor : Int32,
+  focus : Int32,
   objects~ : Array[String]? = None,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)

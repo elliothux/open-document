@@ -1,7 +1,7 @@
 ///|
 fn WordTree::check_revision_paragraph(
   self : WordTree,
-  paragraph : Int,
+  paragraph : Int32,
 ) -> Unit raise @failure.Failure {
   let parent = self.nodes[self.nodes[paragraph].parent]
   let body = if parent.name == "body" && parent.uri == word_uri {
@@ -31,8 +31,8 @@ fn WordTree::check_revision_paragraph(
 ///|
 fn WordTree::check_property_revision(
   self : WordTree,
-  id : Int,
-) -> Int raise @failure.Failure {
+  id : Int32,
+) -> Int32 raise @failure.Failure {
   let change = self.nodes[id]
   guard change.uri == word_uri &&
     ["rPrChange", "pPrChange"].contains(change.name) &&
@@ -115,8 +115,8 @@ fn WordTree::check_property_revision(
 ///|
 fn WordTree::check_current_review_properties(
   self : WordTree,
-  id : Int,
-  excluded : Array[Int],
+  id : Int32,
+  excluded : Array[Int32],
 ) -> Unit raise @failure.Failure {
   let properties = self.nodes[id]
   let fragment = self.source[properties.start:properties.end]
@@ -157,7 +157,7 @@ fn WordTree::check_current_review_properties(
 fn property_revision_change(
   document : @xml.Document,
   tree : WordTree,
-  id : Int,
+  id : Int32,
   accept : Bool,
 ) -> @xml.SourceChange raise @failure.Failure {
   let change = tree.nodes[id]

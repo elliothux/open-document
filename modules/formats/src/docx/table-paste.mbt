@@ -3,8 +3,8 @@ fn Session::paste_grid_changes(
   self : Session,
   tree : WordTree,
   grid : TableGrid,
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
   probe : @layout.TextProbe,
   profile : Map[String, String],
   images : @layout.Images?,
@@ -174,7 +174,7 @@ fn Session::paste_grid_changes(
 ///|
 fn Session::paste_table_cells(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   text : String,
   probe : @layout.TextProbe?,
@@ -249,8 +249,8 @@ fn Session::paste_table_cells(
     .iter()
     .find_first(table => table.id == grid.table)
     .unwrap()
-  let targets : Array[(Int, String)] = []
-  let mut first : Int? = None
+  let targets : Array[(Int32, String)] = []
+  let mut first : Int32? = None
   for r in top..<bottom {
     let row = expanded_tree.table_children(grid.table, "tr")[r]
     let cells = expanded_tree.table_children(row, "tc")

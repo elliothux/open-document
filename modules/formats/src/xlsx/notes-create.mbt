@@ -2,7 +2,7 @@
 fn note_source(
   address : Address,
   text : String,
-  author : Int,
+  author : Int32,
 ) -> String raise @failure.Failure {
   "<od:comment xmlns:od=\"\{spreadsheet_uri}\" ref=\"\{address.name()}\" authorId=\"\{author}\"><od:text><od:t xml:space=\"preserve\">\{encode_text(text)}</od:t></od:text></od:comment>"
 }

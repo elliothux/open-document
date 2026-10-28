@@ -11,7 +11,7 @@ priv enum ChartOperation {
 ///|
 fn WordTree::check_chart_operation(
   self : WordTree,
-  id : Int,
+  id : Int32,
   operation : ChartOperation,
 ) -> Unit raise @failure.Failure {
   for child in self.descendants(id) {

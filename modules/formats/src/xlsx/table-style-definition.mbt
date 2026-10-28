@@ -155,7 +155,7 @@ fn Session::edit_table_style_definition(
   for table in affected {
     ignore(self.table_for_edit(table.sheet, table.id))
   }
-  let reused : Map[String, Int?] = Map([])
+  let reused : Map[String, Int32?] = Map([])
   let changed : Array[TableStyleElement] = []
   if before is Some(style) {
     let path = self.styles_part(self.parts).unwrap()
@@ -243,7 +243,7 @@ fn Session::edit_table_style_definition(
       .find_first(node => node.attribute("name") == Some(style.name))
     })
   })
-  let indices : Map[String, Int?] = Map([])
+  let indices : Map[String, Int32?] = Map([])
   for index, element in changed {
     indices[element.kind] = plan.indices[index]
   }

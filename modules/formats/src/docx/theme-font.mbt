@@ -3,7 +3,7 @@ fn theme_font_node(
   tree : WordTree,
   kind : String,
   script : String,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   let elements = theme_child(tree, 0, "themeElements")
   let scheme = theme_child(tree, elements, "fontScheme")
   let parent = theme_child(tree, scheme, kind + "Font")
@@ -26,7 +26,7 @@ fn theme_font_node(
 ///|
 pub fn Session::theme_fonts(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let reason = self.theme_edit_reason()
@@ -118,7 +118,7 @@ pub(all) struct ThemeFontEdit {
 ///|
 pub fn Session::set_theme_fonts(
   self : Session,
-  revision : Int,
+  revision : Int32,
   fonts : Array[ThemeFontEdit],
   probe : @layout.TextProbe,
   profile : Map[String, String],

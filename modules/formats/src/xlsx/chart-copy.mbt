@@ -3,7 +3,7 @@ fn Session::copy_sheet_charts(
   self : Session,
   source : Sheet,
   target : Sheet,
-  number : Int,
+  number : Int32,
   created : Map[String, @xml.Document],
   remapped : Map[String, String],
   types : StringBuilder,

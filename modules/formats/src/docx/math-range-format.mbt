@@ -2,8 +2,8 @@
 fn ParagraphRange::math_roots(
   self : ParagraphRange,
   tree : WordTree,
-) -> Array[Int] {
-  let roots : Array[Int] = []
+) -> Array[Int32] {
+  let roots : Array[Int32] = []
   let texts = docx_texts(tree)
   for paragraph in self.paragraphs {
     let start = if paragraph == self.start.paragraph {
@@ -41,7 +41,7 @@ fn CharacterFormat::math_font_patch(self : CharacterFormat) -> Bool {
 fn Session::selected_math_style(
   self : Session,
   tree : WordTree,
-  id : Int,
+  id : Int32,
 ) -> @layout.TextStyle raise @failure.Failure {
   let paragraph = tree.nodes[id].parent
   let value = self.styles([]).character_style(tree, paragraph, None, [])
@@ -63,7 +63,7 @@ fn Session::math_font_changes(
   self : Session,
   tree : WordTree,
   document : @xml.Document,
-  id : Int,
+  id : Int32,
   patch : CharacterFormat,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   if patch == CharacterFormat::new() {

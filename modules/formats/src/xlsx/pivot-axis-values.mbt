@@ -22,7 +22,7 @@ fn pivot_axis_series(
   parent : Value?,
 ) -> Array[Value] {
   if mode == "rankAscending" || mode == "rankDescending" {
-    let numbers : Array[(Int, Double)] = []
+    let numbers : Array[(Int32, Double)] = []
     for position, value in raw {
       if value is Number(number) {
         numbers.push((position, number))
@@ -103,7 +103,7 @@ fn PivotLayout::base_values(self : PivotLayout) -> PivotLayout {
     } else {
       self.members.length()
     }
-    let groups : Map[String, Array[Int]] = Map([])
+    let groups : Map[String, Array[Int32]] = Map([])
     for position, members in axis {
       if members.length() > at {
         // Hold every other member and subtotal depth fixed while advancing the base field.

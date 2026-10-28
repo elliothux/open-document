@@ -2,11 +2,11 @@
 fn format_numbers(
   tree : Tree,
   patches : Array[CellFormat],
-) -> (Map[String, Int], Array[String]) raise @failure.Failure {
+) -> (Map[String, Int32], Array[String]) raise @failure.Failure {
   let container = tree.one(tree.root("styleSheet").id, "numFmts")
   let nodes = container.map(node => tree.all(node.id, "numFmt")).unwrap_or([])
-  let ids : Map[String, Int] = Map([])
-  let used : Map[Int, Bool] = Map([])
+  let ids : Map[String, Int32] = Map([])
+  let used : Map[Int32, Bool] = Map([])
   for node in nodes {
     let id = natural(node.attribute("numFmtId").unwrap_or(""), 65535)
     used[id] = true
@@ -73,7 +73,7 @@ fn format_number_changes(
 /// Copies supported cell properties in source row/column order without editing the workbook.
 pub fn Session::capture_format(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let (id, selected) = self.selection
@@ -111,7 +111,7 @@ pub fn Session::capture_format(
 /// Tiles a copied format rectangle over the selection, expanding a single-cell target.
 pub fn Session::apply_format(
   self : Session,
-  revision : Int,
+  revision : Int32,
   pattern : Array[Array[CellFormat]],
   merges : Array[Range],
 ) -> Json raise @failure.Failure {

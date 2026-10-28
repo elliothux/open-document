@@ -1,8 +1,8 @@
 ///|
 priv struct MarkupOutput {
   builder : StringBuilder
-  limit : Int
-  mut units : Int
+  limit : Int32
+  mut units : Int32
   markdown : Bool
   text_box : Bool
   wrap : Bool
@@ -10,11 +10,11 @@ priv struct MarkupOutput {
   links : Map[String, @opc.Relationship]
   bookmarks : Map[String, Bool]
   bookmark_names : Map[String, String]
-  fields : Map[Int, String]
-  charts : Map[Int, @layout.PlacedDrawingFrame]
+  fields : Map[Int32, String]
+  charts : Map[Int32, @layout.PlacedDrawingFrame]
   outlines : Map[String, String]
-  mut chart_index : Int
-  lists : Map[Int, MarkupList]
+  mut chart_index : Int32
+  lists : Map[Int32, MarkupList]
   background : String
 }
 
@@ -270,7 +270,7 @@ fn Session::markup_paragraph(
       )
     }
   }
-  let spans : Map[Int, Array[@layout.Span]] = Map([])
+  let spans : Map[Int32, Array[@layout.Span]] = Map([])
   for span in paragraph.spans {
     spans.get_or_init(span.node, () => []).push(span)
   }
@@ -459,9 +459,9 @@ fn Session::markup_table(
 /// Exports semantic body content without modifying native source or edit history.
 pub fn Session::export_markup(
   self : Session,
-  revision : Int,
+  revision : Int32,
   format : String,
-  output_bytes : Int,
+  output_bytes : Int32,
   layout? : @layout.Layout,
 ) -> Bytes raise @failure.Failure {
   self.check_revision(revision)
@@ -525,7 +525,7 @@ pub fn Session::export_markup(
       "\">\n",
     )
   }
-  let tables : Map[Int, Array[@layout.Table]] = Map([])
+  let tables : Map[Int32, Array[@layout.Table]] = Map([])
   for table in flow.tables {
     tables.get_or_init(table.beforeParagraph, () => []).push(table)
   }

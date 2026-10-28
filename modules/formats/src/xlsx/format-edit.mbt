@@ -96,7 +96,7 @@ fn Session::new_styles_part(
 /// Applies only the specified cell properties, keeping values and shared source styles intact.
 pub fn Session::format_cells(
   self : Session,
-  revision : Int,
+  revision : Int32,
   patch : CellFormat,
 ) -> Json raise @failure.Failure {
   let sheet = self.sheets[self.sheet_index(self.selection.0)]
@@ -128,15 +128,15 @@ pub fn Session::format_cells(
 ///|
 fn Session::format_pattern(
   self : Session,
-  revision : Int,
+  revision : Int32,
   pattern : Array[Array[CellFormat]],
   target : Range,
   merges~ : Array[Range]? = None,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let patches : Array[CellFormat] = []
-  let positions : Array[Int] = []
-  let pool : Map[CellFormat, Int] = Map([])
+  let positions : Array[Int32] = []
+  let pool : Map[CellFormat, Int32] = Map([])
   for row in pattern {
     for patch in row {
       patch.validate()
@@ -156,7 +156,7 @@ fn Session::format_pattern(
   let current = self.sheets[index]
   let reason = self.format_reason(current, target)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
-  let originals : Map[String, (Int, Int)] = Map([])
+  let originals : Map[String, (Int32, Int32)] = Map([])
   let table_styles = self.table_styles(
     current,
     {

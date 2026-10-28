@@ -2,13 +2,13 @@
 fn WordTree::split_input(
   self : WordTree,
   document : @xml.Document,
-  paragraph : Int,
-  insertion : Int?,
-  offset : Int,
+  paragraph : Int32,
+  insertion : Int32?,
+  offset : Int32,
   parts : Array[String],
   tail : String,
   merge~ : Bool,
-  source_limit~ : Int,
+  source_limit~ : Int32,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   if insertion is Some(id) && note_reference(self.nodes[id]) {
     return self.split_note_input(

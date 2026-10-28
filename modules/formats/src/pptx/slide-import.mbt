@@ -1,7 +1,7 @@
 ///|
 fn imported_slide_paths(
   source : Session,
-  indices : Array[Int],
+  indices : Array[Int32],
 ) -> Array[String] raise @failure.Failure {
   guard indices.length() <= 256 && Set(indices).length() == indices.length() else {
     @failure.reject(
@@ -20,9 +20,9 @@ fn imported_slide_paths(
 /// Inspects source pages and selected resources without retaining another presentation session.
 pub fn Session::import_slide_info(
   self : Session,
-  revision : Int,
+  revision : Int32,
   bytes : Bytes,
-  indices : Array[Int],
+  indices : Array[Int32],
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   self.check_idle()
@@ -80,9 +80,9 @@ pub fn Session::import_slide_info(
 /// Imports selected source pages after a listed page with their native design and owned resources.
 pub fn Session::import_slides(
   self : Session,
-  revision : Int,
+  revision : Int32,
   bytes : Bytes,
-  indices : Array[Int],
+  indices : Array[Int32],
   after : String,
   probe : @layout.TextProbe,
   profile : Map[String, String],

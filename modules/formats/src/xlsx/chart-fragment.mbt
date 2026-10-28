@@ -57,7 +57,7 @@ fn read_chart_fragment(
   let mut row = 1
   fn vector(
     values : Array[Value],
-    shown : Array[Int],
+    shown : Array[Int32],
   ) -> String raise @failure.Failure {
     if values.is_empty() {
       return "#REF!"

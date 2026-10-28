@@ -9,11 +9,11 @@ let command_limit = 65536
 
 ///|
 pub(all) struct Position {
-  paragraph : Int
-  offset : Int
+  paragraph : Int32
+  offset : Int32
   affinity : String
-  bidiLevel : Int?
-  frameStart : Int?
+  bidiLevel : Int32?
+  frameStart : Int32?
 } derive(Eq)
 
 ///|
@@ -58,22 +58,22 @@ priv struct Edit {
   created_media : Map[String, Bytes]
   before : Selection?
   after : Selection?
-  paragraphs : Array[Int]
-  bytes : Int
+  paragraphs : Array[Int32]
+  bytes : Int32
 }
 
 ///|
 priv struct PreparedEdit {
   edit : Edit
   document : @xml.Document
-  typing_text : Int?
+  typing_text : Int32?
   join_group : Bool
 }
 
 ///|
 fn Session::editable_texts(
   self : Session,
-  paragraph : Int,
+  paragraph : Int32,
   notes~ : Bool = false,
 ) -> Array[TextNode] raise @failure.Failure {
   let tree = WordTree::new(self.document())
@@ -96,7 +96,7 @@ fn Session::editable_texts(
 ///|
 fn validate_position(
   position : Position,
-  boundaries : Array[Int],
+  boundaries : Array[Int32],
 ) -> Unit raise @failure.Failure {
   if position.frameStart is Some(start) &&
     (start <= position.offset || boundaries.binary_search(start) is Err(_)) {
@@ -116,7 +116,7 @@ fn validate_position(
 ///|
 fn Session::check_revision(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Unit raise @failure.Failure {
   self.check_revision_value(revision)
   self.check_idle()
@@ -125,7 +125,7 @@ fn Session::check_revision(
 ///|
 fn Session::check_revision_value(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Unit raise @failure.Failure {
   ignore(self.document())
   guard self.revision == revision else {
@@ -136,7 +136,7 @@ fn Session::check_revision_value(
 ///|
 fn Session::edit_result(
   self : Session,
-  affected : Array[Int],
+  affected : Array[Int32],
 ) -> Json raise @failure.Failure {
   ignore(self.document())
   let current = match (self.composition, self.drawing_gesture) {
@@ -184,7 +184,7 @@ pub fn Session::edit_state(self : Session) -> Json raise @failure.Failure {
 ///|
 pub fn Session::select(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
@@ -250,11 +250,11 @@ fn Session::check_position_in(
 }
 
 ///|
-fn editing_boundaries(text : String, graphemes : Bool) -> Array[Int] {
+fn editing_boundaries(text : String, graphemes : Bool) -> Array[Int32] {
   if graphemes {
     return @layout.grapheme_boundaries(text)
   }
-  let result : Array[Int] = []
+  let result : Array[Int32] = []
   for offset, _ in text.iter2() {
     result.push(offset)
   }
@@ -267,10 +267,10 @@ fn editing_boundaries(text : String, graphemes : Bool) -> Array[Int] {
 /// A positive input group joins continuous ordinary input at the confirmed caret.
 pub fn Session::replace_range(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   text : String,
-  input_group~ : Int? = None,
+  input_group~ : Int32? = None,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let prepared = self.prepare_range(selection, text, input_group~)
@@ -300,7 +300,7 @@ fn Session::prepare_range(
   self : Session,
   selection : Selection,
   text : String,
-  input_group~ : Int? = None,
+  input_group~ : Int32? = None,
   check_graphemes~ : Bool = true,
 ) -> PreparedEdit? raise @failure.Failure {
   let tree = WordTree::new(self.document())
@@ -347,7 +347,7 @@ fn Session::prepare_range(
 }
 
 ///|
-fn edit_bytes(edit : @xml.Edit) -> Int raise @failure.Failure {
+fn edit_bytes(edit : @xml.Edit) -> Int32 raise @failure.Failure {
   let bytes = edit.payload_bytes()
   guard bytes <= history_byte_limit.to_int64() else {
     @failure.reject("limit-exceeded", "Single edit exceeds history byte budget")
@@ -358,10 +358,10 @@ fn edit_bytes(edit : @xml.Edit) -> Int raise @failure.Failure {
 ///|
 fn Session::commit_text(
   self : Session,
-  changes : Map[Int, String],
+  changes : Map[Int32, String],
   after : Selection?,
-  paragraph : Int,
-  input_group~ : Int? = None,
+  paragraph : Int32,
+  input_group~ : Int32? = None,
   join_group~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   let prepared = self.prepare_text(changes, after, paragraph)
@@ -371,11 +371,11 @@ fn Session::commit_text(
 ///|
 fn Session::prepare_text(
   self : Session,
-  changes : Map[Int, String],
+  changes : Map[Int32, String],
   after : Selection?,
-  paragraph : Int,
+  paragraph : Int32,
   source~ : Array[@xml.SourceChange] = [],
-  object_offsets~ : Map[Int, Int] = Map([]),
+  object_offsets~ : Map[Int32, Int32] = Map([]),
   notes~ : Bool = false,
 ) -> PreparedEdit raise @failure.Failure {
   let (candidate, xml) = self.edit_inline_text(
@@ -407,7 +407,7 @@ fn Session::commit_edit(
   self : Session,
   edit : Edit,
   candidate : @xml.Document,
-  input_group~ : Int? = None,
+  input_group~ : Int32? = None,
   join_group~ : Bool = false,
   parts~ : Map[String, @xml.Document] = self.parts,
   media~ : Map[String, Bytes] = self.media,
@@ -607,7 +607,7 @@ fn Session::accept_document(
 ///|
 pub fn Session::undo_edit(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   guard self.history.last() is Some(edit) else {
@@ -623,7 +623,7 @@ pub fn Session::undo_edit(
 ///|
 pub fn Session::redo_edit(
   self : Session,
-  revision : Int,
+  revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   guard self.redo.last() is Some(edit) else {

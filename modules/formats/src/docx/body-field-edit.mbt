@@ -3,7 +3,7 @@ fn Session::selected_body_page_field(
   self : Session,
   tree : WordTree,
   selection : Selection,
-) -> Int? raise @failure.Failure {
+) -> Int32? raise @failure.Failure {
   let range = self.paragraph_range(
     tree,
     selection,
@@ -41,7 +41,7 @@ fn Session::selected_body_page_field(
 /// Reads one complete simple page field or the field on the caret's affinity side.
 pub fn Session::body_page_field(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
@@ -165,7 +165,7 @@ pub fn Session::body_page_field(
 /// Changes the selected simple field's code and refreshes only its result in one transaction.
 pub fn Session::edit_body_page_field(
   self : Session,
-  revision : Int,
+  revision : Int32,
   selection : Selection,
   field : String,
   probe~ : @layout.TextProbe,
@@ -250,7 +250,7 @@ pub fn Session::edit_body_page_field(
 /// Refreshes supported body page fields in one exact source transaction.
 pub fn Session::update_body_page_fields(
   self : Session,
-  revision : Int,
+  revision : Int32,
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],
   images~ : @layout.Images,
@@ -274,7 +274,7 @@ pub fn Session::update_body_page_fields(
       }
     }
   }
-  let fields : Map[(Int, Int), Bool] = Map([])
+  let fields : Map[(Int32, Int32), Bool] = Map([])
   for paragraph in paragraphs {
     for span in paragraph.spans {
       if !span.field.is_empty() {
@@ -282,8 +282,8 @@ pub fn Session::update_body_page_fields(
       }
     }
   }
-  let pages : Map[(Int, Int), Int] = Map([])
-  let displayed : Map[(Int, Int), String] = Map([])
+  let pages : Map[(Int32, Int32), Int32] = Map([])
+  let displayed : Map[(Int32, Int32), String] = Map([])
   for page, frame in layout.pages {
     for line in frame.lines {
       for run in line.runs {
@@ -297,11 +297,11 @@ pub fn Session::update_body_page_fields(
       }
     }
   }
-  let affected : Array[Int] = []
+  let affected : Array[Int32] = []
   let changes : Array[@xml.SourceChange] = []
   let mut count = 0
   for paragraph in paragraphs {
-    let cache : Map[Int, String] = Map([])
+    let cache : Map[Int32, String] = Map([])
     for id, code in tree.running_fields(paragraph.id, cache~) {
       if cache.contains(id) {
         continue

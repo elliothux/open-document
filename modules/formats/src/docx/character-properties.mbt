@@ -2,11 +2,11 @@
 fn Styles::character_layers(
   self : Styles,
   tree : WordTree,
-  paragraph : Int,
-  run : Int?,
+  paragraph : Int32,
+  run : Int32?,
   diagnostics : Array[String],
   style~ : FormatChange[String] = Keep,
-) -> Array[(WordTree, Int, Bool)] raise @failure.Failure {
+) -> Array[(WordTree, Int32, Bool)] raise @failure.Failure {
   let layers = []
   if self.tree is Some(styles) {
     if styles
@@ -47,10 +47,10 @@ fn Styles::character_layers(
 fn Styles::run_layers(
   self : Styles,
   tree : WordTree,
-  run : Int,
+  run : Int32,
   diagnostics : Array[String],
   style~ : FormatChange[String] = Keep,
-) -> Array[(WordTree, Int, Bool)] raise @failure.Failure {
+) -> Array[(WordTree, Int32, Bool)] raise @failure.Failure {
   let layers = []
   let properties = tree.child(run, "rPr")
   let key = match style {
@@ -75,7 +75,7 @@ fn Styles::run_layers(
 fn Styles::run_character_style(
   self : Styles,
   tree : WordTree,
-  run : Int,
+  run : Int32,
   base : RunStyle,
   diagnostics : Array[String],
 ) -> RunStyle raise @failure.Failure {
@@ -90,8 +90,8 @@ fn Styles::run_character_style(
 fn Styles::character_style(
   self : Styles,
   tree : WordTree,
-  paragraph : Int,
-  run : Int?,
+  paragraph : Int32,
+  run : Int32?,
   diagnostics : Array[String],
   style~ : FormatChange[String] = Keep,
 ) -> RunStyle raise @failure.Failure {
@@ -113,8 +113,8 @@ fn Styles::character_style(
 fn Styles::character_extras(
   self : Styles,
   tree : WordTree,
-  paragraph : Int,
-  run : Int,
+  paragraph : Int32,
+  run : Int32,
 ) -> Map[String, String] raise @failure.Failure {
   let result : Map[String, String] = Map([])
   result["bCs.val"] = "0"
@@ -180,8 +180,8 @@ fn Session::preserve_run_style(
   self : Session,
   tree : WordTree,
   styles : Styles,
-  run : Int,
-  paragraph : Int,
+  run : Int32,
+  paragraph : Int32,
 ) -> @xml.SourceChange? raise @failure.Failure {
   let original = tree.run_paragraph(run)
   let before = styles.character_style(tree, original, Some(run), [])

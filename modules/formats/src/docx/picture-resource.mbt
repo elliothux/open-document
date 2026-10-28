@@ -12,7 +12,7 @@ priv struct PictureResource {
 ///|
 fn Session::prepare_picture_resource(
   self : Session,
-  id : Int,
+  id : Int32,
   bytes : Bytes,
   kind : (String, String),
   owner~ : String = self.main,
@@ -97,7 +97,7 @@ fn Session::commit_picture_resource(
   resource : PictureResource,
   candidate : @xml.Document,
   xml : Array[@xml.Edit],
-  paragraphs : Array[Int],
+  paragraphs : Array[Int32],
   after : Selection?,
 ) -> Json raise @failure.Failure {
   let mut count = xml_part_edit_bytes(resource.edits, resource.created)

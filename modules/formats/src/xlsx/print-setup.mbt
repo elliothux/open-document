@@ -6,9 +6,9 @@ pub(all) struct PrintSetup {
   top : Double
   right : Double
   bottom : Double
-  scale : Int
-  fitWidth : Int
-  fitHeight : Int
+  scale : Int32
+  fitWidth : Int32
+  fitHeight : Int32
 } derive(ToJson, Eq)
 
 ///|
@@ -81,8 +81,8 @@ fn PrintSetup::validate(self : PrintSetup) -> Unit raise @failure.Failure {
 fn print_integer(
   node : @xml.Node?,
   name : String,
-  fallback : Int,
-) -> Int raise @failure.Failure {
+  fallback : Int32,
+) -> Int32 raise @failure.Failure {
   guard node.bind(node => node.attribute(name)) is Some(value) else {
     return fallback
   }

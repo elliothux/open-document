@@ -15,7 +15,7 @@ pub(all) enum ObjectEdit {
   InsertMedia(String, String, Bytes, Bytes, Double, Double, Double, Double)
   FillMedia(String, String, Bytes, Bytes)
   MediaPlayback(MediaPlaybackSettings)
-  InsertTable(Int, Int, Double, Double, Double, Double)
+  InsertTable(Int32, Int32, Double, Double, Double, Double)
   InsertChart(
     String,
     String,
@@ -24,14 +24,14 @@ pub(all) enum ObjectEdit {
     Double,
     Double,
     Double,
-    Int?,
+    Int32?,
     String?
   )
-  ChartData(String, String, String, Int?, String?)
-  FillChart(String, String, String, Int?, String?)
-  FillTable(Int, Int)
+  ChartData(String, String, String, Int32?, String?)
+  FillChart(String, String, String, Int32?, String?)
+  FillTable(Int32, Int32)
   TableStructure(String)
-  SplitTableCell(Int, Int)
+  SplitTableCell(Int32, Int32)
   TableRowHeight(Double)
   TableColumnWidth(Double)
   TableStyle(TableStyleSettings)
@@ -69,7 +69,7 @@ pub(all) enum ObjectEdit {
   TextAnchor(String)
   TextWrap(Bool)
   TextFit(String)
-  TextColumns(Int, Double, Bool)
+  TextColumns(Int32, Double, Bool)
   TextDirection(String)
   TextRotation(Double)
   TextUpright(Bool)

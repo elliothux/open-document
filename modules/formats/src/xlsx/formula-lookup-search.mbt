@@ -1,6 +1,6 @@
 ///|
 priv enum LookupResult {
-  Found(Int)
+  Found(Int32)
   Missing
   Failed(String)
 }
@@ -10,7 +10,7 @@ fn lookup_compare(
   a : Value,
   b : Value,
   work : FormulaWork,
-) -> Int raise @failure.Failure {
+) -> Int32 raise @failure.Failure {
   work.spend()
   match (a, b) {
     (Text(a), Text(b)) => criteria_compare(a, b, work)
@@ -22,16 +22,16 @@ fn lookup_compare(
 fn lookup_search(
   range : FormulaRange,
   needle : Value,
-  mode : Int,
-  search : Int,
+  mode : Int32,
+  search : Int32,
   last_equal : Bool,
   strict_errors : Bool,
   sheets : Array[Sheet],
-  calculated : Map[(Int, String), Value],
+  calculated : Map[(Int32, String), Value],
   work : FormulaWork,
 ) -> LookupResult raise @failure.Failure {
   let count = range.area().to_int()
-  let mut best : Int? = None
+  let mut best : Int32? = None
   if search.abs() == 2 {
     let mut low = 0
     let mut high = count
@@ -67,12 +67,12 @@ fn lookup_search(
     } else {
       None
     }
-    let indices : Array[Int]? = if count <= sheets[range.sheet].cells.length() {
+    let indices : Array[Int32]? = if count <= sheets[range.sheet].cells.length() {
       None
     } else {
       let stored = aggregate_offsets([range], sheets, work)
       work.spend(amount=stored.length() + 1)
-      let indices : Array[Int] = []
+      let indices : Array[Int32] = []
       let mut next = 0
       for offset in stored {
         let index = offset.to_int()

@@ -24,7 +24,7 @@ fn resolve(
   document : @pdflite.PdfDocument,
   object : @syntax.PdfObject,
 ) -> @syntax.PdfObject raise @failure.Failure {
-  let seen : Map[Int, Bool] = Map([])
+  let seen : Map[Int32, Bool] = Map([])
   let mut value = object
   while value is PdfIndirect(number) {
     guard seen.length() < 64 && !seen.contains(number) else {
@@ -60,7 +60,7 @@ fn number(value : @syntax.PdfObject) -> Double raise @failure.Failure {
 }
 
 ///|
-fn integer(value : @syntax.PdfObject) -> Int raise @failure.Failure {
+fn integer(value : @syntax.PdfObject) -> Int32 raise @failure.Failure {
   let n = number(value)
   guard n.to_int().to_double() == n else {
     @failure.reject("invalid-pdf", "PDF integer is required")
@@ -89,9 +89,9 @@ fn rectangle(
 
 ///|
 fn validate_value(
-  numbers : Map[Int, Int],
+  numbers : Map[Int32, Int32],
   value : @syntax.PdfObject,
-  depth : Int,
+  depth : Int32,
 ) -> Unit raise {
   @pdfcore.sdk_depth(depth)
   match value {
@@ -124,17 +124,17 @@ fn validate_value(
 ///|
 fn read_pages(
   document : @pdflite.PdfDocument,
-  generations : Map[Int, Int],
+  generations : Map[Int32, Int32],
   budget : PdfBudget,
 ) -> Array[SourcePage] raise {
   let catalog = resolve(document, @syntax.PdfIndirect(document.root()))
   let pages : Array[SourcePage] = []
-  let visited : Map[Int, Bool] = Map([])
+  let visited : Map[Int32, Bool] = Map([])
   fn walk(
     reference : @syntax.PdfObject,
     inherited : Map[String, @syntax.PdfObject],
-    depth : Int,
-  ) -> Int raise {
+    depth : Int32,
+  ) -> Int32 raise {
     @pdfcore.sdk_depth(depth)
     guard reference is PdfIndirect(id) && !visited.contains(id) else {
       @failure.reject("invalid-pdf", "PDF page tree is cyclic or not indirect")
@@ -276,7 +276,7 @@ pub fn PdfSession::open(
     guard document.object_count() <= budget.objects else {
       @failure.reject("limit-exceeded", "PDF object budget exceeded")
     }
-    let generations : Map[Int, Int] = Map([])
+    let generations : Map[Int32, Int32] = Map([])
     let mut reason = ""
     let mut maximum = 0
     for (id, generation, value) in document.parsed_object_entries() {
