@@ -1,4 +1,4 @@
-///|
+----
 import {
   "moonbitlang/async@0.22.4",
   "moonbitlang/async@0.22.4/fs",
@@ -6,6 +6,7 @@ import {
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/x@0.5.5/crypto",
 }
+----
 
 ///|
 fn hash(bytes : Bytes) -> String {
@@ -85,6 +86,12 @@ async fn main {
       break
     }
   }
+  // Each legacy manifest can stop dependency resolution before later packages
+  // are downloaded. Resolve the graph after both metadata migrations, before
+  // checking patch inputs.
+  @shell.Cmd("moon", ["check", "--target", "wasm-gc", "--dry-run"])
+  .output()
+  .check()
   apply_patches(
     "tools/harfbuzz-patches/", "moonbit-community/harfbuzz@0.1.0", ".mooncakes/moonbit-community/harfbuzz/src/",
   )

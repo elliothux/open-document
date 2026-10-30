@@ -526,8 +526,20 @@ fn Table::left(
   page.left +
   (match table.align {
     "center" => (available - width) / 2
-    "right" => available - width
-    _ => 0
+    "right" =>
+      available -
+      width +
+      (if table.legacyCellAlignment {
+        table.cell_insets(0, table.rows[0].length() - 1).right
+      } else {
+        0.0
+      })
+    _ =>
+      if table.legacyCellAlignment {
+        -table.cell_insets(0, 0).left
+      } else {
+        0.0
+      }
   })
 }
 
@@ -542,12 +554,12 @@ pub fn paginate(
   flow.page.validate()
   flow.pageBorders.validate()
   flow.validate_sections()
-  flow.validate_floating_images()
   guard flow.background.length() == 6 &&
     flow.background.iter().all(c => c.is_ascii_hexdigit()) else {
     @failure.reject("invalid-style", "Invalid page background color")
   }
   for index, table in flow.tables {
+    table.check_nested()
     guard table.beforeParagraph >= 0 &&
       table.beforeParagraph <= flow.paragraphs.length() &&
       (
@@ -557,6 +569,7 @@ pub fn paginate(
       @failure.reject("invalid-table", "Table body position is invalid")
     }
   }
+  flow.validate_floating_images()
   flow.validate_notes()
   let cache = ParagraphCache::new(probe, profile)
   if !flow.sectionBreaks.is_empty() {

@@ -506,9 +506,7 @@ pub fn PdfSession::add_highlight(
     )
   }
   let (a, b) = self.selection
-  let spans = display.spans.filter(span => {
-    span.start < a.max(b) && span.end > a.min(b)
-  })
+  let spans = selected_spans(display, a.min(b), a.max(b))
   guard !spans.is_empty() &&
     spans.length() <= 4096 &&
     spans.all(span => span.mapped) else {

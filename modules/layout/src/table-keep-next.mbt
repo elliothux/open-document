@@ -17,7 +17,9 @@ fn Table::start_height(
     return group
   }
   let whole = heights[0] + self.border_width(1)
-  if self.exactHeights[0] || !self.splitRows[0] {
+  if self.exactHeights[0] ||
+    !self.splitRows[0] ||
+    self.nestedTables.any(child => child.row <= end) {
     return whole
   }
   self.fragment_required(

@@ -1,0 +1,102 @@
+{
+  "file": "pdf_text_cmap_sections.mbt",
+  "originalSha256": "16b19e0c52dc1310fcb66cf1cbb85f318d17e53ffb60ac7753affb2a95fadc53",
+  "patchedSha256": "c7a0809bb5f5a71d830f817757f5b379a35277d5c8ee96024373d34bdf2eaea9",
+  "lineEdits": [
+    [
+      34,
+      1,
+      [
+        "      (Some(first), Some(last)) if first <= last => {",
+        "        guard cid >= 0 && last - first <= 2147483647 - cid &&",
+        "          @core.sdk_cmap_range(first, last) else { return }"
+      ]
+    ],
+    [
+      38,
+      0,
+      [
+        "      }"
+      ]
+    ],
+    [
+      110,
+      0,
+      [
+        "  let pending : Array[Byte] = []",
+        "  let push_integer_array = fn(entries : Array[(Int, Int)], line : BytesView) {",
+        "    guard @core.sdk_allow(line.length()) else { return }",
+        "    if pending.is_empty() &&",
+        "      !(pdf_text_index_of_byte(line, 91, 0) is Some(_) &&",
+        "        pdf_text_index_of_byte(line, 93, 0) is None) {",
+        "      pdf_text_push_cmap_integer_array_entries(entries, line)",
+        "      return",
+        "    }",
+        "    pending.append(line.to_array())",
+        "    if pdf_text_index_of_byte(line, 93, 0) is Some(_) {",
+        "      pdf_text_push_cmap_integer_array_entries(entries, Bytes::from_array(pending))",
+        "      pending.clear()",
+        "    } else if pdf_text_line_contains_ascii(line, \"endbfrange\") {",
+        "      pending.clear()",
+        "    } else {",
+        "      pending.push(b' ')",
+        "    }",
+        "  }"
+      ]
+    ],
+    [
+      113,
+      0,
+      [
+        "    (\"beginbfrange\", \"endbfrange\", push_integer_array),"
+      ]
+    ],
+    [
+      175,
+      0,
+      [
+        "///|",
+        "fn pdf_text_push_cmap_integer_array_entries(",
+        "  entries : Array[(Int, Int)],",
+        "  line : BytesView,",
+        ") -> Unit {",
+        "  for index = 0; index < line.length(); {",
+        "    guard pdf_text_parse_cmap_hex_group_at(line, index) is Some((source, a)) &&",
+        "      pdf_text_parse_cmap_hex_group_at(line, a) is Some((stop, b)) else { break }",
+        "    let start = pdf_text_skip_cmap_whitespace(line, b)",
+        "    if start >= line.length() || line[start] != b'[' {",
+        "      if pdf_text_cmap_byte_destination_at(line, start) is Some((_, after)) {",
+        "        continue after",
+        "      }",
+        "      break",
+        "    }",
+        "    guard pdf_text_index_of_byte(line, 93, start + 1) is Some(close) else { break }",
+        "    if pdf_text_parse_cmap_ascii_int_at(line, start + 1) is None {",
+        "      continue close + 1",
+        "    }",
+        "    guard pdf_text_bytes_to_int(source) is Some(first) &&",
+        "      pdf_text_bytes_to_int(stop) is Some(last) &&",
+        "      first <= last && @core.sdk_cmap_range(first, last) else { return }",
+        "    let values : Array[Int] = []",
+        "    let mut cursor = start + 1",
+        "    let mut valid = true",
+        "    while pdf_text_skip_cmap_whitespace(line, cursor) < close {",
+        "      guard pdf_text_parse_cmap_ascii_int_at(line, cursor) is Some((value, after)) &&",
+        "        value >= 0 && values.length() <= last - first && after <= close else {",
+        "        valid = false",
+        "        break",
+        "      }",
+        "      values.push(value)",
+        "      cursor = after",
+        "    }",
+        "    if valid && values.length() == last - first + 1 {",
+        "      for offset, value in values { entries.push((first + offset, value)) }",
+        "    }",
+        "    continue close + 1",
+        "  }",
+        "}",
+        ""
+      ]
+    ]
+  ]
+}

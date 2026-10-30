@@ -8,6 +8,18 @@ fn stream_bytes(
     @failure.reject("invalid-pdf", "PDF content requires a stream")
   }
   let filter = get(document, source, "Filter")
+  let hex = is_name(filter, "ASCIIHexDecode") ||
+    is_name(filter, "AHx") ||
+    (
+      filter is PdfArray([PdfNameObject(name)]) &&
+      (name == pdf_name("ASCIIHexDecode") || name == pdf_name("AHx"))
+    )
+  if hex {
+    guard get(document, source, "DecodeParms") == @syntax.PdfNull else {
+      @failure.reject("unsupported-pdf", "ASCIIHex DecodeParms are unsupported")
+    }
+    return ascii_hex_stream(source.deep_copy().stream_bytes())
+  }
   guard filter == @syntax.PdfNull ||
     is_name(filter, "FlateDecode") ||
     is_name(filter, "Fl") ||
@@ -54,6 +66,41 @@ fn stream_bytes(
   } else {
     document.pdf_decode_stream(copied).stream_bytes()
   }
+}
+
+///|
+fn ascii_hex_stream(source : Bytes) -> Bytes raise {
+  let output : Array[Byte] = []
+  let mut high = -1
+  for byte in source {
+    @pdfcore.sdk_check(1)
+    let value = byte.to_int()
+    if [0, 9, 10, 12, 13, 32].contains(value) {
+      continue
+    }
+    if value == 62 {
+      if high >= 0 {
+        @pdfcore.sdk_decoded(1)
+        output.push((high * 16).to_byte())
+      }
+      return Bytes::from_array(output)
+    }
+    let digit = if value >= 48 && value <= 57 {
+      value - 48
+    } else if (value | 32) >= 97 && (value | 32) <= 102 {
+      (value | 32) - 87
+    } else {
+      @failure.reject("invalid-pdf", "Invalid ASCIIHex stream digit")
+    }
+    if high < 0 {
+      high = digit
+    } else {
+      @pdfcore.sdk_decoded(1)
+      output.push((high * 16 + digit).to_byte())
+      high = -1
+    }
+  }
+  @failure.reject("invalid-pdf", "ASCIIHex stream is missing its end marker")
 }
 
 ///|

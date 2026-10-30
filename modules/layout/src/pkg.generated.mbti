@@ -255,8 +255,10 @@ pub struct DrawingTextBox {
   wrap : Bool
   clip : Bool
   lines : Array[Line]
+  bottomBorders : Map[Int32, (Double, BorderStyle)]
+  borders : Array[TableStroke]
 }
-pub fn DrawingTextBox::new(Array[Paragraph], Array[Double], String, Bool, Bool) -> Self
+pub fn DrawingTextBox::new(Array[Paragraph], Array[Double], String, Bool, Bool, bottomBorders? : Map[Int32, (Double, BorderStyle)]) -> Self
 pub fn DrawingTextBox::paragraphs(Self) -> Array[Paragraph]
 pub fn DrawingTextBox::properties(Self) -> DrawingTextBoxProperties
 pub fn DrawingTextBox::to_json(Self) -> Json
@@ -516,6 +518,15 @@ pub fn Matrix::to_json(Self) -> Json
 
 type MeasuredLine
 
+type MeasuredShape
+
+pub(all) struct NestedTable {
+  row : Int32
+  column : Int32
+  table : Table
+} derive(ToJson)
+pub fn NestedTable::to_json(Self) -> Json
+
 pub(all) struct Note {
   kind : String
   key : String
@@ -625,6 +636,7 @@ pub(all) struct Paragraph {
   id : Int32
   container : Int32
   nominalSize : Double
+  frame : ParagraphFrame?
   spans : Array[Span]
   defaultTab : Double
   tabs : Array[TabStop]
@@ -646,6 +658,22 @@ pub(all) struct Paragraph {
   readOnlyReason : String
 } derive(ToJson)
 pub fn Paragraph::to_json(Self) -> Json
+
+pub(all) struct ParagraphFrame {
+  width : Double
+  height : Double
+  heightRule : String
+  horizontalAnchor : String
+  verticalAnchor : String
+  x : Double?
+  y : Double?
+  horizontalAlign : String
+  verticalAlign : String
+  horizontalSpace : Double
+  verticalSpace : Double
+  borders : Map[String, (Double, BorderStyle)]
+} derive(ToJson)
+pub fn ParagraphFrame::to_json(Self) -> Json
 
 pub(all) struct ParagraphMarker {
   text : String
@@ -882,6 +910,8 @@ pub(all) struct Table {
   headerRows : Int32
   beforeParagraph : Int32
   rows : Array[Array[Array[Paragraph]]]
+  nestedTables : Array[NestedTable]
+  legacyCellAlignment : Bool
   columnSpans : Array[Array[Int32]]
   rowSpans : Array[Array[Int32]]
   widths : Array[Double]
@@ -897,6 +927,8 @@ pub(all) struct Table {
 pub fn Table::border_width(Self, Int32) -> Double
 pub fn Table::cell_insets(Self, Int32, Int32) -> CellMargins
 pub fn Table::fit_widths(Self, TextProbe, Map[String, String], Double) -> Self raise @failure.Failure
+pub fn Table::map_paragraphs(Self, (Paragraph) -> Paragraph raise @failure.Failure) -> Self raise @failure.Failure
+pub fn Table::paragraphs(Self) -> Array[Paragraph]
 pub fn Table::row_minimum_height(Self, Int32) -> Double
 pub fn Table::to_json(Self) -> Json
 
@@ -938,6 +970,7 @@ pub struct TextProbe {
   mut paragraphs : Map[String, Array[MeasuredLine]]
   mut text_units : Int32
   mut pagination : PaginationCache?
+  mut measured_shape : MeasuredShape?
 }
 pub fn TextProbe::add_font(Self, Bytes, String) -> Int32 raise @failure.Failure
 pub fn TextProbe::add_source_font(Self, Bytes, String) -> Int32 raise @failure.Failure
@@ -951,7 +984,7 @@ pub fn TextProbe::glyph_width(Self, Int32, UInt32) -> Double raise @failure.Fail
 pub fn TextProbe::new() -> Self
 pub fn TextProbe::outline_resources(Self) -> Array[Outline] raise @failure.Failure
 pub fn TextProbe::paragraph_lines(Self, Paragraph, Map[String, String], Double, Bool, baseLevel? : Int32) -> Array[Line] raise @failure.Failure
-pub fn TextProbe::shape(Self, String, Double, String, primary? : Int32, base? : Int32) -> ShapeBatch raise @failure.Failure
+pub fn TextProbe::shape(Self, String, Double, String, primary? : Int32, base? : Int32, kerning? : String) -> ShapeBatch raise @failure.Failure
 pub fn TextProbe::source_glyph(Self, Int32, Int32, String, Int32, Bool) -> (String, Int32, UInt32) raise @failure.Failure
 pub fn TextProbe::source_glyph_bounds(Self, Int32, UInt32) -> Array[Double] raise @failure.Failure
 pub fn TextProbe::source_glyph_contours(Self, Int32, UInt32) -> Array[Array[(Double, Double, Bool)]] raise @failure.Failure
@@ -977,6 +1010,8 @@ pub(all) struct TextStyle {
   highlight : String
   script : String
   spacing : Double
+  kerning : String
+  fontLeading : Bool
 } derive(ToJson)
 pub fn TextStyle::new(String, Double, String) -> Self
 pub fn TextStyle::to_json(Self) -> Json

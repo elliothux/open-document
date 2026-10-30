@@ -8,6 +8,7 @@ fn Table::measure_rows(
   last_row : Int32,
   profile : Map[String, String],
   additive : Bool,
+  decorations~ : Map[(Int32, Int32), PageFrame] = Map([]),
 ) -> (Array[Double], Array[(Int32, Int32, Array[(Line, Double, Line)], Double)]) raise @failure.Failure {
   let heights = Array::makei(last_row - first_row + 1, i => {
     self.row_minimum_height(first_row + i)
@@ -24,7 +25,42 @@ fn Table::measure_rows(
       let mut after = 0.0
       let mut gap = 0.0
       let mut terminal_gap = 0.0
-      for paragraph_index, paragraph in paragraphs {
+      let children = self.nestedTables.filter(child => {
+        child.row == row && child.column == column
+      })
+      let decoration = table_decoration(page.width, page.height)
+      for paragraph_index in 0..<=paragraphs.length() {
+        for child in children {
+          if child.table.beforeParagraph != paragraph_index {
+            continue
+          }
+          y += after + gap
+          after = 0
+          gap = 0
+          terminal_gap = 0
+          let width = self.cell_width(row, column) -
+            margins.left -
+            margins.right
+          let (nested_lines, nested_height, nested_decoration) = child.table.measure_nested(
+            cache,
+            probe,
+            { ..page, width, left: 0, right: 0, },
+            profile,
+            additive,
+          )
+          guard nested_lines.length() <= 32768 - lines.length() else {
+            @failure.reject(
+              "limit-exceeded", "Nested table line budget exceeded",
+            )
+          }
+          lines.append(nested_lines.map(item => (item.0, item.1 + y, item.2)))
+          decoration.append_decoration(nested_decoration, 0, y)
+          y += nested_height
+        }
+        if paragraph_index == paragraphs.length() {
+          break
+        }
+        let paragraph = paragraphs[paragraph_index]
         paragraph.validate_spacing(page.height)
         guard !paragraph.pageBreakBefore ||
           (row == 0 && column == 0 && paragraph_index == 0) else {
@@ -60,6 +96,9 @@ fn Table::measure_rows(
         }
         after = paragraph.after
         terminal_gap = paragraph.line.terminal_gap(paragraph.nominalSize)
+      }
+      if !children.is_empty() {
+        decorations[(row, column)] = decoration
       }
       let height = y + after + terminal_gap + margins.bottom
       if self.rowSpans[row][column] == 1 && !self.exactHeights[row] {

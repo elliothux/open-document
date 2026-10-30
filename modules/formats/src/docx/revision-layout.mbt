@@ -34,7 +34,7 @@ pub fn Session::revision_rects(
   let target = tree.nodes[target]
   let flow = self.flow()
   let paragraphs = flow.paragraphs +
-    flow.tables.map(table => table.rows.flatten().flatten()).flatten()
+    flow.tables.map(table => table.paragraphs()).flatten()
   guard paragraphs.iter().find_first(p => p.id == paragraph) is Some(p) else {
     @failure.reject(
       "protected-content", "Revision paragraph has no layout content",

@@ -13,26 +13,28 @@ fn WordTree::diagnose_properties(
       [
         "pStyle", "rPr", "spacing", "ind", "jc", "pageBreakBefore", "autoSpaceDE",
         "autoSpaceDN", "tabs", "bidi", "numPr", "outlineLvl", "keepLines", "keepNext",
-        "widowControl", "contextualSpacing", "sectPr",
+        "widowControl", "contextualSpacing", "sectPr", "pBdr", "suppressAutoHyphens",
+        "framePr",
       ]
     "rPr" =>
       [
         "rStyle", "rFonts", "sz", "color", "b", "i", "lang", "bCs", "iCs", "szCs",
-        "u", "strike", "highlight", "vertAlign", "cs", "rtl", "spacing",
+        "u", "strike", "highlight", "vertAlign", "cs", "rtl", "spacing", "kern",
       ]
     "sectPr" =>
       [
         "pgSz", "pgMar", "pgBorders", "headerReference", "footerReference", "titlePg",
-        "cols", "docGrid", "pgNumType", "footnotePr", "endnotePr", "type",
+        "cols", "docGrid", "pgNumType", "footnotePr", "endnotePr", "type", "formProt",
+        "textDirection",
       ]
     "tcPr" =>
       ["tcW", "shd", "gridSpan", "vMerge", "vAlign", "tcMar", "tcBorders"]
     "tblPr" =>
       [
         "tblStyle", "tblW", "jc", "tblBorders", "tblCellMar", "tblLook", "tblInd",
-        "tblLayout",
+        "tblLayout", "shd",
       ]
-    "trPr" => ["gridAfter", "trHeight", "tblHeader", "cantSplit"]
+    "trPr" => ["gridAfter", "trHeight", "tblHeader", "cantSplit", "jc"]
     _ => return
   }
   fn report(
@@ -149,7 +151,25 @@ fn WordTree::diagnose_properties(
       | "keepLines"
       | "keepNext"
       | "widowControl"
-      | "contextualSpacing" => self.valid_on_off_property(child)
+      | "contextualSpacing"
+      | "suppressAutoHyphens"
+      | "formProt" => self.valid_on_off_property(child)
+      "textDirection" =>
+        self.children[child].is_empty() &&
+        feature.text.trim().is_empty() &&
+        feature.attributes.all(a => a.uri == word_uri && a.name == "val") &&
+        feature.attribute("val", uri=word_uri) == Some("lrTb")
+      "framePr" =>
+        try (self.paragraph_frame(self.nodes[id].parent) is Some(_)) catch {
+          @failure.Failure(..) => false
+        }
+      "pBdr" =>
+        try
+          self.text_box_bottom_border(child) is Some(_) ||
+          self.paragraph_frame(self.nodes[id].parent) is Some(_)
+        catch {
+          @failure.Failure(..) => false
+        }
       "numPr" => self.valid_numbering_properties(child)
       "outlineLvl" =>
         try {

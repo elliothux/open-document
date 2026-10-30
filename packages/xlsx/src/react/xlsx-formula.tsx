@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type { SpreadsheetEditor } from "../web/spreadsheet-editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { NativeSlot } from "@open-document/ui/controls";
@@ -52,25 +52,56 @@ export function XlsxFormula({
     field = useRef<HTMLInputElement>(null),
     selection = editor.currentState.selection,
     calculationReason = editor.currentState.cells[0]?.calculationReason;
+  const documentId = state.document?.documentId;
+  const [draft, setDraft] = useState<{
+    documentId: typeof documentId;
+    value: string;
+  }>();
+  const snapshot = editor.getSnapshot();
+  // A protected cell still permits navigation to another cell.
+  const navigationDisabled =
+    state.loading ||
+    snapshot.paused ||
+    snapshot.closed ||
+    snapshot.composition ||
+    snapshot.dragging ||
+    !!snapshot.busy ||
+    snapshot.stopped;
   return (
     <div className="od-formula">
       <form
         onSubmit={(event) => {
           event.preventDefault();
           const range = field.current?.value.trim() ?? "";
-          controller.run(() => editor.select(range));
+          const submitted = draft;
+          controller.run(async () => {
+            await editor.select(range);
+            setDraft((current) =>
+              current === submitted ? undefined : current,
+            );
+          });
         }}
       >
         <input
-          key={`${selection.sheet}:${selection.address}`}
+          key={documentId}
           ref={field}
           aria-label={t.cellRange}
-          defaultValue={selection.address}
+          value={
+            draft && draft.documentId === documentId
+              ? draft.value
+              : selection.address
+          }
+          onChange={(event) =>
+            setDraft({ documentId, value: event.currentTarget.value })
+          }
+          onFocus={(event) =>
+            setDraft({ documentId, value: event.currentTarget.value })
+          }
           maxLength={32}
           required
-          disabled={disabled}
+          disabled={navigationDisabled}
         />
-        <button type="submit" disabled={disabled}>
+        <button type="submit" disabled={navigationDisabled}>
           {t.goToRange}
         </button>
       </form>

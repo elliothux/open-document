@@ -189,6 +189,7 @@ fn column_body(
       .map(state => !wrapping_rects([state.frame], 1).is_empty())
       .unwrap_or(false) ||
       flow.paragraphs.any(p => {
+        p.frame is Some(_) ||
         p.spans.any(span => {
           span.drawing
           .bind(image => image.anchor)
@@ -252,7 +253,8 @@ fn column_body(
         endnotes~,
         flushFootnotes~,
       )
-      let current = wrapping_rects(pagination.pages, columns.count)
+      let current = wrapping_rects(pagination.pages, columns.count) +
+        pagination.wrapping.filter(rect => rect.start == -1)
       if !wraps || Json(current) == Json(wrapping) {
         return (pagination, notes, reflowed, reused, next)
       }

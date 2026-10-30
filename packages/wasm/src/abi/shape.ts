@@ -51,6 +51,8 @@ export interface TextStyle {
   highlight: string;
   script: "baseline" | "superscript" | "subscript";
   spacing: number;
+  kerning: "all" | "words" | "none";
+  fontLeading: boolean;
 }
 
 export function shapeBatch(value: unknown): ShapeBatch {

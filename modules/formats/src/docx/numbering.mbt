@@ -360,6 +360,8 @@ fn Session::apply_numbering(
           highlight: highlight_color(character.highlight),
           script: character.vertAlign,
           spacing: character.spacing,
+          kerning: character.kerning_mode(),
+          fontLeading: true,
         },
       }),
     }

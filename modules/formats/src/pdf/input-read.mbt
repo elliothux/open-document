@@ -81,10 +81,10 @@ fn rectangle(
     @failure.reject("invalid-pdf", "PDF rectangle is required")
   }
   let (x, y, r, t) = (number(a), number(b), number(c), number(d))
-  guard r > x && t > y else {
+  guard r != x && t != y else {
     @failure.reject("invalid-pdf", "PDF rectangle is empty")
   }
-  (x, y, r, t)
+  (x.min(r), y.min(t), x.max(r), y.max(t))
 }
 
 ///|

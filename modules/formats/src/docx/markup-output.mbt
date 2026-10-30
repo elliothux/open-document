@@ -475,6 +475,7 @@ pub fn Session::export_markup(
   let tree = WordTree::new(self.document())
   let flow = self.flow()
   guard flow.diagnostics.is_empty() &&
+    flow.tables.all(table => table.nestedTables.is_empty()) &&
     flow.sectionBreaks.all(section => {
       section.headers.is_empty() && section.footers.is_empty()
     }) &&
@@ -484,7 +485,7 @@ pub fn Session::export_markup(
       tree.is_comment_marker(id) || revision_element(tree.nodes[id].name)
     }) else {
     @failure.reject(
-      "unsupported-output", "Markup export requires supported body content without running areas or review identities",
+      "unsupported-output", "Markup export requires supported body content without nested tables, running areas or review identities",
     )
   }
   let styles = self.styles([])

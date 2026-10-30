@@ -1,5 +1,6 @@
 import {
   createGridElements,
+  gridScrollChanged,
   observeGridViewport,
   prepareGridViewport,
   updateGridScroll,
@@ -458,20 +459,30 @@ export class SpreadsheetEditor extends SpreadsheetData {
         this.listeners.signal,
       );
       const slicerHover = this.pointer.slicerHover;
+      const viewport = prepareGridViewport(
+        this.viewport,
+        this.state.view.rtl,
+        this.layout?.scrollX ?? 0,
+        this.scale,
+      );
       const layout = await this.client.viewport({
-        ...prepareGridViewport(
-          this.viewport,
-          this.state.view.rtl,
-          this.layout?.scrollX ?? 0,
-          this.scale,
-        ),
+        ...viewport,
         sheet: this.state.sheet,
         profile: this.profile,
         reveal,
         ...(slicerHover ? { slicerHover } : {}),
       });
       // Queued commands must reveal their selection despite intervening scroll events.
-      if (this.closed || (!force && generation !== this.generation)) return;
+      if (this.closed) return;
+      // The DOM may have scrolled before its scroll event reaches requestRender.
+      if (
+        !force &&
+        (generation !== this.generation ||
+          gridScrollChanged(this.viewport, viewport, this.scale))
+      ) {
+        this.requestRender();
+        return;
+      }
       this.layout = layout;
       this.scale = this.surface.draw(layout, 0, this.zoomValue);
       if (paintOnly) return;

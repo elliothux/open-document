@@ -107,3 +107,16 @@ fn Range::name(self : Range) -> String raise @failure.Failure {
     first.name() + ":" + last.name()
   }
 }
+
+///|
+// Native table/filter refs may contain absolute A1 markers. Keep the public
+// address syntax strict and retain the original XML spelling when unedited.
+fn native_range(text : String) -> Range raise @failure.Failure {
+  let parts = text.split(":").collect()
+  guard parts.length() >= 1 && parts.length() <= 2 else {
+    @failure.reject("invalid-address", "Expected one rectangular range")
+  }
+  Range::parse(
+    parts.map(part => formula_address(part.to_owned()).address.name()).join(":"),
+  )
+}

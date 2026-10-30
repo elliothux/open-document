@@ -20,6 +20,7 @@
     "sdk-document.mbt.json",
     "pdf_text_cid_font_read.mbt.json",
     "pdf_content_text_width.mbt.json",
-    "pdf_codec_predictor_tiff.mbt.json"
+    "pdf_codec_predictor_tiff.mbt.json",
+    "pdf_text_cmap_sections.mbt.json"
   ]
 }

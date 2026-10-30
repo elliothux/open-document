@@ -26,6 +26,7 @@ fn LineGroup::measure_field(
     geometry~,
     caret_units=120,
     tracking=self.style.spacing,
+    kerning=self.style.kerning,
   )
   guard batch.diagnostics.is_empty() else {
     @failure.reject("missing-glyph", "Page field requires every result glyph")

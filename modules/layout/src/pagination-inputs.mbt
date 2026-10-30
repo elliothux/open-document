@@ -1,6 +1,7 @@
 ///|
 priv enum BodyBlock {
   BodyParagraph(Paragraph)
+  FramedBlocks(ParagraphFrame, Array[BodyBlock])
   KeptParagraphs(Array[Paragraph], Table?)
   TableStart(Table)
   TableRows(Table, Int32, Int32)
@@ -34,11 +35,15 @@ fn Flow::body_blocks(self : Flow) -> Array[BodyBlock] raise @failure.Failure {
       table += 1
     }
   }
-  keep_next_blocks(blocks)
+  keep_next_blocks(framed_blocks(blocks))
 }
 
 ///|
 fn Table::finite_geometry(self : Table) -> Bool {
+  self.nestedTables.all(child => {
+    child.table.finite_geometry() &&
+    child.table.paragraphs().all(p => p.finite_geometry())
+  }) &&
   !self.widths.any(value => value.is_nan() || value.is_inf()) &&
   !self.preferredWidth.value.is_nan() &&
   !self.preferredWidth.value.is_inf() &&
@@ -50,6 +55,7 @@ fn Table::finite_geometry(self : Table) -> Bool {
 ///|
 fn BodyBlock::key(self : BodyBlock) -> String? {
   let value : Json = match self {
+    FramedBlocks(_, _) => return None
     KeptParagraphs(paragraphs, table) => {
       guard paragraphs.all(p => p.finite_geometry()) else { return None }
       let following = if table is Some(table) {
@@ -80,6 +86,7 @@ fn BodyBlock::key(self : BodyBlock) -> String? {
         }
         if !table.autoFit {
           fields.remove("rows")
+          fields.remove("nestedTables")
         }
       }
       Json::array([Json("table-start"), value])
@@ -97,6 +104,12 @@ fn BodyBlock::key(self : BodyBlock) -> String? {
       Json::array([
         Json("table-row"),
         Json(table.id),
+        Json(
+          table.nestedTables.filter(child => {
+            (child.row >= row && child.row <= end) ||
+            child.row < table.headerRows
+          }),
+        ),
         Json(table.widths),
         Json(table.align),
         Json(table.borders),
@@ -144,6 +157,10 @@ fn BodyBlock::place(
   additive : Bool,
 ) -> Unit raise @failure.Failure {
   match self {
+    FramedBlocks(frame, blocks) =>
+      pagination.paragraph_frame(
+        frame, blocks, cache, probe, profile, images, additive,
+      )
     KeptParagraphs(paragraphs, table) =>
       pagination.kept_paragraphs(
         cache, probe, paragraphs, table, profile, images, additive,

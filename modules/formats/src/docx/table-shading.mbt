@@ -21,7 +21,7 @@ fn WordTree::table_shading(
     node.attributes.all(a => {
       a.uri == word_uri && table_shading_attributes.contains(a.name)
     }) &&
-    ["clear", "nil"].contains(
+    ["clear", "nil", "pct25"].contains(
       node.attribute("val", uri=word_uri).unwrap_or("clear"),
     ) else {
     @failure.reject("unsupported-layout", "Unsupported table shading")
@@ -41,6 +41,34 @@ fn WordTree::table_shading(
       ignore(theme_color_reference(node, fill=true))
       fallback
     }
+  }
+  let color = if node.attribute("val", uri=word_uri) == Some("pct25") {
+    let foreground = match themes {
+      Some(values) =>
+        theme_node_color(
+          node,
+          node.attribute("color", uri=word_uri).unwrap_or("auto"),
+          values,
+        )
+      None => node.attribute("color", uri=word_uri).unwrap_or("auto")
+    }
+    let foreground = if foreground == "auto" { "000000" } else { foreground }
+    let background = if color == "auto" { "ffffff" } else { color }
+    let output = StringBuilder()
+    for offset in [0, 2, 4] {
+      let a = @string.parse_int(foreground[offset:offset + 2], base=16) catch {
+        _ => @failure.reject("invalid-table", "Invalid shading foreground")
+      }
+      let b = @string.parse_int(background[offset:offset + 2], base=16) catch {
+        _ => @failure.reject("invalid-table", "Invalid shading background")
+      }
+      output.write_string(
+        ((a + b * 3) / 4).to_string(radix=16).pad_start(2, '0'),
+      )
+    }
+    output.to_string()
+  } else {
+    color
   }
   Some(
     if color == "auto" || node.attribute("val", uri=word_uri) == Some("nil") {

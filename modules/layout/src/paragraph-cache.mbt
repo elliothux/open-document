@@ -56,7 +56,8 @@ fn paragraph_cache_units(key : String, lines : Array[Line]) -> Int32 {
             shape.preset.length() +
             shape.fill.length() +
             shape.stroke.length() +
-            paragraph_cache_units("", text.lines)
+            paragraph_cache_units("", text.lines) +
+            text.borders.length() * 7
         })
     }
     for run in line.paint_runs() {

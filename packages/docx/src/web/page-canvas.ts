@@ -1,5 +1,5 @@
 import type { FoundationClient } from "./foundation.js";
-import type { PageLayout } from "../core/preview.js";
+import type { DocxFlow, PageLayout } from "../core/preview.js";
 import { CanvasSurface } from "@open-document/web-core/canvas-surface";
 import { decodeImage } from "@open-document/web-core/image";
 import type { DocxSelectionGeometry, DocxHit } from "../core/foundation.js";
@@ -37,6 +37,12 @@ export class PageCanvas extends CanvasSurface {
   private async prepare(signal?: AbortSignal): Promise<void> {
     signal?.throwIfAborted();
     const flow = await this.client.flow();
+    const tableParagraphs = (
+      table: DocxFlow["tables"][number],
+    ): DocxFlow["paragraphs"] => [
+      ...table.rows.flat(2),
+      ...table.nestedTables.flatMap((child) => tableParagraphs(child.table)),
+    ];
     const paragraphs = [
       ...flow.paragraphs,
       ...Object.values(flow.headers).flat(),
@@ -46,7 +52,7 @@ export class PageCanvas extends CanvasSurface {
         ...Object.values(section.footers).flat(),
       ]),
       ...flow.notes.flatMap((note) => note.content),
-      ...flow.tables.flatMap((table) => table.rows.flat(2)),
+      ...flow.tables.flatMap(tableParagraphs),
     ];
     const keys = new Set(
       paragraphs.flatMap((paragraph) =>

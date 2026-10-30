@@ -1,4 +1,25 @@
 ///|
+fn presentation_line_height(
+  line : @layout.Line,
+  nominal_size : Double,
+  spacing : @layout.LineSpacing,
+) -> Double {
+  match spacing {
+    Auto(_) => {
+      let mut size = 0.0
+      for run in line.runs {
+        size = size.max(run.nominalSize)
+      }
+      for run in line.marker {
+        size = size.max(run.nominalSize)
+      }
+      line.height.max((if size > 0 { size } else { nominal_size }) * 1.2)
+    }
+    _ => line.height
+  }
+}
+
+///|
 fn measure_text(
   object : Object,
   geometry : Geometry,
@@ -37,13 +58,24 @@ fn measure_text(
     let spacing : @layout.LineSpacing = match paragraph.spacing {
       Exact(value) => Exact(value * scale)
       AtLeast(value) => AtLeast(value * scale)
-      Auto(value) => Auto(value)
+      // ONLYOFFICE applies the reduction before merging explicit paragraph spacing.
+      Auto(value) => {
+        let explicit = paragraph.source.child("pPr").bind(p => p.child("lnSpc"))
+          is Some(_)
+        Auto(
+          (value -
+          (if explicit { 0.0 } else { object.body.lineSpaceReduction * 240 })).max(
+            0,
+          ),
+        )
+      }
     }
     let flow : @layout.Paragraph = {
       id: index,
       container: 0,
       spans,
       nominalSize: spans[0].style.size,
+      frame: None,
       defaultTab: paragraph.default_tab,
       tabs: paragraph.tabs.map(t => {
         position: t.position,
@@ -95,35 +127,64 @@ fn measure_text(
       object.body.wrap,
       baseLevel=if paragraph.rtl { 1 } else { 0 },
     )
-    top += paragraph.before.points(measured[0].height)
+    if index > 0 || object.body.firstLastSpacing {
+      top += paragraph.before.points(
+        presentation_line_height(measured[0], flow.nominalSize, spacing),
+      )
+    }
     for line in measured {
+      let mut visible_end = line.text.length()
+      while visible_end > 0 &&
+            [9, 32].contains(line.text[visible_end - 1].to_int()) {
+        visible_end -= 1
+      }
+      let trailing = if visible_end < line.text.length() {
+        line.carets
+        .iter()
+        .find_first(c => c.offset == line.start + visible_end)
+        .map(c => if paragraph.rtl { c.before } else { line.width - c.before })
+        .unwrap_or(0)
+      } else {
+        0.0
+      }
+      let alignment = trailing *
+        (match paragraph.align {
+          "center" => 0.5
+          "right" => 1.0
+          _ => 0.0
+        }) *
+        (if paragraph.rtl { -1.0 } else { 1.0 })
+      let left = line.x + object.body.left + alignment
+      // Presentation single spacing reserves at least 120% of the nominal size.
+      // Preserve the font's ascent/descent proportions when adding that leading.
+      let height = presentation_line_height(line, flow.nominalSize, spacing)
       let advance = match spacing {
-        Auto(value) => line.height * value / 240
+        Auto(value) => height * value / 240
         _ => line.height
       }
       lines.push({
         ..line,
         start: line.start + offset,
         end: line.end + offset,
-        x: line.x + object.body.left,
+        x: left,
         y: top,
         height: advance,
         areaX: object.body.left,
         areaWidth: width,
         runs: line.runs.map(run => {
           ..run,
-          x: run.x + line.x + object.body.left,
-          baseline: run.baseline + top,
+          x: run.x + left,
+          baseline: run.baseline * height / line.height + top,
         }),
         marker: line.marker.map(run => {
           ..run,
-          x: run.x + line.x + object.body.left,
-          baseline: run.baseline + top,
+          x: run.x + left,
+          baseline: run.baseline * height / line.height + top,
         }),
         drawings: line.drawings.map(drawing => {
           ..drawing,
           start: drawing.start + offset,
-          x: drawing.x + line.x + object.body.left,
+          x: drawing.x + left,
           y: drawing.y + top,
         }),
         carets: line.carets.map(caret => {
@@ -133,7 +194,15 @@ fn measure_text(
       })
       top += advance
     }
-    top += paragraph.after.points(measured.last().unwrap().height)
+    if index + 1 < object.paragraphs.length() || object.body.firstLastSpacing {
+      top += paragraph.after.points(
+        presentation_line_height(
+          measured.last().unwrap(),
+          flow.nominalSize,
+          spacing,
+        ),
+      )
+    }
     offset += paragraph.runs
       .iter()
       .fold(init=0, (sum, run) => sum + run.text.length()) +
@@ -148,13 +217,25 @@ fn fit_text(
   geometry : Geometry,
   probe : @layout.TextProbe,
   profile : Map[String, String],
+  recalculate~ : Bool = false,
 ) -> (Array[@layout.Line], Double, String, @layout.Matrix) raise @failure.Failure {
   if object.paragraphs.is_empty() {
     return ([], 1, "", @layout.Matrix::identity())
   }
   let (body, geometry, direction) = object.text_plane(geometry)
-  let object = { ..object, body, }
-  let mut scale = 1.0
+  let object = {
+    ..object,
+    body: if recalculate {
+      { ..body, fontScale: None, lineSpaceReduction: 0, }
+    } else {
+      body
+    },
+  }
+  let mut scale = if object.body.fit == "shrink" {
+    object.body.fontScale.unwrap_or(1)
+  } else {
+    1.0
+  }
   let mut measured = measure_text(object, geometry, probe, profile, scale) catch {
     @failure.Failure(code="layout-overflow", ..) if object.body.fit == "shrink" =>
       ([], geometry.height + 1)
@@ -172,24 +253,35 @@ fn fit_text(
     result.1 <= geometry.height &&
     result.0.all(line => line.width <= line.areaWidth + 0.01)
   }
-  if object.body.fit == "shrink" && !fits(measured) {
-    let mut low = 0.1
-    let mut high = 1.0
-    for _ in 0..<10 {
-      let trial = (low + high) / 2
-      let result = measure_text(object, geometry, probe, profile, trial) catch {
+  if object.body.fit == "shrink" &&
+    object.body.fontScale is None &&
+    !fits(measured) {
+    // ONLYOFFICE Shape.checkExtentsByDocContent tries five-percent font steps
+    // and reduces inherited line spacing by one fifth of the font reduction.
+    let minimum = if placeholder(object.source)
+      .map(value => ["title", "ctrTitle"].contains(value.0))
+      .unwrap_or(false) {
+      90
+    } else {
+      25
+    }
+    for percent = 95; percent >= minimum; percent = percent - 5 {
+      let trial = percent.to_double() / 100
+      let candidate = {
+        ..object,
+        body: { ..object.body, lineSpaceReduction: 0.2 * (1 - trial), },
+      }
+      let result = measure_text(candidate, geometry, probe, profile, trial) catch {
         @failure.Failure(code="layout-overflow", ..) =>
           ([], geometry.height + 1)
         error => raise error
       }
-      if fits(result) {
-        low = trial
-      } else {
-        high = trial
+      scale = trial
+      measured = result
+      if fits(measured) {
+        break
       }
     }
-    scale = low
-    measured = measure_text(object, geometry, probe, profile, scale)
   }
   // An empty unbulleted paragraph reserves a caret without visible document text.
   let blank = object.paragraphs.length() == 1 &&
@@ -201,7 +293,7 @@ fn fit_text(
   } else {
     ""
   }
-  let free = (geometry.height - measured.1).max(0)
+  let free = geometry.height - measured.1
   let dy = match object.body.anchor {
     "ctr" => free / 2
     "b" => free
@@ -230,6 +322,7 @@ fn paint_slide(
   profile : Map[String, String],
   tile_sizes : Map[String, (Int32, Int32)],
   parts~ : Array[(String, Array[@layout.PositionedPrimitive])]? = None,
+  text_fit_diagnostics~ : Bool = true,
 ) -> (@layout.PositionedPage, Array[TextGeometry], Array[String]) raise @failure.Failure {
   let primitives : Array[@layout.PositionedPrimitive] = []
   if slide.background is Linear(stops, _, _) &&
@@ -419,7 +512,7 @@ fn paint_slide(
           ([], 1.0, message, @layout.Matrix::identity())
         error => raise error
       }
-      if !diagnostic.is_empty() {
+      if !diagnostic.is_empty() && (text_fit_diagnostics || lines.is_empty()) {
         diagnostics.push(object.id + ":" + diagnostic)
         if lines.is_empty() {
           primitives.push(
@@ -440,9 +533,61 @@ fn paint_slide(
       })
       if !lines.is_empty() {
         let (clip_matrix, clip) = object.text_clip(geometry)
-        primitives.push(Transform(clip_matrix))
-        primitives.push(Clip(clip))
-        primitives.push(Transform(clip_matrix.inverse().then(rotation)))
+        let clipped = object.body.clipHorizontal || object.body.clipVertical
+        if clipped {
+          let inverse = geometry.matrix.then(clip_matrix).inverse()
+          let corners = [
+            (0.0, 0.0),
+            (width, 0.0),
+            (0.0, height),
+            (width, height),
+          ].map(p => inverse.point(p.0, p.1))
+          let left = corners
+            .iter()
+            .map(p => p.0)
+            .fold(init=corners[0].0, (a, b) => a.min(b))
+          let top = corners
+            .iter()
+            .map(p => p.1)
+            .fold(init=corners[0].1, (a, b) => a.min(b))
+          let right = corners
+            .iter()
+            .map(p => p.0)
+            .fold(init=corners[0].0, (a, b) => a.max(b))
+          let bottom = corners
+            .iter()
+            .map(p => p.1)
+            .fold(init=corners[0].1, (a, b) => a.max(b))
+          primitives.push(Transform(clip_matrix))
+          // An unclipped axis spans the whole slide, including transformed groups.
+          primitives.push(
+            Clip({
+              x: if object.body.clipHorizontal {
+                clip.x
+              } else {
+                left
+              },
+              y: if object.body.clipVertical {
+                clip.y
+              } else {
+                top
+              },
+              width: if object.body.clipHorizontal {
+                clip.width
+              } else {
+                right - left
+              },
+              height: if object.body.clipVertical {
+                clip.height
+              } else {
+                bottom - top
+              },
+            }),
+          )
+          primitives.push(Transform(clip_matrix.inverse().then(rotation)))
+        } else {
+          primitives.push(Transform(rotation))
+        }
         for line in lines {
           if object.body.columns > 1 {
             primitives.push(
@@ -454,7 +599,7 @@ fn paint_slide(
               }),
             )
           }
-          // Keep the presentation's frame-level clipping for exact-spaced lines.
+          // DrawingML overflow is controlled by the text frame rather than line spacing.
           let commands = { ..line, clip: false, }.positioned(fonts, frame.width)
           for command in commands {
             if command is @layout.Text(text) {
@@ -472,8 +617,10 @@ fn paint_slide(
           }
         }
         primitives.push(Restore)
-        primitives.push(Restore)
-        primitives.push(Restore)
+        if clipped {
+          primitives.push(Restore)
+          primitives.push(Restore)
+        }
       }
     }
     primitives.push(Restore)
@@ -574,6 +721,7 @@ pub fn Session::print_layout(
       probe,
       profile,
       self.tile_sizes(slide),
+      text_fit_diagnostics=false,
     )
     guard diagnostics.is_empty() else {
       @failure.reject(

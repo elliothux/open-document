@@ -546,7 +546,12 @@ export type PdfCommand =
   | { operation: "hitTestPdf"; layoutId: number; x: number; y: number }
   | { operation: "selectPdf"; layoutId: number; anchor: number; focus: number }
   | { operation: "selectedPdfText"; layoutId: number }
-  | { operation: "imagePdf"; layoutId: number; key: string }
+  | {
+      operation: "imagePdf";
+      layoutId: number;
+      key: string;
+      size?: { width: number; height: number };
+    }
   | {
       operation: "decodedImagePdf";
       layoutId: number;

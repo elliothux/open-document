@@ -135,7 +135,12 @@ fn Session::table(
   diagnostics : Array[String],
   background~ : String,
   note_refs~ : Map[Int32, (String, String)] = Map([]),
+  nesting~ : Int32 = 0,
 ) -> @layout.Table raise @failure.Failure {
+  guard nesting <= 8 else {
+    @failure.reject("limit-exceeded", "Nested table depth exceeds eight levels")
+  }
+  let nested_tables : Array[@layout.NestedTable] = []
   let widths : Array[Double] = []
   let (auto_fit, preferred_width) = table_sizing(tree, styles, id, diagnostics)
   let preferred_widths : Array[Array[@layout.PreferredWidth]] = []
@@ -159,6 +164,12 @@ fn Session::table(
     is Some(key) &&
     styles.tree is Some(source) {
     for style in styles.chain(key, inherited_diagnostics) {
+      if source
+        .child(style, "tblPr")
+        .bind(p => source.table_shading(p, Some(styles.themes)))
+        is Some(color) {
+        default_fill = color
+      }
       if source
         .child(style, "tcPr")
         .bind(p => source.table_shading(p, Some(styles.themes)))
@@ -197,6 +208,12 @@ fn Session::table(
         }
       }
     }
+  }
+  if tree
+    .child(id, "tblPr")
+    .bind(p => tree.table_shading(p, Some(styles.themes)))
+    is Some(color) {
+    default_fill = color
   }
   for (source, id) in style_margins {
     default_margins = source.table_margins(id, default_margins)
@@ -341,6 +358,21 @@ fn Session::table(
               ),
             )
           "tcPr" => ()
+          "tbl" =>
+            nested_tables.push({
+              row: rows.length(),
+              column: cells.length(),
+              table: self.table(
+                tree,
+                styles,
+                item,
+                paragraphs.length(),
+                diagnostics,
+                background=if color.is_empty() { background } else { color },
+                note_refs~,
+                nesting=nesting + 1,
+              ),
+            })
           _ =>
             @failure.reject(
               "unsupported-layout", "Nested or unsupported table content",
@@ -407,6 +439,20 @@ fn Session::table(
       }
     }
   }
+  for row in tree.table_children(id, "tr") {
+    if tree.child(row, "trPr").bind(p => tree.value(p, "jc")) is Some(row_align) {
+      let row_align = match row_align {
+        "start" => "left"
+        "end" => "right"
+        value => value
+      }
+      guard row_align == align else {
+        @failure.reject(
+          "unsupported-layout", "Per-row table alignment requires row positioning support",
+        )
+      }
+    }
+  }
   guard ["left", "center", "right"].contains(align) else {
     @failure.reject("unsupported-layout", "Unsupported table alignment")
   }
@@ -432,6 +478,8 @@ fn Session::table(
     preferredWidths: preferred_widths,
     headerRows: safe_header_rows,
     beforeParagraph: before_paragraph,
+    nestedTables: nested_tables,
+    legacyCellAlignment: nesting == 0 && self.legacy_table_alignment(),
     rows,
     columnSpans: column_spans,
     rowSpans: row_spans,

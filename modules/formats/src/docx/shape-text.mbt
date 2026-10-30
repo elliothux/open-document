@@ -130,8 +130,26 @@ fn Session::shape_text(
       p.spans.all(s => s.drawing is None && s.field.is_empty())
     }) else {
     @failure.reject(
-      "unsupported-layout", "Text box paragraph properties require support",
+      "unsupported-layout",
+      "Text box paragraph properties require support: " +
+      diagnostics.join("; ") +
+      paragraphs.map(p => p.readOnlyReason).join("; "),
     )
   }
-  @layout.DrawingTextBox::new(paragraphs, insets, anchor, wrap, clip)
+  let bottomBorders : Map[Int32, (Double, @layout.BorderStyle)] = Map([])
+  for paragraph in nodes {
+    if tree.child(paragraph, "pPr").bind(p => tree.child(p, "pBdr"))
+      is Some(border) &&
+      tree.text_box_bottom_border(border) is Some(value) {
+      bottomBorders[paragraph] = value
+    }
+  }
+  @layout.DrawingTextBox::new(
+    paragraphs,
+    insets,
+    anchor,
+    wrap,
+    clip,
+    bottomBorders~,
+  )
 }

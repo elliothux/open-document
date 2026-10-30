@@ -371,12 +371,15 @@ fn search_result(
   query : String,
 ) -> Json raise @failure.Failure {
   let hits : Array[Json] = []
+  let visible = crop_visible_ranges(display)
   let mut offset = 0
   while offset + query.length() <= display.text.length() {
     let end = offset + query.length()
     if display.text[offset:end] == query &&
       !display.spans.any(span => {
-        !span.mapped && span.start < end && span.end > offset
+        (!span.mapped || !visible.contains((span.start, span.end))) &&
+        span.start < end &&
+        span.end > offset
       }) {
       guard hits.length() < 10000 else {
         @failure.reject("limit-exceeded", "PDF search result exceeds budget")
@@ -385,7 +388,9 @@ fn search_result(
         "start": offset,
         "end": end,
         "quads": display.spans
-        .filter(span => span.start < end && span.end > offset)
+        .filter(span => {
+          span.cropVisible && span.start < end && span.end > offset
+        })
         .map(span => span.quad),
       })
       offset = end
@@ -441,7 +446,7 @@ pub fn PdfSession::select_text(
     "anchor": anchor,
     "focus": focus,
     "quads": display.spans
-    .filter(span => span.start < end && span.end > start)
+    .filter(span => span.cropVisible && span.start < end && span.end > start)
     .map(span => span.quad),
   }
 }
@@ -455,12 +460,7 @@ pub fn PdfSession::selected_text(
   let (a, b) = self.selection
   let start = a.min(b)
   let end = a.max(b)
-  guard !display.spans.any(span => {
-    !span.mapped && span.start < end && span.end > start
-  }) else {
-    @failure.reject("unmapped-text", "PDF selection contains unknown Unicode")
-  }
-  display.text[start:end].to_owned()
+  visible_text(display, start, end)
 }
 
 ///|
@@ -476,7 +476,7 @@ pub fn PdfSession::hit(
   }
   let mut best : (TextSpan, Double, Double)? = None
   for span in display.spans {
-    if span.end <= span.start {
+    if !span.cropVisible || span.end <= span.start {
       continue
     }
     let q = span.quad
@@ -515,10 +515,16 @@ pub fn PdfSession::image(
   layout_id : Int32,
   key : String,
   _images : @layout.Images,
+  size~ : (Int32, Int32)? = None,
 ) -> (String, Bytes, Int32, Int32) raise @failure.Failure {
   let display = self.current_display(layout_id)
   guard display.images.contains(key) else {
     @failure.reject("missing-image", "Unknown PDF page image")
+  }
+  if size is Some((width, height)) {
+    let image = display.resources.get(key)
+    let rgba = pdf_bound(self.budget, () => resized_rgba(image, width, height))
+    return ("rgba", rgba, width, height)
   }
   if display.jpeg.get(key) is Some(jpeg) {
     ("jpeg", jpeg.bytes, jpeg.width, jpeg.height)
@@ -552,7 +558,16 @@ pub fn PdfSession::decoded_image(
       jpeg.alpha.map(mask => mask[i / 4]).unwrap_or(rgba[i])
     } else {
       let c = if channels == 1 { 0 } else { channel }
-      decoded_sample(rgba[i], jpeg.decode[c * 2], jpeg.decode[c * 2 + 1])
+      let value = decoded_sample(
+        rgba[i],
+        jpeg.decode[c * 2],
+        jpeg.decode[c * 2 + 1],
+      )
+      if jpeg.matte is Some(matte) && jpeg.alpha is Some(alpha) {
+        unblend_sample(value, alpha[i / 4], matte[c])
+      } else {
+        value
+      }
     }
   })
   display.resources.add(key, width, height, output)

@@ -66,12 +66,8 @@ fn Flow::section_body(
     ids.add(p.id)
   }
   for table in part.tables {
-    for row in table.rows {
-      for cell in row {
-        for p in cell {
-          ids.add(p.id)
-        }
-      }
+    for p in table.paragraphs() {
+      ids.add(p.id)
     }
   }
   { ..part, notes: self.notes.filter(n => ids.contains(n.paragraph)), }

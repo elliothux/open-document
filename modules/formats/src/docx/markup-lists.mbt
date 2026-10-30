@@ -42,9 +42,7 @@ fn Session::markup_lists(
   flow : @layout.Flow,
 ) -> Map[Int32, MarkupList] raise @failure.Failure {
   let paragraphs = flow.paragraphs.copy()
-  paragraphs.append(
-    flow.tables.map(table => table.rows.flatten().flatten()).flatten(),
-  )
+  paragraphs.append(flow.tables.map(table => table.paragraphs()).flatten())
   let models = Map::from_array(paragraphs.map(p => (p.id, p)))
   let lists : Map[Int32, MarkupList] = Map([])
   let counters : Map[Int32, NumberCounter] = Map([])

@@ -36,9 +36,10 @@ fn Sheet::expand_shared(
           part=self.id,
         )
       }
-      let shifted = parse_formula(source).source(
-        rows=cell.address.row - anchor.row,
-        columns=cell.address.column - anchor.column,
+      let shifted = shared_formula_source(
+        source,
+        cell.address.row - anchor.row,
+        cell.address.column - anchor.column,
       ) catch {
         @failure.Failure(code~, ..) if code != "limit-exceeded" => {
           self.cells[name] = { ..cell, read_only: "Unsupported formula group", }
@@ -49,4 +50,59 @@ fn Sheet::expand_shared(
       self.cells[name] = { ..cell, formula: Some(shifted), }
     }
   }
+}
+
+///|
+fn shared_formula_source(
+  source : String,
+  rows : Int32,
+  columns : Int32,
+) -> String raise @failure.Failure {
+  ignore(parse_formula(source))
+  let spans : Array[(Int32, Int32)] = []
+  let tokens = formula_tokens(source, spans~)
+  let output = StringBuilder()
+  let mut cursor = 0
+  for index in 0..<(tokens.length() - 1) {
+    if !(tokens[index] is (Word(_) | Numeric(_, _))) ||
+      tokens.get(index + 1) is Some(Operator("!" | "(")) {
+      continue
+    }
+    let (start, end) = spans[index]
+    let range = tokens.get(index + 1) is Some(Operator(":")) ||
+      (index > 0 && tokens[index - 1] is Operator(":"))
+    let replacement = match axis_reference(source[start:end].to_owned()) {
+      Some(Cell(address)) => address.shift(rows, columns).source()
+      Some(Row(row, fixed)) if range => {
+        let next = row + (if fixed { 0 } else { rows })
+        guard next >= 1 && next <= 1048576 else {
+          @failure.reject(
+            "invalid-address", "Shared row reference leaves worksheet",
+          )
+        }
+        (if fixed { "$" } else { "" }) + next.to_string()
+      }
+      Some(Column(column, fixed)) if range => {
+        let next = column + (if fixed { 0 } else { columns })
+        guard next >= 1 && next <= 16384 else {
+          @failure.reject(
+            "invalid-address", "Shared column reference leaves worksheet",
+          )
+        }
+        (if fixed { "$" } else { "" }) + print_column(next)
+      }
+      _ => continue
+    }
+    output.write_view(source[cursor:start])
+    output.write_string(replacement)
+    cursor = end
+  }
+  output.write_view(source[cursor:])
+  let result = output.to_string()
+  guard result.length() <= 8192 else {
+    @failure.reject(
+      "limit-exceeded", "Expanded shared formula exceeds source budget",
+    )
+  }
+  result
 }

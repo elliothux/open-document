@@ -18,6 +18,8 @@ DOCX 文字区段的实际宽度和后续起点按固定 LibreOffice 的整数 t
 
 ## 字体资源与替代
 
+低层 `TextStyle.kerning` 使用 `all/words/none`，分别控制完整字偶距、词内字偶距及禁用；`fontLeading` 控制是否采用字体原始行隙。DOCX 未声明字偶距时禁用；显式 `w:kern` 按半磅字号阈值继承，字号达到阈值时启用，格式化改变字号后重新判断。PPTX 按词塑形。字体行隙计入基线上方，字形轮廓仍保留原始精度。
+
 排版使用宿主提供的实际字体字节和 `profile`，不使用浏览器 CSS 字体度量。显式字体键映射优先；宿主可提供 `*`、`*|bold`、`*|italic`、`*|bold|italic` 开启替代。缺少精确映射时，核心先取对应粗体/斜体替代，再取 `*`。没有这些项时保留严格的 `missing-font` 行为；已明确映射的字体身份无效时仍报错。字体缺字时继续在已加载字体中查找，全部缺字或格式不支持时保留诊断与保护。
 
 替代只改变排版所用字体，不修改 Office 源中的字体声明。默认 UI 在启用替代模式时提示换行、分页可能不同。当前仍接收独立 TrueType 轮廓，字体合计最多 8 个、32 MiB；CFF、集合、未支持字形和嵌入许可沿既有保护处理。PDF 优先使用受支持的嵌入字体；显式替代仍保留其原有诊断。
@@ -78,7 +80,7 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 
 ## P4 当前编辑 API 切片
 
-只读 DOCX Flow 的段落新增 `nominalSize`（pt，`0 < size <= 1024`），由核心按默认及段落样式计算；它不由具体文字 run 或标记直接字号推断，也不是宿主可编辑状态。布局用它计算单元格/空页眉末段的自动行距间隙，段间仍使用文字自然高度。当前补充修复已通过完整运行 `1791779829628` 的 308/308；23 组独立参考在安装 Node 与生产 Worker 的完整结果相同，验收边界见[测试记录](testing.md)。
+只读 DOCX Flow 的段落包含 `nominalSize`（pt，`0 < size <= 1024`），由核心按默认、段落样式及 `pPr/rPr` 的段落标记字号计算。布局用它计算空行、单元格及空页眉末段的间隙；仅含区域分隔符和浮动锚点的空行也使用段落标记尺寸。缺省自动行距为单倍。历史产物与当前定向验证的范围归[测试记录](testing.md)。
 
 历史产物已在 macOS/Chromium 使用现有豆包拼音完成中文提交、取消、撤销重做和绑定 revision 的保存；其他归档产物另通过普通 Latin 系统输入、撤销/重做及独立保存。R0 后的定向检查覆盖组合候选与取消，未重做系统中文输入验收。各记录分别绑定自己的产物，不扩大为所有输入法或 OS 候选窗几何支持；证据入口见 [P4](../implemented/p4-docx-editing.md#验证依据与边界)。沿用现有输入法；Windows/Word 和 VoiceOver/语音输入不在验收范围，保留基本键盘/AX、源保真及失败恢复检查。
 
@@ -557,7 +559,7 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 ### DOCX 只读编辑保护
 
-`FoundationSession/Client.documentProtection(revision)` 返回 `DocxProtection = { revision, protected, passwordRequired, reason }`，不返回密码、盐或摘要。`setDocumentProtection(revision, enabled, password)` 启用 `readOnly` 保护或验证密码后解除。`DocumentEditor.documentProtection()` 返回附有 `documentId` 的 `DocumentProtection`；`setDocumentProtection(source, enabled, password = "")` 核对文档和 revision 后提交。默认页面面板提供读取、密码确认、启用及解除，提交后清空密码输入。
+`FoundationSession/Client.documentProtection(revision)` 返回 `DocxProtection = { revision, protected, passwordRequired, reason }`，不返回密码、盐或摘要。`setDocumentProtection(revision, enabled, password)` 启用 `readOnly` 保护或验证密码后解除。已识别的 `forms` 原件也可沿同一入口解除；保护启用时继续拒绝普通编辑。`DocumentEditor.documentProtection()` 返回附有 `documentId` 的 `DocumentProtection`；`setDocumentProtection(source, enabled, password = "")` 核对文档和 revision 后提交。默认页面面板提供读取、密码确认、启用及解除，提交后清空密码输入。
 
 保护写入原生 `w:documentProtection`，可不设密码。新密码使用平台生成的 16 字节随机盐、SHA-512 和 100000 轮散列；密码最多 255 个有效 UTF-16 单元。接受 `algorithmName="SHA-512"`、`hashValue`、`saltValue`、`spinCount` 的完整凭据，导入盐限 1–64 字节、轮数限 1000000；比较摘要时累计全部字节差异。文件内容仍可读取，保存、查询、选择、复制及现有输出保持可用。
 
@@ -669,6 +671,14 @@ Web `DocumentEditor.charts()` 增加 `documentId`，`insertChart(value)` 消费�
 
 实现归 [word-art.mbt](../../modules/formats/src/docx/word-art.mbt)。36 pt、透明无边框、居中和原生 Word 段落沿 [ONLYOFFICE createTextArt](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L8794-L8912)；字体大小的格式区分另见 [private_createWordArt](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/apiBuilder.js#L33296-L33365)。五种纯色配方与固定初始框取自 GenOffice 功能目标；未复制上游执行代码。
 
+### 原生段落框
+
+DOCX 导入识别 `pPr/framePr` 的 `notBeside` 框架。相邻同参数的段落按原生块顺序共享框架；表格从末行首格的首段读取框架参数，可以与后续同参数段落组成一组。`Paragraph.frame` 保留原生尺寸、锚点、位置、间距及四边单实线边框，缺省时省略该字段。源 `framePr` 和段落身份保留，普通文字编辑、搜索、光标、标尺与精确历史沿现有入口。
+
+宽度为零时使用可用栏宽，并按原生单段或表格内容确定自动宽度；高度支持 `auto/atLeast/exact`。布局按 page/margin/text 锚点定位，框架占位参与正文上下避让；实际文字、底色和边框共用框架裁剪。纸张尺寸保留源整数 twip，不吸附到附近纸型。显式兼容模式小于 15 的正文表格保留原生单元格边距对齐修正。
+
+当前支持同一物理页内的框架和一致边框组。跨页框架、环绕排版、框内锚定绘图、脚注及混合段落边框继续拒绝；原件与历史保留。原生规则依据 [ONLYOFFICE 框架分组](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/DocumentContentBase.js#L2586-L2610)、[框架测量、定位及避让](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L4527-L4869)、[裁剪](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L5434-L5454)和[表格框架属性](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L3956-L3970)，未复制上游执行代码。实现归 [`paragraph-frame.mbt`](../../modules/formats/src/docx/paragraph-frame.mbt) 与 [`frame-placement.mbt`](../../modules/layout/src/frame-placement.mbt)。
+
 ### DOCX 文本框
 
 普通 `wps:txbx/w:txbxContent` 已接通核心读取、富文本排版与 Canvas/PDF。内容使用原生 Word 段落、样式和字体整形，保留字符装饰、对齐、缩进、段距及行距。矩形与椭圆复用绘图框；椭圆先取内接文字区域，再应用四边边距。文字不转成图片。可访问页面文字包含框内各行。正文逻辑位置仍只计一个对象，框内文字使用自身的段落身份和偏移。
@@ -696,6 +706,8 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 当前每框限 256 段、32767 个 UTF-16 单元，单段沿既有 4096 单元上限。普通运行文字、Tab 和软换行可编辑。`noTextEdit` 和 `noSelect` 阻止框内文字编辑，沿既有文档保护检查；帧属性仍遵循各自的锁。候选和提交前校验段落结构及内容上限，失败保留最后有效候选或原文档。表格、列表、字段、嵌套绘图、链接文本框、多栏、竖排、旋转、自动适配及独立两轴溢出设置继续拒绝输出，保留源与历史。更多兼容继续实施；不支持的剪切仍受保护，避免把对象降成占位字符后删除原内容。
 
 实现归 [shape-text.mbt](../../modules/formats/src/docx/shape-text.mbt)、[drawing-text-box.mbt](../../modules/layout/src/drawing-text-box.mbt)、[文字区域交互](../../modules/layout/src/text-box-interaction.mbt)及[框内编辑保护](../../modules/formats/src/docx/text-box-editing.mbt)。原生内容与 `bodyPr` 参考 [ONLYOFFICE Shape 读取](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Shape.cpp#L111-L168)，默认边距与文字区域参考 [Shape.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L1571-L1625)，默认 bodyPr 参考 [Format.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L11945-L11964)，文字命中与选区坐标转换参考 [selectionSetStart/End](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L5372-L5415)。当前范围归 [P10](../implemented/p10-docx-core.md)。
+
+文本框导入可选择已支持的 `AlternateContent/Choice`，否则使用可解释的 fallback；逻辑内容只排版一个分支，保存保留其他源分支。框内支持普通单条下边框及其空间和颜色，横向按原生规则各延伸 0.5 mm；更广段落边框继续保护。实现归 [alternate-content.mbt](../../modules/formats/src/docx/alternate-content.mbt)和[text-box-border.mbt](../../modules/formats/src/docx/text-box-border.mbt)。
 
 ### 行内图片尺寸与裁剪
 
@@ -1104,6 +1116,12 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 简单域和同段复杂数字级别 `STYLEREF` 可读取并保留原代码，支持可选 `MERGEFORMAT`。题注的周边输入、拆合段、完整域替换、富文本复制/剪切和目标位置重新计算沿既有路径；源、缓存、选择和样式一起精确撤销并保存重开。章节号通过题注参数创建，正文域查询对它返回专属保护原因，不把章节号解释成页码格式。按名称查找样式、其他 STYLEREF 开关、页眉页脚引用及浮动题注框继续实施。原生指令归 [`chapter-reference.mbt`](../../modules/formats/src/docx/chapter-reference.mbt)，结果计算归 [`style-reference.mbt`](../../modules/layout/src/style-reference.mbt)，严格接口归 [`docx-page.ts`](../../packages/docx/src/core/docx-page.ts)。语义参考 [ONLYOFFICE 章节题注](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L25786-L25851)及 [STYLEREF 查找](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexFieldInstruction.js#L981-L1170)。
 
 文档保护、单节、字体、完整布局、XML、字段数量、资源及历史预算沿现有核心规则。斜体题注预设要求宿主提供对应字体映射；失败保留原包及历史。原生题注目录归[DOCX 题注目录](#docx-题注目录)；自动定位的浮动题注框继续实施。实现归 [`caption.mbt`](../../modules/formats/src/docx/caption.mbt)和 [`docx-caption.tsx`](../../packages/docx/src/react/docx-caption.tsx)。段落/表格旁插入及 Caption 样式依据 [ONLYOFFICE AddCaption](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L25688-L25828)，交互范围参考 GenOffice 的标签、SEQ 与说明入口。
+
+### 嵌套表格读取与文字编辑
+
+DOCX Flow 保留内外表层级。`Table.rows` 只含单元格的直属段落；`nestedTables` 记录 `{ row, column, table }`，子表的 `beforeParagraph` 表示它在该单元格直属段落中的位置。按此顺序递归测量、绘制边框及底色，保留实际段落和单元格身份。字体、编号、字段、图片、搜索、光标和标尺读取内层内容；内层普通文字支持原生输入、精确撤销/重做及保存重开。
+
+当前支持最多八层嵌套，以及能完整放入一页的包含嵌套表的行组。固定行高同时裁剪文字、内表底色与边框；超深、无效网格或需要跨页续排的嵌套行拒绝。内表网格修改、跨层范围、整表片段及 HTML/Markdown 输出继续保护，避免丢失内层源。已有普通表格结构操作沿下文合同。实现归 [`table-content.mbt`](../../modules/layout/src/table-content.mbt)、[`table-nested.mbt`](../../modules/layout/src/table-nested.mbt) 和 [DOCX 表格读取](../../modules/formats/src/docx/objects.mbt)。
 
 ### 表格创建
 
@@ -1558,13 +1576,13 @@ MoonBit 共用 `Failure`，浏览器暴露 `DocumentError(code, message, part, o
 
 普通数字使用默认字形；共享塑形入口禁止固定依赖将 `frac/numr/dnom` 全局应用到所有数字。四种固定 Noto 字体的独立默认字形/位置已核对。当前没有 OpenType feature 编辑 API，也未实现 U+2044 上下文触发的自动数字分数排版；字符和 DOCX 源照常保留，不冒充完整 HarfBuzz 行为。原有连字、BiDi、字素及测宽/绘制共用路径保持。
 
-DOCX 的显式页面宽、高按固定 LibreOffice 25.8.2.2 的[导入规则](https://github.com/LibreOffice/core/blob/libreoffice-25.8.2.2/sw/source/writerfilter/dmapper/DomainMapper.cxx#L824-L837)转换为整数 1/100 mm，各自按[标准尺寸表顺序](https://github.com/LibreOffice/core/blob/libreoffice-25.8.2.2/i18nutil/source/utility/paper.cxx#L208-L224)选择差值严格小于 44 的首个值并回到整数 twip；不匹配值及缺省页面保持，非法值仍由原页面 validator 拒绝。500 pt 可成为 498.9 pt，1000 pt 可成为 1000.65 pt；这是显示布局尺寸，原 pgSz XML 和包部件不改写。普通换行候选在布局层排除补充码点之前的边界，以匹配 LibreOffice/ICU 的 UTF-16 查询；强制换行、段末、字素紧急回退和标准 Unicode 分段模块保持。十二份同字体控制与原 DPR2 输入已由重复独立参考和实际两宿主核对，不承诺所有 CJK 或 Office 版本的行为。尺寸事实有来源，算法独立实现；未移植上游可执行代码或新增依赖。
+DOCX 的显式页面宽、高按源整数 twip 精确保留，不再吸附到邻近纸型。500 pt 保持 500 pt；原 pgSz XML 和无编辑包字节保持。旧 LibreOffice 25.8.2.2 捕获中的 498.9 pt 等纸型归一化结果继续留作参考差异，不作为当前页面尺寸预期。普通换行候选仍在布局层排除补充码点之前的边界，强制换行、段末、字素紧急回退和 Unicode 分段模块保持。固定 CJK 行内容、换行和边界亲和性沿原独立参考检查，页面尺寸另按源 XML 核对。
 
-共享自然行度量使用固定 LibreOffice 25.8.2.2 的[MSO1 参考设备](https://github.com/LibreOffice/core/blob/libreoffice-25.8.2.2/vcl/source/gdi/virdev.cxx#L405-L406)。每 pt 120 单位，字号和 ascent/descent 先取整为设备单位。再将 ascent 与组合高度分别换算为整数 twip，布局输出仍用 pt。依据[字体度量取整](https://github.com/LibreOffice/core/blob/libreoffice-25.8.2.2/vcl/source/font/fontmetric.cxx#L538-L539)和[组合高度换算](https://github.com/LibreOffice/core/blob/libreoffice-25.8.2.2/vcl/source/outdev/font.cxx#L205-L210)，不是简单将浮点 pt 乘 20 取整；固定 Noto 的 10 pt 为 273 twip。源字号/XML、字体选择、字形 advance、Exact 基线和 API 保持；五字号表格与另组正文重复参考只授予自然高度与已声明垂直步距。
+DOCX 与 PPTX 的自然行度量使用字体原始 ascent、descent 和行隙，保留浮点 point 精度；例如固定 Noto Sans 的 11 pt 自然高度为 14.982 pt。低层 TextStyle 的 fontLeading=false 路径保留原有 LibreOffice MSO1 参考设备取整：每 pt 120 单位，ascent/descent 先取整，再换算为整数 twip。旧捕获与字体二进制分别核对，两种度量不混用；源字号、字形 advance、轮廓和 API 单位保持。
 
 字体自然高度优先使用有效 USE_TYPO_METRICS，随后是有效 hhea，最后回退到已验证的 Win 度量；缺失或截断 hhea 原子拒绝。`FontInfo` 的 ascent/descent 随此选择，CJK 与 Arabic 的预定变化已由固定字体二进制独立核对。光标在单文字区段复用行框，多区段按前侧文字区段取自然高度并裁剪到当前页段落底部；`caret`、`hitTest`、导航共用计算。原 CJK 与六组垂直控制已匹配固定参考。十二组独立原生对照另验证中西文自动间距、不同字号和窄行，以及 Arabic/Asian 进入和退出区段的差别；测宽、字形和光标共用间距，行尾仅在宽度允许时保留。有效 autoSpaceDE/DN 源属性按固定 LibreOffice 25.8.2.2 导入行为保留但不应用，非法或重复声明继续保护。两份 Arabic/Asian 原件已验证折叠 Left/Right 的 after/before 坐标及高度、70 个独立鼠标位置和 36 个默认逻辑按键位置；真实编辑器按键在 Chromium 验证。所有脚本分类、嵌套 BiDi、小字号间距命中及其他导航配置仍未全面验收；证据与范围见 [P4](../implemented/p4-docx-editing.md#验证依据与边界)。
 
-自动行距修复已通过完整运行 `1791779829628`。按固定 LibreOffice 的[导入取整](https://github.com/LibreOffice/core/blob/libreoffice-25.8.2.2/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx#L5303)，先将 auto 值换成整数百分比；0 按 100%，非零最小为 50%。[首行与后续行](https://github.com/LibreOffice/core/blob/libreoffice-25.8.2.2/sw/source/core/text/itrform2.cxx#L2335-L2422)分别处理正间隙与收缩，[段间间隙](https://github.com/LibreOffice/core/blob/libreoffice-25.8.2.2/sw/source/core/layout/flowfrm.cxx#L1644-L1743)归属前段，换页清除。单元格和空页眉末段按[专用路径](https://github.com/LibreOffice/core/blob/libreoffice-25.8.2.2/sw/source/core/layout/flowfrm.cxx#L1934-L1942)及[名义字号的 1.15 系数](https://github.com/LibreOffice/core/blob/libreoffice-25.8.2.2/sw/source/core/layout/frmtool.cxx#L2674-L2683)留出底部间隙。ONLYOFFICE sdkjs 的[比例间隙](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph_Recalculate.js#L2988-L2996)另有浮点路径；本阶段采用已冻结 LibreOffice profile 的规则。23 组正文、表格末段和有效段距参考均由安装 Node/生产 Worker 验证，原 15 组完整页面、状态和保存结果保持。磁盘及后续失败记录保留。图片自动行距及原生 caret/选区仍未获得本批几何验收，证据见[测试记录](testing.md)。
+P4 自动行距曾通过完整运行 `1791779829628`。当前保留其中的段距与分页规则：按固定 LibreOffice 的[导入取整](https://github.com/LibreOffice/core/blob/libreoffice-25.8.2.2/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx#L5303)，先将 auto 值换成整数百分比；0 按 100%，非零最小为 50%。[首行与后续行](https://github.com/LibreOffice/core/blob/libreoffice-25.8.2.2/sw/source/core/text/itrform2.cxx#L2335-L2422)分别处理正间隙与收缩，[段间间隙](https://github.com/LibreOffice/core/blob/libreoffice-25.8.2.2/sw/source/core/layout/flowfrm.cxx#L1644-L1743)归属前段，换页清除。单元格和空页眉末段按[专用路径](https://github.com/LibreOffice/core/blob/libreoffice-25.8.2.2/sw/source/core/layout/flowfrm.cxx#L1934-L1942)及[名义字号的 1.15 系数](https://github.com/LibreOffice/core/blob/libreoffice-25.8.2.2/sw/source/core/layout/frmtool.cxx#L2674-L2683)留出底部间隙。ONLYOFFICE sdkjs 的[比例间隙](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph_Recalculate.js#L2988-L2996)另有浮点路径；当前沿用已冻结 LibreOffice profile 的间距规则。P14 将字体贡献改为原始度量，并读取显式段落标记字号；23 组参考保留原生捕获，按固定字体度量换算后严格检查字高、基线、分页和段距。安装 Node 与生产 Worker 还核对源保存和历史状态。磁盘及后续失败记录保留。图片自动行距及原生 caret/选区仍未获得本批几何验收，证据见[测试记录](testing.md)。
 
 行距保留 `{ rule, value }` 的原始 OOXML 数值，先合并默认值、`basedOn` 与直接格式，再解释单位。`auto` 的单位为 1/240 行；`exact` 和 `atLeast` 为 twip。仅覆盖段前或段后距不改变行距；最小值 0 使用自然行高。固定行距采用 LibreOffice 25.8.2.2 参考配置：基线位于行高的 4/5，段尾手动换行的空行保持相同行高。共享布局的 `clip` 指令让 Canvas 和 PDF 在行的垂直范围内裁剪文字与内联图片；最小行距保留自然基线。该配置依据 [LibreOffice 行度量](https://github.com/LibreOffice/core/blob/2821d29a87b28785d74fa64d975465e4c99d4416/sw/source/core/text/itrform2.cxx)，不声明各 Office 应用采用相同基线。
 
@@ -1580,9 +1598,9 @@ DOCX 的显式页面宽、高按固定 LibreOffice 25.8.2.2 的[导入规则](ht
 
 支持 docDefaults、段落/字符样式 basedOn、主题 Latin 字体、直接格式、字号/颜色/粗斜体、段前段后、缩进、左/中/右对齐、auto/exact/atLeast 行距、空段落及显式分页。正文、表格和页眉页脚共用段落间距校验，负间距/最小行距/单元格 padding 明确失败。页面按[多节分页](#多节分页)读取独立节配置，指定节页面几何与多节原生输入已接通，其余分节编辑继续实施。分页的断行使用固定 Unicode 数据与基本 BiDi；同样式跨文本节点一起塑形并保留源映射。`unicode_linebreak` 的 Unicode 15 测试向量按上游规则排除 30.22/999.0 做依赖回归，其字符表源自 Unicode 13；不宣称完整 UAX #14 符合性。当前 fallback 仍按码点选择，复杂 script、彩色字形和任意字体质量不在承诺范围。
 
-基础表格使用固定列宽、当前支持的线型/无边框、RGB 单色填充、四边 cell margin 和最小/精确行高；普通行[逐格跨页](#表格行跨页)，纵向合并行组整体换页。边框编辑与冲突规则归[表格边框](#表格边框)。相邻行共享边框只占一次高度，表尾另留底边，分页判断包含当前页底边空间。自然字高使用上述共享参考设备取整；固定 Noto 原表格的自然行高与垂直步距已匹配固定 LibreOffice，不扩大为所有应用或水平几何一致。嵌套单元格仍明确拒绝；精确行高沿[裁剪规则](#表格尺寸)。不绘制浮动、旋转或翻转图片；页眉页脚已接通[文字、实际避让与逐页输出](#页眉页脚)。已识别但未实现的正文属性给诊断，原包仍由 P2 保存；不是完整属性/schema 检查器，主题颜色、条件表格样式与复杂页眉页脚不在支持面。图片仅支持包内内联 extent；宿主解码已授权资源为 RGBA，外链图片明确拒绝、不自动下载。
+基础表格使用固定列宽、当前支持的线型/无边框、RGB 单色填充、四边 cell margin 和最小/精确行高；普通行[逐格跨页](#表格行跨页)，纵向合并行组整体换页。边框编辑与冲突规则归[表格边框](#表格边框)。相邻行共享边框只占一次高度，表尾另留底边，分页判断包含当前页底边空间。自然字高使用上述字体原始度量；固定 Noto 表格的旧原生取整差异单独核对，共享边按实际解析结果只绘制一次。不扩大为所有应用或水平几何一致。嵌套读取与文字编辑沿[当前合同](#嵌套表格读取与文字编辑)，更广结构编辑保持保护；精确行高沿[裁剪规则](#表格尺寸)。不绘制浮动、旋转或翻转图片；页眉页脚已接通[文字、实际避让与逐页输出](#页眉页脚)。已识别但未实现的正文属性给诊断，原包仍由 P2 保存；不是完整属性/schema 检查器，主题颜色、条件表格样式与复杂页眉页脚不在支持面。图片仅支持包内内联 extent；宿主解码已授权资源为 RGBA，外链图片明确拒绝、不自动下载。
 
-表格左/中/右对齐按基础样式、派生样式、直接属性依次覆盖，start/end 沿用 left/right 归一化；未知有效值报 `unsupported-layout`。明确零 dxa 缩进仅在可选符号后全零数字、已知属性且无子节点/文本时视为无位移；非零、非法或未知声明仍诊断/保护。此规则不增加非零缩进、RTL 表格语义或复杂表格支持。Word compatibilityMode 对表格外侧边距和定位的版本差异尚未实现，零缩进声明可读不等于版本布局已经一致；固定网格超过正文可用宽度仍明确拒绝，不通过缩小原件或统一左移获得通过。原 POI 表格的 kern/ligature 诊断仍保留，普通核心源事务可用不等于可视编辑可用。
+表格左/中/右对齐按基础样式、派生样式、直接属性依次覆盖，start/end 沿用 left/right 归一化；未知有效值报 `unsupported-layout`。明确零 dxa 缩进仅在可选符号后全零数字、已知属性且无子节点/文本时视为无位移；非零、非法或未知声明仍诊断/保护。此规则不增加非零缩进、RTL 表格语义或复杂表格支持。Word compatibilityMode 对表格外侧边距和定位的版本差异尚未实现，零缩进声明可读不等于版本布局已经一致；固定网格超过正文可用宽度仍明确拒绝，不通过缩小原件或统一左移获得通过。原 POI 表格的显式 `w:kern` 阈值已支持，`w14:ligatures` 等未知扩展仍诊断和保护；普通核心源事务可用不等于可视编辑可用。
 
 文字 `auto` color 延后到所在单元格背景确定后解析，正文背景为白色，显式 RGB 保持原值。固定参考 profile 采用 sRGB 相对亮度乘 255 小于 88 时白字、否则黑字，与已检查的 LibreOffice [automatic text color](https://github.com/LibreOffice/core/blob/2821d29a87b28785d74fa64d975465e4c99d4416/sw/source/core/txtnode/fntcache.cxx) / [Color::IsDark](https://github.com/LibreOffice/core/blob/2821d29a87b28785d74fa64d975465e4c99d4416/tools/source/generic/color.cxx) 规则相符；不承诺任意 Word 主题的颜色结果。
 
@@ -1603,6 +1621,8 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 `DocumentPreview.create(root, client, profile, signal?)` 显示只读页面、文本和诊断，支持滚动、切页、缩放、键盘与 PDF 下载。`dispose()` 释放自己持有的 Canvas、Path2D、ImageBitmap、监听器和 DOM，保留宿主其他子节点并恢复属性；调用方另需 `client.dispose()` 释放 Worker/核心。取消在异步准备步骤之间检查，不能抢占正在执行的同步 Wasm。基础文本语义与可达按钮不是完整文档无障碍认证。
 
 ## P5 XLSX 合同
+
+共享公式按相对/绝对引用展开，保留源运算符、括号、字符串及工作表名；改单元格或删行后沿既有依赖、缓存和精确历史事务重算。已识别且不含单元格引用的工作簿路径、修订标识与计算能力标志，以及行 `dyDescent`，随结构操作保留；未知扩展仍受保护。已支持的颜色 tint 可用于布局和自动尺寸。
 
 `XlsxSession.create(budget)` 与 `XlsxClient.create(budget)` 创建一张可见的空白 `Sheet1`，选区为 A1，revision 与历史为 0。基础样式为 11 pt Calibri、General 数字格式、黑字、无填充/边框；工作簿使用自动计算。核心创建 workbook、worksheet、styles、关系与内容类型，之后沿相同读取、计算、编辑、历史及保存路径运行。默认 UI 与 `mountEditor`、实例 `create/open` 接通该入口；首次保存规则见上文。工作表和单元格身份由核心生成，不从文件名推导。
 
@@ -3513,11 +3533,15 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 字体键为有效 family，按需附加 `|bold` / `|italic`。主/次字体、显式 Latin/EA/CS 字体及当前常见脚本映射参与解析；自动推断覆盖 Latin、简中 Han 缺省、Kana、Hangul、Arabic、Hebrew、Devanagari 和 Thai。语言敏感的 Han 区域字体推断尚未扩展；不声明全语言主题字体一致性。调用者提供授权字体及实际样式映射，缺失时明确失败。
 
-文本框读取基本字号、粗体/斜体、文字色、段落对齐、内边距、缩进、点值/百分比段距及行距、软换行和字符项目符号的字体/大小/颜色。固定框越界诊断并裁剪；无法建立文字几何时保留边界占位和对象文本查询。`normAutofit` 以 10 次有界搜索求解 10%–100% 字号缩放，同时检查可用宽高，保存必要 `fontScale` 并保留基准字号。字段所在框保持文字编辑保护；简单编号字段的显示见下节。其他字段、图片项目符号、东亚字符直排及文字变形继续诊断或保护。
+文本框读取基本字号、粗体/斜体、文字色、段落对齐、内边距、缩进、点值/百分比段距及行距、软换行和字符项目符号的字体/大小/颜色。形状 `fontRef` 颜色覆盖母版默认值；显式文字颜色仍优先。默认允许框外文字，`horzOverflow/vertOverflow="clip"` 裁剪对应轴；可测量的溢出不阻止 PDF 输出。无法建立文字几何时保留边界占位和对象文本查询。
+
+导入 `normAutofit` 时直接应用已有 `fontScale`，保留小数点字号及无编辑源。`lnSpcReduction` 只缩减继承的自动行距，显式段落行距优先。自动行高至少为当前行标称字号的 120%，按字体升降部比例增加留白；首尾段距默认不计入边界，由 `spcFirstLastPara` 控制。居中和右对齐不计行尾空格；文字对中的负剩余空间允许原生溢出。PPTX 字距调整按词分组，避免跨空格应用字偶距。
+
+编辑或显式适配时，以 5% 步长求解 25%–100% 的字体缩放，并将继承行距缩减设为字体缩减量的 20%；标题占位符最低为 90%。检查可用宽高，写回必要 `fontScale/lnSpcReduction` 并保留基准字号。依据 [ONLYOFFICE 自动适配](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L5080-L5179)和[显式行距合并](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L11364-L11380)。字段所在框保持文字编辑保护；简单编号字段的显示见下节。其他字段、图片项目符号、东亚字符直排及文字变形继续诊断或保护。
 
 `editPptxObjects` / `PresentationEditor.editObjects` 已支持 `{ action: "textInsets", left, top, right, bottom }`、`{ action: "textAnchor", anchor }`、`{ action: "textWrap", wrap }` 和 `{ action: "textFit", fit }`。四边距离为 0–14400 pt，舍入为整数 EMU，须保留有效文字区域；anchor 为 `t`、`ctr` 或 `b`。布尔 wrap 控制框内换行。fit 为 `none`（固定框）、`shrink`（缩小字体）或 `resize`（形状随文字调整大小），分别保存 `noAutofit`、`normAutofit` 或 `spAutoFit`。它们作用于所选本地顶层文本形状，文字模式和对象模式均可调用，多选合为一次源事务。默认 UI 提供四边输入、垂直对齐、换行开关和适配模式，保留待提交的原生文字输入。
 
-每个 `PptxObject.textFrame` 返回有效 `left/top/right/bottom/anchor/wrap/fit/columns/columnGap/rtlColumns/direction/rotation/upright` 及保护原因 `reason`。修改保留文字、字符格式、身份、选择和其他部件；缺失 `bodyPr` 与适配节点按 DrawingML 顺序创建，其他属性和非目标注释原样保留。`shrink` 重新测量并保存比例，10% 字号仍无法容纳时原子拒绝。`none` 保留当前尺寸及固定框越界诊断。
+每个 `PptxObject.textFrame` 返回有效 `left/top/right/bottom/anchor/wrap/fit/columns/columnGap/rtlColumns/direction/rotation/upright` 及保护原因 `reason`。修改保留文字、字符格式、身份、选择和其他部件；缺失 `bodyPr` 与适配节点按 DrawingML 顺序创建，其他属性和非目标注释原样保留。`shrink` 重新测量并保存比例，最低允许字号仍无法容纳时原子拒绝。`none` 保留当前尺寸及原生溢出设置。
 
 `PresentationEditor.editObjects({ action: "textDirection", direction })` 修改所选本地文本框的原生 `bodyPr@vert`。direction 接受 `horz`（横排）、`vert`（全部文字顺时针旋转 90°）和 `vert270`（全部文字逆时针旋转 90°），缺省为 `horz`。两种旋转方向交换排版宽高，并按旋转方向交换有效内边距；段落、字形、标记和公式作为完整文字平面旋转，再叠加形状的旋转、翻转和组变换。原生输入、选择、命中、显示链接、PDF 链接和裁剪共用该平面，复制写入有效方向。方向键按文字平面映射；例如 `vert` 中向下前进一个字符，`vert270` 中向上前进一个字符。默认面板提供三种方向。
 
@@ -4068,13 +4092,15 @@ Wasm/Worker 的 `openPptx`、`createPptx` 接受可选 `dateTime`。平台缺省
 | `extractPdfText` / `searchPdfPage` | revision、page、profile；提取或给出 query 的字面命中与 quads，不切换展示页 |
 | `hitTestPdf` / `selectPdf` / `selectedPdfText` | layoutId；point 命中、UTF-16 anchor/focus 选区和复制文字；未知映射明确失败 |
 | `selectPdfRange` / `selectedPdfRange` | revision、两端 page/offset、profile；按文档顺序返回跨页文字和逐页 quads |
-| `imagePdf` / `decodedImagePdf` | layoutId/key；RGBA 或经过核心验证的 JPEG；宿主解码后提交匹配尺寸的 RGBA，核心应用 Decode/SMask |
+| `imagePdf` / `decodedImagePdf` | layoutId/key；RGBA 或经过核心验证的 JPEG；宿主解码后提交匹配尺寸的 RGBA，核心应用 Decode/SMask/Matte。`imagePdf` 可选 `size: { width, height }`，按 alpha 加权缩小已解码资源，不改原图；JPEG 先沿原路径解码 |
 | `pdfNavigation` / `pdfMetadata` / `setPdfMetadata` | 查询目录、链接和 Title/Author/Subject/Keywords；元数据修改按 revision 提交 |
 | `undoPdf` / `redoPdf` / `savePdf` | revision；历史操作返回快照，原格式保存返回 `{ revision, bytes }` |
 
 `PdfClient.defaultBudget()` 包装 `defaultPdfBudget`；同步 session 为 `defaultPdfBudget()`。page/field/annotation 身份绑定对象号和代数，页序单独返回。revision 单调递增，失败不提交。保留视图在同 revision 内可跨页共存；编辑、字体变化、换文档或显式释放使相应 layoutId 失效。`PdfQuery` 返回 pages、annotations、fields、当前 page、历史、modified、diagnostics 及 readOnlyReason/pageOrderReason；对象、字段和批注分别提供保护原因。
 
 核心严格读取未加密 PDF 1.0–1.7，不修复损坏引用或回退旧修订。显示支持源坐标 TrueType、基础路径/裁剪、RGB/Gray、常量 alpha/Multiply、限定图片/Form 和 normal appearance。ActualText/ToUnicode/可信编码独立生成语义；未知 Unicode 使用 U+FFFC，不匹配未知范围，含未知范围的复制失败。显示与提取完整性分别返回。
+
+源矩形规范化两个对角点，再组合 MediaBox/CropBox、页面旋转及显示变换。源文字提取保留裁剪区外全文；选择、复制、搜索命中及标记过滤完全位于 CropBox 外的字形，跨页复制沿用相同规则。可见性采用实际字形边界，空格采用基线推进段；选区仍保留文字方向并由页画布裁剪。CMap 字节目标与整数 CID 分别解析，范围展开遵守工作预算。基础字体字符串中的 CR/LF/Tab 保留语义，不作为缺失字形绘制。图片支持有界 ASCIIHex、8 位 RGB/Gray 软遮罩及匹配颜色分量的 Matte；撤销预混合后保留独立 alpha，零 alpha 的 Matte 像素清零。显式缩图按覆盖面积累加 alpha 和预乘颜色，再恢复直通 RGBA；非法尺寸或解码/步数预算失败保留会话和历史。
 
 未支持的图形状态、透明组、可选内容、颜色/字体/图片编码明确诊断；已知图片/批注可以局部限制，未知影响使整页预览不完整。输入范围和排除项见 [P7](../implemented/p7-pdf-input.md#已交付范围)。签名只读且未验证，非零代数保护改写，不执行脚本或外部资源。导航仅返回目标；外部 URI 是否打开由宿主决定。
 

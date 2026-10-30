@@ -195,11 +195,7 @@ fn Flow::validate_floating_images(self : Flow) -> Unit raise @failure.Failure {
   }
   let other : Array[Paragraph] = []
   for table in self.tables {
-    for row in table.rows {
-      for cell in row {
-        other.append(cell)
-      }
-    }
+    other.append(table.paragraphs())
   }
   for stories in [self.headers, self.footers] {
     for story in stories.values() {
@@ -304,6 +300,9 @@ fn PlacedDrawingFrame::paint(
       }
       for line in text.lines {
         primitives.append(line.positioned(fonts, self.width))
+      }
+      for border in text.borders {
+        primitives.push(Stroke(border.rect, border.color, border.width))
       }
       if text.clip {
         primitives.push(Restore)

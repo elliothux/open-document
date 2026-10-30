@@ -298,6 +298,7 @@ pub fn TextProbe::span_block(
     id: 0,
     container: 0,
     nominalSize: nominal_size,
+    frame: None,
     defaultTab: 36,
     tabs: [],
     decimalSymbol: ".",

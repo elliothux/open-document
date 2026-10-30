@@ -39,11 +39,17 @@ fn Sheet::axis_cells(
   for number, id in self.rows {
     let row = tree.nodes[id]
     guard row.attributes.all(a => {
-        a.uri.is_empty() &&
-        [
-          "r", "spans", "s", "customFormat", "ht", "hidden", "customHeight", "outlineLevel",
-          "collapsed", "thickTop", "thickBot", "ph",
-        ].contains(a.name)
+        (
+          a.uri == "http://schemas.microsoft.com/office/spreadsheetml/2009/9/ac" &&
+          a.name == "dyDescent"
+        ) ||
+        (
+          a.uri.is_empty() &&
+          [
+            "r", "spans", "s", "customFormat", "ht", "hidden", "customHeight", "outlineLevel",
+            "collapsed", "thickTop", "thickBot", "ph",
+          ].contains(a.name)
+        )
       }) &&
       tree.children
       .get(id)

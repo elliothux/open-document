@@ -85,6 +85,7 @@ fn Session::prepare_fitted(
       target.geometry.unwrap(),
       probe,
       profile,
+      recalculate=true,
     )
     guard diagnostic.is_empty() else {
       @failure.reject("layout-overflow", diagnostic, part=original.tree.part)
@@ -92,6 +93,11 @@ fn Session::prepare_fitted(
     changes.append(normal_fit_changes(original.object(id), scale))
   }
   self.prepare(original, changes)
+}
+
+///|
+fn normal_fit_reduction(scale : Double) -> String {
+  (0.2 * (1 - scale) * 100000).round().to_int().to_string()
 }
 
 ///|
@@ -103,16 +109,25 @@ fn normal_fit_changes(
   let properties = body.child("bodyPr")
   let fit = properties.bind(item => item.child("normAutofit"))
   let value = (scale * 100000).floor().to_int().to_string()
+  let reduction = normal_fit_reduction(scale)
   let changes : Array[@xml.SourceChange] = []
   if fit is Some(fit) {
     if fit.node.attribute("fontScale").unwrap_or("100000") != value {
       changes.push(attribute_change(fit, "fontScale", value))
     }
-    if fit.node.attribute("lnSpcReduction").unwrap_or("0") != "0" {
-      changes.push(attribute_change(fit, "lnSpcReduction", "0"))
+    if fit.node.attribute("lnSpcReduction").unwrap_or("0") != reduction {
+      changes.push(attribute_change(fit, "lnSpcReduction", reduction))
+    }
+    // Missing attributes share an insertion point. Emit one source edit so
+    // consumers can distinguish it from conflicting edits to a shared frame.
+    if changes.length() == 2 &&
+      changes[0].offset == changes[1].offset &&
+      changes[0].length == 0 &&
+      changes[1].length == 0 {
+      return [{ ..changes[0], xml: changes[0].xml + changes[1].xml, }]
     }
   } else if scale < 1 {
-    let xml = "<a:normAutofit xmlns:a=\"\{drawing_uri}\" fontScale=\"\{value}\"/>"
+    let xml = "<a:normAutofit xmlns:a=\"\{drawing_uri}\" fontScale=\"\{value}\" lnSpcReduction=\"\{reduction}\"/>"
     if properties is Some(properties) {
       changes.push(insertion(properties.node, xml))
     } else {
@@ -161,6 +176,7 @@ fn derived_frame_changes(
     object.geometry.unwrap(),
     probe,
     profile,
+    recalculate=true,
   )
   guard diagnostic.is_empty() else {
     @failure.reject("layout-overflow", diagnostic)

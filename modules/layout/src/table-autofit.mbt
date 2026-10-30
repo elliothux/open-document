@@ -150,6 +150,18 @@ pub fn Table::fit_widths(
           b = b.max(minimum + inset)
           d = d.max(maximum + inset)
         }
+        for child in self.nestedTables {
+          if child.row == r && child.column == c {
+            let fitted = child.table.fit_widths(
+              probe,
+              profile,
+              available - inset,
+            )
+            let width = fitted.widths.fold(init=0.0, (sum, width) => sum + width)
+            b = b.max(width + inset)
+            d = d.max(width + inset)
+          }
+        }
         let hint = self.preferredWidths[r][c].resolve(available)
         cells.push((column, span, a, b, d, hint))
       }

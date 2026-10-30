@@ -12,11 +12,7 @@ pub fn Session::page_links(
   let flow = self.flow()
   let paragraphs = flow.paragraphs.copy()
   for table in flow.tables {
-    for row in table.rows {
-      for cell in row {
-        paragraphs.append(cell)
-      }
-    }
+    paragraphs.append(table.paragraphs())
   }
   for paragraph in paragraphs.copy() {
     for span in paragraph.spans {

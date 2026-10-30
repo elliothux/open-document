@@ -24,12 +24,8 @@ fn Context::docx_flow(
     }
   }
   for table in flow.tables {
-    for row in table.rows {
-      for cell in row {
-        for paragraph in cell {
-          retain(paragraph)
-        }
-      }
+    for paragraph in table.paragraphs() {
+      retain(paragraph)
     }
   }
   if session.watermark(flow.revision, 0) is { "images": Array(images), .. } {

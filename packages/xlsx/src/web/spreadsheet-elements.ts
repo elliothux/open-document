@@ -40,7 +40,7 @@ function gridScrollX(viewport: HTMLElement, scale: number): number {
 
 export function gridScrollChanged(
   viewport: HTMLElement,
-  layout: XlsxViewport | undefined,
+  layout: Pick<XlsxViewport, "scrollX" | "scrollY"> | undefined,
   scale: number,
 ): boolean {
   return (
@@ -64,8 +64,8 @@ export function prepareGridViewport(
   return {
     scrollX: gridScrollX(viewport, scale),
     scrollY: viewport.scrollTop / scale,
-    width: Math.max(120, viewport.clientWidth) / scale,
-    height: viewport.clientHeight / scale,
+    width: Math.max(120, viewport.clientWidth / scale),
+    height: Math.max(60, viewport.clientHeight / scale),
   };
 }
 

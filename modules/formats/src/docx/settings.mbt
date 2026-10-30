@@ -63,3 +63,31 @@ fn Session::additive_spacing(self : Session) -> Bool raise @failure.Failure {
   // Missing settings retain the fixed LibreOffice profile's additive default.
   true
 }
+
+///|
+fn Session::legacy_table_alignment(
+  self : Session,
+) -> Bool raise @failure.Failure {
+  if self.settings_part() is Some(part) {
+    let tree = WordTree::new(self.part_xml(part))
+    if tree.child(0, "compat") is Some(compat) {
+      for id in tree.table_children(compat, "compatSetting") {
+        let node = tree.nodes[id]
+        if node.attribute("name", uri=word_uri) == Some("compatibilityMode") &&
+          node.attribute("uri", uri=word_uri) ==
+          Some("http://schemas.microsoft.com/office/word") {
+          let mode = @string.parse_int(
+            node.attribute("val", uri=word_uri).unwrap_or("")[:],
+          ) catch {
+            _ =>
+              @failure.reject(
+                "invalid-style", "Invalid Office compatibility mode",
+              )
+          }
+          return mode < 15
+        }
+      }
+    }
+  }
+  false
+}

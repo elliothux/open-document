@@ -47,7 +47,7 @@ struct SourcePage {
 }
 
 ///|
-struct TextSpan {
+priv struct TextSpan {
   start : Int32
   end : Int32
   text : String
@@ -55,10 +55,21 @@ struct TextSpan {
   source : String
   mapped : Bool
   invisible : Bool
-} derive(ToJson)
+  cropVisible : Bool
+}
 
 ///|
-pub extend TextSpan with ToJson::{to_json}
+impl ToJson for TextSpan with fn to_json(self) {
+  {
+    "start": self.start,
+    "end": self.end,
+    "text": self.text,
+    "quad": self.quad,
+    "source": self.source,
+    "mapped": self.mapped,
+    "invisible": self.invisible,
+  }
+}
 
 ///|
 struct PageDisplay {
@@ -88,6 +99,7 @@ priv struct JpegImage {
   height : Int32
   decode : Array[Double]
   alpha : Bytes?
+  matte : Array[Double]?
 }
 
 ///|

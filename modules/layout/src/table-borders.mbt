@@ -166,7 +166,27 @@ fn Table::paint_borders(
     for column, width in self.widths {
       let edge = self.borders.horizontal[row][column]
       if edge.width > 0 && (row != first || !shared_top) {
-        page.paint_table_border({ x: left, y: top, width, height: 0, }, edge)
+        let adjacent = row.min(last)
+        let start = if self.borders.vertical[adjacent][column].width > 0 {
+          edge.extent() / 2
+        } else {
+          0.0
+        }
+        let end = if self.borders.vertical[adjacent][column + 1].width > 0 {
+          edge.extent() / 2
+        } else {
+          0.0
+        }
+        let direction = if row == last + 1 { -1.0 } else { 1.0 }
+        page.paint_table_border(
+          {
+            x: left + direction * start,
+            y: top + edge.extent() / 2,
+            width: width - direction * (start + end),
+            height: 0,
+          },
+          edge,
+        )
       }
       left += width
     }

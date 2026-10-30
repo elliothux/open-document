@@ -65,6 +65,8 @@ fn measure_line(
       group.style.color == item.span.style.color &&
       group.style.script == item.span.style.script &&
       group.style.spacing == item.span.style.spacing &&
+      group.style.kerning == item.span.style.kerning &&
+      group.style.fontLeading == item.span.style.fontLeading &&
       group.level == bidi.levels[i] {
       groups[groups.length() - 1] = { ..group, end: next, }
     } else {
@@ -252,6 +254,7 @@ fn measure_line(
       advances?,
       context=(paragraph.chars, context_start + group_chars[index]),
       tracking=group.style.spacing,
+      kerning=group.style.kerning,
     )
     guard batch.diagnostics.is_empty() else {
       @failure.reject(

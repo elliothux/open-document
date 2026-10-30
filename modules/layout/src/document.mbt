@@ -8,6 +8,8 @@ pub(all) struct TextStyle {
   highlight : String
   script : String
   spacing : Double
+  kerning : String
+  fontLeading : Bool
 } derive(ToJson)
 
 ///|
@@ -25,6 +27,8 @@ pub fn TextStyle::new(
     highlight: "",
     script: "baseline",
     spacing: 0,
+    kerning: "all",
+    fontLeading: false,
   }
 }
 
@@ -111,6 +115,7 @@ pub(all) struct Paragraph {
   id : Int32
   container : Int32
   nominalSize : Double
+  frame : ParagraphFrame?
   spans : Array[Span]
   defaultTab : Double
   tabs : Array[TabStop]
@@ -447,6 +452,16 @@ pub(all) struct TableStroke {
 pub extend TableStroke with ToJson::{to_json}
 
 ///|
+pub(all) struct NestedTable {
+  row : Int32
+  column : Int32
+  table : Table
+} derive(ToJson)
+
+///|
+pub extend NestedTable with ToJson::{to_json}
+
+///|
 pub(all) struct Table {
   id : Int32
   autoFit : Bool
@@ -455,6 +470,8 @@ pub(all) struct Table {
   headerRows : Int32
   beforeParagraph : Int32
   rows : Array[Array[Array[Paragraph]]]
+  nestedTables : Array[NestedTable]
+  legacyCellAlignment : Bool
   columnSpans : Array[Array[Int32]]
   rowSpans : Array[Array[Int32]]
   widths : Array[Double]

@@ -17,6 +17,8 @@ pub struct DrawingTextBox {
   wrap : Bool
   clip : Bool
   lines : Array[Line]
+  bottomBorders : Map[Int32, (Double, BorderStyle)]
+  borders : Array[TableStroke]
 }
 
 ///|
@@ -28,8 +30,18 @@ pub fn DrawingTextBox::new(
   anchor : String,
   wrap : Bool,
   clip : Bool,
+  bottomBorders~ : Map[Int32, (Double, BorderStyle)] = Map([]),
 ) -> DrawingTextBox {
-  { paragraphs, insets, anchor, wrap, clip, lines: [], }
+  {
+    paragraphs,
+    insets,
+    anchor,
+    wrap,
+    clip,
+    lines: [],
+    bottomBorders,
+    borders: [],
+  }
 }
 
 ///|
@@ -58,6 +70,7 @@ pub impl ToJson for DrawingTextBox with fn to_json(self) {
     "anchor": self.anchor,
     "wrap": self.wrap,
     "clip": self.clip,
+    "bottomBorders": self.bottomBorders,
   }
 }
 
@@ -79,6 +92,24 @@ fn DrawingTextBox::validate(
     self.paragraphs.length() > 0 &&
     self.paragraphs.length() <= 256 else {
     @failure.reject("invalid-drawing", "Invalid text box body")
+  }
+  guard self.bottomBorders.length() <= self.paragraphs.length() &&
+    self.bottomBorders
+    .iter()
+    .all(entry => {
+      let (id, (space, edge)) = entry
+      self.paragraphs.any(p => p.id == id) &&
+      !space.is_nan() &&
+      !space.is_inf() &&
+      space >= 0 &&
+      space <= 31 &&
+      edge.style == "single" &&
+      edge.width > 0 &&
+      edge.width <= 12 &&
+      edge.color.length() == 6 &&
+      edge.color.iter().all(c => c.is_ascii_hexdigit())
+    }) else {
+    @failure.reject("invalid-drawing", "Invalid text box paragraph border")
   }
   let mut units = 0
   for paragraph in self.paragraphs {
@@ -118,6 +149,7 @@ fn DrawingFrame::prepare_text(
   let bottom = self.height - area.y - area.height
   let width = area.width
   let lines : Array[Line] = []
+  let borders : Array[TableStroke] = []
   let cache = ParagraphCache::new(probe, profile)
   let mut y = top
   let mut after = 0.0
@@ -150,6 +182,21 @@ fn DrawingFrame::prepare_text(
       y += line.height
       gap = paragraph.line.gap(item.textHeight)
     }
+    if text.bottomBorders.get(paragraph.id) is Some((space, edge)) {
+      // ONLYOFFICE Paragraph.drawBorders extends horizontal edges by 0.5 mm.
+      let extension = 36.0 / 25.4
+      borders.push({
+        rect: {
+          x: left + paragraph.left - extension,
+          y: y + space + edge.width / 2,
+          width: width - paragraph.left - paragraph.right + extension * 2,
+          height: 0,
+        },
+        color: edge.color,
+        width: edge.width,
+      })
+      y += space + edge.width
+    }
     after = paragraph.after
     terminal = paragraph.line.terminal_gap(paragraph.nominalSize)
   }
@@ -166,6 +213,10 @@ fn DrawingFrame::prepare_text(
     ..self,
     content: TextBox(shape, {
       ..text,
+      borders: borders.map(border => {
+        ..border,
+        rect: { ..border.rect, y: border.rect.y + offset, },
+      }),
       lines: lines.map(line => {
         ..line,
         y: line.y + offset,

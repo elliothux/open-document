@@ -108,10 +108,7 @@ fn Flow::resolve_body_fields(
     }
   }
   let paragraphs = self.paragraphs.map(resolve)
-  let tables = self.tables.map(table => {
-    ..table,
-    rows: table.rows.map(row => row.map(cell => cell.map(resolve))),
-  })
+  let tables = self.tables.map(table => table.map_paragraphs(resolve))
   let notes = self.notes.map(note => {
     guard values.get((note.paragraph, note.node)) is Some(label) else {
       return note
@@ -143,11 +140,7 @@ fn Flow::body_field_paragraphs(
   for index in 0..<=self.paragraphs.length() {
     while table < self.tables.length() &&
           self.tables[table].beforeParagraph == index {
-      for row in self.tables[table].rows {
-        for cell in row {
-          paragraphs.append(cell)
-        }
-      }
+      paragraphs.append(self.tables[table].paragraphs())
       table += 1
     }
     if index < self.paragraphs.length() {

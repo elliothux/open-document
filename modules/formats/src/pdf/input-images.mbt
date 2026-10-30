@@ -131,8 +131,7 @@ fn image_mask(
   }
   guard image_size(document, mask) == (width, height) &&
     is_name(get(document, mask, "ColorSpace"), "DeviceGray") &&
-    raw(mask, "SMask") == @syntax.PdfNull &&
-    raw(mask, "Matte") == @syntax.PdfNull else {
+    raw(mask, "SMask") == @syntax.PdfNull else {
     @failure.reject("unsupported-pdf", "Unsupported PDF soft mask")
   }
   let bytes = stream_bytes(document, mask)
@@ -147,6 +146,48 @@ fn image_mask(
       decoded_sample(bytes[i], decode[0], decode[1])
     }),
   )
+}
+
+///|
+fn image_matte(
+  document : @pdflite.PdfDocument,
+  object : @syntax.PdfObject,
+  channels : Int32,
+) -> Array[Double]? raise @failure.Failure {
+  let value = get(document, get(document, object, "SMask"), "Matte")
+  if value == @syntax.PdfNull {
+    return None
+  }
+  guard value is PdfArray(values) && values.length() == channels else {
+    @failure.reject(
+      "invalid-pdf", "PDF Matte must match the image color components",
+    )
+  }
+  Some(
+    values.map(value => {
+      let component = number(value)
+      guard component >= 0 && component <= 1 else {
+        @failure.reject(
+          "invalid-pdf", "PDF Matte component leaves the color range",
+        )
+      }
+      component
+    }),
+  )
+}
+
+///|
+fn unblend_sample(value : Byte, alpha : Byte, matte : Double) -> Byte {
+  if alpha == 0 {
+    return 0
+  }
+  let opacity = alpha.to_int().to_double() / 255
+  ((value.to_int().to_double() - matte * 255 * (1 - opacity)) / opacity)
+  .round()
+  .to_int()
+  .max(0)
+  .min(255)
+  .to_byte()
 }
 
 ///|
@@ -176,6 +217,8 @@ fn add_image(
   let channels = if gray { 1 } else { 3 }
   let decode = image_decode(document, object, channels)
   let alpha = image_mask(document, object, width, height)
+  let matte = image_matte(document, object, channels)
+  @pdfcore.sdk_check(width * height)
   let filter = get(document, object, "Filter")
   if is_name(filter, "DCTDecode") ||
     (filter is PdfArray([PdfNameObject(name)]) && name == pdf_name("DCTDecode")) {
@@ -185,7 +228,7 @@ fn add_image(
     let bytes = object.deep_copy().stream_bytes()
     check_jpeg(bytes, width, height, channels)
     @pdfcore.sdk_decoded(bytes.length())
-    context.jpeg[key] = { bytes, width, height, decode, alpha, }
+    context.jpeg[key] = { bytes, width, height, decode, alpha, matte, }
   } else {
     let bytes = stream_bytes(document, object)
     guard bytes.length() == width * height * channels else {
@@ -201,11 +244,16 @@ fn add_image(
         alpha.map(mask => mask[pixel]).unwrap_or(255)
       } else {
         let source_channel = if gray { 0 } else { channel }
-        decoded_sample(
+        let value = decoded_sample(
           bytes[pixel * channels + source_channel],
           decode[source_channel * 2],
           decode[source_channel * 2 + 1],
         )
+        if matte is Some(matte) && alpha is Some(alpha) {
+          unblend_sample(value, alpha[pixel], matte[source_channel])
+        } else {
+          value
+        }
       }
     })
     context.images.add(key, width, height, rgba)

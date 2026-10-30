@@ -1,14 +1,22 @@
 # 测试说明
 
-## P14 素材、环境与当前基线
+## P14 素材、环境与当前结果
 
-P14 首轮素材在私有 `cases/p14-xlsx.json`、`cases/p14-office.json`、`cases/p14-pdf.json`，环境依赖在 `cases/p14-environment.json`。产品范围、具体操作及小批退出条件归 [P14 方案](../p14-compatibility-performance.md)。
+P14 首轮素材在私有 `cases/p14-xlsx.json`、`cases/p14-office.json`、`cases/p14-pdf.json`，环境依赖在 `cases/p14-environment.json`。交付范围及支持边界归 [P14](../implemented/p14-compatibility-performance.md)，详细源码、产物、测量和历史失败归私有 `cases/p14-current.json`。
 
-从 `test-lab/` 运行 `bun run test:p14-preparation` 校验离线素材及独立输入预期；`bun run test:p14-environment` 核对工具、字体、Chromium 和现有 13 个性能输入；`bun run test:p14-recovery` 在临时副本验证缺文件恢复、派生重建与篡改拒绝。恢复原件用 `bun run prepare:p14`，需要固定源码 checkout；已有完整素材的日常检查不依赖该目录。
+2026-10-29，正确性修复后重跑未筛选的 `bun run test`，冻结运行 `1793305184836` 的 2749 项全部通过：1766 核心、150 单元、13 集成、23 安装包消费及 797 浏览器执行。零失败、阻塞、不确定及重试。完整运行绑定源码 `0a797757fd49035bba356a7e6ddfa599a7fa0600500be34ad8486b5d1f78d897`；`.temp/latest-full.json` 由运行器真实生成，原始报告和源码快照保留。先前失败和中断分别保留，不合并成通过结果。
 
-`bun run test:p14-baseline` 先复核环境并重新构建 SDK，再沿 `p14.config.ts` 执行首四 XLSX 案例。它复用现有执行/判定及精确清单规则，每案只执行一次，失败保留非零退出和实际错误。当前范围结果见新建运行目录内的 `p14-summary.json`；`plan.json`、`frozen-inputs.json`、`results.jsonl`、`browser.json` 和 HTML 保留定位信息。该范围内通过不授予完整资格或性能通过，尚未执行的后续格式也不计入通过。
+该完整运行覆盖选定 XLSX、DOCX、PPTX、PDF 原件的编辑、精确历史、独立结构、保存重开与输出。五份 Office 原件及指定编辑状态比较实际 Canvas 和独立 PDF：ONLYOFFICE 10.0.0-169、冻结 Arimo 四种字形、Poppler 144 dpi，沿用冻结容差。27.2 pt 按用户选择保留；引擎原生 27 pt PDF 及十倍原生单位的独立精度参考分别记录。PDF 文字固定 PDFium Tinos/Arimo、Poppler 25.03.0 和隔离 Fontconfig；图像缩图严格为 `[0,204,51,128]`。
 
-准备检查只证明原件身份、输入预期和运行依赖。实际兼容失败按冻结样本复现；缺字体或独立视觉参考的分页/像素项保持待确认。性能输入已准备不表示计时已执行，完整性能工具仍保留其既有资格基线要求。
+随后优化只改变布局核心的即时塑形结果复用及其生成接口。A 使用上述完整资格产物；B 使用独立发布 Wasm，双方共用冻结 JS 桥接。固定 CPU 4，Node 24.21.0 使用 `--expose-gc --no-liftoff --no-wasm-lazy-compilation`，在计时前完成优化编译，回收和独立验证在计时区间外。每侧 5 次预热、20 对 A/A 校准、冻结预算后交替采集 20 对 A/B。五项校准可靠，450 个样本的完整布局、保存字节、历史与重开检查通过。4096 字符、17 页首次布局中位数从 56.91 ms 降至 40.07 ms，下降 29.6%，超过 8.43 ms 噪声；重复布局、PDF 导出和首尾编辑均为 `within-budget`。重复布局和 PDF 导出分别增加 1.23 ms、7.29 ms，未超既定预算。仅认定已就绪 Node 核心调用提升；浏览器反馈、启动耗时和三类内存峰值未测量。
+
+优化后产物已通过 132 项布局核心检查和公开 `api`、`build`、`check`，另通过 13 条 Chromium 定向流程（Office 原件、字体切换/回退、双向文字及预算拒绝后恢复）。完整 2749 项资格属于 A，B 的定向与性能结果单独记录，随后文档更新不改变原始运行身份。未提速的字体映射候选、噪声不可靠的测量和计时前退出均保留，未调整噪声算法或预算。量化改进入口为 `tests/performance/p14-layout.ts`，冻结启动脚本、环境和原始结果由当前 checkpoint 定位；既有 `test:performance` 的同产物对照不替代该优化证据。
+
+环境固定 MoonBit 0.1.20261023、moonc 0.10.17+d971670cd、Bun 1.4.2、Node 24.21.0、Playwright 1.63.0/Chromium 153.0.8010.12、qpdf 12.4.1、HarfBuzz 14.4.0 与 Poppler 25.03.0。浏览器串行执行，保留原生剪贴板与完整断言。定向运行显式使用 list/JSON reporter，不授予完整资格。Linux 原生打印的五条流程在完整运行中使用虚拟显示服务通过。
+
+从 `test-lab/` 运行 `bun run test:p14-preparation` 校验离线素材及独立预期，`bun run test:p14-environment` 核对工具、字体、Chromium 及现有 13 个性能输入，`bun run test:p14-recovery` 在隔离副本验证缺失恢复、派生重建和篡改拒绝。`bun run prepare:p14` 需要固定上游源码来恢复原件；已有完整素材的日常检查不依赖 checkout。准备结果只证明素材和依赖。
+
+`bun run test:p14-baseline` 复核环境、构建 SDK，再按 `p14.config.ts` 运行首四 XLSX 案例。该命令保持其有限范围，失败以非零退出并保留实际错误；当前全格式交付由上述完整及定向运行证明。完整性能工具继续要求真实通过的完整资格，不拼接旧失败和定向通过，也不手写资格指针。
 
 ## R1 领域拆包与共享加载
 

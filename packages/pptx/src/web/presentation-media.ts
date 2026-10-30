@@ -19,15 +19,26 @@ async function decodeMedia<T>(
   video.playsInline = true;
   try {
     await new Promise<void>((resolve, reject) => {
+      let dataReady = false;
+      let frameReady = false;
+      let frameCallback: number | undefined;
       const done = (error?: Error) => {
         clearTimeout(timer);
+        if (frameCallback !== undefined)
+          video.cancelVideoFrameCallback(frameCallback);
         video.removeEventListener("loadeddata", ready);
         video.removeEventListener("error", failed);
         signal?.removeEventListener("abort", aborted);
         if (error) reject(error);
         else resolve();
       };
-      const ready = () => done();
+      const complete = () => {
+        if (dataReady && (!video.videoWidth || frameReady)) done();
+      };
+      const ready = () => {
+        dataReady = true;
+        complete();
+      };
       const failed = () =>
         done(new Error(`Media decoding failed (${video.error?.code ?? 0})`));
       const aborted = () => done(new Error("Media decoding cancelled"));
@@ -38,6 +49,12 @@ async function decodeMedia<T>(
       video.addEventListener("loadeddata", ready, { once: true });
       video.addEventListener("error", failed, { once: true });
       signal?.addEventListener("abort", aborted, { once: true });
+      // loadeddata can precede availability of a drawable frame in Chromium.
+      // Register before loading so a paused video's first frame is observed.
+      frameCallback = video.requestVideoFrameCallback(() => {
+        frameReady = true;
+        complete();
+      });
       video.src = url;
       video.load();
     });

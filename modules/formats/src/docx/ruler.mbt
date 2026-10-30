@@ -68,13 +68,7 @@ fn Session::ruler_context(
   let flow = self.flow()
   let paragraphs = flow.paragraphs.copy()
   for table in flow.tables {
-    for row in table.rows {
-      for cell in row {
-        for paragraph in cell {
-          paragraphs.push(paragraph)
-        }
-      }
-    }
+    paragraphs.append(table.paragraphs())
   }
   let nested = paragraphs
     .iter()

@@ -240,7 +240,7 @@ fn read_filter_node(
   guard !source.contains("<!--") && !source.contains("<?") else {
     @failure.reject("protected-content", "Opaque filter source is protected")
   }
-  let range = Range::parse(root.attribute("ref").unwrap_or(""))
+  let range = native_range(root.attribute("ref").unwrap_or(""))
   ignore(filter_settings({ range: range.name(), columns: [], }))
   let columns : Array[FilterColumn] = []
   let flags : Map[Int32, Array[(String, String)]] = Map([])

@@ -137,7 +137,7 @@ export class DocumentEditor extends DocumentTables {
           this.page = page;
           this.paint();
         },
-        settle: () => this.enqueue(() => this.presentSelection(false), true),
+        settle: () => this.enqueue(() => this.presentSelection(), true),
         openComment: (id) => this.editComment({ action: "goTo", id }),
         gesture: (change) => {
           this.inputEvents.endGroup();

@@ -19,12 +19,8 @@ fn Session::toc_entries(
     flow.paragraphs.map(p => (p.id, p)),
   )
   for table in flow.tables {
-    for row in table.rows {
-      for cell in row {
-        for p in cell {
-          paragraphs[p.id] = p
-        }
-      }
+    for p in table.paragraphs() {
+      paragraphs[p.id] = p
     }
   }
   let values : Map[Int32, String] = Map([])

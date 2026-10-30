@@ -63,11 +63,6 @@ fn PdfSession::range_result(
       let high = if index == endPage { end } else { display.text.length() }
       check_pdf_offset(display.text, low)
       check_pdf_offset(display.text, high)
-      guard !display.spans.any(span => {
-        !span.mapped && span.start < high && span.end > low
-      }) else {
-        @failure.reject("unmapped-text", "PDF range contains unknown Unicode")
-      }
       guard display.textComplete || low == high else {
         @failure.reject(
           "unmapped-text", "PDF range crosses incomplete page text",
@@ -79,14 +74,12 @@ fn PdfSession::range_result(
           "limit-exceeded", "PDF cross-page selection exceeds budget",
         )
       }
-      chunks.push(display.text[low:high].to_owned())
+      chunks.push(visible_text(display, low, high))
       pages.push({
         "page": page.id,
         "start": low,
         "end": high,
-        "quads": display.spans
-        .filter(span => span.start < high && span.end > low)
-        .map(span => span.quad),
+        "quads": selected_spans(display, low, high).map(span => span.quad),
       })
     }
     { "revision": self.revision, "text": chunks.join("\n"), "pages": pages }

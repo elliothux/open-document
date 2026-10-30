@@ -8,6 +8,23 @@ priv struct Run {
 }
 
 ///|
+struct MeasuredShape {
+  text : String
+  size : Double
+  language : String
+  start : Int32
+  end : Int32
+  font : Int32
+  level : Int32
+  script : @common.Script
+  context : Array[Char]
+  context_start : Int32
+  tracking : Double
+  kerning : String
+  buffer : @buffer.Buffer
+}
+
+///|
 pub fn TextProbe::shape(
   self : TextProbe,
   text : String,
@@ -15,8 +32,12 @@ pub fn TextProbe::shape(
   language : String,
   primary~ : Int32 = 0,
   base~ : Int32 = -1,
+  kerning~ : String = "all",
 ) -> ShapeBatch raise @failure.Failure {
   self.check()
+  guard ["all", "words", "none"].contains(kerning) else {
+    @failure.reject("invalid-style", "Unknown kerning mode")
+  }
   guard text.length() <= 4096 else {
     @failure.reject("limit-exceeded", "Text probe input exceeds budget")
   }
@@ -38,6 +59,7 @@ pub fn TextProbe::shape(
     primary,
     bidi_controls(paragraph),
     geometry=true,
+    kerning~,
   )
 }
 
@@ -55,11 +77,15 @@ fn TextProbe::shape_paragraph(
   advances? : (Array[(Double, Double)], Int32),
   context? : (Array[Char], Int32),
   tracking~ : Double = 0,
+  kerning~ : String = "all",
 ) -> ShapeBatch raise @failure.Failure {
   self.check()
+  let measured = self.measured_shape
+  self.measured_shape = None
   let inserted : Array[String] = []
   let original_outline_bytes = self.outline_bytes
   errdefer {
+    self.measured_shape = None
     for key in inserted {
       self.outlines.remove(key)
     }
@@ -165,6 +191,10 @@ fn TextProbe::shape_paragraph(
       run.font == font &&
       run.level == level &&
       run.script.to_tag() == script.to_tag() &&
+      (
+        kerning != "words" ||
+        (!ch.is_whitespace() && !chars[i - 1].is_whitespace())
+      ) &&
       !spacing.contains(offsets[i]) {
       runs[runs.length() - 1] = { ..run, end: i + 1, }
     } else {
@@ -191,56 +221,95 @@ fn TextProbe::shape_paragraph(
     let run = runs[index]
     let face = self.fonts[run.font]
     let ratio = size / face.upem.to_double()
-    let buffer = @buffer.Buffer::new()
-    guard buffer.set_text_context(
-      context_chars[:],
-      context_start + run.start,
-      context_start + run.end,
-    ) else {
-      @failure.reject("invalid-operation", "Invalid shaping text context")
-    }
-    for i in run.start..<run.end {
-      buffer.add_char(
-        @bidi.get_mirrored(chars[i], run.level),
-        cluster=clusters[offsets[i]].max(offsets[run.start]),
+    // A fitting measurement can supply the immediately following paint pass.
+    let buffer = if geometry &&
+      context is Some(_) &&
+      visual.length() == 1 &&
+      measured is Some(measured) &&
+      measured.text == text &&
+      measured.size == size &&
+      measured.language == language &&
+      measured.start == run.start &&
+      measured.end == run.end &&
+      measured.font == run.font &&
+      measured.level == run.level &&
+      measured.script == run.script &&
+      measured.context_start == context_start &&
+      measured.tracking == tracking &&
+      measured.kerning == kerning &&
+      measured.context == context_chars {
+      measured.buffer
+    } else {
+      let buffer = @buffer.Buffer::new()
+      guard buffer.set_text_context(
+        context_chars[:],
+        context_start + run.start,
+        context_start + run.end,
+      ) else {
+        @failure.reject("invalid-operation", "Invalid shaping text context")
+      }
+      for i in run.start..<run.end {
+        buffer.add_char(
+          @bidi.get_mirrored(chars[i], run.level),
+          cluster=clusters[offsets[i]].max(offsets[run.start]),
+        )
+      }
+      buffer.set_direction(
+        if run.level % 2 == 1 {
+          @common.direction_rtl
+        } else {
+          @common.direction_ltr
+        },
       )
-    }
-    buffer.set_direction(
-      if run.level % 2 == 1 {
-        @common.direction_rtl
-      } else {
-        @common.direction_ltr
-      },
-    )
-    buffer.set_script(run.script)
-    buffer.set_language(@common.Language::from_string(language))
-    // shortcut: disable global fraction substitutions until the pinned shaper supports context masks.
-    let features = buffer
-      .gsub_features()
-      .iter()
-      .filter(tag => {
-        !["frac", "numr", "dnom"].contains(tag.to_string()) &&
-        (
-          tracking == 0 ||
-          run.script.to_iso15924_tag().to_string() == "Arab" ||
-          !["liga", "clig"].contains(tag.to_string())
-        )
-      })
-      .collect()
-    buffer.set_gsub_features(features)
-    buffer.set_gpos_features(features)
-    match @shaper.shape(face.font, buffer, work~) {
-      Err(@buffer.Layout(@tables.LimitExceeded)) =>
-        @failure.reject(
-          "limit-exceeded", "OpenType substitution glyph budget exceeded",
-        )
-      Err(@buffer.Layout(@tables.WorkLimitExceeded)) =>
-        @failure.reject(
-          "limit-exceeded", "OpenType lookup work budget exceeded",
-        )
-      Err(error) =>
-        @failure.reject("shaping-failed", "OpenType shaping failed: \{error}")
-      Ok(_) => ()
+      buffer.set_script(run.script)
+      buffer.set_language(@common.Language::from_string(language))
+      // shortcut: disable global fraction substitutions until the pinned shaper supports context masks.
+      let features = buffer
+        .gsub_features()
+        .iter()
+        .filter(tag => {
+          !["frac", "numr", "dnom"].contains(tag.to_string()) &&
+          (kerning != "none" || tag.to_string() != "kern") &&
+          (
+            tracking == 0 ||
+            run.script.to_iso15924_tag().to_string() == "Arab" ||
+            !["liga", "clig"].contains(tag.to_string())
+          )
+        })
+        .collect()
+      buffer.set_gsub_features(features)
+      buffer.set_gpos_features(features)
+      match @shaper.shape(face.font, buffer, work~) {
+        Err(@buffer.Layout(@tables.LimitExceeded)) =>
+          @failure.reject(
+            "limit-exceeded", "OpenType substitution glyph budget exceeded",
+          )
+        Err(@buffer.Layout(@tables.WorkLimitExceeded)) =>
+          @failure.reject(
+            "limit-exceeded", "OpenType lookup work budget exceeded",
+          )
+        Err(error) =>
+          @failure.reject("shaping-failed", "OpenType shaping failed: \{error}")
+        Ok(_) => ()
+      }
+      if !geometry && context is Some(_) && visual.length() == 1 {
+        self.measured_shape = Some({
+          text,
+          size,
+          language,
+          start: run.start,
+          end: run.end,
+          font: run.font,
+          level: run.level,
+          script: run.script,
+          context: context_chars,
+          context_start,
+          tracking,
+          kerning,
+          buffer,
+        })
+      }
+      buffer
     }
     if geometry {
       run_views.push({

@@ -185,6 +185,7 @@ fn Session::set_footer(
           object.geometry.unwrap(),
           probe,
           profile,
+          recalculate=true,
         )
         guard diagnostic.is_empty() else {
           @failure.reject("layout-overflow", diagnostic)

@@ -7,6 +7,7 @@ struct Font {
   sha256 : String
   ascent : Int32
   descent : Int32
+  line_gap : Int32
   fs_type : Int32
   bbox : Array[Int32]
   cap_height : Int32
@@ -17,7 +18,7 @@ struct Font {
 fn font_line_extents(
   face : @face.Face,
   os2 : @sfnt.Os2Table?,
-) -> (Int32, Int32) raise @failure.Failure {
+) -> (Int32, Int32, Int32) raise @failure.Failure {
   let hhea = match face.reference_table(@common.Tag::from_string("hhea")) {
     Ok(blob) => blob.as_view()
     Err(_) => @failure.reject("malformed-font", "Missing hhea metrics")
@@ -45,13 +46,13 @@ fn font_line_extents(
       os2.typo_ascender >= 0 &&
       os2.typo_descender <= 0 &&
       os2.typo_ascender > os2.typo_descender {
-      return (os2.typo_ascender, -os2.typo_descender)
+      return (os2.typo_ascender, -os2.typo_descender, os2.typo_line_gap.max(0))
     }
   }
   if ascent >= 0 && descent <= 0 && ascent > descent {
-    (ascent, -descent)
+    (ascent, -descent, signed(8).max(0))
   } else if os2 is Some(os2) {
-    (os2.win_ascent, os2.win_descent)
+    (os2.win_ascent, os2.win_descent, 0)
   } else {
     @failure.reject("malformed-font", "Source font has no valid line metrics")
   }
@@ -68,6 +69,7 @@ pub struct TextProbe {
   mut paragraphs : Map[String, Array[MeasuredLine]]
   mut text_units : Int32
   mut pagination : PaginationCache?
+  mut measured_shape : MeasuredShape?
 }
 
 ///|
@@ -82,6 +84,7 @@ pub fn TextProbe::new() -> TextProbe {
     paragraphs: Map([]),
     text_units: 0,
     pagination: None,
+    measured_shape: None,
   }
 }
 
@@ -120,6 +123,7 @@ fn TextProbe::add_font_data(
   unicode : Bool,
 ) -> Int32 raise @failure.Failure {
   self.check()
+  self.measured_shape = None
   guard self.fonts.length() < 8 && bytes.length() <= 33554432 - self.font_bytes else {
     @failure.reject("limit-exceeded", "Font budget exceeded")
   }
@@ -177,7 +181,7 @@ fn TextProbe::add_font_data(
     ) else {
     @failure.reject("malformed-font", "Invalid line or bounding metrics")
   }
-  let (ascent, descent) = font_line_extents(face, os2)
+  let (ascent, descent, line_gap) = font_line_extents(face, os2)
   let bbox = [36, 38, 40, 42].map(offset => {
     let value = head_bytes[offset].to_int() * 256 +
       head_bytes[offset + 1].to_int()
@@ -201,6 +205,7 @@ fn TextProbe::add_font_data(
     sha256: hash.to_string(),
     ascent,
     descent,
+    line_gap,
     fs_type: os2.map(table => table.fs_type).unwrap_or(2),
     bbox,
     cap_height: os2
@@ -299,8 +304,17 @@ fn TextProbe::line_metrics(
   self : TextProbe,
   index : Int32,
   size : Double,
+  leading~ : Bool = false,
 ) -> (Double, Double) {
   let font = self.fonts[index]
+  if leading {
+    // ONLYOFFICE CTextMetrics adds the source font's line gap above the baseline.
+    let scale = size / font.upem.to_double()
+    return (
+      (font.ascent + font.line_gap).to_double() * scale,
+      font.descent.to_double() * scale,
+    )
+  }
   scaled_line_metrics(font.ascent, font.descent, font.upem, size)
 }
 
@@ -386,6 +400,7 @@ fn TextProbe::outline(
 ///|
 pub fn TextProbe::close(self : TextProbe) -> Unit {
   self.closed = true
+  self.measured_shape = None
   self.fonts.clear()
   self.outlines.clear()
   self.outline_boxes.clear()

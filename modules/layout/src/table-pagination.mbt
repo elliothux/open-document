@@ -144,6 +144,7 @@ fn Pagination::table_rows(
     ) {
     self.sheet_break()
   }
+  let decorations : Map[(Int32, Int32), PageFrame] = Map([])
   let (heights, cells) = table.measure_rows(
     cache,
     probe,
@@ -152,6 +153,7 @@ fn Pagination::table_rows(
     last_row,
     profile,
     additive,
+    decorations~,
   )
   let total = heights.iter().fold(init=0.0, (sum, value) => sum + value)
   let bottom = table.border_width(last_row + 1)
@@ -168,7 +170,19 @@ fn Pagination::table_rows(
     total + bottom,
   )
   self.avoid_wrapping(total + bottom)
-  if first_row == last_row &&
+  let contained = table.nestedTables.any(child => {
+    child.row >= first_row && child.row <= last_row
+  })
+  if contained {
+    guard total + bottom <= self.page.height - self.page.top - self.page.bottom else {
+      @failure.reject(
+        "unsupported-layout", "Nested table rows spanning pages require continuation support",
+      )
+    }
+    self.fit(total + bottom)
+  }
+  if !contained &&
+    first_row == last_row &&
     !table.exactHeights[first_row] &&
     self.y + total + bottom > self.page.height - self.page.bottom {
     self.split_table_row(
@@ -176,7 +190,8 @@ fn Pagination::table_rows(
     )
     return
   }
-  if first_row < last_row &&
+  if !contained &&
+    first_row < last_row &&
     self.y + total + bottom > self.page.height - self.page.bottom {
     self.continue_table_group(
       cache, probe, table, first_row, last_row, heights, cells, profile, images,
@@ -225,18 +240,36 @@ fn Pagination::table_rows(
       "bottom" => extra
       _ => 0
     }
-    for (line, offset, _) in lines {
-      let line = if table.exactHeights[row + table.rowSpans[row][column] - 1] {
-        { ..line, cellClip: Some({ x, y, width, height, }), }
+    let text_x = x + table.cell_insets(row, column).left
+    let exact = table.exactHeights[row + table.rowSpans[row][column] - 1]
+    if decorations.get((row, column)) is Some(child) {
+      let child = if exact {
+        child.clipped_to({ x: x - text_x, y: -shift, width, height, })
       } else {
-        line
+        child
       }
-      self.place(
-        line,
-        x + table.cell_insets(row, column).left,
-        y + offset + shift,
-        images,
-      )
+      self.pages.last().unwrap().append_decoration(child, text_x, y + shift)
+    }
+    for (line, offset, _) in lines {
+      let translated_clip = line.cellClip.map(rect => {
+        ..rect,
+        x: rect.x + text_x,
+        y: rect.y + y + shift,
+      })
+      let cell_clip = if exact {
+        let rect : Border = { x, y, width, height, }
+        Some(
+          translated_clip
+          .map(inner => {
+            inner.intersect(rect).unwrap_or({ ..rect, width: 0, height: 0, })
+          })
+          .unwrap_or(rect),
+        )
+      } else {
+        translated_clip
+      }
+      let line = { ..line, cellClip: cell_clip, }
+      self.place(line, text_x, y + offset + shift, images)
     }
   }
   table.paint_borders(

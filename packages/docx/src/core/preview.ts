@@ -14,6 +14,7 @@ import {
   checkPageBorders,
   type DocxPageBorders,
 } from "./docx-format.js";
+import { checkParagraphFrame, type ParagraphFrame } from "./preview-frame.js";
 import { record } from "@open-document/wasm/abi/validation";
 import { checkDocxNotes, type DocxFlowNote } from "./preview-notes.js";
 import { checkShapePath, type BasicDrawingShape } from "./preview-shape.js";
@@ -63,6 +64,7 @@ export interface DocxFlow {
     id: number;
     container: number;
     nominalSize: number;
+    frame?: ParagraphFrame;
     defaultTab: number;
     tabs: TabStop[];
     decimalSymbol: string;
@@ -119,6 +121,12 @@ export interface DocxFlow {
     preferredWidths: DocxFlow["tables"][number]["preferredWidth"][][];
     id: number;
     beforeParagraph: number;
+    legacyCellAlignment: boolean;
+    nestedTables: {
+      row: number;
+      column: number;
+      table: DocxFlow["tables"][number];
+    }[];
     rows: DocxFlow["paragraphs"][][];
     widths: number[];
     align: string;
@@ -361,6 +369,7 @@ export function docxFlow(value: unknown): DocxFlow {
   fields(flow.page, ["width", "height", "top", "right", "bottom", "left"]);
   diagnostics(flow.diagnostics);
   function checkParagraph(value: unknown, inTextBox = false): void {
+    checkParagraphFrame(record(value).frame);
     const paragraph = fields(
       value,
       [
@@ -559,105 +568,136 @@ export function docxFlow(value: unknown): DocxFlow {
       for (const value of entries(story)) checkParagraph(value);
     }
   }
-  let previousPosition = 0;
-  for (const value of entries(flow.tables)) {
-    const table = fields(value, ["id", "beforeParagraph"], ["align"]);
-    if (typeof table.autoFit !== "boolean")
-      throw new Error("Invalid table sizing preferences");
-    preferredWidth(table.preferredWidth);
-    if (
-      typeof table.beforeParagraph !== "number" ||
-      !Number.isInteger(table.beforeParagraph) ||
-      table.beforeParagraph < previousPosition ||
-      table.beforeParagraph > paragraphs.length
-    )
-      throw new Error("Invalid table body position");
-    previousPosition = table.beforeParagraph;
-    for (const height of entries(table.heights))
-      if (typeof height !== "number" || !Number.isFinite(height))
-        throw new Error("Invalid row height");
-    for (const row of entries(table.fills)) diagnostics(row);
-    const rows = entries(table.rows),
-      verticalAligns = entries(table.verticalAligns);
-    const preferred = entries(table.preferredWidths);
-    if (
-      preferred.length !== rows.length ||
-      preferred.some(
-        (row, r) => entries(row).length !== entries(rows[r]).length,
-      )
-    )
-      throw new Error("Invalid preferred cell widths");
-    for (const row of preferred)
-      for (const width of entries(row)) preferredWidth(width);
-    const exactHeights = entries(table.exactHeights);
-    if (
-      exactHeights.length !== rows.length ||
-      exactHeights.some((value) => typeof value !== "boolean")
-    )
-      throw new Error("Invalid row height rules");
-    const splitRows = entries(table.splitRows);
-    if (
-      splitRows.length !== rows.length ||
-      splitRows.some((value) => typeof value !== "boolean")
-    )
-      throw new Error("Invalid row split settings");
-    const margins = entries(table.margins);
-    if (
-      !Number.isSafeInteger(table.headerRows) ||
-      Number(table.headerRows) < 0 ||
-      Number(table.headerRows) > rows.length
-    )
-      throw new Error("Invalid table header count");
-    if (
-      margins.length !== rows.length ||
-      margins.some((row, r) => entries(row).length !== entries(rows[r]).length)
-    )
-      throw new Error("Invalid cell margin dimensions");
-    for (const row of margins)
-      for (const value of entries(row)) checkDocxCellMargins(value);
-    if (
-      verticalAligns.length !== rows.length ||
-      verticalAligns.some((row, r) => {
-        const values = entries(row);
-        return (
-          values.length !== entries(rows[r]).length ||
-          values.some(
-            (value) =>
-              typeof value !== "string" ||
-              !["top", "center", "bottom"].includes(value),
-          )
-        );
-      })
-    )
-      throw new Error("Invalid cell vertical alignments");
-    if (
-      !entries(table.widths).every(
-        (item) => typeof item === "number" && Number.isFinite(item),
-      )
-    )
-      throw new Error("Invalid table properties");
-    const borders = record(table.borders),
-      columns = entries(table.widths).length;
-    for (const [key, height, width] of [
-      ["horizontal", rows.length + 1, columns],
-      ["vertical", rows.length, columns + 1],
-    ] as const) {
-      const edges = entries(borders[key]);
+  function checkTables(
+    values: unknown,
+    paragraphCount: number,
+    depth = 0,
+  ): void {
+    if (depth > 8) throw new Error("Nested table depth exceeds limit");
+    let previousPosition = 0;
+    for (const value of entries(values)) {
+      const table = fields(value, ["id", "beforeParagraph"], ["align"]);
       if (
-        edges.length !== height ||
-        edges.some((row) => entries(row).length !== width)
+        typeof table.autoFit !== "boolean" ||
+        typeof table.legacyCellAlignment !== "boolean"
       )
-        throw new Error("Invalid border grid");
-      for (const row of edges)
-        for (const edge of entries(row)) {
-          if (edge === null) throw new Error("Invalid border grid edge");
-          checkDocxBorders({ top: edge }, false);
-        }
+        throw new Error("Invalid table sizing preferences");
+      preferredWidth(table.preferredWidth);
+      if (
+        typeof table.beforeParagraph !== "number" ||
+        !Number.isInteger(table.beforeParagraph) ||
+        table.beforeParagraph < previousPosition ||
+        table.beforeParagraph > paragraphCount
+      )
+        throw new Error("Invalid table body position");
+      previousPosition = table.beforeParagraph;
+      for (const height of entries(table.heights))
+        if (typeof height !== "number" || !Number.isFinite(height))
+          throw new Error("Invalid row height");
+      for (const row of entries(table.fills)) diagnostics(row);
+      const rows = entries(table.rows),
+        verticalAligns = entries(table.verticalAligns);
+      const preferred = entries(table.preferredWidths);
+      if (
+        preferred.length !== rows.length ||
+        preferred.some(
+          (row, r) => entries(row).length !== entries(rows[r]).length,
+        )
+      )
+        throw new Error("Invalid preferred cell widths");
+      for (const row of preferred)
+        for (const width of entries(row)) preferredWidth(width);
+      const exactHeights = entries(table.exactHeights);
+      if (
+        exactHeights.length !== rows.length ||
+        exactHeights.some((value) => typeof value !== "boolean")
+      )
+        throw new Error("Invalid row height rules");
+      const splitRows = entries(table.splitRows);
+      if (
+        splitRows.length !== rows.length ||
+        splitRows.some((value) => typeof value !== "boolean")
+      )
+        throw new Error("Invalid row split settings");
+      const margins = entries(table.margins);
+      if (
+        !Number.isSafeInteger(table.headerRows) ||
+        Number(table.headerRows) < 0 ||
+        Number(table.headerRows) > rows.length
+      )
+        throw new Error("Invalid table header count");
+      if (
+        margins.length !== rows.length ||
+        margins.some(
+          (row, r) => entries(row).length !== entries(rows[r]).length,
+        )
+      )
+        throw new Error("Invalid cell margin dimensions");
+      for (const row of margins)
+        for (const value of entries(row)) checkDocxCellMargins(value);
+      if (
+        verticalAligns.length !== rows.length ||
+        verticalAligns.some((row, r) => {
+          const values = entries(row);
+          return (
+            values.length !== entries(rows[r]).length ||
+            values.some(
+              (value) =>
+                typeof value !== "string" ||
+                !["top", "center", "bottom"].includes(value),
+            )
+          );
+        })
+      )
+        throw new Error("Invalid cell vertical alignments");
+      if (
+        !entries(table.widths).every(
+          (item) => typeof item === "number" && Number.isFinite(item),
+        )
+      )
+        throw new Error("Invalid table properties");
+      const borders = record(table.borders),
+        columns = entries(table.widths).length;
+      for (const [key, height, width] of [
+        ["horizontal", rows.length + 1, columns],
+        ["vertical", rows.length, columns + 1],
+      ] as const) {
+        const edges = entries(borders[key]);
+        if (
+          edges.length !== height ||
+          edges.some((row) => entries(row).length !== width)
+        )
+          throw new Error("Invalid border grid");
+        for (const row of edges)
+          for (const edge of entries(row)) {
+            if (edge === null) throw new Error("Invalid border grid edge");
+            checkDocxBorders({ top: edge }, false);
+          }
+      }
+      for (const row of entries(table.rows))
+        for (const cell of entries(row))
+          for (const value of entries(cell)) checkParagraph(value);
+      for (const value of entries(table.nestedTables)) {
+        const child = fields(value, ["row", "column"]);
+        if (
+          !Number.isSafeInteger(child.row) ||
+          !Number.isSafeInteger(child.column) ||
+          Number(child.row) < 0 ||
+          Number(child.row) >= rows.length
+        )
+          throw new Error("Invalid nested table row");
+        const cells = entries(rows[Number(child.row)]);
+        if (Number(child.column) < 0 || Number(child.column) >= cells.length)
+          throw new Error("Invalid nested table column");
+        checkTables(
+          [child.table],
+          entries(cells[Number(child.column)]).length,
+          depth + 1,
+        );
+      }
     }
-    for (const row of entries(table.rows))
-      for (const cell of entries(row))
-        for (const value of entries(cell)) checkParagraph(value);
   }
+  checkTables(flow.tables, paragraphs.length);
   return value as DocxFlow;
 }
 

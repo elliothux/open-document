@@ -378,15 +378,6 @@ fn read_styles(
         diagnostic: "Unsupported number format: " + style.format,
       }
     }
-    for component in [font, fills[fill_id], borders[border_id]] {
-      for child in tree.children.get(component.id).unwrap_or([]) {
-        for color in [child] + tree.children.get(child.id).unwrap_or([]) {
-          if color.attribute("tint").map(number).unwrap_or(0) != 0 {
-            style = { ..style, diagnostic: "Unsupported color tint", }
-          }
-        }
-      }
-    }
     result.push(style)
   }
   guard !result.is_empty() else {

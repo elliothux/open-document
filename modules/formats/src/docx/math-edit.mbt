@@ -59,9 +59,7 @@ fn Session::math_catalog(
   }
   let flow = self.flow()
   let paragraphs = flow.paragraphs.copy()
-  paragraphs.append(
-    flow.tables.map(table => table.rows.flatten().flatten()).flatten(),
-  )
+  paragraphs.append(flow.tables.map(table => table.paragraphs()).flatten())
   let styles : Map[Int32, @layout.TextStyle] = Map([])
   for paragraph in paragraphs {
     for span in paragraph.spans {

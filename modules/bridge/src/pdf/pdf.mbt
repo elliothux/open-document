@@ -329,10 +329,16 @@ fn Context::pdf_operation(
       )
     }
     "imagePdf" => {
+      let size = if request is { "size": value, .. } {
+        Some((field_int(value, "width"), field_int(value, "height")))
+      } else {
+        None
+      }
       let (kind, bytes, width, height) = session.image(
         field_int(request, "layoutId"),
         field_string(request, "key"),
         self.images,
+        size~,
       )
       {
         "kind": kind,

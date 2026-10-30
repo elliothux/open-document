@@ -41,7 +41,7 @@ fn read_table(
   let name = root.attribute("displayName").unwrap_or("")
   validate_defined_name(name)
   let id = natural(root.attribute("id").unwrap_or(""), 2147483647)
-  let range = Range::parse(root.attribute("ref").unwrap_or(""))
+  let range = native_range(root.attribute("ref").unwrap_or(""))
   let headers = natural(root.attribute("headerRowCount").unwrap_or("1"), 1)
   let totals = natural(root.attribute("totalsRowCount").unwrap_or("0"), 1)
   guard id > 0 &&

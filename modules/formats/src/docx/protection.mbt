@@ -84,7 +84,9 @@ fn WordTree::check_protection_node(
         "spinCount",
       ].contains(a.name)
     }) &&
-    [None, Some("readOnly")].contains(node.attribute("edit", uri=word_uri)) &&
+    [None, Some("readOnly"), Some("forms")].contains(
+      node.attribute("edit", uri=word_uri),
+    ) &&
     ["0", "1", "false", "true", "off", "on"].contains(
       node.attribute("enforcement", uri=word_uri).unwrap_or("0"),
     ) &&
@@ -93,7 +95,9 @@ fn WordTree::check_protection_node(
     ) &&
     (
       !self.protection_enabled(id) ||
-      node.attribute("edit", uri=word_uri) == Some("readOnly")
+      [Some("readOnly"), Some("forms")].contains(
+        node.attribute("edit", uri=word_uri),
+      )
     ) else {
     @failure.reject(
       "protected-content", "Unsupported document protection metadata or restriction",

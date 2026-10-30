@@ -208,6 +208,14 @@ fn WordTree::check_structure_properties(
   if self.index_markers.contains(id) {
     return
   }
+  let framed = self.nodes[id].name == "pPr" &&
+    self.nodes[id].parent >= 0 &&
+    self.nodes[self.nodes[id].parent].name == "p" &&
+    (self.paragraph_frame(self.nodes[id].parent) catch {
+      @failure.Failure(code="unsupported-layout", ..) => None
+      error => raise error
+    })
+    is Some(_)
   let excluded = if sectionBoundary {
     self
     .child(id, "sectPr")
@@ -216,6 +224,15 @@ fn WordTree::check_structure_properties(
   } else {
     []
   }
+  let frame_excluded = if framed {
+    self.children[id]
+    .filter(child => ["framePr", "pBdr"].contains(self.nodes[child].name))
+    .map(child => self.descendants(child))
+    .flatten()
+  } else {
+    []
+  }
+  let excluded = excluded + frame_excluded
   for id in self.descendants(id) {
     if excluded.contains(id) {
       continue
@@ -240,6 +257,11 @@ fn WordTree::check_structure_properties(
           "keepNext",
           "widowControl",
           "contextualSpacing",
+          ..if framed {
+            ["framePr", "pBdr"]
+          } else {
+            []
+          },
           ..if sectionBoundary {
             ["sectPr"]
           } else {
@@ -251,7 +273,7 @@ fn WordTree::check_structure_properties(
       "rPr" =>
         [
           "rStyle", "rFonts", "sz", "color", "b", "i", "lang", "bCs", "iCs", "szCs",
-          "u", "strike", "highlight", "vertAlign", "cs", "rtl", "spacing",
+          "u", "strike", "highlight", "vertAlign", "cs", "rtl", "spacing", "kern",
         ]
       _ => []
     }
@@ -289,6 +311,7 @@ fn WordTree::check_structure_properties(
       | "outlineLvl"
       | "sz"
       | "szCs"
+      | "kern"
       | "b"
       | "i"
       | "bCs"
@@ -426,16 +449,29 @@ fn WordTree::check_editable_paragraph(
     self.nodes[parent].parent >= 0 &&
     self.nodes[self.nodes[parent].parent].name == "tr" &&
     self.nodes[self.nodes[parent].parent].uri == word_uri
-  let row = if in_cell { self.nodes[parent].parent } else { -1 }
-  let table = if row >= 0 { self.nodes[row].parent } else { -1 }
-  let body = if table >= 0 { self.nodes[table].parent } else { -1 }
+  let mut ancestor = parent
+  let mut depth = 0
+  while in_cell && ancestor >= 0 && self.nodes[ancestor].name == "tc" {
+    guard depth <= 8 else {
+      @failure.reject("limit-exceeded", "Nested cell depth exceeds limit")
+    }
+    let row = self.nodes[ancestor].parent
+    let table = if row >= 0 { self.nodes[row].parent } else { -1 }
+    guard row >= 0 &&
+      table >= 0 &&
+      self.nodes[row].uri == word_uri &&
+      self.nodes[row].name == "tr" &&
+      self.nodes[table].uri == word_uri &&
+      self.nodes[table].name == "tbl" else {
+      @failure.reject("protected-content", "Invalid table ancestry")
+    }
+    ancestor = self.nodes[table].parent
+    depth += 1
+  }
   let supported_cell = in_cell &&
-    table >= 0 &&
-    body >= 0 &&
-    self.nodes[table].uri == word_uri &&
-    self.nodes[table].name == "tbl" &&
-    self.nodes[body].uri == word_uri &&
-    self.nodes[body].name == "body"
+    ancestor >= 0 &&
+    self.nodes[ancestor].uri == word_uri &&
+    self.nodes[ancestor].name == "body"
   let text_box = self.text_box_drawing(paragraph)
   guard in_body || supported_cell || text_box is Some(_) else {
     @failure.reject(

@@ -361,10 +361,12 @@ fn Session::prepare_axes(
     analysis=change.band is None,
   )
   if change.band is None {
-    ignore({ ..self, sheets, workbook, parts, }.analysis_parts())
+    ignore(
+      { ..self, sheets, workbook, parts, removed: removed_parts, }.analysis_parts(),
+    )
   }
   edits.append(self.cache_edits(sheets, calculation))
-  let comments = { ..self, sheets, workbook, parts, }
+  let comments = { ..self, sheets, workbook, parts, removed: removed_parts, }
   comments.check_thread_fallbacks(
     sheets[index],
     comments.read_sheet_threads(sheets[index]),

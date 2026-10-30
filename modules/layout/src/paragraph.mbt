@@ -96,6 +96,7 @@ fn prepare_paragraph(
       drawing: span.drawing.map(image => image.prepare_text(probe, profile)),
     }
     guard ["baseline", "subscript", "superscript"].contains(span.style.script) &&
+      ["all", "words", "none"].contains(span.style.kerning) &&
       (
         span.style.highlight.is_empty() ||
         (
@@ -122,7 +123,11 @@ fn prepare_paragraph(
     let logical = span.logical_text()
     spans.push({ span, start: length, end: length + logical.length(), font, })
     if font >= 0 {
-      let (a, d) = probe.line_metrics(font, span.style.size)
+      let (a, d) = probe.line_metrics(
+        font,
+        span.style.size,
+        leading=span.style.fontLeading,
+      )
       ascent = ascent.max(a)
       descent = descent.max(d)
     }
@@ -154,6 +159,26 @@ fn prepare_paragraph(
     },
   )
   let spaces = script_spaces(spans, text, bidi)
+  // A region break followed only by floating anchors has no visible run metrics.
+  // Its empty line uses the paragraph mark size rather than the break run size.
+  if spans.any(item => {
+      item.span.text.contains("\u000b") || item.span.text.contains("\u000c")
+    }) &&
+    spans.all(item => {
+      item.span.text.iter().all(c => c == '\u000b' || c == '\u000c') ||
+      item.span.drawing is Some({ anchor: Some(_), .. })
+    }) {
+    size = paragraph.nominalSize
+    if spans.iter().find_first(item => item.font >= 0) is Some(item) {
+      let (a, d) = probe.line_metrics(
+        item.font,
+        size,
+        leading=item.span.style.fontLeading,
+      )
+      ascent = a
+      descent = d
+    }
+  }
   let size = if size > 0 { size } else { 11 }
   let (line_height, _, clip) = paragraph.line.metrics(
     if ascent > 0 {
@@ -471,14 +496,20 @@ fn prepare_paragraph(
           0
         }
         for run in runs {
+          let leading = spans
+            .iter()
+            .find_first(item => item.start <= run.start && run.start < item.end)
+            .map(item => item.span.style.fontLeading)
+            .unwrap_or(false)
           for range in run.bidi {
-            let (a, d) = probe.line_metrics(range.font, run.size)
+            let (a, d) = probe.line_metrics(range.font, run.size, leading~)
             line_ascent = line_ascent.max(a)
             line_descent = line_descent.max(d)
             if run.rise != 0 {
               let (nominal_ascent, nominal_descent) = probe.line_metrics(
                 range.font,
                 run.nominalSize,
+                leading~,
               )
               line_ascent = line_ascent.max(nominal_ascent).max(a + run.rise)
               line_descent = line_descent.max(nominal_descent).max(d - run.rise)

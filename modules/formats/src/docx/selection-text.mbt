@@ -145,11 +145,7 @@ fn Session::paragraph_range_in(
   let flow = table_flow.unwrap_or_else(() => self.flow_from(document))
   let all = flow.paragraphs.copy()
   for table in flow.tables {
-    for row in table.rows {
-      for cell in row {
-        all.append(cell)
-      }
-    }
+    all.append(table.paragraphs())
   }
   let nested = all
     .iter()

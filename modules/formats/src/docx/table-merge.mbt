@@ -42,6 +42,14 @@ fn Session::table_grid(
   )
   let row = tree.nodes[cell].parent
   let table = tree.nodes[row].parent
+  let parent = tree.nodes[table].parent
+  guard parent >= 0 &&
+    tree.nodes[parent].uri == word_uri &&
+    tree.nodes[parent].name == "body" else {
+    @failure.reject(
+      "protected-content", "Nested table grid operations require nested-grid editing support",
+    )
+  }
   if !review &&
     tree.child(table, "tblPr").bind(p => tree.child(p, "tblPrChange"))
     is Some(_) {
@@ -52,7 +60,9 @@ fn Session::table_grid(
   let model = self.flow_from(self.document()).tables
     .iter()
     .find_first(t => t.id == table)
-    .unwrap()
+    .unwrap_or_else(() => {
+      @failure.reject("protected-content", "Table layout is unavailable")
+    })
   let r = tree.table_children(table, "tr").search(row).unwrap()
   let c = tree.table_children(row, "tc").search(cell).unwrap()
   read_table_grid(tree, model, r, c)

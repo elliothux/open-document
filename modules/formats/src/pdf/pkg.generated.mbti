@@ -280,7 +280,7 @@ pub fn PdfSession::extract_page(Self, Int32, String, @layout.TextProbe, Map[Stri
 pub fn PdfSession::extract_pages(Self, Int32, Array[String]) -> Bytes raise @failure.Failure
 pub fn PdfSession::field_design(Self, Int32, String) -> Json raise @failure.Failure
 pub fn PdfSession::hit(Self, Int32, Double, Double) -> Json raise @failure.Failure
-pub fn PdfSession::image(Self, Int32, String, @layout.Images) -> (String, Bytes, Int32, Int32) raise @failure.Failure
+pub fn PdfSession::image(Self, Int32, String, @layout.Images, size? : (Int32, Int32)?) -> (String, Bytes, Int32, Int32) raise @failure.Failure
 pub fn PdfSession::insert_blank(Self, Int32, Int32, Double, Double) -> Json raise @failure.Failure
 pub fn PdfSession::insert_pages(Self, Int32, Bytes, Array[String], Int32, replace? : Array[String]) -> Json raise @failure.Failure
 pub fn PdfSession::invalidate(Self) -> Unit
@@ -334,9 +334,6 @@ pub(all) struct PdfTextSpec {
 pub fn PdfTextSpec::to_json(Self) -> Json
 
 type SourcePage
-
-type TextSpan derive(ToJson)
-pub fn TextSpan::to_json(Self) -> Json
 
 // Type aliases
 

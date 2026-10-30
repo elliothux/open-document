@@ -51,13 +51,21 @@ fn text_style(
     .unwrap_or(
       attribute(children(sources, "latin"), "typeface").unwrap_or(default_font),
     )
-  let paint = fill(theme, sources)
-  let color = if paint.is_empty() &&
-    sources.iter().find_first(item => item.node.name == "fontRef")
-    is Some(reference) {
-    color(theme, reference)
-  } else {
-    paint
+  let color = for source in sources {
+    let value = if source.node.name == "fontRef" {
+      if source.tree.children.get(source.node.id).unwrap_or([]).is_empty() {
+        ""
+      } else {
+        color(theme, source)
+      }
+    } else {
+      fill(theme, [source])
+    }
+    if !value.is_empty() {
+      break value
+    }
+  } nobreak {
+    ""
   }
   for source in sources {
     for name in ["cap", "kumimoji"] {
@@ -98,6 +106,8 @@ fn text_style(
     strike: strike == "sngStrike",
     highlight: text_highlight(theme, sources),
     spacing: spacing / 100,
+    kerning: "words",
+    fontLeading: true,
     script: if baseline > 0 {
       "superscript"
     } else if baseline < 0 {
@@ -135,6 +145,19 @@ fn spacing(
 }
 
 ///|
+fn text_overflow_clip(
+  sources : Array[Ref],
+  name : String,
+) -> Bool raise @failure.Failure {
+  match attribute(sources, name).unwrap_or("overflow") {
+    "overflow" => false
+    "clip" => true
+    _ =>
+      @failure.reject("unsupported-text", "Unsupported text overflow: " + name)
+  }
+}
+
+///|
 fn read_text(
   theme : Theme,
   chain : Array[Ref],
@@ -163,6 +186,11 @@ fn read_text(
   } nobreak {
     "none"
   }
+  let normal_fit = if fit == "shrink" {
+    children(properties, "normAutofit").get(0)
+  } else {
+    None
+  }
   let body : Body = {
     left: number(attribute(properties, "lIns").unwrap_or("91440"), 0, 182880000) /
     12700,
@@ -183,6 +211,24 @@ fn read_text(
     anchor: attribute(properties, "anchor").unwrap_or("t"),
     wrap: attribute(properties, "wrap").unwrap_or("square") != "none",
     fit,
+    fontScale: normal_fit
+    .bind(item => item.node.attribute("fontScale"))
+    .map(value => number(value, 1000, 100000) / 100000),
+    lineSpaceReduction: normal_fit
+    .map(item => {
+      number(item.node.attribute("lnSpcReduction").unwrap_or("0"), 0, 20000) /
+      100000
+    })
+    .unwrap_or(0),
+    firstLastSpacing: match
+      attribute(properties, "spcFirstLastPara").unwrap_or("0") {
+      "1" | "true" => true
+      "0" | "false" => false
+      _ =>
+        @failure.reject("malformed-pptx", "Invalid paragraph end spacing flag")
+    },
+    clipHorizontal: text_overflow_clip(properties, "horzOverflow"),
+    clipVertical: text_overflow_clip(properties, "vertOverflow"),
     direction: attribute(properties, "vert").unwrap_or("horz"),
     upright: match attribute(properties, "upright").unwrap_or("0") {
       "1" | "true" => true
@@ -289,6 +335,7 @@ fn read_text(
     }
     let run_defaults = children(styles[:local_count].to_owned(), "defRPr")
     run_defaults.append(run_styles)
+    run_defaults.append(font_ref)
     run_defaults.append(children(styles[local_count:].to_owned(), "defRPr"))
     let runs : Array[TextRun] = []
     let mut math_align : String? = None
@@ -330,7 +377,6 @@ fn read_text(
       let item : Ref = { tree: current.tree, node, }
       let style_sources = item.child("rPr").map(item => [item]).unwrap_or([])
       style_sources.append(run_defaults)
-      style_sources.append(font_ref)
       let date_text = date_time.bind(time => {
         presentation_date_text(item, style_sources, time)
       })
@@ -376,7 +422,6 @@ fn read_text(
         .map(item => [item])
         .unwrap_or([])
       style_sources.append(run_defaults)
-      style_sources.append(font_ref)
       runs.push({
         source: None,
         math: None,

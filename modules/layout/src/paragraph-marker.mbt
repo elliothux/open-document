@@ -49,6 +49,7 @@ fn TextProbe::paragraph_marker(
     "und",
     primary=font,
     base=if paragraph.rtl { 1 } else { 0 },
+    kerning=style.kerning,
   )
   guard batch.diagnostics.is_empty() else {
     @failure.reject("missing-glyph", "Paragraph marker requires every glyph")
@@ -83,8 +84,16 @@ fn TextProbe::paragraph_marker(
   let mut ascent = 0.0
   let mut descent = 0.0
   for range in batch.runs {
-    let (a, d) = self.line_metrics(range.font, style.render_size())
-    let (na, nd) = self.line_metrics(range.font, style.size)
+    let (a, d) = self.line_metrics(
+      range.font,
+      style.render_size(),
+      leading=style.fontLeading,
+    )
+    let (na, nd) = self.line_metrics(
+      range.font,
+      style.size,
+      leading=style.fontLeading,
+    )
     ascent = ascent.max(na).max(a + style.rise())
     descent = descent.max(nd).max(d - style.rise())
   }

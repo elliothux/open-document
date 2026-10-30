@@ -8,6 +8,9 @@ fn Session::analysis_workbook_extension(
     return false
   }
   for ext in tree.children.get(list.id).unwrap_or([]) {
+    if workbook_metadata_extension(tree, ext) {
+      continue
+    }
     if ext.uri != spreadsheet_uri ||
       ext.name != "ext" ||
       ext.attributes.length() != 1 ||

@@ -403,8 +403,25 @@ fn Table::merged_page_edge(
   for column in start..<(start + self.columnSpans[row][cell]) {
     let edge = self.borders.horizontal[boundary][column]
     if edge.width > 0 {
+      let inset = edge.extent() / 2
+      let direction = if bottom { -1.0 } else { 1.0 }
+      let left_inset = if self.borders.vertical[row][column].width > 0 {
+        inset
+      } else {
+        0.0
+      }
+      let right_inset = if self.borders.vertical[row][column + 1].width > 0 {
+        inset
+      } else {
+        0.0
+      }
       page.paint_table_border(
-        { x: left, y, width: self.widths[column], height: 0, },
+        {
+          x: left + direction * left_inset,
+          y: y + inset,
+          width: self.widths[column] - direction * (left_inset + right_inset),
+          height: 0,
+        },
         edge,
       )
     }

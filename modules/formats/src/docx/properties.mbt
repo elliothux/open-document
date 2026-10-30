@@ -36,6 +36,7 @@ fn WordTree::new(document : @xml.Document) -> WordTree {
     index_entries: Map([]),
     index_markers: Set([]),
   }
+  tree.select_alternate_content()
   let (contents, field_spans) = tree.read_contents()
   let (index_entries, index_markers) = tree.read_index_entries()
   { ..tree, contents, field_spans, index_entries, index_markers, }
@@ -102,6 +103,7 @@ priv struct RunStyle {
   family : String
   fonts : FontBindings
   size : Double
+  kerning : Double?
   spacing : Double
   color : String
   bold : Bool
@@ -117,6 +119,15 @@ fn RunStyle::key(self : RunStyle) -> String {
   self.family +
   (if self.bold { "|bold" } else { "" }) +
   (if self.italic { "|italic" } else { "" })
+}
+
+///|
+fn RunStyle::kerning_mode(self : RunStyle) -> String {
+  if self.kerning is Some(minimum) && self.size >= minimum {
+    "all"
+  } else {
+    "none"
+  }
 }
 
 ///|
@@ -168,10 +179,20 @@ fn run_properties(
     .map(value => value / 2)
     .unwrap_or(base.size)
   let color = theme_text_color(tree, id, base.color, themes)
+  let kerning = match tree.number(id, "kern", "val") {
+    None => base.kerning
+    Some(value) => {
+      guard value >= 0 else {
+        @failure.reject("invalid-style", "Negative kerning size threshold")
+      }
+      Some(value / 2)
+    }
+  }
   {
     family,
     fonts,
     size,
+    kerning,
     spacing: tree
     .number(id, "spacing", "val")
     .map(value => value / 20)
@@ -368,6 +389,7 @@ fn Session::styles(
       size: 11,
     },
     size: 11,
+    kerning: None,
     color: "auto",
     bold: false,
     italic: false,
@@ -381,6 +403,7 @@ fn Session::styles(
     id: -1,
     container: 0,
     nominalSize: defaults.size,
+    frame: None,
     defaultTab: self.default_tab(),
     tabs: [],
     decimalSymbol: self.decimal_symbol(),
@@ -388,7 +411,7 @@ fn Session::styles(
     spans: [],
     before: 0,
     after: 0,
-    line: @layout.Auto(288),
+    line: @layout.Auto(240),
     left: 0,
     right: 0,
     first: 0,

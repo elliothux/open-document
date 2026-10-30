@@ -397,7 +397,9 @@ fn Session::check_picture_context(
   self : Session,
   tree : WordTree,
 ) -> Unit raise @failure.Failure {
-  ignore(self.editable_page_section(tree))
+  for index in 0..<tree.page_sections().length() {
+    ignore(self.editable_page_section(tree, target=Some(index)))
+  }
   if self.settings_part() is Some(part) {
     let settings = WordTree::new(self.part_xml(part))
     for setting in settings.children[0] {

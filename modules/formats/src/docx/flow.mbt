@@ -101,20 +101,25 @@ fn Session::flow_from(
     numbered[p.id] = p
     backgrounds[p.id] = background
   }
-  for table in tables {
-    for row_index, row in table.rows {
-      for cell_index, cell in row {
-        let background = table.fills
-          .get(row_index)
-          .bind(row => row.get(cell_index))
-          .filter(color => !color.is_empty())
-          .unwrap_or(background)
+  fn collect(table : @layout.Table, inherited : String) -> Unit {
+    for row, cells in table.rows {
+      for column, cell in cells {
+        let color = table.fills[row][column]
+        let color = if color.is_empty() { inherited } else { color }
         for p in cell {
           numbered[p.id] = p
-          backgrounds[p.id] = background
+          backgrounds[p.id] = color
+        }
+        for child in table.nestedTables {
+          if child.row == row && child.column == column {
+            collect(child.table, color)
+          }
         }
       }
     }
+  }
+  for table in tables {
+    collect(table, background)
   }
   self.apply_numbering(tree, styles, numbered, backgrounds)
   styles.apply_contextual_spacing(tree, numbered)
@@ -160,10 +165,7 @@ fn Session::flow_from(
     columns: first.columns,
     paragraphs: paragraphs.map(p => numbered[p.id]),
     diagnostics,
-    tables: tables.map(table => {
-      ..table,
-      rows: table.rows.map(row => row.map(cell => cell.map(p => numbered[p.id]))),
-    }),
+    tables: tables.map(table => table.map_paragraphs(p => numbered[p.id])),
     headers: first.headers,
     headerDistance: first.headerDistance,
     footers: first.footers,
@@ -229,7 +231,11 @@ fn Session::paragraph(
   let props = tree.child(id, "pPr")
   let mut paragraph = styles.paragraph_style(tree, id, diagnostics)
   let mut run_style = styles.character_style(tree, id, None, diagnostics)
-  let nominal_size = run_style.size
+  let nominal_size = if props is Some(props) {
+    styles.run_character_style(tree, props, run_style, diagnostics).size
+  } else {
+    run_style.size
+  }
   if props is Some(props) {
     paragraph = paragraph_properties(tree, props, paragraph)
   }
@@ -288,6 +294,8 @@ fn Session::paragraph(
         highlight: "",
         script: "baseline",
         spacing: 0,
+        kerning: run_style.kerning_mode(),
+        fontLeading: true,
       }
       try self.read_inline_math(tree, run, style) catch {
         @failure.Failure(code="limit-exceeded", ..) as error => raise error
@@ -390,6 +398,8 @@ fn Session::paragraph(
             highlight: highlight_color(style.highlight),
             script: style.vertAlign,
             spacing: style.spacing,
+            kerning: style.kerning_mode(),
+            fontLeading: true,
           },
           drawing: image,
           field,
@@ -418,6 +428,8 @@ fn Session::paragraph(
         highlight: highlight_color(run_style.highlight),
         script: run_style.vertAlign,
         spacing: run_style.spacing,
+        kerning: run_style.kerning_mode(),
+        fontLeading: true,
       },
       drawing: None,
       field: "",
@@ -488,6 +500,9 @@ fn Session::paragraph(
   {
     ..paragraph,
     nominalSize: nominal_size,
+    frame: tree.paragraph_frame(id) catch {
+      @failure.Failure(..) => None
+    },
     spans,
     container: if tree.nodes[id].parent >= 0 &&
       tree.nodes[tree.nodes[id].parent].name == "tc" &&

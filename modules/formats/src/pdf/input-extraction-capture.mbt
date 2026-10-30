@@ -83,25 +83,16 @@ fn ContentContext::extracted_glyph_draw(
 ) -> Unit raise @failure.Failure {
   if self.extraction is Some(data) && index is Some(index) {
     let item = data.glyphs[index]
-    let bounds = self.probe.source_glyph_bounds(item.fontIndex, gid)
-    let upem = self.probe.font_info()[item.fontIndex].upem.to_double()
-    // Use the original local glyph origin. Inverting the page baseline and
-    // transforming it again can move an exact clip-boundary point by one ULP.
+    // Retain the original local origin to avoid a second matrix inversion.
     let (x, y) = data.glyphOrigins[index]
-    let ink = if bounds is [a, b, c, d] {
-      extraction_quad(
-        item.transform.then({
-          a: (c - a) / upem,
-          b: 0,
-          c: 0,
-          d: (d - b) / upem,
-          e: x + a / upem,
-          f: y - d / upem,
-        }),
-      )
-    } else {
-      []
-    }
+    let ink = glyph_ink_quad(
+      self.probe,
+      item.fontIndex,
+      gid,
+      item.transform,
+      x,
+      y,
+    )
     let invisible = item.invisible ||
       (
         ink.is_empty() &&

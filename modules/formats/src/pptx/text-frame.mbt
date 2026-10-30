@@ -232,6 +232,19 @@ fn Session::frame_objects(
       } else {
         object.body.fit
       },
+      fontScale: if change is TextFit(_) {
+        None
+      } else {
+        object.body.fontScale
+      },
+      lineSpaceReduction: if change is TextFit(_) {
+        0
+      } else {
+        object.body.lineSpaceReduction
+      },
+      firstLastSpacing: object.body.firstLastSpacing,
+      clipHorizontal: object.body.clipHorizontal,
+      clipVertical: object.body.clipVertical,
       columns: if change is TextColumns(count, _, _) {
         count
       } else {
@@ -270,7 +283,13 @@ fn Session::frame_objects(
       effective.top + effective.bottom < frame.height else {
       @failure.reject("invalid-operation", "Text margins leave no usable frame")
     }
-    let (_, scale, diagnostic, _) = fit_text(target, geometry, probe, profile)
+    let (_, scale, diagnostic, _) = fit_text(
+      target,
+      geometry,
+      probe,
+      profile,
+      recalculate=true,
+    )
     guard body.fit == "none" || diagnostic.is_empty() else {
       @failure.reject("layout-overflow", diagnostic)
     }
@@ -288,7 +307,7 @@ fn Session::frame_objects(
     })
     let replace_fit = body.fit == "shrink" || change is TextFit(_)
     let fit_markup = if body.fit == "shrink" {
-      "<a:normAutofit xmlns:a=\"\{drawing_uri}\" fontScale=\"\{(scale * 100000).floor().to_int()}\" lnSpcReduction=\"0\"/>"
+      "<a:normAutofit xmlns:a=\"\{drawing_uri}\" fontScale=\"\{(scale * 100000).floor().to_int()}\" lnSpcReduction=\"\{normal_fit_reduction(scale)}\"/>"
     } else if body.fit == "resize" {
       "<a:spAutoFit xmlns:a=\"\{drawing_uri}\"/>"
     } else {

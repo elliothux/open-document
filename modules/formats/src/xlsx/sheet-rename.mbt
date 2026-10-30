@@ -18,6 +18,9 @@ fn Session::sheet_edit_reason(
       return "Workbook structure is protected"
     }
     for node in tree.children.get(root.id).unwrap_or([]) {
+      if workbook_metadata(tree, node) {
+        continue
+      }
       if analysis &&
         node.name == "extLst" &&
         node.uri == spreadsheet_uri &&

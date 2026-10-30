@@ -95,6 +95,7 @@ fn MathExpression::measure(
       let (ascent, _) = probe.line_metrics(
         probe.math_font_index(style, profile),
         style.size,
+        leading=style.fontLeading,
       )
       {
         width: block.widths[0],

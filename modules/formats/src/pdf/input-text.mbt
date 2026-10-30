@@ -82,7 +82,13 @@ fn show_text(
       source: "\{source}:\{index}",
       mapped: mapped is Some(_) || actual,
       invisible: text_state.rendering_mode == 3,
+      cropVisible: crop_intersects(context.page, quad),
     })
+    if font.font is PdfFontStandard(_) &&
+      [9, 10, 13].contains(glyph.charcode) &&
+      mapped is Some("\r" | "\n" | "\t") {
+      continue
+    }
     let transform = state.matrix
       .then(matrix(glyph.text_matrix))
       .then({
@@ -172,6 +178,27 @@ fn show_text(
           font.glyphs[glyph.charcode] = Some(outline)
           outline
         }
+      }
+      let ink = glyph_ink_quad(
+        context.probe,
+        font_index,
+        outline.2,
+        transform.then({ a: 1, b: 0, c: 0, d: -1, e: 0, f: 0, }),
+        glyph.pvx,
+        -glyph.pvy,
+      )
+      let visible = if ink.is_empty() &&
+        value.iter().all(c => c.is_whitespace()) {
+        let (x, y) = transform.point(glyph.pvx, -glyph.pvy)
+        let (r, t) = transform.point(glyph.pvx + glyph.width, -glyph.pvy)
+        crop_intersects(context.page, [x, y, r, t])
+      } else {
+        crop_intersects(context.page, ink)
+      }
+      let span_index = context.spans.length() - 1
+      context.spans[span_index] = {
+        ..context.spans[span_index],
+        cropVisible: visible,
       }
       check_style(state.style, state.width)
       context.commands.push(@layout.Style(state.style))

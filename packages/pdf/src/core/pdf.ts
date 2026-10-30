@@ -541,6 +541,14 @@ export function pdfResult<C extends PdfCommand>(
       const data = bytes(object.bytes, 16777216);
       if (object.kind === "rgba" && data.length !== width * height * 4)
         throw new Error("Invalid PDF image samples");
+      if (
+        command.operation === "imagePdf" &&
+        command.size &&
+        (object.kind !== "rgba" ||
+          width !== command.size.width ||
+          height !== command.size.height)
+      )
+        throw new Error("PDF image size changed");
       object.bytes = data;
       break;
     }

@@ -175,6 +175,7 @@ fn RunStyle::formatted(
       size: format_value(self.fonts.size, inherited.fonts.size, patch.size),
     },
     size: format_value(self.size, inherited.size, patch.size),
+    kerning: self.kerning,
     spacing: format_value(self.spacing, inherited.spacing, patch.spacing),
     color: format_value(self.color, inherited.color, patch.color),
     bold: format_value(self.bold, inherited.bold, patch.bold),

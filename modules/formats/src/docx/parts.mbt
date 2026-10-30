@@ -115,6 +115,21 @@ fn Session::ensure_relationship_type(
   }
   let types = self.opc.names["[content_types].xml"]
   let original = parts.get(types).unwrap_or_else(() => self.part_xml(types))
+  // A new relationship part is already covered by the package's rels default.
+  // Package.content_type only indexes parts that existed when it was opened.
+  let nodes = original.nodes()
+  if !nodes.any(node => {
+      node.name == "Override" &&
+      node.attribute("PartName").map(name => name.to_lower()) ==
+      Some("/" + path.to_lower())
+    }) &&
+    nodes.any(node => {
+      node.name == "Default" &&
+      node.attribute("Extension").map(name => name.to_lower()) == Some("rels") &&
+      node.attribute("ContentType") == Some(kind)
+    }) {
+    return
+  }
   let (document, edit) = append_part_xml(
     original,
     "<Override xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\" PartName=\"/\{property_attribute(path)}\" ContentType=\"\{kind}\"/>",
