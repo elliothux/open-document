@@ -15,7 +15,7 @@
 - Follow explicit user instructions over skill guidance. Read directory-specific instructions. If a skill would halt authorized work, link its file and quote the instruction.
 - Prepare a reviewable result before seeking approval. External writes, commits, pushes, publication, deployment, destructive cleanup, and credential or permission changes require user authorization. Do not execute them without it.
 - Work in this repository. Preserve unrelated edits, user data, reference checkouts, and compact failure evidence. Expand scope only with user authorization.
-- When asked to commit/push, use current branches here and in `test-lab/`. Push the private commit before the parent gitlink. Branch changes and history rewriting need explicit authorization.
+- Commit and push on `main` here and in `test-lab/`. Push the private commit before updating the parent gitlink. Use another branch or rewrite history only when explicitly requested.
 - Local bounded Docker work and reference clones under `references/` are authorized. Keep private inputs local and preserve unrelated resources.
 - Handle routine work directly. Use subagents only for explicitly requested parallel work. After a context reset, resume the current goal.
 - After two attempts without new evidence, reassess the blocker and choose another approach.
