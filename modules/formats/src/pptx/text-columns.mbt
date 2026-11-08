@@ -7,6 +7,10 @@ fn text_column_width(
     body.left -
     body.right -
     (body.columns - 1).to_double() * body.columnGap
+  if body.columns == 1 && usable <= 0 {
+    // ONLYOFFICE CShape.recalculateDocContent clamps exhausted insets to 0.02 mm.
+    return 0.02 * 72 / 25.4
+  }
   guard usable > 0 else {
     @failure.reject(
       "layout-overflow", "Text column spacing leaves no usable width",
@@ -58,6 +62,11 @@ fn place_text_columns(
           ..run,
           x: run.x + dx,
           baseline: run.baseline + dy,
+        }),
+        markerImage: line.markerImage.map(image => {
+          ..image,
+          x: image.x + dx,
+          y: image.y + dy,
         }),
         drawings: line.drawings.map(drawing => {
           ..drawing,

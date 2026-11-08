@@ -112,6 +112,7 @@ fn Session::check_partial_calculation(
   let before_work : FormulaWork = {
     remaining: 1048576,
     date1904: self.date1904,
+    random: None,
     origin: { row: 1, column: 1, },
     names: previous.names,
   }

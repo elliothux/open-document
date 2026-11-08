@@ -150,6 +150,11 @@ fn Session::edit_result(
   }
   {
     "revision": self.revision,
+    "readOnlyReason": if self.encrypted_source is Some(_) {
+      encrypted_docx_reason
+    } else {
+      ""
+    },
     "defaultTabStop": self.default_tab(),
     "formatting": if self.composition is None &&
       self.drawing_gesture is None &&
@@ -578,6 +583,7 @@ fn Session::accept_document(
   parts~ : Map[String, @xml.Document] = self.parts,
   media~ : Map[String, Bytes] = self.media,
 ) -> Unit raise @failure.Failure {
+  self.check_encrypted_edit()
   guard self.revision < 0x7fffffff else {
     @failure.reject("limit-exceeded", "Revision exhausted")
   }

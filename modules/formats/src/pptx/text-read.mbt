@@ -1,12 +1,37 @@
 ///|
+fn text_source_color(
+  theme : Theme,
+  sources : Array[Ref],
+) -> String raise @failure.Failure {
+  for source in sources {
+    let value = if source.node.name == "fontRef" {
+      if source.tree.children.get(source.node.id).unwrap_or([]).is_empty() {
+        ""
+      } else {
+        color(theme, source)
+      }
+    } else {
+      fill(theme, [source])
+    }
+    if !value.is_empty() {
+      break value
+    }
+  } nobreak {
+    "000000"
+  }
+}
+
+///|
 fn text_style(
   theme : Theme,
   sources : Array[Ref],
   text : String,
   default_font : String,
 ) -> @layout.TextStyle raise @failure.Failure {
-  let size = number(attribute(sources, "sz").unwrap_or("1800"), 100, 102400) /
-    100
+  // ONLYOFFICE imports DrawingML font sizes at half-point precision.
+  let size = (number(attribute(sources, "sz").unwrap_or("1800"), 100, 102400) /
+    50).round() /
+    2
   let spacing = number(
     attribute(sources, "spc").unwrap_or("0"),
     -158400,
@@ -25,13 +50,17 @@ fn text_style(
     .unwrap_or(false)
   let underline = attribute(sources, "u").unwrap_or("none")
   let strike = attribute(sources, "strike").unwrap_or("noStrike")
+  let caps = attribute(sources, "cap").unwrap_or("none")
+  guard ["none", "all"].contains(caps) else {
+    @failure.reject("unsupported-text", "Unsupported text decoration: cap")
+  }
   // ONLYOFFICE interprets DrawingML baseline by sign, using shared script metrics.
   let baseline = number(
     attribute(sources, "baseline").unwrap_or("0"),
     -2147483648,
     2147483647,
   )
-  guard ["none", "sng", "0", "false"].contains(underline) &&
+  guard ["none", "sng", "heavy", "0", "false"].contains(underline) &&
     ["noStrike", "sngStrike", "0", "false"].contains(strike) else {
     @failure.reject("unsupported-text", "Unsupported underline or strike style")
   }
@@ -43,32 +72,31 @@ fn text_style(
   } else {
     "latin"
   }
-  let families = children(sources, font_kind)
-  let family = families
-    .iter()
-    .filter_map(item => item.node.attribute("typeface"))
-    .find_first(value => !value.is_empty())
-    .unwrap_or(
-      attribute(children(sources, "latin"), "typeface").unwrap_or(default_font),
-    )
-  let color = for source in sources {
-    let value = if source.node.name == "fontRef" {
-      if source.tree.children.get(source.node.id).unwrap_or([]).is_empty() {
-        ""
+  let family = for source in sources {
+    // A shape's theme font reference overrides inherited character fonts.
+    if source.node.name == "fontRef" {
+      let kind = if source.node.attribute("idx") == Some("major") {
+        "+mj-"
       } else {
-        color(theme, source)
+        "+mn-"
       }
-    } else {
-      fill(theme, [source])
+      break kind + (if font_kind == "latin" { "lt" } else { font_kind })
     }
-    if !value.is_empty() {
+    if source.child(font_kind) is Some(font) &&
+      font.node.attribute("typeface") is Some(value) &&
+      !value.is_empty() {
       break value
     }
   } nobreak {
-    ""
+    attribute(children(sources, "latin"), "typeface").unwrap_or(default_font)
   }
+  let source_color = text_source_color(theme, sources)
   for source in sources {
-    for name in ["cap", "kumimoji"] {
+    if source.node.attribute("cap") is Some(value) &&
+      !["none", "all", "small"].contains(value) {
+      @failure.reject("unsupported-text", "Unsupported text decoration: cap")
+    }
+    for name in ["kumimoji"] {
       if source.node.attribute(name) is Some(value) &&
         !["none", "noStrike", "0", "false"].contains(value) {
         @failure.reject(
@@ -87,27 +115,49 @@ fn text_style(
           )
         }
       }
+      if child.uri == drawing_uri && child.name == "uFill" {
+        let reference = { tree: source.tree, node: child, }
+        guard child.attributes.is_empty() &&
+          child.text.trim().is_empty() &&
+          source.tree.children.get(child.id).unwrap_or([]).length() == 1 &&
+          !source_xml(reference).contains("<!--") &&
+          !source_xml(reference).contains("<?") &&
+          paint_fill(reference) is Some({ name: "solidFill", .. }) else {
+          @failure.reject("unsupported-text", "Unsupported underline fill")
+        }
+        // ONLYOFFICE skips the uFill record and paints with the text color.
+        ignore(fill_rgba(theme, [reference]))
+      }
       if child.uri == drawing_uri &&
-        ["effectLst", "effectDag", "ln", "uLn", "uFill"].contains(child.name) {
-        @failure.reject(
-          "unsupported-text",
-          "Unsupported text effect: " + child.name,
-        )
+        ["effectLst", "effectDag", "ln", "uLn"].contains(child.name) {
+        check_text_effect(theme, { tree: source.tree, node: child, })
       }
     }
   }
+  let hyperlink = sources.any(source => {
+    ["rPr", "endParaRPr"].contains(source.node.name) &&
+    source.child("hlinkClick") is Some(_)
+  })
+  let color = if hyperlink {
+    let key = theme.mapping.get("hlink").unwrap_or("hlink")
+    guard theme.colors.get(key) is Some(source) else {
+      @failure.reject("unsupported-style", "Unknown theme color: hlink")
+    }
+    // Native click links paint with the mapped theme color while retaining direct source fills.
+    color(theme, source)
+  } else {
+    source_color
+  }
   {
     font: font_key(theme, family, text, bold, italic),
-    underline: underline == "sng" ||
-    sources.any(source => {
-      ["rPr", "endParaRPr"].contains(source.node.name) &&
-      source.child("hlinkClick") is Some(_)
-    }),
+    // ONLYOFFICE imports DrawingML heavy into the same boolean underline as sng.
+    underline: ["sng", "heavy"].contains(underline) || hyperlink,
     strike: strike == "sngStrike",
     highlight: text_highlight(theme, sources),
     spacing: spacing / 100,
-    kerning: "words",
+    kerning: "none",
     fontLeading: true,
+    caps: caps == "all",
     script: if baseline > 0 {
       "superscript"
     } else if baseline < 0 {
@@ -158,13 +208,35 @@ fn text_overflow_clip(
 }
 
 ///|
+fn no_text_warp(properties : Array[Ref]) -> Bool raise @failure.Failure {
+  guard children(properties, "prstTxWarp").get(0) is Some(warp) else {
+    return true
+  }
+  let lists = warp.tree.children.get(warp.node.id).unwrap_or([])
+  warp.node.attribute("prst") == Some("textNoShape") &&
+  warp.node.attributes.all(a => a.uri.is_empty() && a.name == "prst") &&
+  warp.node.text.trim().is_empty() &&
+  lists.length() <= 1 &&
+  lists.all(list => {
+    list.uri == drawing_uri &&
+    list.name == "avLst" &&
+    list.attributes.is_empty() &&
+    list.text.trim().is_empty() &&
+    warp.tree.children.get(list.id).unwrap_or([]).is_empty()
+  })
+}
+
+///|
 fn read_text(
+  opc : @opc.Package,
   theme : Theme,
   chain : Array[Ref],
   master : Tree,
   defaults : Ref?,
   page_number : String,
   date_time : DateTime?,
+  parts : Map[String, @xml.Document],
+  media : Map[String, Bytes],
   run_styles~ : Array[Ref] = [],
 ) -> (Array[TextParagraph], Body, String) raise @failure.Failure {
   let bodies = children(
@@ -264,7 +336,7 @@ fn read_text(
   }
   if !["t", "ctr", "b"].contains(body.anchor) ||
     !["horz", "vert", "vert270"].contains(body.direction) ||
-    !children(properties, "prstTxWarp").is_empty() {
+    !no_text_warp(properties) {
     reason = "Unsupported text frame direction"
   }
   if chain[0].node.name == "tc" && (body.rotation != 0 || body.upright) {
@@ -323,7 +395,13 @@ fn read_text(
       }
     }
     let local_count = styles.length()
-    for item in [master_styles, defaults] {
+    // ONLYOFFICE gives presentation defaults priority for ordinary shapes only.
+    let inherited = if ph is Some(_) || chain[0].node.name == "tc" {
+      [master_styles, defaults]
+    } else {
+      [defaults, master_styles]
+    }
+    for item in inherited {
       if item is Some(item) {
         if item.child("lvl\{level + 1}pPr") is Some(value) {
           styles.push(value)
@@ -437,7 +515,8 @@ fn read_text(
       @failure.reject("limit-exceeded", "Text frame exceeds budget")
     }
     let (resolved, diagnostic) = read_paragraph_style(
-      source, own, styles, level, runs, theme, paragraphs,
+      opc, source, own, styles, level, runs, run_defaults, theme, paragraphs, parts,
+      media,
     )
     if !diagnostic.is_empty() {
       reason = diagnostic
@@ -463,8 +542,18 @@ fn slide_font_keys(
   let fonts : Array[String] = []
   for slide in slides {
     for object in slide.objects {
+      if object.metafile is Some(file) {
+        for command in file.commands {
+          if command is @layout.Label(text) && !fonts.contains(text.font) {
+            fonts.push(text.font)
+          }
+        }
+      }
       if object.chart is Some(_) && !fonts.contains("Arial") {
         fonts.push("Arial")
+      }
+      guard fonts.length() <= 256 else {
+        @failure.reject("limit-exceeded", "Font keys exceed 256")
       }
       for paragraph in object.paragraphs {
         if !paragraph.bullet.is_empty() &&

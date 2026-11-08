@@ -14,18 +14,19 @@ fn WordTree::diagnose_properties(
         "pStyle", "rPr", "spacing", "ind", "jc", "pageBreakBefore", "autoSpaceDE",
         "autoSpaceDN", "tabs", "bidi", "numPr", "outlineLvl", "keepLines", "keepNext",
         "widowControl", "contextualSpacing", "sectPr", "pBdr", "suppressAutoHyphens",
-        "framePr",
+        "framePr", "adjustRightInd",
       ]
     "rPr" =>
       [
         "rStyle", "rFonts", "sz", "color", "b", "i", "lang", "bCs", "iCs", "szCs",
         "u", "strike", "highlight", "vertAlign", "cs", "rtl", "spacing", "kern",
+        "noProof", "caps",
       ]
     "sectPr" =>
       [
         "pgSz", "pgMar", "pgBorders", "headerReference", "footerReference", "titlePg",
         "cols", "docGrid", "pgNumType", "footnotePr", "endnotePr", "type", "formProt",
-        "textDirection",
+        "textDirection", "noEndnote",
       ]
     "tcPr" =>
       ["tcW", "shd", "gridSpan", "vMerge", "vAlign", "tcMar", "tcBorders"]
@@ -146,6 +147,8 @@ fn WordTree::diagnose_properties(
       | "bidi"
       | "cs"
       | "rtl"
+      | "noProof"
+      | "caps"
       | "tblHeader"
       | "cantSplit"
       | "keepLines"
@@ -154,6 +157,17 @@ fn WordTree::diagnose_properties(
       | "contextualSpacing"
       | "suppressAutoHyphens"
       | "formProt" => self.valid_on_off_property(child)
+      // Active document grids remain unsupported by docGrid validation below.
+      "adjustRightInd" => self.valid_on_off_property(child)
+      // Suppression cannot affect layout until an endnote reference exists.
+      "noEndnote" =>
+        self.valid_on_off_property(child) &&
+        (
+          !self.has_endnotes ||
+          ["0", "false", "off"].contains(
+            feature.attribute("val", uri=word_uri).unwrap_or("1"),
+          )
+        )
       "textDirection" =>
         self.children[child].is_empty() &&
         feature.text.trim().is_empty() &&
@@ -230,11 +244,16 @@ fn WordTree::diagnose_properties(
       report(part, feature.qualified, diagnostics)
     }
     if feature.name == "spacing" {
-      for
-        name in [
-          "beforeAutospacing", "afterAutospacing", "beforeLines", "afterLines",
-        ] {
+      for name in ["beforeLines", "afterLines"] {
         if feature.attribute(name, uri=word_uri) is Some(_) {
+          report(part, "w:spacing/@w:" + name, diagnostics)
+        }
+      }
+    }
+    if feature.name == "spacing" {
+      for name in ["beforeAutospacing", "afterAutospacing"] {
+        if feature.attribute(name, uri=word_uri) is Some(value) &&
+          !["0", "1", "false", "true", "off", "on"].contains(value) {
           report(part, "w:spacing/@w:" + name, diagnostics)
         }
       }

@@ -56,6 +56,9 @@ fn Session::cell_edit_reason(
   sheet : Sheet,
   address : Address,
 ) -> String raise @failure.Failure {
+  if sheet.is_chart() {
+    return "Chart sheets have no cells"
+  }
   if !self.read_only.is_empty() {
     return self.read_only
   }

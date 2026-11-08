@@ -13,6 +13,8 @@ pub fn basic_shape_path(String, Double, Double) -> Array[PathSegment]
 
 pub fn chart_color(Int32) -> String
 
+pub fn circular_sector(Double, Double, Double, Double, Double, inner? : Double, office? : Bool) -> Array[PathSegment] raise @failure.Failure
+
 pub fn font_profile_identity(Map[String, String], String) -> String?
 
 pub fn grapheme_boundaries(String) -> Array[Int32]
@@ -29,9 +31,13 @@ pub fn percent_stacked_chart(String) -> Bool
 
 pub fn stacked_chart(String) -> Bool
 
+pub fn stroke_contour(Array[PathSegment], Double, String, String, Double) -> Array[PathSegment] raise @failure.Failure
+
 pub fn validate_gradient(Border, Array[GradientStop]) -> Unit raise @failure.Failure
 
 pub fn validate_gradient_stops(Array[GradientStop]) -> Unit raise @failure.Failure
+
+pub fn validate_pattern(Border, Double, Bytes, String, String) -> Unit raise @failure.Failure
 
 pub fn validate_tabs(Array[TabStop]) -> Unit raise @failure.Failure
 
@@ -77,6 +83,14 @@ pub(all) struct Caret {
 } derive(ToJson)
 pub fn Caret::to_json(Self) -> Json
 
+pub(all) struct CaretPortion {
+  start : Int32
+  end : Int32
+  y : Double
+  height : Double
+} derive(ToJson)
+pub fn CaretPortion::to_json(Self) -> Json
+
 pub(all) struct CellArea {
   x : Double
   y : Double
@@ -110,6 +124,7 @@ pub fn ChartData::bar_values(Self, Int32) -> Array[Double?]
 pub fn ChartData::equal(Self, Self) -> Bool
 pub fn ChartData::not_equal(Self, Self) -> Bool
 pub fn ChartData::paint(Self, Double, Double, TextProbe, Map[String, String], visible? : ChartVisibility?) -> Array[PositionedPrimitive] raise @failure.Failure
+pub fn ChartData::paint_native_pie(Self, Double, Double, Array[Array[(String, Double)]], Array[(Double, Array[Double])], Double) -> Array[PositionedPrimitive] raise @failure.Failure
 pub fn ChartData::paint_radar(Self, Double, Double, TextProbe, Map[String, String]) -> Array[PositionedPrimitive] raise @failure.Failure
 pub fn ChartData::pie_slices(Self, series? : Int32) -> Array[(Double, Double)]
 pub fn ChartData::query(Self) -> Json
@@ -157,32 +172,52 @@ pub fn Columns::to_json(Self) -> Json
 pub fn Columns::width(Self, PageSetup) -> Double raise @failure.Failure
 pub fn Columns::width_at(Self, PageSetup, Double) -> Double raise @failure.Failure
 
+pub(all) enum DrawBlend {
+  Normal
+  Multiply
+  Difference
+} derive(Eq)
+pub fn DrawBlend::equal(Self, Self) -> Bool
+pub fn DrawBlend::not_equal(Self, Self) -> Bool
+pub fn DrawBlend::to_json(Self) -> Json
+pub impl ToJson for DrawBlend
+
 pub(all) enum DrawCommand {
   FillRect(Fill)
   GradientRect(Border, Array[GradientStop])
   RadialGradientRect(Border, Array[GradientStop])
-  StrokeRect(Border, String, Double)
+  PatternRect(Border, Double, Bytes, String, String, screen_device~ : Bool)
+  StrokeRect(Border, String, Double, screen_fractional~ : Bool)
   Glyphs(Double, Double, String, Array[DrawGlyph])
   Image(PlacedImage)
   Path(Array[PathSegment], String, String, Double)
+  TextRule(Array[PathSegment], String, Double)
   Transform(Matrix)
   ClipRect(Border)
   Style(DrawStyle)
+  PixelCenters
+  IntegerScreenGlyphs
   ClipPath(Array[PathSegment], Bool)
   Restore
   Layer(Double, Array[DrawCommand])
+  Mask(Array[DrawCommand], Array[DrawCommand])
+  Tile(Double, Double, Int32, Int32, Matrix, Double, Double, Array[DrawCommand])
 }
 pub fn DrawCommand::to_json(Self) -> Json
 pub impl ToJson for DrawCommand
 
 pub(all) struct DrawGlyph {
   outline : String
+  upem : Int32
+  fontBounds : (Int32, Int32, Int32, Int32)?
+  strokeWidth : Double
   x : Double
   y : Double
   scaleX : Double
   scaleY : Double
-} derive(ToJson)
+}
 pub fn DrawGlyph::to_json(Self) -> Json
+pub impl ToJson for DrawGlyph
 
 pub(all) struct DrawStyle {
   fillAlpha : Double
@@ -193,8 +228,7 @@ pub(all) struct DrawStyle {
   miter : Double
   dash : Array[Double]
   dashOffset : Double
-  multiply : Bool
-  imageSmoothing : Bool
+  blend : DrawBlend
 } derive(ToJson)
 pub fn DrawStyle::default() -> Self
 pub fn DrawStyle::to_json(Self) -> Json
@@ -225,6 +259,7 @@ pub(all) enum DrawingContent {
   TextBox(BasicShape, DrawingTextBox)
   Math(MathFormula)
   Chart(ChartFrame)
+  Metafile(Metafile)
 }
 pub fn DrawingContent::alternative_text(Self) -> String?
 pub fn DrawingContent::to_json(Self) -> Json
@@ -233,6 +268,7 @@ pub impl ToJson for DrawingContent
 pub(all) struct DrawingFrame {
   width : Double
   height : Double
+  effectExtent : (Double, Double, Double, Double)
   anchor : DrawingAnchor?
   content : DrawingContent
 }
@@ -257,8 +293,9 @@ pub struct DrawingTextBox {
   lines : Array[Line]
   bottomBorders : Map[Int32, (Double, BorderStyle)]
   borders : Array[TableStroke]
+  flowFrames : Array[(Double, Double)]
 }
-pub fn DrawingTextBox::new(Array[Paragraph], Array[Double], String, Bool, Bool, bottomBorders? : Map[Int32, (Double, BorderStyle)]) -> Self
+pub fn DrawingTextBox::new(Array[Paragraph], Array[Double], String, Bool, Bool, bottomBorders? : Map[Int32, (Double, BorderStyle)], flowFrames? : Array[(Double, Double)]) -> Self
 pub fn DrawingTextBox::paragraphs(Self) -> Array[Paragraph]
 pub fn DrawingTextBox::properties(Self) -> DrawingTextBoxProperties
 pub fn DrawingTextBox::to_json(Self) -> Json
@@ -296,9 +333,9 @@ pub(all) struct Flow {
   paragraphs : Array[Paragraph]
   diagnostics : Array[String]
   tables : Array[Table]
-  headers : Map[String, Array[Paragraph]]
+  headers : Map[String, RunningStory]
   headerDistance : Double
-  footers : Map[String, Array[Paragraph]]
+  footers : Map[String, RunningStory]
   footerDistance : Double
   notes : Array[Note]
   differentFirst : Bool
@@ -328,6 +365,7 @@ pub(all) struct Glyph {
   cluster : Int32
   font : Int32
   outline : String
+  strokeWidth : Double
   x : Double
   y : Double
   scale : Double
@@ -395,6 +433,7 @@ pub struct Images {
 pub fn Images::add(Self, String, Int32, Int32, Bytes) -> Unit raise @failure.Failure
 pub fn Images::clear(Self) -> Unit
 pub fn Images::get(Self, String) -> ImageResource raise @failure.Failure
+pub fn Images::get_by_identity(Self, String) -> ImageResource?
 pub fn Images::new() -> Self
 pub fn Images::retain(Self, Array[String]) -> Unit
 
@@ -407,7 +446,7 @@ pub(all) struct Layout {
   reusedPages : Int32
   profile : Map[String, String]
   pages : Array[PageFrame]
-  running : Array[Array[Line]]
+  running : Array[PageFrame]
   sectionNumbering : Array[PageNumbering]
   pageSections : Array[(Int32, Int32)?]
   diagnostics : Array[String]
@@ -447,14 +486,17 @@ pub(all) struct Line {
   justified : Bool
   bars : Array[Double]
   marker : Array[PlacedRun]
+  markerImage : PlacedImage?
   markerText : String
   runs : Array[PlacedRun]
   drawings : Array[PlacedDrawingFrame]
   carets : Array[Caret]
+  caretPortions : Array[CaretPortion]
   readOnlyReason : String
 } derive(ToJson)
+pub fn Line::content_width(Self) -> Double
 pub fn Line::link_rects(Self, Int32, Int32) -> Array[Border]
-pub fn Line::positioned(Self, Array[FontInfo], Double) -> Array[PositionedPrimitive]
+pub fn Line::positioned(Self, Array[FontInfo], Double, underline_descent? : Double, align_text_rules? : Bool) -> Array[PositionedPrimitive]
 pub fn Line::to_json(Self) -> Json
 
 pub(all) enum LineSpacing {
@@ -519,6 +561,37 @@ pub fn Matrix::to_json(Self) -> Json
 type MeasuredLine
 
 type MeasuredShape
+
+pub struct Metafile {
+  identity : String
+  bounds : Border
+  commands : Array[MetafileCommand]
+  primitives : Array[PositionedPrimitive]
+  preview : (String, Int32, Int32, Bytes)?
+}
+pub fn Metafile::image_keys(Self) -> Array[String]
+pub fn Metafile::new(Border, Array[MetafileCommand]) -> Self raise @failure.Failure
+pub fn Metafile::positioned(Self, Double, Double, TextProbe, Map[String, String]) -> Array[PositionedPrimitive] raise @failure.Failure
+pub fn Metafile::text(Self) -> String
+pub fn Metafile::to_json(Self) -> Json
+pub impl ToJson for Metafile
+
+pub(all) enum MetafileCommand {
+  Bitmap(String, Border, Int32, Int32, Bytes)
+  Label(MetafileText)
+  Vector(Array[PathSegment], String, String, Double, PathStyle, Border?)
+}
+
+pub(all) struct MetafileText {
+  text : String
+  font : String
+  size : Double
+  color : String
+  x : Double
+  y : Double
+  advances : Array[Double]
+  clip : Border?
+}
 
 pub(all) struct NestedTable {
   row : Int32
@@ -657,6 +730,7 @@ pub(all) struct Paragraph {
   widowControl : Bool
   readOnlyReason : String
 } derive(ToJson)
+pub fn Paragraph::content_widths(Self, TextProbe, Map[String, String], ligatures? : Bool) -> (Double, Double, Double) raise @failure.Failure
 pub fn Paragraph::to_json(Self) -> Json
 
 pub(all) struct ParagraphFrame {
@@ -677,6 +751,7 @@ pub fn ParagraphFrame::to_json(Self) -> Json
 
 pub(all) struct ParagraphMarker {
   text : String
+  image : PlacedImage?
   numbering : ParagraphNumbering?
   style : TextStyle
   align : String
@@ -705,11 +780,13 @@ pub impl ToJson for PathSegment
 pub(all) struct PathStyle {
   fillAlpha : Double
   strokeAlpha : Double
+  evenOdd : Bool
   dash : Array[Double]
   cap : Int32
   join : Int32
   miter : Double
 }
+pub fn PathStyle::solid() -> Self
 pub fn PathStyle::validate(Self) -> Unit raise @failure.Failure
 
 pub(all) struct PlacedDrawingFrame {
@@ -719,6 +796,7 @@ pub(all) struct PlacedDrawingFrame {
   y : Double
   width : Double
   height : Double
+  effectExtent : (Double, Double, Double, Double)
   anchor : DrawingAnchor?
   content : DrawingContent
 } derive(ToJson)
@@ -727,12 +805,14 @@ pub fn PlacedDrawingFrame::to_json(Self) -> Json
 
 pub(all) struct PlacedImage {
   key : String
+  interpolate : Bool?
   x : Double
   y : Double
   width : Double
   height : Double
-} derive(ToJson)
+}
 pub fn PlacedImage::to_json(Self) -> Json
+pub impl ToJson for PlacedImage
 
 pub(all) struct PlacedRun {
   start : Int32
@@ -768,13 +848,18 @@ pub(all) enum PositionedPrimitive {
   Rectangle(Fill)
   GradientRectangle(Border, Array[GradientStop])
   RadialGradientRectangle(Border, Array[GradientStop])
+  PatternRectangle(Border, Double, Bytes, String, String, screen_device~ : Bool)
   Stroke(Border, String, Double)
+  FractionalScreenStroke(Border, String, Double)
   Text(PositionedText)
+  TextRule(Array[PathSegment], String, Double)
   Image(PlacedImage, Double)
   Path(Array[PathSegment], String, String, Double, PathStyle)
   Transform(Matrix)
   Clip(Border)
   ClipPath(Array[PathSegment], Bool)
+  PixelCenters
+  IntegerScreenGlyphs
   Restore
 }
 
@@ -798,6 +883,14 @@ pub(all) struct PreferredWidth {
 pub fn PreferredWidth::new(value? : Double, percent? : Bool) -> Self
 pub fn PreferredWidth::to_json(Self) -> Json
 
+pub(all) struct RunningStory {
+  paragraphs : Array[Paragraph]
+  tables : Array[Table]
+} derive(ToJson)
+pub fn RunningStory::all_paragraphs(Self) -> Array[Paragraph]
+pub fn RunningStory::map_paragraphs(Self, (Paragraph) -> Paragraph raise @failure.Failure) -> Self raise @failure.Failure
+pub fn RunningStory::to_json(Self) -> Json
+
 pub(all) struct SectionBreak {
   beforeParagraph : Int32
   beforeTable : Int32
@@ -808,9 +901,9 @@ pub(all) struct SectionBreak {
   pageBorders : PageBorders
   pageNumbering : PageNumbering
   columns : Columns
-  headers : Map[String, Array[Paragraph]]
+  headers : Map[String, RunningStory]
   headerDistance : Double
-  footers : Map[String, Array[Paragraph]]
+  footers : Map[String, RunningStory]
   footerDistance : Double
   differentFirst : Bool
   differentEven : Bool
@@ -974,7 +1067,9 @@ pub struct TextProbe {
 }
 pub fn TextProbe::add_font(Self, Bytes, String) -> Int32 raise @failure.Failure
 pub fn TextProbe::add_source_font(Self, Bytes, String) -> Int32 raise @failure.Failure
+pub fn TextProbe::cell_metrics(Self, Int32, Double) -> (Double, Double) raise @failure.Failure
 pub fn TextProbe::close(Self) -> Unit
+pub fn TextProbe::fit_screen_text(Self, Array[PositionedPrimitive], Double) -> Unit
 pub fn TextProbe::font_bytes(Self, Int32) -> Bytes raise @failure.Failure
 pub fn TextProbe::font_family(Self, Int32) -> String raise @failure.Failure
 pub fn TextProbe::font_index(Self, String) -> Int32 raise @failure.Failure
@@ -983,13 +1078,15 @@ pub fn TextProbe::font_style(Self, Int32) -> (Bool, Bool) raise @failure.Failure
 pub fn TextProbe::glyph_width(Self, Int32, UInt32) -> Double raise @failure.Failure
 pub fn TextProbe::new() -> Self
 pub fn TextProbe::outline_resources(Self) -> Array[Outline] raise @failure.Failure
-pub fn TextProbe::paragraph_lines(Self, Paragraph, Map[String, String], Double, Bool, baseLevel? : Int32) -> Array[Line] raise @failure.Failure
+pub fn TextProbe::paragraph_lines(Self, Paragraph, Map[String, String], Double, Bool, baseLevel? : Int32, ligatures? : Bool) -> Array[Line] raise @failure.Failure
+pub fn TextProbe::prepare_screen_outlines(Self, Array[Glyph], Int32) -> Unit
+pub fn TextProbe::presentation_metrics(Self, Int32, Double) -> (Double, Double) raise @failure.Failure
 pub fn TextProbe::shape(Self, String, Double, String, primary? : Int32, base? : Int32, kerning? : String) -> ShapeBatch raise @failure.Failure
 pub fn TextProbe::source_glyph(Self, Int32, Int32, String, Int32, Bool) -> (String, Int32, UInt32) raise @failure.Failure
 pub fn TextProbe::source_glyph_bounds(Self, Int32, UInt32) -> Array[Double] raise @failure.Failure
 pub fn TextProbe::source_glyph_contours(Self, Int32, UInt32) -> Array[Array[(Double, Double, Bool)]] raise @failure.Failure
-pub fn TextProbe::span_block(Self, Array[Span], Double, Map[String, String], Double, Bool, justify? : Bool, distributed? : Bool) -> TextBlock raise @failure.Failure
-pub fn TextProbe::text_block(Self, String, TextStyle, Map[String, String], Double, Bool) -> TextBlock raise @failure.Failure
+pub fn TextProbe::span_block(Self, Array[Span], Double, Map[String, String], Double, Bool, justify? : Bool, distributed? : Bool, cell? : Bool) -> TextBlock raise @failure.Failure
+pub fn TextProbe::text_block(Self, String, TextStyle, Map[String, String], Double, Bool, cell? : Bool) -> TextBlock raise @failure.Failure
 
 pub(all) struct TextReference {
   bookmark : String
@@ -1007,6 +1104,7 @@ pub(all) struct TextStyle {
   color : String
   underline : Bool
   strike : Bool
+  caps : Bool
   highlight : String
   script : String
   spacing : Double

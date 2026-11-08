@@ -661,6 +661,7 @@ export function checkDocxHyperlink(target: unknown, text?: unknown): void {
 
 export interface EditState {
   revision: number;
+  readOnlyReason?: string;
   defaultTabStop: number;
   compositionId: number | null;
   drawingGestureId: number | null;
@@ -711,6 +712,8 @@ export function editState(value: unknown): EditState {
         object.compositionId !== null)) ||
     typeof object.canUndo !== "boolean" ||
     typeof object.canRedo !== "boolean" ||
+    (object.readOnlyReason !== undefined &&
+      typeof object.readOnlyReason !== "string") ||
     typeof object.defaultTabStop !== "number" ||
     object.defaultTabStop < 0 ||
     object.defaultTabStop > 1584 ||

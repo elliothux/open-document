@@ -46,26 +46,31 @@ fn Session::conditional_rules(
     let styles : Map[Int32, CellFormat] = Map([])
     let mut differential : Tree? = None
     let mut nodes : Array[@xml.Node] = []
-    for node in current.document.nodes() {
-      guard node.name != "conditionalFormatting" || node.uri == spreadsheet_uri else {
-        @failure.reject(
-          "protected-content", "Extended conditional formatting is unsupported",
-        )
+    for container in conditional_containers(tree, work) {
+      let extended = container.uri == sparkline_uri
+      if !extended {
+        conditional_node(tree, container, ["sqref", "pivot"], ["cfRule"])
       }
-    }
-    for
-      container in tree.all(tree.root("worksheet").id, "conditionalFormatting") {
-      conditional_node(tree, container, ["sqref", "pivot"], ["cfRule"])
       guard !flag(container, "pivot") else {
         @failure.reject(
           "protected-content", "Pivot conditional formatting is unsupported",
         )
       }
-      let source = container.attribute("sqref").unwrap_or("")
+      let children = tree.children.get(container.id).unwrap_or([])
+      let source = if extended {
+        children.iter().find_first(n => n.name == "sqref").unwrap().text
+      } else {
+        container.attribute("sqref").unwrap_or("")
+      }
+      guard source.length() <= 262144 else {
+        @failure.reject(
+          "limit-exceeded", "Conditional ranges exceed source budget",
+        )
+      }
       work.spend(amount=source.length())
       let ranges = clear_rule_ranges(source)
       let anchor = rule_anchor(ranges, true)
-      for node in tree.all(container.id, "cfRule") {
+      for node in children.filter(n => n.name == "cfRule") {
         work.spend()
         guard rules.length() < 4096 else {
           @failure.reject(
@@ -73,23 +78,27 @@ fn Session::conditional_rules(
           )
         }
         let kind = node.attribute("type").unwrap_or("")
-        conditional_node(
-          tree,
-          node,
-          ["type", "operator", "priority", "stopIfTrue", "dxfId"] +
-          (if kind == "top10" {
-            ["rank", "percent", "bottom"]
-          } else if kind == "aboveAverage" {
-            ["aboveAverage", "equalAverage", "stdDev"]
-          } else if conditional_text_kind(kind) {
-            ["text"]
-          } else if kind == "timePeriod" {
-            ["timePeriod"]
-          } else {
-            []
-          }),
-          ["formula", "colorScale", "dataBar", "iconSet"],
-        )
+        if extended {
+          extended_conditional_rule(tree, node)
+        } else {
+          conditional_node(
+            tree,
+            node,
+            ["type", "operator", "priority", "stopIfTrue", "dxfId"] +
+            (if kind == "top10" {
+              ["rank", "percent", "bottom"]
+            } else if kind == "aboveAverage" {
+              ["aboveAverage", "equalAverage", "stdDev"]
+            } else if conditional_text_kind(kind) {
+              ["text"]
+            } else if kind == "timePeriod" {
+              ["timePeriod"]
+            } else {
+              []
+            }),
+            ["formula", "colorScale", "dataBar", "iconSet"],
+          )
+        }
         let operator = node.attribute("operator").unwrap_or("")
         guard (
             [
@@ -129,34 +138,35 @@ fn Session::conditional_rules(
           )
         }
         priorities[priority] = true
-        let formulas = tree
-          .all(node.id, "formula")
-          .map(formula => {
-            conditional_node(tree, formula, [], [])
-            guard !formula.text.is_empty() && formula.text.length() <= 8192 else {
-              @failure.reject(
-                "protected-content", "Invalid conditional formula length",
-              )
-            }
-            if conditional_predicate_kind(kind) ||
-              conditional_text_kind(kind) ||
-              kind == "timePeriod" {
-              // Built-in predicates own their meaning; the formula is an interoperability cache.
-              work.spend(amount=formula.text.length())
-            } else {
-              ignore(
-                rule_expression(
-                  formula.text,
-                  anchor,
-                  anchor,
-                  sheets,
-                  index,
-                  work,
-                ),
-              )
-            }
-            formula.text
-          })
+        let formulas = (if extended {
+          tree.children.get(node.id).unwrap_or([]).filter(n => n.name == "f")
+        } else {
+          tree.all(node.id, "formula")
+        }).map(formula => {
+          conditional_node(
+            tree,
+            formula,
+            [],
+            [],
+            uri=if extended { sparkline_formula_uri } else { spreadsheet_uri },
+          )
+          guard !formula.text.is_empty() && formula.text.length() <= 8192 else {
+            @failure.reject(
+              "protected-content", "Invalid conditional formula length",
+            )
+          }
+          if conditional_predicate_kind(kind) ||
+            conditional_text_kind(kind) ||
+            kind == "timePeriod" {
+            // Built-in predicates own their meaning; the formula is an interoperability cache.
+            work.spend(amount=formula.text.length())
+          } else {
+            ignore(
+              rule_expression(formula.text, anchor, anchor, sheets, index, work),
+            )
+          }
+          formula.text
+        })
         guard (if conditional_predicate_kind(kind) ||
           conditional_text_kind(kind) ||
           kind == "timePeriod" {
@@ -267,6 +277,18 @@ fn Session::conditional_rules(
             }
             style = conditional_style(differential.unwrap(), dxf, self.theme)
             styles[id] = style
+          }
+        }
+        if extended {
+          let inline = tree.children
+            .get(node.id)
+            .unwrap_or([])
+            .filter(n => n.name == "dxf")
+          guard inline.length() <= 1 else {
+            @failure.reject("malformed-xlsx", "Duplicate conditional style")
+          }
+          if inline.get(0) is Some(dxf) {
+            style = conditional_style(tree, dxf, self.theme, extended=true)
           }
         }
         rules.push({
@@ -390,7 +412,9 @@ fn ConditionalRules::applied(
   work : FormulaWork,
 ) -> CellStyle raise @failure.Failure {
   let source = self.table_styles.applied(source, sheets[index], address)
-  work.spend(amount=self.table_styles.tables.length())
+  work.spend(
+    amount=self.table_styles.tables.length() + self.table_styles.pivots.length(),
+  )
   try {
     guard self.reason.is_empty() else {
       return { ..source, diagnostic: self.reason, }

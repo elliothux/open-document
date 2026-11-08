@@ -10,7 +10,7 @@ fn donut_path(
   let y = height / 2
   let rx = x - inset
   let ry = y - inset
-  let k = 0.5522847498307936
+  let k = (7.0.sqrt() - 1) / 3
   // Opposite winding retains the native hole for fill and image clipping.
   path.append([
     Move(inset, y),
@@ -38,7 +38,7 @@ fn Object::donut_hit(
   x : Double,
   y : Double,
   margin : Double,
-) -> Bool {
+) -> Bool raise @failure.Failure {
   guard width > 0 && height > 0 else { return false }
   if !self.text().is_empty() {
     let body = self.shape_body(self.geometry.unwrap())

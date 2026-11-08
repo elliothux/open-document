@@ -46,8 +46,10 @@ fn object_hit(
     margin
   }
   if !polygon_shape(object.preset) &&
+    object.custom is None &&
     !elbow_arrow_shape(object.preset) &&
     object.preset != "heart" &&
+    object.preset != "wedgeRoundRectCallout" &&
     (x < -bounds || y < -bounds || x > width + bounds || y > height + bounds) {
     return false
   }
@@ -63,6 +65,16 @@ fn object_hit(
   }
   if curved_connector(object.preset) {
     return object.curve_hit(geometry, x, y, margin)
+  }
+  if object.custom is Some(custom) {
+    return path_hit(
+      object.shape_path(geometry),
+      custom.fill && object.has_fill(),
+      custom.stroke && !object.stroke.is_empty(),
+      x,
+      y,
+      margin,
+    )
   }
   if !object.polyline.is_empty() {
     return object.polyline_hit(geometry, x, y, margin)
@@ -94,6 +106,12 @@ fn object_hit(
   }
   if object.preset == "donut" {
     return object.donut_hit(width, height, x, y, margin)
+  }
+  if object.preset == "pie" {
+    return object.pie_hit(geometry, x, y, margin)
+  }
+  if object.preset == "wedgeRoundRectCallout" {
+    return object.callout_hit(geometry, x, y, margin)
   }
   if object.preset == "ellipse" {
     if width <= 0 || height <= 0 {

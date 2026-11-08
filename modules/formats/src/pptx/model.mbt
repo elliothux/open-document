@@ -37,6 +37,7 @@ priv struct TextParagraph {
   align : String
   rtl : Bool
   bullet : String
+  picture : (String, Double)?
   bullet_style : @layout.TextStyle
   bullet_size : TextSpacing
   list : ListFormat
@@ -83,6 +84,12 @@ priv struct Body {
 }
 
 ///|
+priv enum DiagramFont {
+  Layout(Double, Double, Double)
+  Cached((Bool, Bool, Bool, Bool), Bool)
+}
+
+///|
 priv struct Object {
   id : String
   parent : String
@@ -90,8 +97,12 @@ priv struct Object {
   kind : String
   source : Ref
   geometry : Geometry?
+  // Cached SmartArt text-frame edges, normalized to the shape frame.
+  text_rect : (Double, Double, Double, Double)?
   preset : String
+  custom : CustomGeometry?
   polyline : Array[(Double, Double)]
+  diagram_font : DiagramFont?
   adjustments : (Double, Double, Double)
   fill : String
   gradient : BackgroundFill?
@@ -115,6 +126,8 @@ priv struct Object {
   paragraphs : Array[TextParagraph]
   table : DrawingTable?
   chart : @chart.Resource?
+  metafile : @layout.Metafile?
+  shadow : OuterShadow?
   body : Body
   read_only : String
   text_reason : String
@@ -130,6 +143,9 @@ fn Object::text(self : Object) -> String {
 
 ///|
 fn Object::accessible_text(self : Object) -> String {
+  if self.metafile is Some(file) {
+    return file.text()
+  }
   self.paragraphs
   .map(paragraph => {
     paragraph.runs

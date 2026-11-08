@@ -39,23 +39,28 @@ export function arrayOf(
 
 export function glyphs(value: unknown): ShapeBatch["glyphs"] {
   if (
-    !arrayOf(value, (entry) =>
-      hasFields(
-        entry,
-        ["outline"],
-        [
-          "id",
-          "cluster",
-          "font",
-          "x",
-          "y",
-          "scale",
-          "advance",
-          "yAdvance",
-          "xOffset",
-          "yOffset",
-        ],
-      ),
+    !arrayOf(
+      value,
+      (entry) =>
+        hasFields(
+          entry,
+          ["outline"],
+          [
+            "id",
+            "cluster",
+            "font",
+            "strokeWidth",
+            "x",
+            "y",
+            "scale",
+            "advance",
+            "yAdvance",
+            "xOffset",
+            "yOffset",
+          ],
+        ) &&
+        Number(record(entry).strokeWidth) >= 0 &&
+        Number(record(entry).strokeWidth) <= 1024,
     )
   )
     throw new Error("Invalid glyphs returned by Wasm");

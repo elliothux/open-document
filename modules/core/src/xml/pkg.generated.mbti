@@ -32,6 +32,7 @@ pub fn Document::is_original(Self) -> Bool
 pub fn Document::node(Self, Int32) -> Node raise @failure.Failure
 pub fn Document::nodes(Self) -> ReadOnlyArray[Node]
 pub fn Document::parse(Bytes, String, Int32, Int32) -> Self raise @failure.Failure
+pub fn Document::part(Self) -> String
 pub fn Document::replace(Self, Map[Int32, String]) -> Bytes raise @failure.Failure
 pub fn Document::source(Self) -> String
 

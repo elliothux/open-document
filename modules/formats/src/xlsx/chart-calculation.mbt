@@ -10,7 +10,7 @@ fn Session::chart_input_state(
 ) -> (Bool, Array[(String, String, Value, String?, Bool, Bool)]) raise @failure.Failure {
   let mut pending = false
   let inputs = []
-  for reference in [chart.categories] + chart.names + chart.values {
+  for reference in chart_references(chart) {
     if broken_chart_reference(reference) {
       continue
     }
@@ -24,13 +24,13 @@ fn Session::chart_input_state(
       }
       let name = address.name()
       let cell = sheet.cells.get(name)
-      guard cell.map(cell => cell.calculation_supported).unwrap_or(true) else {
-        @failure.reject(
-          "unsupported-chart",
-          "Chart cell value requires support: " + name,
-        )
+      if !cell.map(cell => cell.calculation_supported).unwrap_or(true) {
+        pending = true
       }
       let calculated = self.calculation.bind(c => c.values.get((index, name)))
+      if cell.bind(cell => cell.formula) is Some(_) && calculated is None {
+        pending = true
+      }
       if self.calculation
         .map(c => c.uncomputed.contains((index, name)))
         .unwrap_or(false) {
@@ -49,4 +49,30 @@ fn Session::chart_input_state(
     }
   }
   (pending, inputs)
+}
+
+///|
+fn Session::manual_chart_error_gaps(
+  self : Session,
+  owner : String,
+  chart : @chart.WorksheetChart,
+  work : FormulaWork,
+) -> @chart.WorksheetChart raise @failure.Failure {
+  let series = chart.data.series.mapi((index, series) => {
+    let source = chart.values[index]
+    if !series.values.contains(Some(0.0)) || broken_chart_reference(source) {
+      return series
+    }
+    let cells = self.chart_reference_values(source, owner, work)
+    // A cached zero can stand for a source error. Keep actual zeros and other cached numbers.
+    let values = series.values.mapi((point, value) => {
+      if value == Some(0.0) && cells.get(point) is Some(Error(_)) {
+        None
+      } else {
+        value
+      }
+    })
+    { ..series, values, }
+  })
+  { ..chart, data: { ..chart.data, series, }, }
 }

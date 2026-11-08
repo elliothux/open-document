@@ -51,15 +51,19 @@ fn check_master_paragraph(properties : Ref?) -> Unit raise @failure.Failure {
 
 ///|
 fn master_paragraph(
+  opc : @opc.Package,
   tree : Tree,
   main : Tree,
   theme : Theme,
   kind : String,
   level : Int32,
+  parts : Map[String, @xml.Document],
+  media : Map[String, Bytes],
 ) -> TextParagraph raise @failure.Failure {
   let (_, _, own) = master_text_style(tree, kind, level)
   let styles = master_style_sources(tree, main, kind, level)
-  let style = text_style(theme, children(styles, "defRPr"), "A", "+mn-lt")
+  let run_defaults = children(styles, "defRPr")
+  let style = text_style(theme, run_defaults, "A", "+mn-lt")
   let runs : Array[TextRun] = [
     {
       source: None,
@@ -71,13 +75,17 @@ fn master_paragraph(
   ]
   let source = own.unwrap_or({ tree, node: tree.document.nodes()[0], })
   let (resolved, reason) = read_paragraph_style(
+    opc,
     source,
     own,
     styles,
     level,
     runs,
+    run_defaults,
     theme,
     [],
+    parts,
+    media,
   )
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   resolved
@@ -104,7 +112,16 @@ fn Session::master_paragraph_query(
   try {
     let (_, _, own) = master_text_style(tree, kind, level)
     check_master_paragraph(own)
-    let paragraph = master_paragraph(tree, self.main, theme, kind, level)
+    let paragraph = master_paragraph(
+      self.opc,
+      tree,
+      self.main,
+      theme,
+      kind,
+      level,
+      self.parts,
+      self.media,
+    )
     let values = paragraph_values(paragraph)
     for index, field in fields {
       result[field] = values[index]
@@ -148,7 +165,16 @@ fn Session::set_master_paragraph_style(
     load_tree(self.opc, self.cache, theme_part, parts=self.parts),
     [tree],
   )
-  let paragraph = master_paragraph(tree, self.main, theme, kind, level)
+  let paragraph = master_paragraph(
+    self.opc,
+    tree,
+    self.main,
+    theme,
+    kind,
+    level,
+    self.parts,
+    self.media,
+  )
   let markup = paragraph_markup(
     paragraph,
     own,

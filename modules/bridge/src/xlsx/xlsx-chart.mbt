@@ -14,7 +14,7 @@ fn xlsx_chart_settings(
     @failure.reject("invalid-operation", "Chart settings require known fields")
   }
   let refs = fn(name : String) raise @failure.Failure {
-    guard fields.get(name) is Some(Array(items)) && items.length() <= 8 else {
+    guard fields.get(name) is Some(Array(items)) && items.length() <= 32 else {
       @failure.reject(
         "invalid-operation", "Chart reference list exceeds limits",
       )

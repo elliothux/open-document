@@ -10,15 +10,43 @@ fn SheetObject::paint_bounds(
   self : SheetObject,
   rect : @layout.Border,
 ) -> @layout.Border {
-  let pen = self.shape
-    .map(shape => {
-      if shape.stroke.is_empty() {
-        0.0
-      } else {
-        shape.line_width / 2
+  let pen = self.chart
+    .bind(chart => {
+      if chart.1.native_surface is Some(surface) {
+        return Some(surface.frame.1.1)
+      }
+      if chart.1.native_bar is Some(bar) {
+        return Some(bar.frame.1.1)
+      }
+      match chart.1.native_line {
+        Some(line) => Some(line.frame_pen.1)
+        None =>
+          match chart.1.native_radar {
+            Some(radar) => Some(radar.frame_pen.1)
+            None =>
+              match chart.1.native_area {
+                Some(area) => Some(area.frame_pen.1)
+                None =>
+                  chart.1.native_bubble
+                  .map(bubble => Some(bubble.frame_pen.1))
+                  .unwrap_or(
+                    chart.1.native_circular.map(circular => circular.frame_pen.1),
+                  )
+              }
+          }
       }
     })
-    .unwrap_or(0)
+    .unwrap_or(
+      self.shape
+      .map(shape => {
+        if shape.stroke.is_empty() {
+          0.0
+        } else {
+          shape.line_width / 2
+        }
+      })
+      .unwrap_or(0),
+    )
   {
     x: rect.x - pen,
     y: rect.y - pen,
@@ -39,15 +67,35 @@ fn SheetShape::paint(
     return
   }
   primitives.push(Transform({ a: 1, b: 0, c: 0, d: 1, e: rect.x, f: rect.y, }))
-  primitives.push(
-    Path(
-      @layout.basic_shape_path(self.preset, rect.width, rect.height),
-      self.fill,
-      self.stroke,
-      self.line_width,
-      { fillAlpha: 1, strokeAlpha: 1, dash: [], cap: 0, join: 0, miter: 10, },
-    ),
-  )
+  if self.preset == "rect" && !self.fill.is_empty() && self.stroke.is_empty() {
+    primitives.push(
+      Rectangle({
+        x: 0,
+        y: 0,
+        width: rect.width,
+        height: rect.height,
+        color: self.fill,
+      }),
+    )
+  } else {
+    primitives.push(
+      Path(
+        @layout.basic_shape_path(self.preset, rect.width, rect.height),
+        self.fill,
+        self.stroke,
+        self.line_width,
+        {
+          evenOdd: false,
+          fillAlpha: 1,
+          strokeAlpha: 1,
+          dash: [],
+          cap: 0,
+          join: 0,
+          miter: 10,
+        },
+      ),
+    )
+  }
   // DrawingML ellipse text uses its inscribed rectangle before body insets.
   let inset = if self.preset == "ellipse" {
     (1.0 - 0.5.sqrt()) / 2

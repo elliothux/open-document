@@ -1,19 +1,22 @@
 ///|
 fn presentation_line_height(
   line : @layout.Line,
-  nominal_size : Double,
+  text_height : Double,
   spacing : @layout.LineSpacing,
 ) -> Double {
   match spacing {
     Auto(_) => {
-      let mut size = 0.0
-      for run in line.runs {
-        size = size.max(run.nominalSize)
-      }
+      let mut height = text_height
       for run in line.marker {
-        size = size.max(run.nominalSize)
+        height = height.max(run.nominalSize * 1.2)
       }
-      line.height.max((if size > 0 { size } else { nominal_size }) * 1.2)
+      if line.drawings.is_empty() &&
+        line.runs.all(run => run.rise == 0) &&
+        line.marker.all(run => run.rise == 0) {
+        height
+      } else {
+        line.height.max(height)
+      }
     }
     _ => line.height
   }
@@ -29,138 +32,80 @@ fn measure_text(
 ) -> (Array[@layout.Line], Double) raise @failure.Failure {
   let lines : Array[@layout.Line] = []
   let mut top = object.body.top
+  let mut previous_after = 0.0
   let mut offset = 0
   let width = text_column_width(object.body, geometry.width)
   for index, paragraph in object.paragraphs {
-    let spans : Array[@layout.Span] = []
-    for run in paragraph.runs {
-      for (style, text) in run.parts {
-        spans.push({
-          node: run.source.map(item => item.node.id).unwrap_or(0),
-          text: text.replace_all(old="\u2028", new="\n"),
-          drawing: run.math.map(formula => {
-            width: 0,
-            height: 0,
-            anchor: None,
-            content: @layout.Math(
-              @layout.MathFormula::new(
-                formula.expression,
-                { ..formula.style, size: formula.style.size * scale, },
-                display=formula.display,
-              ),
-            ),
-          }),
-          field: "",
-          style: { ..style, size: style.size * scale, },
-        })
-      }
-    }
-    let spacing : @layout.LineSpacing = match paragraph.spacing {
-      Exact(value) => Exact(value * scale)
-      AtLeast(value) => AtLeast(value * scale)
-      // ONLYOFFICE applies the reduction before merging explicit paragraph spacing.
-      Auto(value) => {
-        let explicit = paragraph.source.child("pPr").bind(p => p.child("lnSpc"))
-          is Some(_)
-        Auto(
-          (value -
-          (if explicit { 0.0 } else { object.body.lineSpaceReduction * 240 })).max(
-            0,
-          ),
-        )
-      }
-    }
-    let flow : @layout.Paragraph = {
-      id: index,
-      container: 0,
-      spans,
-      nominalSize: spans[0].style.size,
-      frame: None,
-      defaultTab: paragraph.default_tab,
-      tabs: paragraph.tabs.map(t => {
-        position: t.position,
-        align: t.align,
-        leader: "none",
-      }),
-      decimalSymbol: ".",
-      expandSoftBreak: true,
-      left: paragraph.left,
-      right: paragraph.right,
-      first: paragraph.first,
-      align: if paragraph.align == "justify" {
-        "both"
-      } else if paragraph.rtl && paragraph.align == "left" {
-        "right"
-      } else if paragraph.rtl && paragraph.align == "right" {
-        "left"
-      } else {
-        paragraph.align
-      },
-      before: 0,
-      after: 0,
-      line: spacing,
-      pageBreakBefore: false,
-      keepLines: false,
-      keepNext: false,
-      widowControl: false,
-      rtl: paragraph.rtl,
-      marker: if paragraph.bullet.is_empty() {
-        None
-      } else {
-        Some({
-          text: paragraph.bullet,
-          numbering: None,
-          style: {
-            ..paragraph.bullet_style,
-            size: paragraph.bullet_style.size * scale,
-          },
-          align: "left",
-          suffix: "tab",
-        })
-      },
-      readOnlyReason: object.text_reason,
+    // Native document drawing hides empty list markers while retaining their measured advance.
+    let show_marker = paragraph.runs.any(run => !run.text.is_empty())
+    let flow = object.paragraph_flow(index, scale)
+    let spacing = flow.line
+    // Native text rectangles add 0.01 mm before aligning hanging RTL lists.
+    let layout_width = if width < 14400 &&
+      flow.marker is Some({ suffix: "presentation-rtl", .. }) {
+      (width + 0.01 * 72 / 25.4).min(14400)
+    } else {
+      width
     }
     let measured = probe.paragraph_lines(
       flow,
       profile,
-      width,
+      layout_width,
       object.body.wrap,
       baseLevel=if paragraph.rtl { 1 } else { 0 },
+      ligatures=false,
     )
     if index > 0 || object.body.firstLastSpacing {
-      top += paragraph.before.points(
-        presentation_line_height(measured[0], flow.nominalSize, spacing),
+      let (ascent, descent) = presentation_text_metrics(
+        measured[0],
+        flow,
+        probe,
+        profile,
       )
+      // Native paragraphs merge adjacent gaps; percentages use natural text height.
+      top += (paragraph.before.points(
+        presentation_line_height(measured[0], ascent + descent, Auto(240)),
+      ) -
+      previous_after).max(0)
     }
     for line in measured {
-      let mut visible_end = line.text.length()
-      while visible_end > 0 &&
-            [9, 32].contains(line.text[visible_end - 1].to_int()) {
-        visible_end -= 1
-      }
-      let trailing = if visible_end < line.text.length() {
-        line.carets
-        .iter()
-        .find_first(c => c.offset == line.start + visible_end)
-        .map(c => if paragraph.rtl { c.before } else { line.width - c.before })
-        .unwrap_or(0)
-      } else {
-        0.0
-      }
-      let alignment = trailing *
-        (match paragraph.align {
-          "center" => 0.5
-          "right" => 1.0
-          _ => 0.0
-        }) *
-        (if paragraph.rtl { -1.0 } else { 1.0 })
-      let left = line.x + object.body.left + alignment
-      // Presentation single spacing reserves at least 120% of the nominal size.
-      // Preserve the font's ascent/descent proportions when adding that leading.
-      let height = presentation_line_height(line, flow.nominalSize, spacing)
+      let left = line.x + object.body.left
+      // Native presentations normalize each font before combining line extents.
+      let (ascent, descent) = presentation_text_metrics(
+        line, flow, probe, profile,
+      )
+      let height = presentation_line_height(line, ascent + descent, spacing)
       let advance = match spacing {
         Auto(value) => height * value / 240
         _ => line.height
+      }
+      // Native expanded automatic lines reserve at least three quarters for ascent.
+      let natural_baseline = match line.runs.get(0) {
+        Some(run) => run.baseline + run.rise
+        None =>
+          line.marker
+          .get(0)
+          .map(run => run.baseline + run.rise)
+          .unwrap_or(line.height * 0.8)
+      }
+      let automatic_baseline = if line.drawings.is_empty() &&
+        line.runs.all(run => run.rise == 0) &&
+        line.marker.all(run => run.rise == 0) {
+        ascent * height / (ascent + descent)
+      } else {
+        natural_baseline * height / line.height
+      }
+      let baseline_shift = if spacing is Exact(_) {
+        presentation_exact_baseline(line, flow, probe, profile) -
+        natural_baseline
+      } else {
+        // Negative automatic line gaps shift the whole baseline.
+        let baseline = if advance > height {
+          automatic_baseline.max(advance * 0.75)
+        } else {
+          automatic_baseline + (advance - height).min(0)
+        }
+        baseline - natural_baseline * height / line.height
       }
       lines.push({
         ..line,
@@ -173,19 +118,40 @@ fn measure_text(
         areaWidth: width,
         runs: line.runs.map(run => {
           ..run,
+          start: run.start + offset,
           x: run.x + left,
-          baseline: run.baseline * height / line.height + top,
+          baseline: run.baseline * height / line.height + top + baseline_shift,
         }),
-        marker: line.marker.map(run => {
+        markerText: if show_marker {
+          line.markerText
+        } else {
+          ""
+        },
+        marker: line.marker
+        .filter(_ => show_marker)
+        .map(run => {
           ..run,
+          start: run.start + offset,
           x: run.x + left,
-          baseline: run.baseline * height / line.height + top,
+          baseline: run.baseline * height / line.height + top + baseline_shift,
         }),
+        markerImage: if show_marker {
+          line.markerImage.map(image => {
+            ..image,
+            x: image.x + left,
+            y: (image.y + image.height) * height / line.height -
+            image.height +
+            top +
+            baseline_shift,
+          })
+        } else {
+          None
+        },
         drawings: line.drawings.map(drawing => {
           ..drawing,
           start: drawing.start + offset,
           x: drawing.x + left,
-          y: drawing.y + top,
+          y: drawing.y + top + baseline_shift,
         }),
         carets: line.carets.map(caret => {
           ..caret,
@@ -195,13 +161,20 @@ fn measure_text(
       top += advance
     }
     if index + 1 < object.paragraphs.length() || object.body.firstLastSpacing {
-      top += paragraph.after.points(
+      let (ascent, descent) = presentation_text_metrics(
+        measured.last().unwrap(),
+        flow,
+        probe,
+        profile,
+      )
+      previous_after = paragraph.after.points(
         presentation_line_height(
           measured.last().unwrap(),
-          flow.nominalSize,
-          spacing,
+          ascent + descent,
+          Auto(240),
         ),
       )
+      top += previous_after
     }
     offset += paragraph.runs
       .iter()
@@ -226,7 +199,7 @@ fn fit_text(
   let object = {
     ..object,
     body: if recalculate {
-      { ..body, fontScale: None, lineSpaceReduction: 0, }
+      { ..body, fontScale: Some(1), lineSpaceReduction: 0, }
     } else {
       body
     },
@@ -251,11 +224,9 @@ fn fit_text(
   }
   let fits = fn(result : (Array[@layout.Line], Double)) {
     result.1 <= geometry.height &&
-    result.0.all(line => line.width <= line.areaWidth + 0.01)
+    result.0.all(line => line.content_width() <= line.areaWidth + 0.01)
   }
-  if object.body.fit == "shrink" &&
-    object.body.fontScale is None &&
-    !fits(measured) {
+  if object.body.fit == "shrink" && recalculate && !fits(measured) {
     // ONLYOFFICE Shape.checkExtentsByDocContent tries five-percent font steps
     // and reduces inherited line spacing by one fifth of the font reduction.
     let minimum = if placeholder(object.source)
@@ -288,7 +259,7 @@ fn fit_text(
     object.paragraphs[0].bullet.is_empty() &&
     object.text().is_empty()
   let diagnostic = if (!blank && measured.1 > geometry.height + 0.01) ||
-    measured.0.any(line => line.width > line.areaWidth + 0.01) {
+    measured.0.any(line => line.content_width() > line.areaWidth + 0.01) {
     "Text exceeds the fixed frame"
   } else {
     ""
@@ -305,6 +276,7 @@ fn fit_text(
       y: line.y + dy,
       runs: line.runs.map(run => { ..run, baseline: run.baseline + dy, }),
       marker: line.marker.map(run => { ..run, baseline: run.baseline + dy, }),
+      markerImage: line.markerImage.map(image => { ..image, y: image.y + dy, }),
       drawings: line.drawings.map(drawing => { ..drawing, y: drawing.y + dy, }),
     }),
     scale,
@@ -322,7 +294,6 @@ fn paint_slide(
   profile : Map[String, String],
   tile_sizes : Map[String, (Int32, Int32)],
   parts~ : Array[(String, Array[@layout.PositionedPrimitive])]? = None,
-  text_fit_diagnostics~ : Bool = true,
 ) -> (@layout.PositionedPage, Array[TextGeometry], Array[String]) raise @failure.Failure {
   let primitives : Array[@layout.PositionedPrimitive] = []
   if slide.background is Linear(stops, _, _) &&
@@ -337,13 +308,16 @@ fn paint_slide(
   let fonts = probe.font_info()
   let diagnostics = slide.diagnostics.copy()
   let mut units = 0
-  for object in slide.objects {
+  for object in fit_diagram_text(slide.objects, probe, profile) {
     if object.kind == "group" {
       continue
     }
     guard object.geometry is Some(geometry) else { continue }
     let start = primitives.length()
     primitives.push(Transform(geometry.matrix))
+    if object.shadow_primitive(geometry) is Some(shadow) {
+      primitives.push(shadow)
+    }
     if !object.diagnostic.is_empty() {
       primitives.push(
         Rectangle({
@@ -407,6 +381,7 @@ fn paint_slide(
             object.stroke,
             object.line_width,
             {
+              evenOdd: false,
               fillAlpha: 1,
               strokeAlpha: object.stroke_alpha,
               dash: dash_pattern(object.dash).map(v => v * object.line_width),
@@ -423,72 +398,88 @@ fn paint_slide(
           ),
         )
         primitives.append(object.draw_line_ends(geometry))
+      } else if object.metafile is Some(file) {
+        units += file.commands.fold(init=0, (sum, command) => {
+          let work = match command {
+            @layout.Vector(path, _, _, _, _, _) => path.length() * 3
+            @layout.Label(text) => text.text.length()
+            _ => 0
+          }
+          sum + work
+        })
+        guard units <= 262144 else {
+          @failure.reject(
+            "limit-exceeded", "Slide metafile drawing exceeds budget",
+          )
+        }
+        primitives.append(
+          positioned_picture_metafile(
+            file,
+            geometry,
+            object.crop,
+            probe,
+            profile,
+          ),
+        )
       } else if object.kind == "image" && object.image is Some(_) {
         if object.preset == "rect" {
           primitives.push(
             Clip({ x: 0, y: 0, width: geometry.width, height: geometry.height, }),
           )
         } else {
-          primitives.push(
-            ClipPath(
-              shape_path(
-                object.preset,
-                geometry.width,
-                geometry.height,
-                object.adjustments,
-              ),
-              false,
-            ),
-          )
+          primitives.push(ClipPath(object.shape_path(geometry), false))
         }
-        if object.tile is Some(tile) {
-          primitives.append(
-            tile.paint(
-              object.image.unwrap(),
-              object.opacity,
-              geometry.width,
-              geometry.height,
-              tile_sizes[object.image.unwrap()],
-            ),
-          )
-        } else {
-          primitives.append(object.image_primitives(geometry))
-        }
+        primitives.append(object.image_primitives(geometry, tile_sizes))
         primitives.push(Restore)
       } else if object.has_fill() || !object.stroke.is_empty() {
-        let path = shape_path(
-          object.preset,
-          geometry.width,
-          geometry.height,
-          object.adjustments,
-        )
-        if object.image is Some(_) && geometry.width > 0 && geometry.height > 0 {
-          primitives.push(ClipPath(path, false))
-          if object.tile is Some(_) {
-            primitives.append(
-              object.tile
-              .unwrap()
-              .paint(
-                object.image.unwrap(),
-                object.opacity,
-                geometry.width,
-                geometry.height,
-                tile_sizes[object.image.unwrap()],
-              ),
-            )
-          } else {
-            primitives.append(object.image_primitives(geometry))
-          }
-          primitives.push(Restore)
-        } else if object.gradient is Some(gradient) &&
+        let path = object.shape_path(geometry)
+        units += path.length() * 3
+        guard units <= 262144 else {
+          @failure.reject(
+            "limit-exceeded", "Slide geometry exceeds drawing budget",
+          )
+        }
+        let fill = if object.custom is Some({ fill: false, .. }) {
+          ""
+        } else {
+          object.fill
+        }
+        let stroke = if object.custom is Some({ stroke: false, .. }) {
+          ""
+        } else {
+          object.stroke
+        }
+        if object.has_fill() &&
+          object.image is Some(_) &&
           geometry.width > 0 &&
           geometry.height > 0 {
           primitives.push(ClipPath(path, false))
-          primitives.append(gradient.paint(geometry.width, geometry.height))
+          primitives.append(object.image_primitives(geometry, tile_sizes))
+          primitives.push(Restore)
+        } else if object.has_fill() &&
+          object.gradient is Some(gradient) &&
+          geometry.width > 0 &&
+          geometry.height > 0 {
+          primitives.push(ClipPath(path, false))
+          let bounds = object.fill_bounds(geometry)
+          if bounds.x != 0 || bounds.y != 0 {
+            primitives.push(
+              Transform({
+                ..@layout.Matrix::identity(),
+                e: bounds.x,
+                f: bounds.y,
+              }),
+            )
+          }
+          primitives.append(gradient.paint(bounds.width, bounds.height))
+          if bounds.x != 0 || bounds.y != 0 {
+            primitives.push(Restore)
+          }
           primitives.push(Restore)
         }
         primitives.push(
-          Path(path, object.fill, object.stroke, object.line_width, {
+          Path(path, fill, stroke, object.line_width, {
+            evenOdd: false,
             fillAlpha: object.fill_alpha,
             strokeAlpha: object.stroke_alpha,
             dash: dash_pattern(object.dash).map(v => v * object.line_width),
@@ -512,17 +503,16 @@ fn paint_slide(
           ([], 1.0, message, @layout.Matrix::identity())
         error => raise error
       }
-      if !diagnostic.is_empty() && (text_fit_diagnostics || lines.is_empty()) {
+      // Imported text may overflow its frame; report only geometry we could not build.
+      if !diagnostic.is_empty() && lines.is_empty() {
         diagnostics.push(object.id + ":" + diagnostic)
-        if lines.is_empty() {
-          primitives.push(
-            Stroke(
-              { x: 0, y: 0, width: geometry.width, height: geometry.height, },
-              "bb4444",
-              1,
-            ),
-          )
-        }
+        primitives.push(
+          Stroke(
+            { x: 0, y: 0, width: geometry.width, height: geometry.height, },
+            "bb4444",
+            1,
+          ),
+        )
       }
       let (_, frame, _) = object.text_plane(geometry)
       texts.push({
@@ -588,7 +578,7 @@ fn paint_slide(
         } else {
           primitives.push(Transform(rotation))
         }
-        for line in lines {
+        for line in presentation_bold_pens(lines) {
           if object.body.columns > 1 {
             primitives.push(
               Clip({
@@ -600,7 +590,12 @@ fn paint_slide(
             )
           }
           // DrawingML overflow is controlled by the text frame rather than line spacing.
-          let commands = { ..line, clip: false, }.positioned(fonts, frame.width)
+          let commands = presentation_line_primitives(
+            { ..line, clip: false, },
+            fonts,
+            frame.width,
+            probe,
+          )
           for command in commands {
             if command is @layout.Text(text) {
               units += text.runs.fold(init=0, (sum, run) => {
@@ -721,7 +716,6 @@ pub fn Session::print_layout(
       probe,
       profile,
       self.tile_sizes(slide),
-      text_fit_diagnostics=false,
     )
     guard diagnostics.is_empty() else {
       @failure.reject(
@@ -739,6 +733,7 @@ pub fn Session::print_layout(
     let (items, work) = self.print_links(
       slide,
       texts,
+      probe.font_info(),
       pages.length(),
       destinations,
       relationships,
@@ -755,27 +750,4 @@ pub fn Session::print_layout(
     @failure.reject("unsupported-pdf", "No slides selected for PDF")
   }
   { pages, fonts: probe.font_info(), links, }
-}
-
-///|
-pub fn Session::image_keys(
-  self : Session,
-  all : Bool,
-  hidden : Bool,
-) -> Array[String] raise @failure.Failure {
-  self.check()
-  let keys : Array[String] = []
-  for slide in (if all { self.slides } else { [self.current()] }) {
-    if !all || hidden || !slide.hidden {
-      for key in slide.image_keys() {
-        if !keys.contains(key) {
-          keys.push(key)
-        }
-      }
-    }
-  }
-  guard keys.length() <= 256 else {
-    @failure.reject("limit-exceeded", "Presentation images exceed 256")
-  }
-  keys
 }

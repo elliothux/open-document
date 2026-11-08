@@ -1,0 +1,14 @@
+{
+  "file": "text/glyphdata/pdf_text_glyph_codepoints_symbols.mbt",
+  "originalSha256": "843201f9e8ff9f41ff2bff6ca51e1fbce06188b9b36486e77260019d16bfea63",
+  "patchedSha256": "d0b230d5a0aa8fbacda2e47e4e8affd5fe43b3342efac82b9ea5896b62227019",
+  "lineEdits": [
+    [
+      11,
+      0,
+      [
+        "    \"/circlecopyrt\" => Some(0x00A9)"
+      ]
+    ]
+  ]
+}

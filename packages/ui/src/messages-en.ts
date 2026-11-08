@@ -23,7 +23,9 @@ import { xlsxShapesEn } from "./messages-xlsx-shapes.js";
 import { xlsxChartsEn } from "./messages-xlsx-charts.js";
 import { protectionEn } from "./messages-xlsx-protection.js";
 import { sparklineEn } from "./messages-xlsx-sparkline.js";
+import { xlsxFormulaEn } from "./messages-xlsx-formula.js";
 export const en = {
+  ...xlsxFormulaEn,
   ...subtotalEn,
   ...consolidateEn,
   ...conditionalStatisticsEn,
@@ -286,10 +288,6 @@ export const en = {
   fontFamily: "Font family",
   cellFormat: "Cell format",
   wholeTable: "Whole table",
-  cellRange: "Cell range",
-  goToRange: "Go to range",
-  formulaInput: "Formula input",
-  acceptValidationWarnings: "Allow values that trigger validation warnings",
   dataValidation: "Data validation",
   clearValidation: "Clear data validation",
   validationKind: "Validation type",
@@ -438,6 +436,7 @@ export const en = {
   listFormat_lowerRoman: "Lowercase Roman numerals",
   listFormat_upperRoman: "Uppercase Roman numerals",
   listFormat_bullet: "Bullets",
+  pictureBullet: "Picture bullets",
   createList: "Create list",
   listLevel: "List level",
   listDefinition: "Edit list level",

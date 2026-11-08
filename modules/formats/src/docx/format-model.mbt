@@ -186,6 +186,7 @@ fn RunStyle::formatted(
       patch.underline,
     ),
     strike: format_value(self.strike, inherited.strike, patch.strike),
+    caps: self.caps,
     highlight: format_value(
       self.highlight,
       inherited.highlight,

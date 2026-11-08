@@ -67,6 +67,7 @@ fn actual_text(text : String) -> @content.PdfContentOp {
 
 ///|
 /// Export the exact preview glyph positions. PDF has no text layout authority.
+/// Image smoothing applies to both the RGB image and its alpha mask.
 pub fn write(
   layout : @layout.PositionedDocument,
   probe : @layout.TextProbe,
@@ -74,6 +75,7 @@ pub fn write(
   output_limit : Int32,
   clean_fonts~ : Bool = false,
   text_groups~ : Array[PdfTextGroup] = [],
+  image_smoothing~ : Bool = true,
 ) -> Bytes raise @failure.Failure {
   guard !layout.pages.is_empty() && output_limit > 0 && output_limit <= 67108864 else {
     @failure.reject(
@@ -114,6 +116,7 @@ pub fn write(
     let installed_images : Map[String, (String, @syntax.PdfObject)] = Map([])
     let gradients : Map[String, (String, @syntax.PdfObject)] = Map([])
     let gradient_masks : Map[String, @syntax.PdfObject] = Map([])
+    let patterns : Map[String, (String, @syntax.PdfObject)] = Map([])
     let mut content_bytes = 0
     for pageIndex, frame in layout.pages {
       let groups = text_groups.filter(group => group.page == pageIndex)
@@ -137,6 +140,9 @@ pub fn write(
       let image_objects : Array[(String, @syntax.PdfObject)] = []
       let shading_objects : Map[String, @syntax.PdfObject] = Map([])
       let alpha_states : Map[String, (String, @syntax.PdfObject)] = Map([])
+      let pattern_objects : Map[String, @syntax.PdfObject] = Map([])
+      let matrices : Array[@layout.Matrix] = []
+      let mut world = @layout.Matrix::identity()
       let mut scopes = 0
       for primitiveIndex, primitive in frame.primitives {
         if ends.contains(primitiveIndex) {
@@ -148,6 +154,62 @@ pub fn write(
           grouped = true
         }
         match primitive {
+          PixelCenters | IntegerScreenGlyphs => ()
+          PatternRectangle(rect, period, mask, zero, one, ..) => {
+            @layout.validate_pattern(rect, period, mask, zero, one)
+            ignore(world.inverse())
+            let key = Json([
+                period,
+                world.a,
+                world.b,
+                world.c,
+                world.d,
+                world.e,
+                world.f,
+                frame.height,
+              ]).stringify() +
+              zero +
+              one +
+              mask
+              .iter()
+              .map(byte => byte.to_int().to_string(radix=16).pad_start(2, '0'))
+              .join("")
+            let (id, object) = patterns
+              .get(key)
+              .unwrap_or_else(() => {
+                guard patterns.length() < 4096 else {
+                  @failure.reject("limit-exceeded", "PDF patterns exceed 4096")
+                }
+                let entry = (
+                  "P\{patterns.length()}",
+                  positioned_pattern(
+                    document,
+                    period,
+                    mask,
+                    zero,
+                    one,
+                    world,
+                    frame.height,
+                  ),
+                )
+                patterns[key] = entry
+                entry
+              })
+            pattern_objects[id] = object
+            ops.append([
+              @content.Op_q,
+              @content.Op_cs(name("Pattern")),
+              @content.Op_scnName(name(id), []),
+              @content.Op_re(
+                rect.x,
+                frame.height - rect.y - rect.height,
+                rect.width,
+                rect.height,
+              ),
+              @content.Op_f,
+              @content.Op_Q,
+            ])
+          }
           GradientRectangle(rect, stops)
           | RadialGradientRectangle(rect, stops) => {
             @layout.validate_gradient(rect, stops)
@@ -166,7 +228,11 @@ pub fn write(
             } else {
               rect
             }
-            let key = radial.to_string() + Json(stops).stringify()
+            // ONLYOFFICE starts radial gradients at a one-millimetre inner circle.
+            let inner = if radial { 72.0 / 25.4 / side } else { 0.0 }
+            let key = radial.to_string() +
+              inner.to_string() +
+              Json(stops).stringify()
             let entry = gradients
               .get(key)
               .unwrap_or_else(() => {
@@ -176,7 +242,9 @@ pub fn write(
                 let entry = (
                   "G\{gradients.length()}",
                   @syntax.PdfIndirect(
-                    document.add_object(gradient_shading(stops, radial~)),
+                    document.add_object(
+                      gradient_shading(stops, inner~, radial~),
+                    ),
                   ),
                 )
                 gradients[key] = entry
@@ -208,7 +276,7 @@ pub fn write(
               let mask = gradient_masks
                 .get(key)
                 .unwrap_or_else(() => {
-                  let mask = gradient_mask(document, stops, radial~)
+                  let mask = gradient_mask(document, stops, inner~, radial~)
                   gradient_masks[key] = mask
                   mask
                 })
@@ -220,6 +288,8 @@ pub fn write(
             ops.push(@content.Op_Q)
           }
           Transform(matrix) => {
+            matrices.push(world)
+            world = world.then(matrix)
             ops.push(@content.Op_q)
             scopes += 1
             // Conjugate the top-left coordinate transform by the PDF page flip.
@@ -235,6 +305,7 @@ pub fn write(
             )
           }
           Clip(clip) => {
+            matrices.push(world)
             ops.push(@content.Op_q)
             scopes += 1
             ops.push(
@@ -253,16 +324,25 @@ pub fn write(
               @failure.reject("invalid-drawing", "Unbalanced PDF scope")
             }
             scopes -= 1
+            world = matrices.pop().unwrap()
             ops.push(@content.Op_Q)
           }
           ClipPath(path, even_odd) => {
+            matrices.push(world)
             ops.push(@content.Op_q)
             scopes += 1
             ops.append(positioned_path(path, frame.height))
             ops.push(if even_odd { @content.Op_Wstar } else { @content.Op_W })
             ops.push(@content.Op_n)
           }
-          Path(path, fill, stroke, width, pen) => {
+          Path(_, _, _, _, _) | TextRule(_, _, _) => {
+            let (path, fill, stroke, width, pen) = match primitive {
+              Path(path, fill, stroke, width, pen) =>
+                (path, fill, stroke, width, pen)
+              TextRule(path, color, width) =>
+                (path, "", color, width, @layout.PathStyle::solid())
+              _ => abort("Expected a positioned stroke path")
+            }
             pen.validate()
             ops.push(@content.Op_q)
             if pen.fillAlpha != 1 || pen.strokeAlpha != 1 {
@@ -303,9 +383,21 @@ pub fn write(
             }
             ops.append(positioned_path(path, frame.height))
             if !fill.is_empty() && !stroke.is_empty() {
-              ops.push(@content.Op_B)
+              ops.push(
+                if pen.evenOdd {
+                  @content.Op_Bstar
+                } else {
+                  @content.Op_B
+                },
+              )
             } else if !fill.is_empty() {
-              ops.push(@content.Op_f)
+              ops.push(
+                if pen.evenOdd {
+                  @content.Op_fstar
+                } else {
+                  @content.Op_f
+                },
+              )
             } else if !stroke.is_empty() {
               ops.push(@content.Op_S)
             } else {
@@ -331,7 +423,8 @@ pub fn write(
             )
             ops.push(@content.Op_f)
           }
-          Stroke(rect, color, width) => {
+          Stroke(rect, color, width)
+          | FractionalScreenStroke(rect, color, width) => {
             ops.push(@content.Op_w(width))
             ops.push(
               @content.Op_RG(
@@ -383,17 +476,18 @@ pub fn write(
                 ("Width", @syntax.PdfInteger(source.width)),
                 ("Height", @syntax.PdfInteger(source.height)),
                 ("BitsPerComponent", @syntax.PdfInteger(8)),
-                ("Interpolate", @syntax.PdfBoolean(true)),
+                ("Interpolate", @syntax.PdfBoolean(image_smoothing)),
+                ("Filter", tag("FlateDecode")),
               ]
               let mask = document.add_object(
                 stream(
-                  Bytes::from_array(alpha),
+                  @flate.pdf_flate_encode(Bytes::from_array(alpha)),
                   common + [("ColorSpace", tag("DeviceGray"))],
                 ),
               )
               let object = document.add_object(
                 stream(
-                  Bytes::from_array(rgb),
+                  @flate.pdf_flate_encode(Bytes::from_array(rgb)),
                   common +
                   [
                     ("ColorSpace", tag("DeviceRGB")),
@@ -445,12 +539,37 @@ pub fn write(
                 ),
               )
               for index, glyph in run.glyphs {
+                guard !glyph.strokeWidth.is_nan() &&
+                  !glyph.strokeWidth.is_inf() &&
+                  glyph.strokeWidth >= 0 &&
+                  (
+                    glyph.strokeWidth <= 1024 ||
+                    (glyph.scale > 0 && glyph.strokeWidth * glyph.scale <= 32)
+                  ) else {
+                  @failure.reject(
+                    "invalid-drawing", "Invalid glyph outline stroke width",
+                  )
+                }
                 let subset = fonts[glyph.font]
                 let cid = subset.codes[cid_key(
                     glyph.id.reinterpret_as_int(),
                     glyph_text(run, index),
                   )]
+                if glyph.strokeWidth > 0 {
+                  ops.push(@content.Op_q)
+                  ops.push(@content.Op_w(glyph.strokeWidth * glyph.scale))
+                  ops.push(
+                    @content.Op_RG(
+                      channel(color, 0),
+                      channel(color, 2),
+                      channel(color, 4),
+                    ),
+                  )
+                }
                 ops.push(@content.Op_BT)
+                if glyph.strokeWidth > 0 {
+                  ops.push(@content.Op_Tr(2))
+                }
                 ops.push(
                   @content.Op_Tf(
                     name("F\{glyph.font}"),
@@ -476,6 +595,9 @@ pub fn write(
                   ),
                 )
                 ops.push(@content.Op_ET)
+                if glyph.strokeWidth > 0 {
+                  ops.push(@content.Op_Q)
+                }
               }
             }
             if !grouped {
@@ -506,6 +628,9 @@ pub fn write(
       }
       if !shading_objects.is_empty() {
         page_resources.push(("Shading", dict(shading_objects.to_array())))
+      }
+      if !pattern_objects.is_empty() {
+        page_resources.push(("Pattern", dict(pattern_objects.to_array())))
       }
       pages.push({
         content: [stream(bytes, [])],

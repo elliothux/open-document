@@ -8,9 +8,9 @@ fn running_lines(
   images : Images,
   page~ : Int32 = -1,
   total~ : Int32 = 1,
-) -> (Array[Array[Line]], Array[PageSetup]) raise @failure.Failure {
+) -> (Array[PageFrame], Array[PageSetup]) raise @failure.Failure {
   flow.pageNumbering.validate()
-  let prepared : Map[String, (Array[Line], Double)] = Map([])
+  let prepared : Map[String, (PageFrame, Double)] = Map([])
   for
     (stories, distance, footer) in [
       (flow.headers, flow.headerDistance, false),
@@ -24,7 +24,12 @@ fn running_lines(
       )
     }
     for variant, story in stories {
-      if story.is_empty() {
+      guard story.paragraphs.length() <= 32768 && story.tables.length() <= 4096 else {
+        @failure.reject(
+          "limit-exceeded", "Running content exceeds paragraph or table budget",
+        )
+      }
+      if story.paragraphs.is_empty() && story.tables.is_empty() {
         continue
       }
       if (variant == "first" && !flow.differentFirst) ||
@@ -39,14 +44,17 @@ fn running_lines(
       if page >= 0 && variant != active {
         continue
       }
-      let area = Pagination::new({ ..flow.page, top: 0, bottom: 0, })
-      for paragraph in story {
+      let area = Pagination::new(
+        { ..flow.page, top: 0, bottom: 0, },
+        anchorPage=Some(flow.page),
+      )
+      let resolved = story.map_paragraphs(paragraph => {
         guard !paragraph.pageBreakBefore && !paragraph_has_break(paragraph) else {
           @failure.reject(
             "unsupported-layout", "Page or column breaks in headers or footers are unsupported",
           )
         }
-        let paragraph = {
+        {
           ..paragraph,
           spans: paragraph.spans.map(span => {
             guard span.field.is_empty() || span.drawing is None else {
@@ -63,21 +71,39 @@ fn running_lines(
             }
           }),
         }
-        area.paragraph(
-          cache,
-          probe,
-          paragraph,
-          profile,
-          images,
-          flow.additiveSpacing,
-        )
+      })
+      let content = {
+        ..flow,
+        paragraphs: resolved.paragraphs,
+        tables: resolved.tables,
+      }
+      for table in content.tables; previous = 0 {
+        guard table.beforeParagraph >= previous &&
+          table.beforeParagraph <= content.paragraphs.length() else {
+          @failure.reject("invalid-table", "Invalid running table position")
+        }
+        table.check_nested()
+        continue table.beforeParagraph
+      }
+      for block in content.body_blocks() {
+        block.place(area, cache, probe, profile, images, flow.additiveSpacing)
       }
       guard area.pages.length() == 1 else {
         @failure.reject("layout-overflow", "Header or footer exceeds one page")
       }
       let height = area.y +
         area.after +
-        story.last().map(p => p.line.terminal_gap(p.nominalSize)).unwrap_or(0)
+        (if story.tables
+          .last()
+          .map(t => t.beforeParagraph == story.paragraphs.length())
+          .unwrap_or(false) {
+          0.0
+        } else {
+          story.paragraphs
+          .last()
+          .map(p => p.line.terminal_gap(p.nominalSize))
+          .unwrap_or(0)
+        })
       let offset = if footer {
         flow.page.height - distance - height
       } else {
@@ -99,16 +125,50 @@ fn running_lines(
           ..run.copy_geometry(),
           baseline: run.baseline + offset,
         }),
-        drawings: line.drawings.map(image => { ..image, y: image.y + offset, }),
+        markerImage: line.markerImage.map(image => {
+          ..image,
+          y: image.y + offset,
+        }),
+        drawings: line.drawings.map(image => {
+          let fixed = match image.anchor {
+            Some(
+              {
+                vertical: Offset("page" | "margin", _)
+                | Aligned("page" | "margin", _),
+                ..
+              }
+            ) => true
+            _ => false
+          }
+          { ..image, y: image.y + (if fixed { 0 } else { offset }), }
+        }),
         readOnlyReason: "protected-content:running-area",
       })
       prepared[(if footer { "footer" } else { "header" }) + variant] = (
-        lines,
+        {
+          ..area.pages[0],
+          lines,
+          borders: area.pages[0].borders.map(b => {
+            ..b,
+            rect: { ..b.rect, y: b.rect.y + offset, },
+          }),
+          fills: area.pages[0].fills.map(f => { ..f, y: f.y + offset, }),
+          cellAreas: [],
+        },
         distance + height,
       )
     }
   }
-  let patterns : Array[Array[Line]] = []
+  let patterns : Array[PageFrame] = []
+  let empty : PageFrame = {
+    width: flow.page.width,
+    height: flow.page.height,
+    lines: [],
+    borders: [],
+    fills: [],
+    pageBorders: [],
+    cellAreas: [],
+  }
   let setups : Array[PageSetup] = []
   for index in (if page >= 0 { [page] } else { [0, 1, 2] }) {
     let variant = flow.pageNumbering.variant(
@@ -116,8 +176,10 @@ fn running_lines(
       flow.differentFirst,
       flow.differentEven,
     )
-    let (header, top) = prepared.get("header" + variant).unwrap_or(([], 0))
-    let (footer, bottom) = prepared.get("footer" + variant).unwrap_or(([], 0))
+    let (header, top) = prepared.get("header" + variant).unwrap_or((empty, 0))
+    let (footer, bottom) = prepared
+      .get("footer" + variant)
+      .unwrap_or((empty, 0))
     let page = {
       ..flow.page,
       top: flow.page.top.max(top),
@@ -125,7 +187,12 @@ fn running_lines(
     }
     page.validate()
     setups.push(page)
-    patterns.push(header + footer)
+    patterns.push({
+      ..empty,
+      lines: header.lines + footer.lines,
+      borders: header.borders + footer.borders,
+      fills: header.fills + footer.fills,
+    })
   }
   (patterns, setups)
 }

@@ -115,7 +115,11 @@ fn read_color(
 }
 
 ///|
-fn color_tint(color : String, tint : Double) -> String raise @failure.Failure {
+fn color_tint(
+  color : String,
+  tint : Double,
+  truncate~ : Bool = false,
+) -> String raise @failure.Failure {
   guard tint >= -1 && tint <= 1 else {
     @failure.reject("malformed-xlsx", "Invalid color tint")
   }
@@ -128,13 +132,16 @@ fn color_tint(color : String, tint : Double) -> String raise @failure.Failure {
     let channel = @string.parse_int(color[offset:offset + 2], base=16) catch {
       _ => 0
     }
-    let value = (if tint < 0 {
-        channel.to_double() * (1 + tint)
-      } else {
-        channel.to_double() * (1 - tint) + 255 * tint
-      })
-      .round()
-      .to_int()
+    let adjusted = if tint < 0 {
+      channel.to_double() * (1 + tint)
+    } else {
+      channel.to_double() * (1 - tint) + 255 * tint
+    }
+    let value = if truncate {
+      adjusted.to_int()
+    } else {
+      adjusted.round().to_int()
+    }
     result.write_char(digits.get_char(value / 16).unwrap())
     result.write_char(digits.get_char(value % 16).unwrap())
   }
@@ -181,7 +188,8 @@ fn read_styles(
       (4, "#,##0.00"),
       (9, "0%"),
       (10, "0.00%"),
-      (14, "mm-dd-yy"),
+      (11, "0.00E+00"),
+      (14, "m/d/yyyy"),
       (15, "d-mmm-yy"),
       (16, "d-mmm"),
       (17, "mmm-yy"),

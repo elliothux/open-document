@@ -397,6 +397,13 @@ fn Session::check_picture_context(
   self : Session,
   tree : WordTree,
 ) -> Unit raise @failure.Failure {
+  guard tree.part == self.main else {
+    @failure.reject(
+      "protected-content",
+      "Running drawings are read-only",
+      part=tree.part,
+    )
+  }
   for index in 0..<tree.page_sections().length() {
     ignore(self.editable_page_section(tree, target=Some(index)))
   }

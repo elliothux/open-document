@@ -226,13 +226,14 @@ fn Session::paint_grid(
   notes : Map[String, CellNote],
   objects : Array[SheetObject],
   slicer_hover : (String, Int32)?,
+  screen_scale : Double?,
 ) -> (
   Array[@layout.PositionedPrimitive],
   Array[Json],
   Array[Json],
   Array[Json],
   Array[Json],
-  TableStyles,
+  ConditionalRules,
 ) raise @failure.Failure {
   let (header_width, header_height) = self.sheets[index].view.header_size()
   let rtl = self.sheets[index].view.rtl
@@ -253,6 +254,7 @@ fn Session::paint_grid(
   let work : FormulaWork = {
     remaining: 1048576,
     date1904: self.date1904,
+    random: None,
     origin: { row: 1, column: 1, },
     names: self.formula_names(),
   }
@@ -286,21 +288,25 @@ fn Session::paint_grid(
         rtl,
       )
       for
-        item in self.paint_cells(
-          index,
-          dimensions,
-          row.indices,
-          column.indices,
-          page,
-          header_width - column.scroll,
-          header_height - row.scroll,
-          probe,
-          profile,
-          false,
-          width,
-          conditional,
-          work,
-        ) {
+        item in (if self.sheets[index].is_chart() {
+          []
+        } else {
+          self.paint_cells(
+            index,
+            dimensions,
+            row.indices,
+            column.indices,
+            page,
+            header_width - column.scroll,
+            header_height - row.scroll,
+            probe,
+            profile,
+            false,
+            width,
+            conditional,
+            work,
+          )
+        }) {
         guard item is Object(fields) &&
           fields["cell"] is { "address": String(address), .. } &&
           fields["display"] is String(display) &&
@@ -361,6 +367,8 @@ fn Session::paint_grid(
             rect,
             probe,
             profile,
+            view=true,
+            screen_scale~,
             slicer_hover=slicer_hover
               .filter(item => item.0 == picture.id)
               .map(item => item.1),
@@ -530,12 +538,5 @@ fn Session::paint_grid(
       )
     }
   }
-  (
-    primitives,
-    cells,
-    row_headers,
-    column_headers,
-    visible_notes,
-    conditional.table_styles,
-  )
+  (primitives, cells, row_headers, column_headers, visible_notes, conditional)
 }

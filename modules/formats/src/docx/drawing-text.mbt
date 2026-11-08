@@ -37,6 +37,17 @@ fn Session::check_native_drawings(
 ) -> Unit raise @failure.Failure {
   self.check_text_box_paragraph(tree, paragraph)
   for id in tree.descendants(paragraph) {
+    if tree.nodes[id].uri == word_uri &&
+      ["object", "pict"].contains(tree.nodes[id].name) {
+      @failure.reject(
+        "protected-content",
+        if tree.nodes[id].name == "object" {
+          "Embedded object previews are read-only"
+        } else {
+          "Legacy drawings are read-only"
+        },
+      )
+    }
     if tree.nodes[id].uri == word_uri && tree.nodes[id].name == "drawing" {
       self.check_drawing_text(tree, id)
     } else if tree.math_root(id) {

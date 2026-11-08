@@ -6,7 +6,11 @@ fn Session::image_replacement_reason(self : Session, object : Object) -> String 
   if object.kind == "image" {
     return self.image_reason(object, false)
   }
-  self.empty_placeholder_reason(object, ["pic", "obj"])
+  self.empty_placeholder_reason(
+    object,
+    ["pic", "obj"],
+    preserve_group_lock=true,
+  )
 }
 
 ///|
@@ -14,6 +18,7 @@ fn Session::empty_placeholder_reason(
   self : Session,
   object : Object,
   kinds : Array[String],
+  preserve_group_lock~ : Bool = false,
 ) -> String {
   try {
     let reason = self.appearance_reason(object)
@@ -53,7 +58,6 @@ fn Session::empty_placeholder_reason(
     }
     guard nv.node.attributes.is_empty() &&
       shape.node.attributes.is_empty() &&
-      shape.tree.children.get(shape.node.id).unwrap_or([]).is_empty() &&
       nv.tree.children
       .get(nv.node.id)
       .unwrap_or([])
@@ -62,6 +66,17 @@ fn Session::empty_placeholder_reason(
         ["cNvPr", "cNvSpPr", "nvPr"].contains(node.name)
       }) else {
       return "Locked or extended placeholder properties are protected"
+    }
+    match shape.tree.children.get(shape.node.id).unwrap_or([]) {
+      [] => ()
+      [locks] if preserve_group_lock &&
+        locks.uri == drawing_uri &&
+        locks.name == "spLocks" &&
+        locks.attributes.length() == 1 &&
+        locks.attribute("noGrp") is Some("1" | "true" | "0" | "false") &&
+        locks.text.trim().is_empty() &&
+        shape.tree.children.get(locks.id).unwrap_or([]).is_empty() => ()
+      _ => return "Locked or extended placeholder properties are protected"
     }
     let transform = self.object_edit_reason(object, "transform")
     if !transform.is_empty() {
@@ -123,6 +138,12 @@ fn placeholder_image_change(
   }
   let nv = source.child("nvSpPr", uri=presentation_uri).unwrap()
   let common = markup(nv.child("cNvPr", uri=presentation_uri).unwrap())
+  let group_lock = nv
+    .child("cNvSpPr", uri=presentation_uri)
+    .bind(shape => shape.child("spLocks", uri=drawing_uri))
+    .bind(locks => locks.node.attribute("noGrp"))
+    .map(value => " noGrp=\"\{value}\"")
+    .unwrap_or("")
   let application = markup(nv.child("nvPr", uri=presentation_uri).unwrap())
   let properties = markup(source.child("spPr", uri=presentation_uri).unwrap())
   let style = source
@@ -134,6 +155,6 @@ fn placeholder_image_change(
     node: parent.id,
     offset: source.node.start - parent.start,
     length: source.node.end - source.node.start,
-    xml: "<p:pic xmlns:p=\"\{presentation_uri}\" xmlns:a=\"\{drawing_uri}\" xmlns:r=\"\{relationship_uri}\"><p:nvPicPr>\{common}<p:cNvPicPr><a:picLocks noChangeAspect=\"1\"/></p:cNvPicPr>\{application}</p:nvPicPr><p:blipFill><a:blip r:embed=\"\{link}\"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>\{properties}\{style}</p:pic>",
+    xml: "<p:pic xmlns:p=\"\{presentation_uri}\" xmlns:a=\"\{drawing_uri}\" xmlns:r=\"\{relationship_uri}\"><p:nvPicPr>\{common}<p:cNvPicPr><a:picLocks noChangeAspect=\"1\"\{group_lock}/></p:cNvPicPr>\{application}</p:nvPicPr><p:blipFill><a:blip r:embed=\"\{link}\"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>\{properties}\{style}</p:pic>",
   }
 }

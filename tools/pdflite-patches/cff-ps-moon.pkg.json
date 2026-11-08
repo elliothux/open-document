@@ -1,0 +1,6 @@
+{
+  "file": "internal/read_fonts/ps/moon.pkg",
+  "originalSha256": "0528b84d5668536b51685d480591d0a7bf8eddf6a46ac105bf1e98660d79d0fa",
+  "patchedSha256": "2db50fc77b48b6beac633b237c0f6e959bd4e36f91bb32a1e4c34600c1391572",
+  "lineEdits": [[1, 0, ["  \"moonbitlang/pdflite/core\","]]]
+}

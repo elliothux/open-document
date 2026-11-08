@@ -1,4 +1,5 @@
-import { CanvasRenderer } from "./drawing.js";
+import { CanvasRenderer, type CanvasRasterMode } from "./drawing.js";
+import { documentFailure } from "./connection.js";
 import type {
   DrawingBatch,
   DrawCommand,
@@ -8,14 +9,26 @@ import type {
 export class CanvasSurface {
   readonly canvas = document.createElement("canvas");
   private overlayCanvas: HTMLCanvasElement | undefined;
-  private readonly renderer = new CanvasRenderer();
+  private readonly renderer: CanvasRenderer;
   protected readonly images = new Map<string, ImageBitmap>();
+  protected readonly imagePixels = new Map<string, Uint8Array>();
+  protected readonly imageColors = new Map<string, ImageBitmap>();
   private key: string | undefined;
   private closed = false;
 
-  constructor() {
+  constructor(rasterMode: CanvasRasterMode = "integer") {
+    this.renderer = new CanvasRenderer(
+      rasterMode,
+      this.imagePixels,
+      this.imageColors,
+    );
     this.canvas.setAttribute("aria-hidden", "true");
     this.canvas.style.display = "block";
+  }
+
+  setGlyphRasterMode(mode: CanvasRasterMode): void {
+    if (this.closed) throw new Error("Canvas surface is disposed");
+    if (this.renderer.setGlyphRasterMode(mode)) this.key = undefined;
   }
 
   get overlay(): HTMLCanvasElement {
@@ -64,14 +77,18 @@ export class CanvasSurface {
       canvas.style.width = `${page.width * cssScale}px`;
       canvas.style.height = `${page.height * cssScale}px`;
     }
-    const context = this.canvas.getContext("2d");
-    if (!context) throw new Error("Canvas is unavailable");
-    context.resetTransform();
-    context.clearRect(0, 0, width, height);
-    context.setTransform(scale, 0, 0, scale, 0, 0);
     this.key = undefined;
-    this.renderer.drawRegion(context, layout, index, this.images, liveImages);
-    if (this.overlayCanvas) this.clearOverlay(cssScale);
+    try {
+      const context = this.canvas.getContext("2d");
+      if (!context) throw new Error("Canvas is unavailable");
+      context.resetTransform();
+      context.clearRect(0, 0, width, height);
+      context.setTransform(scale, 0, 0, scale, 0, 0);
+      this.renderer.drawRegion(context, layout, index, this.images, liveImages);
+      if (this.overlayCanvas) this.clearOverlay(cssScale);
+    } catch (error) {
+      throw documentFailure("draw", error);
+    }
     this.key = liveImages?.size ? undefined : key;
     return cssScale;
   }
@@ -176,5 +193,8 @@ export class CanvasSurface {
     this.renderer.dispose();
     for (const image of this.images.values()) image.close();
     this.images.clear();
+    this.imagePixels.clear();
+    for (const image of this.imageColors.values()) image.close();
+    this.imageColors.clear();
   }
 }

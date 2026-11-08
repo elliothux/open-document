@@ -98,6 +98,7 @@ fn Session::ordered_slides(
         index~,
         parts~,
         date_time=self.date_time,
+        media=self.media,
       )
     }
     numbered_slide(slide, presentation_number(main, index))

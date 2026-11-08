@@ -63,6 +63,11 @@ fn Session::flow_from(
           ),
         )
       "sectPr" => ()
+      "bookmarkStart" | "bookmarkEnd" =>
+        tree.check_bookmark_marker(id) catch {
+          @failure.Failure(message~, ..) =>
+            diagnostics.push("unsupported-layout:" + message)
+        }
       "sdt" => {
         let toc = tree.contents
           .values()
@@ -198,7 +203,11 @@ fn Session::paragraph(
     })
   let cache : Map[Int32, String] = Map([])
   let fields = if has_fields {
-    tree.running_fields(id, cache~) catch {
+    tree.running_fields(
+      id,
+      cache~,
+      allowOrphanEnd=!running && tree.part == self.main,
+    ) catch {
       @failure.Failure(message~, ..) => {
         cache.clear()
         if running {
@@ -210,6 +219,11 @@ fn Session::paragraph(
     }
   } else {
     Map([])
+  }
+  guard running || !fields.values().any(code => code == "STYLEREF:stored") else {
+    @failure.reject(
+      "unsupported-layout", "Named style references require a running area",
+    )
   }
   guard !running ||
     !fields
@@ -259,6 +273,16 @@ fn Session::paragraph(
         @failure.Failure(message~, ..) =>
           diagnostics.push("unsupported-layout:" + message)
       }
+    } else if node.uri == word_uri && node.name == "proofErr" {
+      tree.check_proofing_marker(child) catch {
+        @failure.Failure(message~, ..) =>
+          diagnostics.push("unsupported-layout:" + message)
+      }
+    } else if node.uri == word_uri && node.name == "sdt" {
+      ignore(tree.citation_content(child)) catch {
+        @failure.Failure(message~, ..) =>
+          diagnostics.push("unsupported-layout:" + message)
+      }
     } else if has_fields && node.uri == word_uri && node.name == "fldSimple" {
       ()
     } else if !running &&
@@ -291,6 +315,7 @@ fn Session::paragraph(
         color: run_style.text_color(background),
         underline: false,
         strike: false,
+        caps: false,
         highlight: "",
         script: "baseline",
         spacing: 0,
@@ -349,6 +374,16 @@ fn Session::paragraph(
       }
       let image = if item.name == "drawing" {
         Some(self.drawing_frame(tree, content))
+      } else if item.name == "pict" {
+        let frame = self.vml_frame(tree, content)
+        guard running || frame.content is @layout.Shape(_) else {
+          @failure.reject(
+            "unsupported-layout", "Body VML text boxes require editing isolation",
+          )
+        }
+        Some(frame)
+      } else if item.name == "object" {
+        Some(self.ole_preview(tree, content))
       } else {
         None
       }
@@ -358,7 +393,7 @@ fn Session::paragraph(
         "br" => inline_text(item).replace_all(old="\u2028", new="\n")
         "cr" => "\n"
         "tab" => "\t"
-        "drawing" => "\ufffc"
+        "drawing" | "object" | "pict" => "\ufffc"
         "footnoteReference"
         | "endnoteReference"
         | "footnoteRef"
@@ -380,6 +415,8 @@ fn Session::paragraph(
         .get(content)
         .map(pair => pair.1)
         .unwrap_or_else(() => fields.get(content).unwrap_or(""))
+      // shortcut: Named running STYLEREF retains each cached run until field recalculation is implemented.
+      let field = if field == "STYLEREF:stored" { "" } else { field }
       let runs = if field.is_empty() {
         style.font_runs(text, styles.themes)
       } else {
@@ -395,6 +432,7 @@ fn Session::paragraph(
             color: style.text_color(background),
             underline: style.underline,
             strike: style.strike,
+            caps: style.caps,
             highlight: highlight_color(style.highlight),
             script: style.vertAlign,
             spacing: style.spacing,
@@ -425,6 +463,7 @@ fn Session::paragraph(
         color: run_style.text_color(background),
         underline: run_style.underline,
         strike: run_style.strike,
+        caps: run_style.caps,
         highlight: highlight_color(run_style.highlight),
         script: run_style.vertAlign,
         spacing: run_style.spacing,
@@ -446,6 +485,19 @@ fn Session::paragraph(
   let display = spans.filter(span => !span.text.is_empty()) is [span] &&
     tree.nodes[span.node].name == "oMathPara" &&
     styles.numbering_reference(tree, id) is None
+  let control = tree.children[id]
+    .iter()
+    .find_first(child => {
+      tree.nodes[child].uri == word_uri && tree.nodes[child].name == "sdt"
+    })
+  if control is Some(control) && styles.numbering_reference(tree, id) is None {
+    let inside = Set::from_array(tree.descendants(control))
+    // ONLYOFFICE omits first-line indentation for a standalone inline content control.
+    if spans.any(span => !span.text.is_empty()) &&
+      spans.all(span => span.text.is_empty() || inside.contains(span.node)) {
+      paragraph = { ..paragraph, first: 0, }
+    }
+  }
   for i, span in spans {
     if span.drawing is Some(frame) && frame.content is Math(formula) {
       spans[i] = {
@@ -531,6 +583,10 @@ fn Session::paragraph(
         contents.edit_reason()
       } else if tree.field_spans.contains(id) {
         "Cross-paragraph field results require field editing"
+      } else if tree.children[id].any(child => {
+          tree.nodes[child].uri == word_uri && tree.nodes[child].name == "sdt"
+        }) {
+        "Citation content controls require citation editing"
       } else if !running && has_fields {
         try {
           tree.check_editable_paragraph(

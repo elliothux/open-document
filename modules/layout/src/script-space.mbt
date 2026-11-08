@@ -94,6 +94,7 @@ fn script_spaces(
   spans : Array[MeasuredSpan],
   text : String,
   bidi : @bidi.BidiParagraph,
+  native~ : Bool = false,
 ) -> Map[Int32, Double] {
   let spaces : Map[Int32, Double] = Map([])
   let mut previous = 0
@@ -111,7 +112,7 @@ fn script_spaces(
       while span < spans.length() && spans[span].end <= offset - 1 {
         span += 1
       }
-      if span < spans.length() && spans[span].font >= 0 {
+      if span < spans.length() && spans[span].font >= 0 && !native {
         let width = ((spans[span].span.style.size * 20).floor() / 5).floor() /
           20
         if width > 0 {

@@ -1,14 +1,27 @@
 import { record, hasFields } from "./validation.js";
 import type { Budget } from "./validation.js";
 
+export type DocumentStage =
+  | "worker"
+  | "input"
+  | "container"
+  | "open"
+  | "font"
+  | "image"
+  | "layout"
+  | "draw"
+  | "save";
+
 export class DocumentError extends Error {
   constructor(
     readonly code: string,
     message: string,
     readonly part: string,
     readonly offset: number,
+    readonly stage?: DocumentStage,
+    options?: ErrorOptions,
   ) {
-    super(message);
+    super(message, options);
     this.name = "DocumentError";
   }
 }

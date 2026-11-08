@@ -265,7 +265,7 @@ fn content_slide_fragment(
       picture.height,
       false,
     )
-    ignore(@image.type_info(picture.bytes))
+    ignore(raster_image_info(picture.bytes))
     let link = "image\{id}"
     resources.push({
       "id": link,

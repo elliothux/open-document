@@ -58,6 +58,24 @@ fn PrintSetup::page(self : PrintSetup) -> @layout.PageSetup {
 }
 
 ///|
+fn validate_print_page(
+  setup : @layout.PageSetup,
+) -> Unit raise @failure.Failure {
+  guard setup.width >= 36 &&
+    setup.width <= 14400 &&
+    setup.height >= 36 &&
+    setup.height <= 14400 &&
+    setup.left >= 0 &&
+    setup.right >= 0 &&
+    setup.top >= 0 &&
+    setup.bottom >= 0 &&
+    setup.width - setup.left - setup.right >= 12 &&
+    setup.height - setup.top - setup.bottom >= 12 else {
+    @failure.reject("invalid-page", "Invalid print paper or margins")
+  }
+}
+
+///|
 fn PrintSetup::validate(self : PrintSetup) -> Unit raise @failure.Failure {
   let page = self.page()
   guard ["A4", "Letter"].contains(self.paper) &&
@@ -95,7 +113,7 @@ fn print_integer(
 ///|
 fn read_print_setup(sheet : Sheet) -> PrintSetup raise @failure.Failure {
   let tree = Tree::new(sheet.document)
-  let root = tree.root("worksheet")
+  let root = tree.sheet_root()
   let page = tree.one(root.id, "pageSetup")
   let margins = tree.one(root.id, "pageMargins")
   let properties = tree.one(root.id, "sheetPr")
@@ -123,14 +141,25 @@ fn read_print_setup(sheet : Sheet) -> PrintSetup raise @failure.Failure {
   }
   if page is Some(page) {
     guard page.attributes.all(a => {
-        a.uri.is_empty() &&
-        [
-          "paperSize", "orientation", "scale", "fitToWidth", "fitToHeight", "pageOrder",
-          "usePrinterDefaults", "horizontalDpi", "verticalDpi", "copies", "firstPageNumber",
-          "useFirstPageNumber",
-        ].contains(a.name)
+        // Printer DEVMODE data stays in the source; explicit page geometry owns SDK printing.
+        (
+          a.name == "id" &&
+          a.uri == relationship_uri[:relationship_uri.length() - 1].to_owned() &&
+          !a.value.is_empty()
+        ) ||
+        (
+          a.uri.is_empty() &&
+          [
+            "paperSize", "orientation", "scale", "fitToWidth", "fitToHeight", "pageOrder",
+            "usePrinterDefaults", "horizontalDpi", "verticalDpi", "copies", "firstPageNumber",
+            "useFirstPageNumber", "blackAndWhite", "draft", "cellComments",
+          ].contains(a.name)
+        )
       }) &&
-      page.attribute("pageOrder").unwrap_or("downThenOver") == "downThenOver" else {
+      page.attribute("pageOrder").unwrap_or("downThenOver") == "downThenOver" &&
+      !flag(page, "blackAndWhite") &&
+      !flag(page, "draft") &&
+      page.attribute("cellComments").unwrap_or("none") == "none" else {
       @failure.reject(
         "unsupported-print", "Unsupported print settings are protected",
       )
@@ -151,13 +180,24 @@ fn read_print_setup(sheet : Sheet) -> PrintSetup raise @failure.Failure {
       @failure.reject("unsupported-print", "Unknown page fitting is protected")
     }
   }
-  let paper = match print_integer(page, "paperSize", 9) {
-    9 => "A4"
+  let paper_size = print_integer(page, "paperSize", 9)
+  let paper = match paper_size {
+    // Some producers write 0 when the paper size is left at the default.
+    0 | 9 | 77 => "A4"
     1 => "Letter"
     _ =>
       @failure.reject(
         "unsupported-print", "Only A4 and Letter paper are supported",
       )
+  }
+  let orientation = page
+    .bind(n => n.attribute("orientation"))
+    .unwrap_or("portrait")
+  // Rotated A4 has landscape base dimensions before applying the orientation.
+  let orientation = match (paper_size, orientation) {
+    (77, "portrait") => "landscape"
+    (77, "landscape") => "portrait"
+    _ => orientation
   }
   let margin = fn(name : String) -> Double raise @failure.Failure {
     let value = margins.bind(n => n.attribute(name)).unwrap_or("0.5")
@@ -169,9 +209,7 @@ fn read_print_setup(sheet : Sheet) -> PrintSetup raise @failure.Failure {
   let enabled = fit.map(n => flag(n, "fitToPage")).unwrap_or(false)
   let setup : PrintSetup = {
     paper,
-    orientation: page
-    .bind(n => n.attribute("orientation"))
-    .unwrap_or("portrait"),
+    orientation,
     left: margin("left"),
     top: margin("top"),
     right: margin("right"),

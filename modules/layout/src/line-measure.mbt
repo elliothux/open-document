@@ -1,4 +1,49 @@
 ///|
+fn line_content_end(text : String) -> Int32 {
+  let mut end = text.length()
+  while end > 0 && text[end - 1] == 32 {
+    end -= 1
+  }
+  end
+}
+
+///|
+fn line_content_width(
+  text : String,
+  start : Int32,
+  width : Double,
+  carets : Array[Caret],
+  rtl : Bool,
+) -> Double {
+  let end = line_content_end(text)
+  if end == text.length() {
+    return width
+  }
+  carets
+  .iter()
+  .find_first(caret => caret.offset == start + end)
+  .map(caret => {
+    (if rtl { width - caret.after } else { caret.after }).clamp(
+      min=0,
+      max=width,
+    )
+  })
+  .unwrap_or(width)
+}
+
+///|
+/// Return the fitting width while retaining trailing-space geometry and carets.
+pub fn Line::content_width(self : Line) -> Double {
+  line_content_width(
+    self.text,
+    self.start,
+    self.width,
+    self.carets,
+    self.baseLevel % 2 == 1,
+  )
+}
+
+///|
 fn measure_line(
   probe : TextProbe,
   spans : Array[MeasuredSpan],
@@ -8,6 +53,9 @@ fn measure_line(
   boundaries : Array[Int32],
   spaces : Map[Int32, Double],
   geometry~ : Bool,
+  ligatures~ : Bool = true,
+  cell~ : Bool = false,
+  writer_twips~ : Bool = true,
   trailing~ : Double = 0,
   advances? : Array[(Double, Double)],
   tabs~ : TabLayout? = None,
@@ -29,6 +77,7 @@ fn measure_line(
     }
   }
   let text = text.to_string()
+  let decoration_end = start + line_content_end(text)
   let bidi = bidi_line(paragraph, start, end)
   let mut context_start = 0
   let mut source_offset = 0
@@ -61,12 +110,15 @@ fn measure_line(
       !group.tab &&
       ch != '\t' &&
       group.font == item.font &&
+      font_requests_bold(group.style.font) ==
+      font_requests_bold(item.span.style.font) &&
       group.style.size == item.span.style.size &&
       group.style.color == item.span.style.color &&
       group.style.script == item.span.style.script &&
       group.style.spacing == item.span.style.spacing &&
       group.style.kerning == item.span.style.kerning &&
       group.style.fontLeading == item.span.style.fontLeading &&
+      group.style.caps == item.span.style.caps &&
       group.level == bidi.levels[i] {
       groups[groups.length() - 1] = { ..group, end: next, }
     } else {
@@ -128,6 +180,9 @@ fn measure_line(
             boundaries,
             spaces,
             geometry=rtl && stop.next(width).align == "decimal",
+            ligatures~,
+            cell~,
+            writer_twips~,
           )
         }
         let following = measured.0
@@ -151,6 +206,9 @@ fn measure_line(
             boundaries,
             spaces,
             geometry=false,
+            ligatures~,
+            cell~,
+            writer_twips~,
           ).0
         }
         (following, decimal)
@@ -203,7 +261,11 @@ fn measure_line(
       continue
     }
     if group.drawing is Some(image) {
-      let advance = if image.anchor is Some(_) { 0.0 } else { image.width }
+      let advance = if image.anchor is Some(_) {
+        0.0
+      } else {
+        image.width + image.effectExtent.0 + image.effectExtent.2
+      }
       if advances is Some(values) {
         let index = start + group.start
         let (width, gap) = values[index]
@@ -219,13 +281,14 @@ fn measure_line(
           start: start + group.start,
           level: group.level,
           x: if rtl {
-            -width - advance
+            -width - advance + image.effectExtent.0
           } else {
-            width
+            width + image.effectExtent.0
           },
           y: 0,
           width: image.width,
           height: image.height,
+          effectExtent: image.effectExtent,
           anchor: image.anchor,
         })
       }
@@ -255,14 +318,21 @@ fn measure_line(
       context=(paragraph.chars, context_start + group_chars[index]),
       tracking=group.style.spacing,
       kerning=group.style.kerning,
+      ligatures~,
+      caps=group.style.caps,
+      cell~,
     )
     guard batch.diagnostics.is_empty() else {
       @failure.reject(
         "missing-glyph", "Preview requires every glyph; unsupported or missing glyph in paragraph",
       )
     }
-    // Writer places integer-twip text portions; break-query advances stay floating.
-    let portion_width = (batch.width * 20).floor() / 20
+    // Writer places integer-twip text portions, unlike presentation frames.
+    let portion_width = if writer_twips {
+      (batch.width * 20).floor() / 20
+    } else {
+      batch.width
+    }
     if !geometry {
       width += portion_width
       continue
@@ -303,9 +373,10 @@ fn measure_line(
         spans,
         start + group.start,
         portion_width,
+        end=decoration_end,
       ),
-      text: fragment,
-      glyphs: batch.glyphs,
+      text: group.style.display_text(fragment),
+      glyphs: probe.bold_glyphs(batch.glyphs, group.style.font),
       bidi: batch.runs,
       x: if rtl {
         -width - portion_width
@@ -326,8 +397,16 @@ fn measure_line(
       let b = if rtl { width - b } else { b }
       {
         offset,
-        before: (if b < 0 { (b * 20).ceil() } else { (b * 20).floor() }) / 20,
-        after: (if a < 0 { (a * 20).ceil() } else { (a * 20).floor() }) / 20,
+        before: if writer_twips {
+          (if b < 0 { (b * 20).ceil() } else { (b * 20).floor() }) / 20
+        } else {
+          b
+        },
+        after: if writer_twips {
+          (if a < 0 { (a * 20).ceil() } else { (a * 20).floor() }) / 20
+        } else {
+          a
+        },
       }
     })
   } else {

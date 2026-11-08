@@ -49,7 +49,7 @@ fn paint_fill(properties : Ref) -> @xml.Node? raise @failure.Failure {
   } else {
     guard children is [color] &&
       color.uri == drawing_uri &&
-      ["srgbClr", "schemeClr", "sysClr"].contains(color.name) &&
+      ["srgbClr", "schemeClr", "sysClr", "prstClr"].contains(color.name) &&
       color.text.trim().is_empty() &&
       color.attributes.all(a => {
         a.uri.is_empty() &&
@@ -62,9 +62,10 @@ fn paint_fill(properties : Ref) -> @xml.Node? raise @failure.Failure {
       .unwrap_or([])
       .all(node => {
         node.uri == drawing_uri &&
-        ["tint", "shade", "lumMod", "lumOff", "alpha", "alphaMod", "alphaOff"].contains(
-          node.name,
-        ) &&
+        [
+          "tint", "shade", "lumMod", "lumOff", "hueOff", "satMod", "satOff", "alpha",
+          "alphaMod", "alphaOff",
+        ].contains(node.name) &&
         node.text.trim().is_empty() &&
         node.attributes.all(a => a.uri.is_empty() && a.name == "val") &&
         tree.children.get(node.id).unwrap_or([]).is_empty()

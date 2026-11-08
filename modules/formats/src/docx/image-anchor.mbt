@@ -27,6 +27,11 @@ fn WordTree::anchor_children(
           node.uri == picture_drawing_uri &&
           node.name == "graphic" &&
           names.contains("graphic")
+        ) ||
+        (
+          node.uri == drawing_2010_uri &&
+          ["sizeRelH", "sizeRelV"].contains(node.name) &&
+          names.contains(node.name)
         )
       ) &&
       !seen.contains(node.name) else {
@@ -35,6 +40,9 @@ fn WordTree::anchor_children(
       )
     }
     seen[node.name] = ()
+    if node.uri == drawing_2010_uri {
+      self.zero_relative_size(child)
+    }
   }
 }
 
@@ -140,7 +148,7 @@ fn WordTree::image_anchor(
   }
   self.anchor_children(id, [
     "simplePos", "positionH", "positionV", "extent", "effectExtent", "docPr", "cNvGraphicFramePr",
-    "wrapNone", "wrapTopAndBottom", "wrapSquare", "graphic",
+    "wrapNone", "wrapTopAndBottom", "wrapSquare", "graphic", "sizeRelH", "sizeRelV",
   ])
   let graphics = self.children[id].filter(child => {
     self.nodes[child].uri == picture_drawing_uri &&
@@ -231,7 +239,13 @@ fn WordTree::image_anchor(
         self.nodes[child].attributes.all(a => {
           a.uri.is_empty() &&
           ["l", "t", "r", "b"].contains(a.name) &&
-          a.value == "0"
+          (
+            a.value == "0" ||
+            (
+              self.nodes[child].parent == id &&
+              self.nodes[wrap].name == "wrapNone"
+            )
+          )
         }) else {
         @failure.reject(
           "unsupported-layout", "Floating image effects require layout support",
@@ -239,10 +253,11 @@ fn WordTree::image_anchor(
       }
     }
   }
+  ignore(self.drawing_effect_extent(drawing))
   for parent = node.parent; parent >= 0; parent = self.nodes[parent].parent {
-    guard !["tc", "hdr", "ftr"].contains(self.nodes[parent].name) else {
+    guard self.nodes[parent].name != "tc" else {
       @failure.reject(
-        "unsupported-layout", "Floating images require a body paragraph",
+        "unsupported-layout", "Floating images in tables require layout support",
       )
     }
   }

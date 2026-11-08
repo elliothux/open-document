@@ -110,6 +110,13 @@ export function XlsxFormula({
         <NativeSlot node={editor.formulaBar} />
       </label>
       {calculationReason && <span role="status">{calculationReason}</span>}
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => controller.run(() => editor.recalculate())}
+      >
+        {t.calculateNow}
+      </button>
       <label
         onMouseDown={(event) => {
           if (event.button === 0) event.preventDefault();

@@ -43,12 +43,15 @@ pub fn Matrix::inverse(self : Matrix) -> Matrix raise @failure.Failure {
     )
   }
   let determinant = self.a * self.d - self.b * self.c
-  guard determinant.abs() >= 0.000000001 &&
+  let scale = self.a.abs().max(self.b.abs()).max(self.c.abs()).max(self.d.abs())
+  // Small font/pattern units still have a well-conditioned inverse.
+  guard determinant != 0 &&
+    determinant.abs() >= 0.000000001 * scale * scale &&
     !determinant.is_nan() &&
     !determinant.is_inf() else {
     @failure.reject("invalid-transform", "Noninvertible object transform")
   }
-  {
+  let result : Matrix = {
     a: self.d / determinant,
     b: -self.b / determinant,
     c: -self.c / determinant,
@@ -56,6 +59,14 @@ pub fn Matrix::inverse(self : Matrix) -> Matrix raise @failure.Failure {
     e: (self.c * self.f - self.d * self.e) / determinant,
     f: (self.b * self.e - self.a * self.f) / determinant,
   }
+  guard [result.a, result.b, result.c, result.d, result.e, result.f].all(value => {
+    !value.is_nan() && !value.is_inf() && value.abs() <= 1000000000
+  }) else {
+    @failure.reject(
+      "invalid-transform", "Inverse transform exceeds finite coordinate budget",
+    )
+  }
+  result
 }
 
 ///|

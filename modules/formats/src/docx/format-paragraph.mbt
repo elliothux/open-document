@@ -102,11 +102,17 @@ fn ParagraphFormat::properties(
       Keep => continue
       Clear => {
         values[name] = None
+        if group == "spacing" {
+          values[name + "Autospacing"] = None
+        }
         if name == "firstLine" {
           values["hanging"] = None
         }
       }
       Set(value) => {
+        if group == "spacing" {
+          values[name + "Autospacing"] = Some("0")
+        }
         guard value >= (if name == "firstLine" { -1584 } else { 0 }) &&
           value <= 1584 &&
           value * 20 == (value * 20).to_int().to_double() else {

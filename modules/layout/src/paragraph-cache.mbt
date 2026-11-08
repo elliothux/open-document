@@ -42,11 +42,12 @@ fn paragraph_cache_units(key : String, lines : Array[Line]) -> Int32 {
       line.carets.length() * 3 +
       line.bars.length()
     for image in line.drawings {
-      units += 8 +
+      units += 12 +
         (match image.content {
           Picture(key, _) => key.length()
           Math(formula) => formula.cache_units()
           Chart(chart) => chart.cache_units()
+          Metafile(file) => file.cache_units()
           Shape(shape) =>
             shape.preset.length() +
             shape.fill.length() +
@@ -107,9 +108,12 @@ fn Paragraph::finite_geometry(paragraph : Paragraph) -> Bool {
     if span.drawing is Some(image) {
       numbers.push(image.width)
       numbers.push(image.height)
+      let (left, top, right, bottom) = image.effectExtent
+      numbers.append([left, top, right, bottom])
       match image.content {
         Math(formula) => numbers.push(formula.style.size)
         Chart(_) => ()
+        Metafile(_) => ()
         Picture(_, crop) => numbers.append(crop)
         Shape(shape) => {
           numbers.append([shape.lineWidth, shape.strokeAlpha])
@@ -186,6 +190,9 @@ fn ParagraphCache::lines(
   inTable~ : Bool = false,
   startOffset~ : Int32 = 0,
   wrap~ : Bool = true,
+  ligatures~ : Bool = true,
+  cell~ : Bool = false,
+  writer_twips~ : Bool = true,
 ) -> Array[MeasuredLine] raise @failure.Failure {
   probe.check()
   // Keep non-finite geometry out of retained entries.
@@ -199,6 +206,9 @@ fn ParagraphCache::lines(
       inTable~,
       startOffset~,
       wrap~,
+      ligatures~,
+      cell~,
+      writer_twips~,
     )
     self.shaped += 1
     return lines
@@ -207,7 +217,10 @@ fn ParagraphCache::lines(
     (if startOffset == 0 { "" } else { ";start=\{startOffset}" }) +
     baseLevel.map(level => ";base=\{level}").unwrap_or("") +
     (if inTable { ";table" } else { "" }) +
-    (if wrap { "" } else { ";nowrap" })
+    (if wrap { "" } else { ";nowrap" }) +
+    (if ligatures { "" } else { ";ligatures=false" }) +
+    (if cell { ";cell" } else { "" }) +
+    (if writer_twips { "" } else { ";precise-portions" })
   let cached = match self.current.get(key) {
     Some(lines) => Some(lines)
     None => self.previous.get(key)
@@ -227,6 +240,9 @@ fn ParagraphCache::lines(
         inTable~,
         startOffset~,
         wrap~,
+        ligatures~,
+        cell~,
+        writer_twips~,
       )
       self.shaped += 1
       lines

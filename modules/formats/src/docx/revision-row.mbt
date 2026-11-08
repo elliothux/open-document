@@ -151,8 +151,16 @@ fn Session::row_revision_rects(
       }
       let x = area.x.max(0)
       let y = area.y.max(0)
-      let width = (area.x + area.width).min(page.width) - x
-      let height = (area.y + area.height).min(page.height) - y
+      let width = if area.x >= 0 && area.x + area.width <= page.width {
+        area.width
+      } else {
+        (area.x + area.width).min(page.width) - x
+      }
+      let height = if area.y >= 0 && area.y + area.height <= page.height {
+        area.height
+      } else {
+        (area.y + area.height).min(page.height) - y
+      }
       if width <= 0 || height <= 0 {
         continue
       }

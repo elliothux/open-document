@@ -157,7 +157,7 @@ fn read_object_fragment(
         _ => @failure.reject("invalid-image", "Invalid clipboard image bytes")
       }
       image_bytes += bytes.length()
-      let (_, _, width, height) = @image.type_info(bytes)
+      let (_, _, width, height) = raster_image_info(bytes)
       pixels += width.to_int64() * height.to_int64() * 4
       guard image_bytes <= 2097152 && pixels <= 16777216L else {
         @failure.reject(
@@ -199,12 +199,7 @@ fn read_object_fragment(
       let style = { tree, node: root, }
       ignore(
         table_style_parts(
-          {
-            part: None,
-            default_id: id,
-            styles: Map([(id, style)]),
-            reason: "",
-          },
+          { part: None, styles: Map([(id, style)]), reason: "", },
           id,
         ),
       )

@@ -204,13 +204,19 @@ fn Session::sheet_rename_reason(
       } else {
         None
       }
-      let controls = if analysis &&
-        tree.one(root.id, "extLst") is Some(extension) &&
-        extension.attributes.is_empty() &&
-        extension.text.trim().is_empty() &&
+      let preserved_extension = if tree.one(root.id, "extLst")
+        is Some(extension) &&
         (
-          self.timeline_extension(sheet, tree, extension) ||
-          self.slicer_extension(sheet, tree, extension)
+          neutral_mac_page_layout(tree, extension) ||
+          (
+            analysis &&
+            extension.attributes.is_empty() &&
+            extension.text.trim().is_empty() &&
+            (
+              self.timeline_extension(sheet, tree, extension) ||
+              self.slicer_extension(sheet, tree, extension)
+            )
+          )
         ) {
         Some(extension)
       } else {
@@ -232,7 +238,7 @@ fn Session::sheet_rename_reason(
         }
       }
       for node in tree.document.nodes() {
-        if controls is Some(extension) &&
+        if preserved_extension is Some(extension) &&
           node.start >= extension.start &&
           node.end <= extension.end {
           continue

@@ -1,5 +1,36 @@
 import type { Response } from "./protocol";
 import { DocumentError } from "@open-document/wasm/abi/session";
+import type { DocumentStage } from "@open-document/wasm/abi/session";
+
+export function documentFailure(stage: DocumentStage, cause: unknown): Error {
+  if (
+    (cause instanceof DocumentError && cause.stage) ||
+    (cause instanceof DOMException &&
+      (cause.name === "AbortError" || "stage" in cause))
+  )
+    return cause;
+  const error = cause instanceof DocumentError ? cause : undefined;
+  if (
+    stage === "open" &&
+    (error?.code === "malformed-package" ||
+      error?.code === "unsupported-package")
+  )
+    stage = "container";
+  const message = `Document ${stage} failed: ${cause instanceof Error ? cause.message : String(cause)}`;
+  if (cause instanceof DOMException)
+    return Object.assign(new DOMException(message, cause.name), {
+      stage,
+      cause,
+    });
+  return new DocumentError(
+    error?.code ?? "host-error",
+    message,
+    error?.part ?? "",
+    error?.offset ?? -1,
+    stage,
+    { cause },
+  );
+}
 
 /** One worker owner with one in-flight operation. Disposal cancels pending work. */
 export class Connection<Operation extends { operation: string }> {

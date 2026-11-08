@@ -10,7 +10,7 @@ fn Session::image_reason(
   }
   try {
     guard object.kind == "image" &&
-      object.image is Some(_) &&
+      (object.image is Some(_) || (crop && object.metafile is Some(_))) &&
       object.source.tree.part == self.selection.slide else {
       return "Picture editing requires a local picture"
     }

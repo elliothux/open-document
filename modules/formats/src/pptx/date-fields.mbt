@@ -192,6 +192,7 @@ pub fn Session::set_date_time(
       index~,
       parts=self.parts,
       date_time=Some(time),
+      media=self.media,
     )
     for object in candidate.objects {
       if object.paragraphs.any(p => p.runs.any(run => run.date_field is Some(_))) {

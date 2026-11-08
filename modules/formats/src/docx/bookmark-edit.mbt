@@ -257,7 +257,7 @@ fn Session::bookmark_references(
     if path != self.main && links.contains(path) {
       let diagnostics : Array[String] = []
       ignore(
-        self.running_paragraphs(
+        self.running_story(
           path,
           running[path.to_lower()],
           self.styles(diagnostics),

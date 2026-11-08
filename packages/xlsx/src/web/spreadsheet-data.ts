@@ -7,6 +7,11 @@ import type {
 } from "../core/xlsx.js";
 
 export abstract class SpreadsheetData extends SpreadsheetClipboard {
+  recalculate(): Promise<void> {
+    return this.change(() =>
+      this.client.recalculate(this.currentState.revision),
+    );
+  }
   subtotals(settings: XlsxSubtotalSettings) {
     return this.read(() =>
       this.client.subtotals(

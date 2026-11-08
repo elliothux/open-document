@@ -10,6 +10,7 @@ priv struct TableOverride {
 ///|
 priv struct TableStyles {
   tables : Array[StructuredTable]
+  pivots : ReadOnlyArray[PivotPaintStyle]
   overridden : Array[TableOverride]
   colors : Array[Array[String]]
   reason : String
@@ -21,6 +22,7 @@ priv struct TableStyles {
 fn TableStyles::empty() -> TableStyles {
   {
     tables: [],
+    pivots: [],
     overridden: [],
     colors: [],
     reason: "",
@@ -37,6 +39,7 @@ fn Session::table_styles(
   parts : Map[String, @xml.Document],
 ) -> TableStyles raise @failure.Failure {
   let tables = work.names.tables.filter(table => table.sheet == sheet.id)
+  let pivots = self.pivot_paint_styles(parts, sheet=Some(sheet.id))
   let none : TableOverride = {
     bold: false,
     color: false,
@@ -48,10 +51,10 @@ fn Session::table_styles(
   let mut reason = ""
   let tree = Tree::new(sheet.document)
   let diagnostic = tree
-    .one(tree.root("worksheet").id, "tableParts")
+    .one(tree.sheet_root().id, "tableParts")
     .map(node => node.qualified)
     .unwrap_or("")
-  if tree.one(tree.root("worksheet").id, "tableParts") is Some(parent) {
+  if tree.one(tree.sheet_root().id, "tableParts") is Some(parent) {
     if !parent.attributes.all(a => a.uri.is_empty() && a.name == "count") ||
       !tree.children
       .get(parent.id)
@@ -70,7 +73,7 @@ fn Session::table_styles(
       reason = "Table definitions require calculation support"
     }
   }
-  if tables.is_empty() {
+  if tables.is_empty() && pivots.is_empty() {
     return { ..TableStyles::empty(), reason, diagnostic, }
   }
   let custom = self.custom_table_styles(parts)
@@ -197,6 +200,7 @@ fn Session::table_styles(
   }
   {
     tables,
+    pivots,
     overridden,
     colors: [1, 4, 5, 6, 7, 8, 9].map(index => {
       [
@@ -265,10 +269,15 @@ fn TableStyles::applied(
   sheet : Sheet,
   address : Address,
 ) -> CellStyle raise @failure.Failure {
-  if self.tables.is_empty() || !self.reason.is_empty() {
+  if (self.tables.is_empty() && self.pivots.is_empty()) ||
+    !self.reason.is_empty() {
     return style
   }
   let direct = self.overridden[sheet.style_at(address)]
+  if self.pivots.iter().find_first(pivot => pivot.range.contains(address))
+    is Some(pivot) {
+    return pivot.applied(style, address, direct)
+  }
   for table in self.tables {
     if table.range.contains(address) &&
       table.style.bind(name => self.custom.get(name.to_upper())) is Some(custom) {
@@ -534,6 +543,18 @@ fn Session::font_keys(
   for style in styles {
     if !keys.contains(style.font) {
       keys.push(style.font)
+    }
+  }
+  if self.pivot_paint_styles(parts).any(pivot => pivot.header || pivot.total) {
+    let bold = CellFormat::new(bold=Some(true))
+    for key in keys.copy() {
+      let font = bold.applied({ ..default_style(), font: key, }).font
+      if !keys.contains(font) {
+        guard keys.length() < 4096 else {
+          @failure.reject("limit-exceeded", "Workbook font keys exceed budget")
+        }
+        keys.push(font)
+      }
     }
   }
   if tables.any(table => {

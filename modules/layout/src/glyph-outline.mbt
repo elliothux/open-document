@@ -30,17 +30,30 @@ pub fn TextProbe::source_glyph(
       @failure.reject("missing-glyph", "Symbolic source glyph is unavailable")
     })
   } else {
-    match font.font.glyph_from_name(name) {
-      Ok(Some(id)) => id
-      _ => {
-        guard codepoint >= 0 else {
-          @failure.reject(
-            "missing-glyph", "Source glyph mapping is unavailable",
-          )
-        }
-        match font.font.glyph_for_codepoint(codepoint.reinterpret_as_uint()) {
-          Ok(Some(id)) => id
-          _ => @failure.reject("missing-glyph", "Source glyph is unavailable")
+    // PDF simple TrueType encodings select cmap glyphs before PostScript names.
+    let nominal = if codepoint >= 0 {
+      match font.font.glyph_for_codepoint(codepoint.reinterpret_as_uint()) {
+        Ok(Some(id)) if id != 0U => Some(id)
+        _ => None
+      }
+    } else {
+      None
+    }
+    if nominal is Some(id) {
+      id
+    } else {
+      match font.font.glyph_from_name(name) {
+        Ok(Some(id)) => id
+        _ => {
+          guard codepoint >= 0 else {
+            @failure.reject(
+              "missing-glyph", "Source glyph mapping is unavailable",
+            )
+          }
+          match font.font.glyph_for_codepoint(codepoint.reinterpret_as_uint()) {
+            Ok(Some(id)) => id
+            _ => @failure.reject("missing-glyph", "Source glyph is unavailable")
+          }
         }
       }
     }

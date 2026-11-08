@@ -41,11 +41,21 @@ fn WordTree::section_numbering(
   guard self.children[id].is_empty() &&
     node.text.trim().is_empty() &&
     node.attributes.all(a => {
-      a.uri == word_uri && ["start", "fmt"].contains(a.name)
+      a.uri == word_uri && ["start", "fmt", "chapStyle"].contains(a.name)
     }) else {
     @failure.reject(
       "protected-content", "Extended page numbering requires section support",
     )
+  }
+  if node.attribute("chapStyle", uri=word_uri) is Some(style) {
+    let style = @string.parse_int(style) catch {
+      _ => @failure.reject("protected-content", "Invalid page chapter style")
+    }
+    guard style >= 1 && style <= 9 else {
+      @failure.reject(
+        "protected-content", "Page chapter style must be between one and nine",
+      )
+    }
   }
   let start = node
     .attribute("start", uri=word_uri)
@@ -112,6 +122,9 @@ pub fn Session::set_page_numbering(
   let tree = WordTree::new(original)
   let section = self.editable_page_section(tree, target=Some(sectionIndex))
   let current = tree.section_numbering(section)
+  let chapter = section
+    .bind(id => tree.child(id, "pgNumType"))
+    .bind(id => tree.nodes[id].attribute("chapStyle", uri=word_uri))
   if value is Some(value) &&
     value.start == current.start &&
     value.format == current.format {
@@ -127,7 +140,10 @@ pub fn Session::set_page_numbering(
       let start = value.start
         .map(start => " w:start=\"\{start}\"")
         .unwrap_or("")
-      "<w:pgNumType xmlns:w=\"\{word_uri}\" w:fmt=\"\{value.format}\"\{start}/>"
+      let chapter = chapter
+        .map(style => " w:chapStyle=\"\{style}\"")
+        .unwrap_or("")
+      "<w:pgNumType xmlns:w=\"\{word_uri}\" w:fmt=\"\{value.format}\"\{start}\{chapter}/>"
     })
     .unwrap_or("")
   let change : @xml.SourceChange? = if value is Some(_) &&

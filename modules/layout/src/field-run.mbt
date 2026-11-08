@@ -27,6 +27,7 @@ fn LineGroup::measure_field(
     caret_units=120,
     tracking=self.style.spacing,
     kerning=self.style.kerning,
+    caps=self.style.caps,
   )
   guard batch.diagnostics.is_empty() else {
     @failure.reject("missing-glyph", "Page field requires every result glyph")
@@ -60,8 +61,8 @@ fn LineGroup::measure_field(
       sources: [{ node, start: 0, end: 1, offset: 0, }],
       color: self.style.color,
       size: self.style.render_size(),
-      text: value,
-      glyphs: batch.glyphs,
+      text: self.style.display_text(value),
+      glyphs: probe.bold_glyphs(batch.glyphs, self.style.font),
       bidi: batch.runs.map(run => {
         ..run,
         start: 0,
@@ -94,9 +95,6 @@ fn PlacedRun::logical_cluster(self : PlacedRun, glyph : Glyph) -> Int32 {
 
 ///|
 fn Line::display_text(self : Line, objects~ : Bool = true) -> String {
-  if !self.text.contains("\ufffc") {
-    return self.text
-  }
   let fields : Map[Int32, String] = Map([])
   for image in self.drawings {
     let text = image.content.alternative_text()
@@ -113,6 +111,14 @@ fn Line::display_text(self : Line, objects~ : Bool = true) -> String {
       run.sources is [source] &&
       source.end - source.start == 1 {
       fields[offset] = run.text
+    } else if offset >= 0 &&
+      offset + run.text.length() <= self.text.length() &&
+      self.text[offset:offset + run.text.length()] != run.text {
+      for index, ch in run.text.iter2() {
+        if self.text[offset + index] != 0xfffc {
+          fields[offset + index] = ch.to_string()
+        }
+      }
     }
   }
   if fields.is_empty() {

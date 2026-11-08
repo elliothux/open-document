@@ -15,7 +15,6 @@ pub extend TableStyleSettings with Eq::{equal, not_equal}
 ///|
 priv struct TableStyleBook {
   part : String?
-  default_id : String
   styles : Map[String, Ref]
   reason : String
 }
@@ -59,7 +58,7 @@ fn read_table_styles(
     })
   table_profile(links.length() <= 1, "Multiple table style resources")
   guard links.get(0) is Some(link) else {
-    return { part: None, default_id: "", styles, reason: "", }
+    return { part: None, styles, reason: "", }
   }
   table_profile(
     link.attribute("TargetMode") != Some("External"),
@@ -102,23 +101,17 @@ fn read_table_styles(
     seen[id] = true
     styles[id] = { tree, node, }
   }
-  {
-    part: Some(target),
-    default_id: root.attribute("def").unwrap_or("").to_upper(),
-    styles,
-    reason: "",
-  }
+  { part: Some(target), styles, reason: "", }
 }
 
 ///|
 fn table_style_settings(
   properties : Ref?,
-  book : TableStyleBook,
 ) -> TableStyleSettings raise @failure.Failure {
   let id = properties
     .bind(p => p.child("tableStyleId"))
     .map(p => p.node.text.trim().to_owned().to_upper())
-    .unwrap_or(book.default_id)
+    .unwrap_or("")
   let enabled = fn(name : String) raise @failure.Failure {
     properties.map(p => flag(p.node, name)).unwrap_or(false)
   }

@@ -68,18 +68,13 @@ fn table_style_line(
 }
 
 ///|
-fn table_style_border(
-  theme : Theme,
-  container : Ref,
-) -> (String, Double, String, Double) raise @failure.Failure {
-  guard table_style_line(theme, container) is Some((line, placeholder)) else {
-    return ("", 0, "solid", 1)
-  }
-  line.table_children([
-    "noFill", "solidFill", "prstDash", "round", "bevel", "miter",
+fn Ref::table_pen(self : Ref) -> Unit raise @failure.Failure {
+  self.table_children([
+    "noFill", "solidFill", "prstDash", "round", "bevel", "miter", "headEnd", "tailEnd",
   ])
   table_profile(
-    line.node.attributes.all(a => {
+    self.node.text.trim().is_empty() &&
+    self.node.attributes.all(a => {
       a.uri.is_empty() &&
       (
         a.name == "w" ||
@@ -88,8 +83,45 @@ fn table_style_border(
         (a.name == "algn" && a.value == "ctr")
       )
     }),
-    "Unsupported table style line",
+    "Unsupported table cell pen",
   )
+  // Shared table edges are straight paths; a join does not change their paint.
+  ignore(join_override(self))
+  for name in ["headEnd", "tailEnd"] {
+    let ends = self.tree.children
+      .get(self.node.id)
+      .unwrap_or([])
+      .filter(n => n.uri == drawing_uri && n.name == name)
+    table_profile(ends.length() <= 1, "Duplicate table border end")
+    for end in ends {
+      table_profile(
+        end.text.trim().is_empty() &&
+        self.tree.children.get(end.id).unwrap_or([]).is_empty() &&
+        end.attributes.all(a => {
+          a.uri.is_empty() &&
+          (
+            (a.name == "type" && a.value == "none") ||
+            (
+              ["w", "len"].contains(a.name) &&
+              ["sm", "med", "lg"].contains(a.value)
+            )
+          )
+        }),
+        "Unsupported table border end",
+      )
+    }
+  }
+}
+
+///|
+fn table_style_border(
+  theme : Theme,
+  container : Ref,
+) -> (String, Double, String, Double) raise @failure.Failure {
+  guard table_style_line(theme, container) is Some((line, placeholder)) else {
+    return ("", 0, "solid", 1)
+  }
+  line.table_pen()
   let dash = line_dash([line])
   let (color, alpha) = fill_rgba(theme, [line], placeholder~)
   (
@@ -108,6 +140,7 @@ fn table_style_border(
 fn table_style_borders(
   theme : Theme,
   layers : Array[TableStylePart],
+  unstyled : Bool,
   row : Int32,
   column : Int32,
   rows : Int32,
@@ -173,9 +206,13 @@ fn table_style_borders(
     } nobreak {
       None
     }
-    let (value, priority, source) = found.unwrap_or(
-      (("", 0, "solid", 1), 0, None),
-    )
+    // ONLYOFFICE's absent-style table fallback retains a one-point black grid.
+    let fallback = if unstyled {
+      ("000000", 1.0, "solid", 1.0)
+    } else {
+      ("", 0.0, "solid", 1.0)
+    }
+    let (value, priority, source) = found.unwrap_or((fallback, 0, None))
     borders.push(value)
     priorities.push(priority)
     sources.push(source)

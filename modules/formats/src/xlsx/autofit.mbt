@@ -21,6 +21,7 @@ fn Session::fit_sizes(
   rows~ : Bool,
   grow~ : Bool = false,
   reading~ : Bool = false,
+  changed~ : Map[(Int32, Int32), Bool]? = None,
   parts~ : Map[String, @xml.Document] = self.parts,
 ) -> Map[Int32, Double] raise @failure.Failure {
   work.axes += axes.length()
@@ -47,13 +48,20 @@ fn Session::fit_sizes(
   }
   if !reading {
     for node in tree.children.get(root.id).unwrap_or([]) {
+      if neutral_mac_page_layout(tree, node) {
+        continue
+      }
       // Sparklines follow the cell rectangle and do not contribute text dimensions.
       if sparkline_reason(current, sheets).is_empty() &&
         sparkline_extension(tree, node) {
         continue
       }
       if self.slicer_extension(current, tree, node, sheets~) ||
-        self.timeline_extension(current, tree, node) {
+        self.timeline_extension(current, tree, node) ||
+        conditional.renders(
+          "unrendered:" + current.id + ":" + node.qualified,
+          current,
+        ) {
         continue
       }
       if node.uri != spreadsheet_uri ||
@@ -93,12 +101,11 @@ fn Session::fit_sizes(
       }),
     },
   }.resolved(digit, current.view.formulas)
-  let format = tree.one(root.id, "sheetFormatPr")
   let fallback = if rows {
-    format
-    .bind(node => node.attribute("defaultRowHeight"))
-    .map(value => dimension(value, 409.5))
-    .unwrap_or(15)
+    self.default_row_height(current, probe, profile)
+  } else if current.dimensions.base_column_width is Some(_) {
+    dimensions.columns.default_size /
+    (0.75 * digit * (if current.view.formulas { 2 } else { 1 }))
   } else {
     current.dimensions.columns.default_size
   }
@@ -130,7 +137,10 @@ fn Session::fit_sizes(
     current.cells
     .values()
     .filter(cell => {
-      sizes.contains(if rows { cell.address.row } else { cell.address.column })
+      sizes.contains(if rows { cell.address.row } else { cell.address.column }) &&
+      changed
+      .map(cells => cells.contains((cell.address.row, cell.address.column)))
+      .unwrap_or(true)
     })
     .map(cell => cell.address)
     .to_array(),
@@ -139,7 +149,10 @@ fn Session::fit_sizes(
   )
   for cell in current.cells.values() {
     let axis = if rows { cell.address.row } else { cell.address.column }
-    if !sizes.contains(axis) {
+    if !sizes.contains(axis) ||
+      changed
+      .map(cells => !cells.contains((cell.address.row, cell.address.column)))
+      .unwrap_or(false) {
       continue
     }
     let range = current.cell_range(cell.address)
@@ -188,6 +201,14 @@ fn Session::fit_sizes(
       ) {
       continue
     }
+    let number = if !current.view.formulas {
+      section_display(value, style.format)
+    } else {
+      None
+    }
+    let spaced = number
+      .map(section => section.spacing_units() > 0)
+      .unwrap_or(false)
     let text = current.view.display(
       cell.formula,
       value,
@@ -206,16 +227,18 @@ fn Session::fit_sizes(
     }
     if rows &&
       text.is_empty() &&
+      !spaced &&
       !rich.contains(cell.address.name()) &&
       style.font == self.normal_font &&
       style.size == self.normal_size {
       continue
     }
-    if !rows && text.is_empty() {
+    if !rows && text.is_empty() && !spaced {
       continue
     }
     work.cells += 1
-    work.units += text.length()
+    work.units += text.length() +
+      number.map(section => section.spacing_units()).unwrap_or(0)
     guard work.cells <= 4096 && work.units <= 262144 else {
       @failure.reject("limit-exceeded", "Automatic fitting text exceeds budget")
     }
@@ -230,7 +253,7 @@ fn Session::fit_sizes(
       dimensions.columns.position(text_range.left)
     let indent = style.indent.to_double() * indent_unit
     let available = width -
-      4.5 -
+      3.75 -
       icon_width -
       (if horizontal == "distributed" {
         2 * indent
@@ -289,6 +312,8 @@ fn Session::fit_sizes(
       justify=false,
       distributed=false,
       fill=rows && horizontal == "fill",
+      number~,
+      repeat_fill=rows,
     )
     if rows && horizontal == "fill" {
       work.units += (filled_text_units(block) - text.length()).max(0)
@@ -300,7 +325,13 @@ fn Session::fit_sizes(
     }
     let (text_width, text_height) = rotated_size(block, style.rotation)
     let measured = if rows {
-      ((text_height + 3) / 0.75).ceil() * 0.75
+      // Rotated placement reserves the existing cell insets around the turned text.
+      let inset = if style.rotation != 0 && style.rotation != 255 {
+        3.0
+      } else {
+        0.0
+      }
+      ((text_height + inset) / 0.75).ceil() * 0.75
     } else {
       text_width +
       icon_width +
@@ -321,10 +352,17 @@ fn Session::fit_sizes(
     } else if measured == 0 {
       fallback
     } else {
-      let pixels = ((measured + 4.5) /
-        (0.75 * (if current.view.formulas { 2 } else { 1 }))).ceil() -
-        5
-      ((pixels * 256 / digit - (128.0 / digit).floor()).ceil() / 256)
+      let pixels = measured /
+        (0.75 * (if current.view.formulas { 2 } else { 1 })) +
+        5.0
+      let one = digit + 5.0
+      let characters : Double = if pixels < one {
+        1.0 - (100.0 * (one - pixels) / one + 0.49999).floor() / 100.0
+      } else {
+        ((pixels - 5.0) / digit * 100.0 + 0.5).floor() / 100.0
+      }
+      // Native AutoFit rounds character counts before encoding the padded source width.
+      (((characters * digit + 5.0) / digit * 256.0).floor() / 256.0)
       .max(1.0 / 256)
       .min(255)
     }
@@ -397,6 +435,7 @@ pub fn Session::auto_fit(
     formulas: {
       remaining: 1048576,
       date1904: self.date1904,
+      random: None,
       origin: { row: 1, column: 1, },
       names: self.formula_names(),
     },

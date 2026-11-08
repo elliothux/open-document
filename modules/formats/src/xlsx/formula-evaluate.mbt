@@ -184,6 +184,14 @@ fn Expression::evaluate(
         _ => Error("#VALUE!")
       }
     }
+    Function("RAND", _) => {
+      guard work.random is Some(random) else {
+        @failure.reject(
+          "unsupported-formula", "RAND requires platform entropy and cell calculation",
+        )
+      }
+      Number(random.double())
+    }
     Function("IF", args) =>
       match
         logical_value(args[0].evaluate(sheets, sheet, values, work, depth + 1)) {

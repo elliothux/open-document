@@ -424,6 +424,7 @@ fn Session::apply_layout(
     index=self.index(tree.part),
     date_time=self.date_time,
     parts~,
+    media=self.media,
   )
   let fitted = candidate.layout_table_fit(tables, probe, profile)
   if !fitted.is_empty() {
@@ -437,6 +438,7 @@ fn Session::apply_layout(
       index=self.index(tree.part),
       date_time=self.date_time,
       parts~,
+      media=self.media,
     )
   }
   guard candidate.read_only.is_empty() &&

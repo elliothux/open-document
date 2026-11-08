@@ -52,6 +52,7 @@ priv struct TextSpan {
   end : Int32
   text : String
   quad : Array[Double]
+  horizontalEm : Double
   source : String
   mapped : Bool
   invisible : Bool
@@ -90,6 +91,7 @@ struct PageDisplay {
   images : Array[String]
   jpeg : Map[String, JpegImage]
   probe : @layout.TextProbe
+  outlines : Array[@layout.Outline]
 }
 
 ///|
@@ -100,6 +102,7 @@ priv struct JpegImage {
   decode : Array[Double]
   alpha : Bytes?
   matte : Array[Double]?
+  profile : IccProfile?
 }
 
 ///|
@@ -181,7 +184,14 @@ fn[T] pdf_bound(
         @failure.Failure(..) as failure => raise failure
         @pdfcore.PdfError::FlateOutputLimitExceeded(_) =>
           @failure.reject("limit-exceeded", "PDF decoded stream exceeds budget")
-        _ => @failure.reject("invalid-pdf", "PDF operation failed")
+        @pdfcore.PdfError::SoftError(message)
+        | @pdfcore.PdfError::HardError(message) =>
+          @failure.reject("invalid-pdf", message)
+        _ =>
+          @failure.reject(
+            "invalid-pdf",
+            "PDF operation failed: " + error.to_string(),
+          )
       }
     }
   }

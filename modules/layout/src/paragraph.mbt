@@ -7,20 +7,6 @@ priv struct MeasuredSpan {
 }
 
 ///|
-fn LineSpacing::metrics(
-  self : LineSpacing,
-  ascent : Double,
-  descent : Double,
-) -> (Double, Double, Bool) {
-  match self {
-    Auto(_) => (ascent + descent, ascent, false)
-    AtLeast(value) => ((ascent + descent).max(value / 20), ascent, false)
-    // Match the fixed LibreOffice profile: exact lines place the baseline at 4/5 height.
-    Exact(value) => (value / 20, value / 25, true)
-  }
-}
-
-///|
 priv struct LineGroup {
   start : Int32
   end : Int32
@@ -48,6 +34,9 @@ fn prepare_paragraph(
   inTable~ : Bool = false,
   startOffset~ : Int32 = 0,
   wrap~ : Bool = true,
+  ligatures~ : Bool = true,
+  cell~ : Bool = false,
+  writer_twips~ : Bool = true,
 ) -> ParagraphSource raise @failure.Failure {
   guard paragraph.defaultTab >= 0 && paragraph.defaultTab <= 1584 else {
     @failure.reject("invalid-style", "Invalid default tab interval")
@@ -109,7 +98,7 @@ fn prepare_paragraph(
     guard span.style.size > 0 && span.style.size <= 1024 else {
       @failure.reject("invalid-style", "Invalid font size")
     }
-    let font = if span.drawing is Some(_) {
+    let font = if span.drawing is Some({ anchor: None, .. }) {
       -1
     } else {
       guard font_profile_identity(profile, span.style.font) is Some(identity) else {
@@ -122,15 +111,6 @@ fn prepare_paragraph(
     }
     let logical = span.logical_text()
     spans.push({ span, start: length, end: length + logical.length(), font, })
-    if font >= 0 {
-      let (a, d) = probe.line_metrics(
-        font,
-        span.style.size,
-        leading=span.style.fontLeading,
-      )
-      ascent = ascent.max(a)
-      descent = descent.max(d)
-    }
     text.write_string(logical)
     length += logical.length()
     size = size.max(span.style.size)
@@ -158,11 +138,26 @@ fn prepare_paragraph(
       @bidi.process(text)
     },
   )
-  let spaces = script_spaces(spans, text, bidi)
-  // A region break followed only by floating anchors has no visible run metrics.
-  // Its empty line uses the paragraph mark size rather than the break run size.
+  let native = probe.native_cjk_carets(spans, bidi)
+  for item in spans {
+    if item.font >= 0 {
+      let (a, d) = probe.line_metrics(
+        item.font,
+        item.span.style.size,
+        leading=item.span.style.fontLeading,
+        cell~,
+        word=native,
+      )
+      ascent = ascent.max(a)
+      descent = descent.max(d)
+    }
+  }
+  let spaces = script_spaces(spans, text, bidi, native~)
+  // Empty lines with floating anchors or region breaks use the paragraph mark metrics.
   if spans.any(item => {
-      item.span.text.contains("\u000b") || item.span.text.contains("\u000c")
+      item.span.text.contains("\u000b") ||
+      item.span.text.contains("\u000c") ||
+      item.span.drawing is Some({ anchor: Some(_), .. })
     }) &&
     spans.all(item => {
       item.span.text.iter().all(c => c == '\u000b' || c == '\u000c') ||
@@ -174,6 +169,8 @@ fn prepare_paragraph(
         item.font,
         size,
         leading=item.span.style.fontLeading,
+        word=native,
+        cell~,
       )
       ascent = a
       descent = d
@@ -191,6 +188,7 @@ fn prepare_paragraph(
     } else {
       size * 0.2
     },
+    native~,
   )
   guard line_height > 0 &&
     (match paragraph.line {
@@ -222,6 +220,12 @@ fn prepare_paragraph(
   let advances = Array::make(text.length() + 1, (0.0, 0.0))
   let mut segment = startOffset
   for (boundary, kind) in breaks {
+    // Office keeps slash, Unicode hyphen and en dash inside a word.
+    if kind is @linebreak.Allowed &&
+      boundary > 0 &&
+      [0x2f, 0x2010, 0x2013].contains(text[boundary - 1].to_int()) {
+      continue
+    }
     // LibreOffice's offset+1 query skips ordinary breaks before surrogate pairs.
     if kind is @linebreak.Allowed &&
       boundary + 1 < text.length() &&
@@ -256,7 +260,10 @@ fn prepare_paragraph(
           boundaries,
           spaces,
           geometry=false,
+          ligatures~,
           advances~,
+          cell~,
+          writer_twips~,
           rtl=paragraph.rtl,
           tabs=Some({
             interval: paragraph.defaultTab,
@@ -283,7 +290,10 @@ fn prepare_paragraph(
         boundaries,
         spaces,
         geometry=false,
+        ligatures~,
         advances~,
+        cell~,
+        writer_twips~,
         rtl=paragraph.rtl,
         tabs=Some({
           interval: paragraph.defaultTab,
@@ -368,7 +378,10 @@ fn prepare_paragraph(
               width += advances[offset].1
             }
           }
-          if wrap && width > limit {
+          // ONLYOFFICE defers spaces until the next non-space character.
+          if wrap &&
+            width > limit &&
+            !(b == a + 1 && [10, 11, 12, 32].contains(text[a].to_int())) {
             break
           }
           end = b
@@ -387,12 +400,15 @@ fn prepare_paragraph(
           end = graphemes[first_grapheme].1
         }
         let fitted_width = for ;; {
-          let visible = if forced &&
+          let mut visible = if forced &&
             end > start &&
             (text[end - 1] == 10 || text[end - 1] == 11 || text[end - 1] == 12) {
             end - 1
           } else {
             end
+          }
+          while visible > start && text[visible - 1] == 32 {
+            visible -= 1
           }
           let actual = measure_line(
               probe,
@@ -403,6 +419,9 @@ fn prepare_paragraph(
               boundaries,
               spaces,
               geometry=false,
+              ligatures~,
+              cell~,
+              writer_twips~,
               rtl=paragraph.rtl,
               tabs=Some({
                 interval: paragraph.defaultTab,
@@ -461,6 +480,9 @@ fn prepare_paragraph(
             0.0
           },
           geometry=true,
+          ligatures~,
+          cell~,
+          writer_twips~,
           rtl=paragraph.rtl,
           tabs=Some({
             interval: paragraph.defaultTab,
@@ -471,7 +493,15 @@ fn prepare_paragraph(
             limit: available - end_indent,
           }),
         )
-        guard !wrap || width <= limit else {
+        let line_text = source_text[start:visible_end].to_owned()
+        let content_width = line_content_width(
+          line_text,
+          start,
+          width,
+          carets,
+          bidi.base_level % 2 == 1,
+        )
+        guard !wrap || content_width <= limit else {
           @failure.reject(
             "layout-overflow", "A grapheme or inline image exceeds line width",
           )
@@ -495,25 +525,30 @@ fn prepare_paragraph(
         } else {
           0
         }
+        let has_text = line_text.iter().any(c => c != ' ')
         for run in runs {
+          // Office measures ordinary spaces for advance without raising the text line.
+          if has_text &&
+            !run.text.is_empty() &&
+            run.text.iter().all(c => c == ' ') {
+            continue
+          }
           let leading = spans
             .iter()
             .find_first(item => item.start <= run.start && run.start < item.end)
             .map(item => item.span.style.fontLeading)
             .unwrap_or(false)
           for range in run.bidi {
-            let (a, d) = probe.line_metrics(range.font, run.size, leading~)
+            // Native paragraph metrics use the nominal font; script rise only moves glyphs.
+            let (a, d) = probe.line_metrics(
+              range.font,
+              run.nominalSize,
+              leading~,
+              word=native,
+              cell~,
+            )
             line_ascent = line_ascent.max(a)
             line_descent = line_descent.max(d)
-            if run.rise != 0 {
-              let (nominal_ascent, nominal_descent) = probe.line_metrics(
-                range.font,
-                run.nominalSize,
-                leading~,
-              )
-              line_ascent = line_ascent.max(nominal_ascent).max(a + run.rise)
-              line_descent = line_descent.max(nominal_descent).max(d - run.rise)
-            }
           }
         }
         let inline_images = images.filter(image => image.anchor is None)
@@ -528,7 +563,9 @@ fn prepare_paragraph(
           line_descent = if descent > 0 { descent } else { size * 0.2 }
         }
         let (line_height, line_baseline, _) = paragraph.line.metrics(
-          line_ascent, line_descent,
+          line_ascent,
+          line_descent,
+          native~,
         )
         let height = if clip {
           line_height
@@ -545,8 +582,8 @@ fn prepare_paragraph(
           height - line_descent
         }
         let alignment = match paragraph.align {
-          "center" => (limit - width).max(0) / 2
-          "right" => (limit - width).max(0)
+          "center" => (limit - content_width).max(0) / 2
+          "right" => (limit - content_width).max(0)
           _ => 0.0
         }
         lines.push({
@@ -557,7 +594,7 @@ fn prepare_paragraph(
             paragraph: paragraph.id,
             container: paragraph.container,
             baseLevel: bidi.base_level,
-            text: source_text[start:visible_end].to_owned(),
+            text: line_text,
             start,
             end,
             caretOnly: region_break && visible_end == start,
@@ -583,6 +620,7 @@ fn prepare_paragraph(
             cellClip: None,
             justified: false,
             marker: [],
+            markerImage: None,
             markerText: "",
             bars: bars.filter(position => position >= left && position <= right),
             runs: runs.map(run => {
@@ -592,7 +630,14 @@ fn prepare_paragraph(
                 source.end - source.start == 1 {
                 run.text
               } else {
-                source_text[run.start:run.start + run.text.length()].to_owned()
+                let source = source_text[run.start:run.start + run.text.length()].to_owned()
+                spans
+                .iter()
+                .find_first(item => {
+                  item.start <= run.start && run.start < item.end
+                })
+                .map(item => item.span.style.display_text(source))
+                .unwrap_or(source)
               },
               baseline: baseline - run.rise,
             }),
@@ -601,10 +646,18 @@ fn prepare_paragraph(
               y: if image.anchor is Some(_) {
                 0
               } else {
-                baseline - image.baseline()
+                baseline - image.baseline() + image.effectExtent.1
               },
             }),
             carets,
+            caretPortions: probe.line_caret_portions(
+              spans,
+              runs,
+              start,
+              end,
+              baseline,
+              native~,
+            ),
             readOnlyReason: paragraph.readOnlyReason,
           },
         })
@@ -673,11 +726,20 @@ fn prepare_paragraph(
             cellClip: None,
             justified: false,
             marker: [],
+            markerImage: None,
             markerText: "",
             bars: bars.filter(position => position >= left && position <= right),
             runs: [],
             drawings: [],
             carets: [{ offset: start, before: 0, after: 0, }],
+            caretPortions: probe.line_caret_portions(
+              spans,
+              [],
+              start,
+              start,
+              line_height * 0.8,
+              native~,
+            ),
             readOnlyReason: paragraph.readOnlyReason,
           },
         })
@@ -695,75 +757,39 @@ fn prepare_paragraph(
             markerText: marker.text,
             caretOnly: false,
             repeated: false,
-            marker: [
-              {
-                ..marker.run,
-                x: if paragraph.rtl {
-                  line.width - marker.delta - marker.width
-                } else {
-                  marker.delta
-                },
-                baseline: baseline - marker.run.rise,
+            markerImage: marker.image.map(image => {
+              ..image,
+              x: if paragraph.rtl {
+                line.width - marker.delta - marker.width
+              } else {
+                marker.delta
               },
-            ],
+              y: baseline - image.height,
+            }),
+            marker: if marker.image is Some(_) {
+              []
+            } else {
+              [
+                {
+                  ..marker.run,
+                  x: if paragraph.rtl {
+                    if paragraph.marker
+                      is Some({ suffix: "presentation-rtl", .. }) {
+                      line.width + paragraph.left.max(marker.width) / 2
+                    } else {
+                      line.width - marker.delta - marker.width
+                    }
+                  } else {
+                    marker.delta
+                  },
+                  baseline: baseline - marker.run.rise,
+                },
+              ]
+            },
           },
         }
       }
       lines.last().unwrap()
     },
-  }
-}
-
-///|
-fn paragraph_lines(
-  probe : TextProbe,
-  paragraph : Paragraph,
-  profile : Map[String, String],
-  available : Double,
-  baseLevel? : Int32,
-  inTable~ : Bool = false,
-  startOffset~ : Int32 = 0,
-  wrap~ : Bool = true,
-) -> Array[MeasuredLine] raise @failure.Failure {
-  let source = prepare_paragraph(
-    probe,
-    paragraph,
-    profile,
-    available,
-    baseLevel?,
-    inTable~,
-    startOffset~,
-    wrap~,
-  )
-  let lines = []
-  let mut start = startOffset
-  while start < source.text.length() ||
-        (source.text.is_empty() && lines.is_empty()) {
-    let measured = (source.line)(start, 0, available)
-    lines.push(measured)
-    start = measured.line.end
-  }
-  if source.text.has_suffix("\n") ||
-    source.text.has_suffix("\u000b") ||
-    source.text.has_suffix("\u000c") {
-    lines.push((source.line)(start, 0, available))
-  }
-  validate_paragraph_leaders(lines)
-  lines
-}
-
-///|
-fn validate_paragraph_leaders(
-  lines : Array[MeasuredLine],
-) -> Unit raise @failure.Failure {
-  let count = lines.fold(init=0, (sum, item) => {
-    sum +
-    item.line.runs
-    .iter()
-    .filter(run => run.text == "\t")
-    .fold(init=0, (sum, run) => sum + run.glyphs.length())
-  })
-  guard count <= 65536 else {
-    @failure.reject("limit-exceeded", "Paragraph leader glyph budget exceeded")
   }
 }

@@ -80,6 +80,7 @@ fn Session::clipboard_paragraph_piece(
             "rPr",
             Some(clipboard_run_style(style)),
             hyperlink~,
+            caps=Some(style.caps),
           )
           output.write_string(
             generated_text(text[a:b].to_owned(), "a:", properties),

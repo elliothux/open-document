@@ -114,6 +114,7 @@ fn Session::set_first_slide_number(
       index~,
       parts~,
       date_time=self.date_time,
+      media=self.media,
     )
   })
   self.commit_slides(main, slides, edits, self.selection, parts~)

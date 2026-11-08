@@ -215,7 +215,7 @@ fn filter_attributes(
 ///|
 fn read_filter(sheet : Sheet) -> AutoFilterState? raise @failure.Failure {
   let tree = Tree::new(sheet.document)
-  guard tree.one(tree.root("worksheet").id, "autoFilter") is Some(root) else {
+  guard tree.one(tree.sheet_root().id, "autoFilter") is Some(root) else {
     return None
   }
   Some(
@@ -223,7 +223,7 @@ fn read_filter(sheet : Sheet) -> AutoFilterState? raise @failure.Failure {
       sheet,
       tree,
       root,
-      visibility=tree.one(tree.root("worksheet").id, "tableParts") is None,
+      visibility=tree.one(tree.sheet_root().id, "tableParts") is None,
     ),
   )
 }

@@ -25,6 +25,7 @@ import {
   queryDocxSelectionGeometry,
   searchSelections,
   selectFirstDocxPosition,
+  docxInputReadOnly,
   type DocumentSearchResult,
 } from "./document-selection.js";
 import type {
@@ -93,6 +94,7 @@ export class DocumentEditor extends DocumentTables {
       revision: state.revision,
       canUndo: state.canUndo,
       canRedo: state.canRedo,
+      readOnlyReason: state.readOnlyReason ?? "",
       pageCount: currentLayout.regions.length,
       selection: this.selectionDescription,
       diagnostics: currentLayout.diagnostics,
@@ -226,7 +228,7 @@ export class DocumentEditor extends DocumentTables {
     const surface = await PageCanvas.create(client, signal);
     let editor: DocumentEditor | undefined;
     try {
-      const layout = await client.layout(profile);
+      const layout = await surface.layout(profile);
       const state = await client.editState();
       if (state.selection)
         await client.selectDocx(state.revision, state.selection);
@@ -274,7 +276,7 @@ export class DocumentEditor extends DocumentTables {
       paused ||
       !!this.blocked ||
       this.resuming ||
-      !!this.state.formatting?.inputReason;
+      docxInputReadOnly(this.state, this.currentLayout);
     this.publish();
     if (paused) await this.tail;
     else await this.enqueue(() => this.presentSelection(false), true);
@@ -451,7 +453,9 @@ export class DocumentEditor extends DocumentTables {
       } finally {
         this.resuming = false;
         this.input.readOnly =
-          this.closed || !!this.blocked || !!this.state.formatting?.inputReason;
+          this.closed ||
+          !!this.blocked ||
+          docxInputReadOnly(this.state, this.currentLayout);
         this.publish();
       }
     });
@@ -682,7 +686,7 @@ export class DocumentEditor extends DocumentTables {
       this.paused ||
       !!this.blocked ||
       this.resuming ||
-      !!this.state.formatting?.inputReason;
+      docxInputReadOnly(this.state, this.currentLayout);
     this.text.textContent = docxPageText(this.currentLayout, this.page);
     this.publish();
   }

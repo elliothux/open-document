@@ -21,6 +21,11 @@ fn Line::shifted(self : Line, x : Double, y : Double) -> Line {
       x: run.x + x,
       baseline: run.baseline + y,
     }),
+    markerImage: self.markerImage.map(image => {
+      ..image,
+      x: image.x + x,
+      y: image.y + y,
+    }),
     carets: self.carets.map(c => {
       ..c,
       before: c.before + x,

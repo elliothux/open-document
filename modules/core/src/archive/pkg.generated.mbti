@@ -6,6 +6,7 @@ import {
 }
 
 // Values
+pub fn encrypted_office_streams(Bytes, Budget) -> (Bytes, Bytes)? raise @failure.Failure
 
 // Errors
 

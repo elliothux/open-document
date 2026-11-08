@@ -99,7 +99,7 @@ pub fn Session::paste_object_fragment(
       continue
     }
     let bytes = resource.image.unwrap()
-    let (extension, content_type, _, _) = @image.type_info(bytes)
+    let (extension, content_type, _, _) = raster_image_info(bytes)
     let mut sequence = 1
     let mut path = ""
     let mut link = ""
@@ -235,6 +235,7 @@ pub fn Session::paste_object_fragment(
     index=self.source_index(original.tree.part),
     parts~,
     date_time=self.date_time,
+    media~,
   )
   let objects = fragment.selection.map(old => {
     original.tree.part + "#" + identities[old]
@@ -245,8 +246,14 @@ pub fn Session::paste_object_fragment(
     .to_array()
   let mut decoded = 0L
   for key in candidate.image_keys() {
-    let bytes = media.get(key).unwrap_or_else(() => self.image_content(key))
-    let (_, _, width, height) = @image.type_info(bytes)
+    let (width, height) = if candidate.shadow(key) is Some(shadow) {
+      let bounds = shadow.image.unwrap().bounds
+      ((bounds.width * 2).to_int(), (bounds.height * 2).to_int())
+    } else {
+      let bytes = media.get(key).unwrap_or_else(() => self.image_content(key))
+      let (_, _, width, height) = raster_image_info(bytes)
+      (width, height)
+    }
     decoded += width.to_int64() * height.to_int64() * 4
   }
   guard decoded <= 16777216L else {

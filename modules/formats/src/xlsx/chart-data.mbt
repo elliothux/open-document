@@ -31,7 +31,7 @@ pub fn chart_data(
       row >= 1 &&
       row <= 257 &&
       column >= 1 &&
-      column <= 9 else {
+      column <= 33 else {
       @failure.reject(
         "invalid-chart", "Chart data exceeds dimensions or contains formulas",
       )

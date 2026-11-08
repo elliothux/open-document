@@ -44,6 +44,10 @@ export function checkGradientStops(
 
 export interface DrawGlyph {
   outline: string;
+  upem: number;
+  /** Global SFNT y bounds; native vector outlines carry null. */
+  fontBounds: [number, number, number, number] | null;
+  strokeWidth: number;
   x: number;
   y: number;
   scaleX: number;
@@ -73,21 +77,54 @@ export type PathSegment =
   | { op: "close" };
 
 export type DrawCommand =
+  | {
+      op: "tile";
+      width: number;
+      height: number;
+      columns: number;
+      rows: number;
+      matrix: DrawMatrix;
+      resolution: { x: number; y: number };
+      commands: DrawCommand[];
+    }
   | { op: "layer"; opacity: number; commands: DrawCommand[] }
+  | { op: "mask"; mask: DrawCommand[]; commands: DrawCommand[] }
   | { op: "style"; style: DrawStyle }
+  // Scoped by transform/clip restores; vector paths use device pixel centers.
+  | { op: "pixelCenters" }
+  | { op: "integerScreenGlyphs" }
   | { op: "clipPath"; path: PathSegment[]; evenOdd: boolean }
   | { op: "fillRect"; rect: DrawRect & { color: string } }
   | { op: "gradientRect"; rect: DrawRect; stops: GradientStop[] }
   | { op: "radialGradientRect"; rect: DrawRect; stops: GradientStop[] }
-  | { op: "strokeRect"; rect: DrawRect; color: string; lineWidth: number }
+  | {
+      op: "patternRect";
+      rect: DrawRect;
+      period: number;
+      mask: number[];
+      zero: string;
+      one: string;
+      screenDevice?: boolean;
+    }
+  | {
+      op: "strokeRect";
+      rect: DrawRect;
+      color: string;
+      lineWidth: number;
+      screenFractional?: true;
+    }
   | { op: "glyphs"; x: number; y: number; color: string; glyphs: DrawGlyph[] }
-  | { op: "image"; image: DrawRect & { key: string } }
+  | {
+      op: "image";
+      image: DrawRect & { key: string; interpolate: boolean | null };
+    }
   | {
       op: "path";
       path: PathSegment[];
       fill: string;
       stroke: string;
       lineWidth: number;
+      textRule?: true;
     }
   | { op: "transform"; matrix: DrawMatrix }
   | { op: "clipRect"; rect: DrawRect }
@@ -102,8 +139,7 @@ export interface DrawStyle {
   miter: number;
   dash: number[];
   dashOffset: number;
-  multiply: boolean;
-  imageSmoothing: boolean;
+  blend: "normal" | "multiply" | "difference";
 }
 
 /** Platform-independent drawing, with resources shared across regions. */
@@ -136,8 +172,21 @@ export function drawingMatrix(value: unknown): DrawMatrix {
     b = finite(matrix.b),
     c = finite(matrix.c),
     d = finite(matrix.d);
-  if (Math.abs(a * d - b * c) < 1e-9)
+  const determinant = a * d - b * c;
+  const scale = Math.max(Math.abs(a), Math.abs(b), Math.abs(c), Math.abs(d));
+  if (!determinant || Math.abs(determinant) < 1e-9 * scale * scale)
     throw new Error("Noninvertible drawing matrix");
+  const e = finite(matrix.e),
+    f = finite(matrix.f);
+  for (const value of [
+    d / determinant,
+    -b / determinant,
+    -c / determinant,
+    a / determinant,
+    (c * f - d * e) / determinant,
+    (b * e - a * f) / determinant,
+  ])
+    finite(value);
   return value as DrawMatrix;
 }
 
@@ -194,6 +243,41 @@ export function drawingBatch(value: unknown): DrawingBatch {
         throw new Error("Drawing payload exceeds budget");
       const command = record(value);
       switch (command.op) {
+        case "tile": {
+          const width = finite(command.width),
+            height = finite(command.height);
+          const columns = finite(command.columns),
+            rows = finite(command.rows);
+          const resolution = record(command.resolution);
+          if (
+            width <= 0 ||
+            height <= 0 ||
+            !Number.isInteger(columns) ||
+            !Number.isInteger(rows) ||
+            columns < 1 ||
+            rows < 1 ||
+            columns * rows > 4096 ||
+            finite(resolution.x) <= 0 ||
+            finite(resolution.y) <= 0 ||
+            !Array.isArray(command.commands) ||
+            depth >= 4
+          )
+            throw new Error("Invalid drawing tile");
+          drawingMatrix(command.matrix);
+          validateCommands(command.commands, depth + 1);
+          break;
+        }
+        case "mask": {
+          if (
+            !Array.isArray(command.commands) ||
+            !Array.isArray(command.mask) ||
+            depth >= 3
+          )
+            throw new Error("Invalid drawing mask");
+          validateCommands(command.commands, depth + 2);
+          validateCommands(command.mask, depth + 2);
+          break;
+        }
         case "layer": {
           const opacity = finite(command.opacity);
           if (
@@ -206,9 +290,31 @@ export function drawingBatch(value: unknown): DrawingBatch {
           validateCommands(command.commands, depth + 1);
           break;
         }
+        case "pixelCenters":
+        case "integerScreenGlyphs":
+          if (Object.keys(command).length !== 1)
+            throw new Error("Invalid drawing mode command");
+          break;
         case "fillRect":
           rect(command.rect);
           color(record(command.rect).color);
+          break;
+        case "patternRect":
+          rect(command.rect);
+          color(command.zero);
+          color(command.one);
+          if (
+            finite(command.period) < 0.01 ||
+            finite(command.period) > 14400 ||
+            (command.screenDevice !== undefined &&
+              typeof command.screenDevice !== "boolean") ||
+            !Array.isArray(command.mask) ||
+            command.mask.length !== 8 ||
+            !command.mask.every(
+              (row) => Number.isInteger(row) && row >= 0 && row <= 255,
+            )
+          )
+            throw new Error("Invalid drawing bitmap pattern");
           break;
         case "gradientRect":
         case "radialGradientRect":
@@ -221,7 +327,11 @@ export function drawingBatch(value: unknown): DrawingBatch {
         case "strokeRect":
           rect(command.rect);
           color(command.color);
-          if (finite(command.lineWidth) <= 0)
+          if (
+            finite(command.lineWidth) <= 0 ||
+            (command.screenFractional !== undefined &&
+              command.screenFractional !== true)
+          )
             throw new Error("Invalid drawing line width");
           break;
         case "glyphs":
@@ -241,13 +351,50 @@ export function drawingBatch(value: unknown): DrawingBatch {
               throw new Error("Missing drawing outline");
             finite(glyph.x);
             finite(glyph.y);
-            finite(glyph.scaleX);
-            finite(glyph.scaleY);
+            const scale = Math.max(
+              Math.abs(finite(glyph.scaleX)),
+              Math.abs(finite(glyph.scaleY)),
+            );
+            if (
+              !Number.isInteger(glyph.upem) ||
+              finite(glyph.upem) < 1 ||
+              finite(glyph.upem) > 65536
+            )
+              throw new Error("Invalid glyph units per em");
+            const bounds = glyph.fontBounds;
+            if (
+              bounds !== null &&
+              (!Array.isArray(bounds) ||
+                bounds.length !== 4 ||
+                ![0, 1, 2, 3].every((index) => {
+                  const value = bounds[index];
+                  return (
+                    typeof value === "number" &&
+                    Number.isInteger(value) &&
+                    value >= -65536 &&
+                    value <= 65536
+                  );
+                }) ||
+                bounds[0] > bounds[2] ||
+                bounds[1] > bounds[3])
+            )
+              throw new Error("Invalid glyph font bounds");
+            const stroke = finite(glyph.strokeWidth);
+            if (
+              stroke < 0 ||
+              (stroke > 1024 && (scale === 0 || stroke * scale > 32))
+            )
+              throw new Error("Invalid glyph outline stroke width");
           }
           break;
         case "image": {
           rect(command.image);
           const image = record(command.image);
+          if (
+            image.interpolate !== null &&
+            typeof image.interpolate !== "boolean"
+          )
+            throw new Error("Invalid image interpolation");
           if (typeof image.key !== "string" || !images.has(image.key))
             throw new Error("Missing drawing image");
           break;
@@ -260,12 +407,13 @@ export function drawingBatch(value: unknown): DrawingBatch {
               throw new Error("Invalid drawing alpha");
           }
           if (
+            Object.keys(style).length !== 9 ||
             ![0, 1, 2].includes(finite(style.cap)) ||
             ![0, 1, 2].includes(finite(style.join)) ||
             finite(style.miter) < 1 ||
             typeof style.evenOdd !== "boolean" ||
-            typeof style.multiply !== "boolean" ||
-            typeof style.imageSmoothing !== "boolean" ||
+            typeof style.blend !== "string" ||
+            !["normal", "multiply", "difference"].includes(style.blend) ||
             !Array.isArray(style.dash) ||
             style.dash.length > 256
           )
@@ -294,6 +442,20 @@ export function drawingBatch(value: unknown): DrawingBatch {
             (command.path.length > 0 && record(command.path[0]).op !== "move")
           )
             throw new Error("Invalid drawing path");
+          if (command.op === "path" && command.textRule !== undefined) {
+            if (
+              command.textRule !== true ||
+              command.fill !== "" ||
+              command.stroke === "" ||
+              finite(command.lineWidth) <= 0 ||
+              command.path.length !== 2
+            )
+              throw new Error("Invalid text rule");
+            const start = record(command.path[0]);
+            const end = record(command.path[1]);
+            if (end.op !== "line" || start.y !== end.y || start.x === end.x)
+              throw new Error("Invalid text rule");
+          }
           for (const value of command.path) {
             if (++payload > 1048576)
               throw new Error("Drawing path exceeds budget");

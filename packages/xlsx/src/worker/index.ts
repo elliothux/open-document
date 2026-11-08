@@ -128,6 +128,8 @@ async function dispatch(request: Operation): Promise<unknown> {
       return workbook.captureFormat(request.revision);
     case "applyXlsxFormat":
       return workbook.applyFormat(request.revision, request.format);
+    case "recalculateXlsx":
+      return workbook.recalculate(request.revision);
     case "undoXlsx":
       return workbook.undo(request.revision);
     case "redoXlsx":

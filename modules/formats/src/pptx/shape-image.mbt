@@ -3,6 +3,7 @@ fn shape_image_source(
   fill : Ref,
   background~ : Bool = false,
   implicit_stretch~ : Bool = false,
+  duotone~ : Bool = false,
 ) -> (String, Array[Double], Double, ImageTile?, Array[Double]) raise @failure.Failure {
   try {
     guard fill.node.attributes.all(a => {
@@ -83,7 +84,7 @@ fn shape_image_source(
         "unsupported-style", "Image fill crop must retain positive area",
       )
     }
-    (embed, crop, image_opacity(blip), tile, insets)
+    (embed, crop, image_opacity(blip, duotone~), tile, insets)
   } catch {
     @failure.Failure(code="malformed-pptx", message~, ..) =>
       @failure.reject("unsupported-style", message)
@@ -102,9 +103,15 @@ fn read_shape_image(
     fill,
     background~,
   )
-  let target = image_target(opc, fill.tree.part, embed, parts)
+  let target = relationship_target(
+    opc,
+    fill.tree.part,
+    embed,
+    relationship_uri + "/image",
+    parts,
+  )
   guard target is Some(key) &&
-    [Some("image/png"), Some("image/jpeg")].contains(
+    [Some("image/png"), Some("image/jpeg"), Some("image/gif")].contains(
       image_content_type(opc, key, parts),
     ) else {
     @failure.reject(
@@ -190,6 +197,9 @@ fn image_fill_opacity_markup(
 
 ///|
 fn Object::has_fill(self : Object) -> Bool {
+  if self.custom is Some({ fill: false, .. }) {
+    return false
+  }
   !self.fill.is_empty() || self.gradient is Some(_) || self.image is Some(_)
 }
 
@@ -197,13 +207,29 @@ fn Object::has_fill(self : Object) -> Bool {
 fn Object::image_primitives(
   self : Object,
   geometry : Geometry,
-) -> Array[@layout.PositionedPrimitive] {
-  stretched_image(
-    self.image.unwrap(),
-    geometry.width,
-    geometry.height,
-    self.crop,
-    self.insets,
-    self.opacity,
-  )
+  tile_sizes : Map[String, (Int32, Int32)],
+) -> Array[@layout.PositionedPrimitive] raise @failure.Failure {
+  let bounds = self.fill_bounds(geometry)
+  let key = self.image.unwrap()
+  let result = if self.tile is Some(tile) {
+    tile.paint(key, self.opacity, bounds.width, bounds.height, tile_sizes[key])
+  } else {
+    stretched_image(
+      key,
+      bounds.width,
+      bounds.height,
+      self.crop,
+      self.insets,
+      self.opacity,
+    )
+  }
+  if bounds.x != 0 || bounds.y != 0 {
+    [
+      Transform({ ..@layout.Matrix::identity(), e: bounds.x, f: bounds.y, }),
+      ..result,
+      Restore,
+    ]
+  } else {
+    result
+  }
 }

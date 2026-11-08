@@ -23,7 +23,9 @@ fn Axis::uniform(self : Axis, first : Int32, last : Int32) -> Double? {
 
 ///|
 fn Session::dimension_reason(self : Session, sheet : Sheet) -> String {
-  if !self.read_only.is_empty() {
+  if sheet.is_chart() {
+    "Chart sheets have no cell dimensions"
+  } else if !self.read_only.is_empty() {
     self.read_only
   } else if sheet.locked {
     "Worksheet is protected"

@@ -27,7 +27,7 @@ export function clipboard(editor: DocumentEditor): ClipboardActions {
   return {
     canCopy: true,
     textMode: true,
-    readOnly: false,
+    readOnly: !!editor.getSnapshot().readOnlyReason,
     richText: true,
     cut: () => editor.copy(true),
     paste: (text, format, mode) =>

@@ -21,6 +21,7 @@ fn Session::editable_drawing_position(
       {
         width: picture.width,
         height: picture.height,
+        effectExtent: tree.drawing_effect_extent(id),
         anchor: picture.anchor,
         content: @layout.Picture(picture.key, picture.crop),
       },

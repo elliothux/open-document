@@ -134,6 +134,7 @@ fn Session::paint_sparkline(
   if path.any(p => p is Line(_, _)) {
     page.bars.push(
       Path(path, "", "4472c4", 0.75, {
+        evenOdd: false,
         fillAlpha: 1,
         strokeAlpha: 1,
         dash: [],

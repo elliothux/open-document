@@ -134,6 +134,7 @@ export class SpreadsheetPointer {
             await host.prepare();
             const now = host.current();
             if (!now.layout) return;
+            if (!now.layout.cells.length) return;
             const rect = surface.canvas.getBoundingClientRect();
             const address = await client.hit(
               now.layout.id,
@@ -150,7 +151,13 @@ export class SpreadsheetPointer {
       },
       options,
     );
-    surface.canvas.addEventListener("dblclick", () => host.edit(), options);
+    surface.canvas.addEventListener(
+      "dblclick",
+      () => {
+        if (host.current().layout?.cells.length) host.edit();
+      },
+      options,
+    );
     this.handle.addEventListener(
       "pointerdown",
       (event) => this.start(event),

@@ -15,6 +15,7 @@ fn annotation_refs(
 
 ///|
 fn annotation_reason(
+  document : @pdflite.PdfDocument,
   object : @syntax.PdfObject,
 ) -> String raise @failure.Failure {
   if !is_name(raw(object, "Subtype"), "Text") &&
@@ -46,11 +47,27 @@ fn annotation_reason(
     return "Unsupported annotation reply type"
   }
   if drawing_annotation_kind(object) {
-    for
-      key in [
-        "IC", "RD", "BE", "Measure", "CL", "Path", "LL", "LLE", "LLO", "Cap",
-      ] {
+    for key in ["IC", "RD", "BE", "Measure", "CL", "Path"] {
       if raw(object, key) != @syntax.PdfNull {
+        return "Drawing annotation property is protected: " + key
+      }
+    }
+    let line = is_name(raw(object, "Subtype"), "Line")
+    for key in ["LL", "LLE", "LLO", "Cap"] {
+      let value = raw(object, key)
+      if value == @syntax.PdfNull {
+        continue
+      }
+      let supported = try resolve(document, value) catch {
+        _ => false
+      } noraise {
+        PdfNull => true
+        PdfBoolean(false) => key == "Cap"
+        PdfInteger(0) => key != "Cap"
+        PdfReal(n) | PdfExactReal(n) => key != "Cap" && n == 0
+        _ => false
+      }
+      if !line || !supported {
         return "Drawing annotation property is protected: " + key
       }
     }
@@ -133,7 +150,16 @@ fn appearance_style(style : @layout.DrawStyle) -> @syntax.PdfObject {
             ("Type", tag("ExtGState")),
             ("ca", @syntax.PdfReal(style.fillAlpha)),
             ("CA", @syntax.PdfReal(style.strokeAlpha)),
-            ("BM", tag(if style.multiply { "Multiply" } else { "Normal" })),
+            (
+              "BM",
+              tag(
+                match style.blend {
+                  Normal => "Normal"
+                  Multiply => "Multiply"
+                  Difference => "Difference"
+                },
+              ),
+            ),
           ]),
         ),
       ]),
@@ -215,7 +241,7 @@ fn annotation_appearance(
     guard alpha >= 0 && alpha <= 1 else {
       @failure.reject("invalid-pdf", "Invalid highlight opacity")
     }
-    style = { ..style, fillAlpha: alpha, strokeAlpha: alpha, multiply: true, }
+    style = { ..style, fillAlpha: alpha, strokeAlpha: alpha, blend: Multiply, }
     ops.push(@content.Op_gs(pdf_name("GS")))
     ops.push(@content.Op_rg(components[0], components[1], components[2]))
     for offset in 0..<(points.length() / 8) {
@@ -280,8 +306,9 @@ fn render_appearances(
 ) -> Unit raise {
   let document = context.session.document
   let page = document.lookup_object_or_null(context.page.number)
+  let mut fields : Array[FormField]? = None
   for index, reference in annotation_refs(document, page) {
-    let object = resolve(document, reference)
+    let mut object = resolve(document, reference)
     if is_name(raw(object, "Subtype"), "Popup") {
       continue
     }
@@ -297,12 +324,23 @@ fn render_appearances(
           "unsupported-pdf", "NoZoom and NoRotate annotation appearance is unsupported",
         )
       }
-      guard raw(object, "OC") == @syntax.PdfNull else {
-        @failure.reject(
-          "unsupported-pdf", "Optional PDF annotation content is unsupported",
-        )
+      if !context.optional_visible(raw(object, "OC")) {
+        continue
+      }
+      if get(document, object, "AP") == @syntax.PdfNull &&
+        is_name(raw(object, "Subtype"), "Line") {
+        object = missing_line_appearance(document, object)
       }
       let ap = get(document, object, "AP")
+      if ap == @syntax.PdfNull && is_name(raw(object, "Subtype"), "Widget") {
+        if fields is None {
+          fields = Some(context.session.fields())
+        }
+        if empty_readonly_widget(document, reference, object, fields.unwrap()) {
+          ignore(rectangle(get(document, object, "Rect")))
+          continue
+        }
+      }
       if is_name(raw(object, "Subtype"), "Link") && ap == @syntax.PdfNull {
         let width = get(document, get(document, object, "BS"), "W")
         let border = get(document, object, "Border")
@@ -595,7 +633,7 @@ pub fn PdfSession::change_annotation(
     @failure.reject("invalid-operation", "Unknown PDF annotation")
   }
   let object = resolve(self.document, @syntax.PdfIndirect(n))
-  let reason = annotation_reason(object)
+  let reason = annotation_reason(self.document, object)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   self.check_annotation_relationships(page, n)
   if delete {

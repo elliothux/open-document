@@ -5,12 +5,12 @@ fn clear_names(paragraph : Bool) -> (Array[String], Array[String]) {
       ["algn", "marL", "marR", "indent", "rtl", "defTabSz"],
       [
         "lnSpc", "spcBef", "spcAft", "buNone", "buChar", "buClrTx", "buClr", "buFontTx",
-        "buFont", "buSzTx", "buSzPct", "buSzPts", "buAutoNum", "tabLst",
+        "buFont", "buSzTx", "buSzPct", "buSzPts", "buAutoNum", "buBlip", "tabLst",
       ],
     )
   } else {
     (
-      ["sz", "spc", "b", "i", "u", "strike", "baseline"],
+      ["sz", "spc", "b", "i", "u", "strike", "baseline", "cap"],
       ["noFill", "solidFill", "latin", "ea", "cs", "uLnTx", "uFillTx"],
     )
   }

@@ -25,6 +25,8 @@ fn ContentContext::extracted_glyph(
   let (x, y) = transform.point(px, -py)
   let reason = if encoded is None {
     "Source Unicode mapping is unknown"
+  } else if font.font.is_identity_v() {
+    "Vertical source text cannot be reconstructed"
   } else if invisible {
     "Invisible source text is not emitted as visible content"
   } else if font.substituted {
@@ -252,7 +254,7 @@ fn ContentContext::extracted_image(
       annotation: !self.collectSource,
       cleanReason: if clipped {
         "Source image is explicitly clipped"
-      } else if state.style.multiply {
+      } else if state.style.blend != Normal {
         "Source image blend mode requires explicit reconstruction"
       } else {
         ""

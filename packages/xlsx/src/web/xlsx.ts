@@ -601,6 +601,11 @@ export class XlsxClient extends XlsxDataClient {
       }),
     );
   }
+  async recalculate(revision: number): Promise<XlsxQuery> {
+    return xlsxQuery(
+      await this.connection.request({ operation: "recalculateXlsx", revision }),
+    );
+  }
   async undo(revision: number): Promise<XlsxQuery> {
     return xlsxQuery(
       await this.connection.request({ operation: "undoXlsx", revision }),

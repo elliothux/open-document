@@ -287,7 +287,7 @@ fn Session::table_definitions(
   let result : Array[StructuredTable] = []
   if !sheets.any(sheet => {
       let tree = Tree::new(sheet.document)
-      tree.one(tree.root("worksheet").id, "tableParts") is Some(_)
+      tree.one(tree.sheet_root().id, "tableParts") is Some(_)
     }) {
     return result
   }
@@ -302,7 +302,7 @@ fn Session::table_definitions(
   let mut formula_units = 0
   for sheet in sheets {
     let tree = Tree::new(sheet.document)
-    if tree.one(tree.root("worksheet").id, "tableParts") is Some(parent) {
+    if tree.one(tree.sheet_root().id, "tableParts") is Some(parent) {
       let entries = tree.all(parent.id, "tablePart")
       guard parent
         .attribute("count")
@@ -398,6 +398,8 @@ fn Session::calculate(
   workbook : @xml.Document,
   parts~ : Map[String, @xml.Document] = self.parts,
   removed~ : Array[String] = self.removed,
+  restored_random~ : Map[(Int32, String), (Value, String?)] = Map([]),
+  force~ : Bool = false,
 ) -> Calculation raise @failure.Failure {
   Calculation::build(
     sheets,
@@ -406,5 +408,8 @@ fn Session::calculate(
     self.date1904,
     workbook,
     tables=self.table_definitions(sheets, workbook, parts, removed~),
+    random=self.random,
+    restored_random~,
+    force~,
   )
 }

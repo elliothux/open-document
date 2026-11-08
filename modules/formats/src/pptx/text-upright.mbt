@@ -74,18 +74,28 @@ fn Object::text_clip(
   self : Object,
   geometry : Geometry,
 ) -> (@layout.Matrix, @layout.Border) raise @failure.Failure {
+  let rect : @layout.Border = match self.text_rect {
+    Some((left, top, right, bottom)) =>
+      {
+        x: geometry.width * left,
+        y: geometry.height * top,
+        width: geometry.width * (right - left),
+        height: geometry.height * (bottom - top),
+      }
+    None => { x: 0, y: 0, width: geometry.width, height: geometry.height, }
+  }
   if !self.body.upright {
-    return (
-      @layout.Matrix::identity(),
-      { x: 0, y: 0, width: geometry.width, height: geometry.height, },
-    )
+    return (@layout.Matrix::identity(), rect)
   }
   let (width, height) = if self.upright_swaps_axes(geometry) {
-    (geometry.height, geometry.width)
+    (rect.height, rect.width)
   } else {
-    (geometry.width, geometry.height)
+    (rect.width, rect.height)
   }
-  let (cx, cy) = geometry.matrix.point(geometry.width / 2, geometry.height / 2)
+  let (cx, cy) = geometry.matrix.point(
+    rect.x + rect.width / 2,
+    rect.y + rect.height / 2,
+  )
   (
     geometry.matrix
     .inverse()

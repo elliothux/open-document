@@ -1,5 +1,7 @@
 # 语料管理
 
+当前四格式覆盖和上游矩阵归[文件兼容性矩阵](compatibility.md)。C0 首批原件候选登记在私有 `cases/c0-upstream-candidates.json`，固定 revision、路径、SHA-256 与上游测试入口；后续历史清单去重归并、开源黄金测试集（`IronCalc`、`calamine`、`Open-XML-SDK`、`excelize` 等）引入与多生产工具分层覆盖按 [C1 方案](../c1-corpus-and-producer-compatibility.md)推进。候选身份核对不授予 SDK 通过；旧 `cases/compatibility.json` 保留 P2/P3 历史范围，将在 C1.1 合并入统一账本。后续优先直接复用原件，不用 SDK 或自制 writer 替代真实来源。
+
 P7/P8 的 PDF 输入、许可、固定 SHA-256、操作和证据统一登记在私有 `cases/p7-p8-pdf.json`。ONLYOFFICE `document-templates` 固定 `71430c9f183489e8912f54f9dc859e369cf0dfb4` 的 new/sample PDF 保留 LICENSE/AUTHORS；LibreOffice 补充输入复用已归档 P6 输出及其来源。独立 PDF fixture writer 只在私有测试中生成组合输入；qpdf/Poppler 提供结构、文字和像素预期，公开构建不读取这些资源。
 
 复用现有私有输入、字体和独立预期，按内容身份去重。新增样本直接覆盖当前功能缺口。

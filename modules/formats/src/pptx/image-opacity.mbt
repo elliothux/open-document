@@ -1,6 +1,20 @@
 ///|
-fn image_opacity(blip : Ref) -> Double raise @failure.Failure {
-  let effects = blip.tree.children.get(blip.node.id).unwrap_or([])
+fn image_opacity(
+  blip : Ref,
+  duotone~ : Bool = false,
+) -> Double raise @failure.Failure {
+  if blip.child("extLst") is Some(list) {
+    guard image_dpi_metadata(list) else {
+      @failure.reject("unsupported-style", "Unsupported picture extension")
+    }
+  }
+  let effects = blip.tree.children
+    .get(blip.node.id)
+    .unwrap_or([])
+    .filter(node => {
+      node.uri != drawing_uri ||
+      (node.name != "extLst" && !(duotone && node.name == "duotone"))
+    })
   if effects.is_empty() {
     return 1
   }
@@ -13,6 +27,27 @@ fn image_opacity(blip : Ref) -> Double raise @failure.Failure {
     @failure.reject("unsupported-style", "Unsupported picture effect")
   }
   number(effect.attribute("amt").unwrap_or("100000"), 0, 100000) / 100000
+}
+
+///|
+fn image_dpi_metadata(list : Ref) -> Bool {
+  let tree = list.tree
+  list.node.attributes.is_empty() &&
+  list.node.text.trim().is_empty() &&
+  tree.children.get(list.node.id).unwrap_or([]) is [extension] &&
+  extension.uri == drawing_uri &&
+  extension.name == "ext" &&
+  extension.attributes.length() == 1 &&
+  extension.attribute("uri").map(value => value.to_upper()) ==
+  Some("{28A0092B-C50C-407E-A947-70E740481C1C}") &&
+  extension.text.trim().is_empty() &&
+  tree.children.get(extension.id).unwrap_or([]) is [dpi] &&
+  dpi.uri == "http://schemas.microsoft.com/office/drawing/2010/main" &&
+  dpi.name == "useLocalDpi" &&
+  dpi.attributes.length() == 1 &&
+  (dpi.attribute("val") == Some("0") || dpi.attribute("val") == Some("false")) &&
+  dpi.text.trim().is_empty() &&
+  tree.children.get(dpi.id).unwrap_or([]).is_empty()
 }
 
 ///|
@@ -37,7 +72,7 @@ fn image_opacity_change(
     blip,
     blip.child("alphaModFix").map(item => item.node),
     markup,
-    [],
+    ["extLst"],
   )
 }
 

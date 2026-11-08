@@ -376,6 +376,7 @@ fn Session::write_chart(
     index=self.source_index(original.tree.part),
     date_time=self.date_time,
     parts~,
+    media=self.media,
   )
   let identity = original.tree.part + "#" + id
   let chart = slide.object(identity).chart.unwrap_or_else(() => {

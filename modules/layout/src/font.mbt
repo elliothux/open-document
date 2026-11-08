@@ -7,7 +7,13 @@ struct Font {
   sha256 : String
   ascent : Int32
   descent : Int32
-  line_gap : Int32
+  line_ascent : Int32
+  line_descent : Int32
+  word_ascent : Int32
+  word_descent : Int32
+  cell_ascent : Int32
+  cell_descent : Int32
+  symbol_cmap : Bool
   fs_type : Int32
   bbox : Array[Int32]
   cap_height : Int32
@@ -15,9 +21,27 @@ struct Font {
 }
 
 ///|
+fn has_symbol_cmap(face : @face.Face) -> Bool {
+  guard face.reference_table(@common.Tag::from_string("cmap")) is Ok(blob) else {
+    return false
+  }
+  let data = blob.as_view()
+  guard data.length() >= 4 else { return false }
+  let count = data[2].to_int() * 256 + data[3].to_int()
+  for index in 0..<count.min((data.length() - 4) / 8) {
+    let start = 4 + 8 * index
+    if data[start:start + 4] == b"\x00\x03\x00\x00" {
+      return true
+    }
+  }
+  false
+}
+
+///|
 fn font_line_extents(
   face : @face.Face,
   os2 : @sfnt.Os2Table?,
+  typo : Bool,
 ) -> (Int32, Int32, Int32) raise @failure.Failure {
   let hhea = match face.reference_table(@common.Tag::from_string("hhea")) {
     Ok(blob) => blob.as_view()
@@ -38,11 +62,7 @@ fn font_line_extents(
   let descent = signed(6)
   // Win metrics bound clipping; USE_TYPO_METRICS overrides valid hhea line metrics.
   if os2 is Some(os2) {
-    let table = face
-      .reference_table(@common.Tag::from_string("OS/2"))
-      .unwrap()
-      .as_view()
-    if ((table[62].to_int() * 256 + table[63].to_int()) & 128) != 0 &&
+    if typo &&
       os2.typo_ascender >= 0 &&
       os2.typo_descender <= 0 &&
       os2.typo_ascender > os2.typo_descender {
@@ -134,7 +154,8 @@ fn TextProbe::add_font_data(
       "invalid-operation", "Font identity must be unique and nonempty",
     )
   }
-  guard bytes.length() >= 12 && bytes[0:4] == b"\x00\x01\x00\x00" else {
+  guard bytes.length() >= 12 &&
+    (bytes[0:4] == b"\x00\x01\x00\x00" || bytes[0:4] == b"true") else {
     @failure.reject(
       "unsupported-font", "Only standalone TrueType outlines are supported; CFF and collections are unsupported",
     )
@@ -181,7 +202,26 @@ fn TextProbe::add_font_data(
     ) else {
     @failure.reject("malformed-font", "Invalid line or bounding metrics")
   }
-  let (ascent, descent, line_gap) = font_line_extents(face, os2)
+  let os2_bytes = os2.map(_ => {
+    face.reference_table(@common.Tag::from_string("OS/2")).unwrap().as_view()
+  })
+  let typo = os2_bytes
+    .map(bytes => (bytes[63].to_int() & 128) != 0)
+    .unwrap_or(false)
+  let (ascent, descent, line_gap) = font_line_extents(face, os2, typo)
+  let (line_ascent, line_descent) = match os2 {
+    Some(table) => {
+      let line_descent = if typo { descent } else { table.win_descent }
+      // ONLYOFFICE uses OS/2 extents while retaining a taller hhea line height.
+      let height = if typo {
+        ascent + descent + line_gap
+      } else {
+        (ascent + descent + line_gap).max(table.win_ascent + table.win_descent)
+      }
+      (height - line_descent, line_descent)
+    }
+    None => (ascent + line_gap, descent)
+  }
   let bbox = [36, 38, 40, 42].map(offset => {
     let value = head_bytes[offset].to_int() * 256 +
       head_bytes[offset + 1].to_int()
@@ -191,6 +231,29 @@ fn TextProbe::add_font_data(
       value
     }
   })
+  let (word_ascent, word_descent) = match os2 {
+    Some(table) => {
+      let bytes = os2_bytes.unwrap()
+      // ONLYOFFICE Word adds 30% for East Asian code pages before scaling to points.
+      if bytes.length() >= 86 && (bytes[79].to_int() & 0x1e) != 0 {
+        let height = if typo {
+          table.typo_ascender - table.typo_descender
+        } else {
+          table.win_ascent + table.win_descent
+        }
+        let descent = (if typo {
+          -table.typo_descender
+        } else {
+          table.win_descent
+        }).to_double()
+        let word_descent = (descent + height.to_double() * 0.15).to_int()
+        ((height.to_double() * 1.3).to_int() - word_descent, word_descent)
+      } else {
+        (line_ascent, line_descent)
+      }
+    }
+    None => (line_ascent, line_descent)
+  }
   let digits = "0123456789abcdef"
   let hash = StringBuilder()
   for byte in digest {
@@ -205,7 +268,15 @@ fn TextProbe::add_font_data(
     sha256: hash.to_string(),
     ascent,
     descent,
-    line_gap,
+    line_ascent,
+    line_descent,
+    word_ascent,
+    word_descent,
+    cell_ascent: os2.map(table => table.win_ascent).unwrap_or(bbox[3].max(0)),
+    cell_descent: os2
+    .map(table => table.win_descent)
+    .unwrap_or((-bbox[1]).max(0)),
+    symbol_cmap: unicode && has_symbol_cmap(face),
     fs_type: os2.map(table => table.fs_type).unwrap_or(2),
     bbox,
     cap_height: os2
@@ -305,17 +376,71 @@ fn TextProbe::line_metrics(
   index : Int32,
   size : Double,
   leading~ : Bool = false,
+  cell~ : Bool = false,
+  word~ : Bool = false,
 ) -> (Double, Double) {
   let font = self.fonts[index]
+  if cell {
+    return font.cell_metrics(size)
+  }
   if leading {
-    // ONLYOFFICE CTextMetrics adds the source font's line gap above the baseline.
     let scale = size / font.upem.to_double()
     return (
-      (font.ascent + font.line_gap).to_double() * scale,
-      font.descent.to_double() * scale,
+      (if word { font.word_ascent } else { font.line_ascent }).to_double() *
+      scale,
+      (if word { font.word_descent } else { font.line_descent }).to_double() *
+      scale,
     )
   }
   scaled_line_metrics(font.ascent, font.descent, font.upem, size)
+}
+
+///|
+fn Font::cell_metrics(self : Font, size : Double) -> (Double, Double) {
+  let scale = size / 0.75 / self.upem.to_double()
+  // Native spreadsheets round Win extents at 96 dpi and include one border pixel.
+  (
+    (self.cell_ascent.to_double() * scale).ceil() * 0.75,
+    ((self.cell_descent.to_double() * scale).ceil() + 1) * 0.75,
+  )
+}
+
+///|
+/// Returns unrounded presentation ascent and descent in points.
+/// For example, at 16pt the two extents sum to a 19.2pt native presentation line.
+pub fn TextProbe::presentation_metrics(
+  self : TextProbe,
+  index : Int32,
+  size : Double,
+) -> (Double, Double) raise @failure.Failure {
+  self.check()
+  guard self.fonts.get(index) is Some(font) else {
+    @failure.reject("missing-font", "Invalid presentation font index")
+  }
+  guard size > 0 && size <= 4096 else {
+    @failure.reject("invalid-style", "Invalid presentation font size")
+  }
+  // ONLYOFFICE DrawingDocument normalizes each font's extents to 120% of its size.
+  let scale = size * 1.2 / (font.line_ascent + font.line_descent).to_double()
+  (font.line_ascent.to_double() * scale, font.line_descent.to_double() * scale)
+}
+
+///|
+/// Returns spreadsheet ascent and descent in points, including the bottom grid pixel.
+/// For example, add both results to obtain an automatic row's minimum height.
+pub fn TextProbe::cell_metrics(
+  self : TextProbe,
+  index : Int32,
+  size : Double,
+) -> (Double, Double) raise @failure.Failure {
+  self.check()
+  guard self.fonts.get(index) is Some(font) else {
+    @failure.reject("missing-font", "Invalid cell font index")
+  }
+  guard size > 0 && size <= 4096 else {
+    @failure.reject("invalid-style", "Invalid cell font size")
+  }
+  font.cell_metrics(size)
 }
 
 ///|

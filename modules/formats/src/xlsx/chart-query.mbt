@@ -38,7 +38,11 @@ pub fn Session::charts(
         "height": object.rect.height,
         "name": object.name,
         "description": object.description,
-        "kind": settings.kind,
+        "kind": if chart.native_bubble is Some(_) {
+          "bubble"
+        } else {
+          settings.kind
+        },
         "title": settings.title,
         "label": settings.label,
         "legend": settings.legend,

@@ -4,6 +4,7 @@ fn read_slide(
   main : Tree,
   cache : Map[String, Tree],
   tree : Tree,
+  media~ : Map[String, Bytes],
   index~ : Int32,
   parts~ : Map[String, @xml.Document] = Map([]),
   date_time~ : DateTime? = None,
@@ -77,7 +78,7 @@ fn read_slide(
     tables: Some(
       read_table_styles(opc, main, cache, parts) catch {
         @failure.Failure(code="unsupported-table", message~, ..) =>
-          { part: None, default_id: "", styles: Map([]), reason: message, }
+          { part: None, styles: Map([]), reason: message, }
         error => raise error
       },
     ),
@@ -96,6 +97,7 @@ fn read_slide(
     .unwrap_or(true) {
     read_objects(
       opc,
+      cache,
       master,
       shape_tree(master).id,
       theme,
@@ -110,11 +112,13 @@ fn read_slide(
       parts,
       page_number,
       date_time,
+      media,
     )
   }
   if layout is Some(layout) && flag(root, "showMasterSp", default=true) {
     read_objects(
       opc,
+      cache,
       layout,
       shape_tree(layout).id,
       theme,
@@ -129,10 +133,12 @@ fn read_slide(
       parts,
       page_number,
       date_time,
+      media,
     )
   }
   read_objects(
     opc,
+    cache,
     tree,
     shape_tree(tree).id,
     theme,
@@ -147,6 +153,7 @@ fn read_slide(
     parts,
     page_number,
     date_time,
+    media,
   )
   let mut background = Solid("ffffff")
   for layer in layers {

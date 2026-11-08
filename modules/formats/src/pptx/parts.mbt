@@ -25,10 +25,11 @@ fn slide_layout(
 }
 
 ///|
-fn image_target(
+fn relationship_target(
   opc : @opc.Package,
   owner : String,
   id : String,
+  kind : String,
   parts : Map[String, @xml.Document],
 ) -> String? raise @failure.Failure {
   if parts.get(relationship_part(owner)) is Some(document) {
@@ -37,8 +38,8 @@ fn image_target(
       .nodes()
       .filter(node => node.parent == root.id && node.attribute("Id") == Some(id))
     guard links is [link] &&
-      link.attribute("Type") == Some(relationship_uri + "/image") &&
-      link.attribute("TargetMode") != Some("External") &&
+      link.attribute("Type") == Some(kind) &&
+      [None, Some("Internal")].contains(link.attribute("TargetMode")) &&
       link.attribute("Target") is Some(target) else {
       return None
     }
@@ -48,10 +49,7 @@ fn image_target(
   .relationships()
   .iter()
   .find_first(rel => {
-    rel.owner == owner &&
-    rel.id == id &&
-    rel.kind == relationship_uri + "/image" &&
-    !rel.external
+    rel.owner == owner && rel.id == id && rel.kind == kind && !rel.external
   })
   .map(rel => rel.target)
 }

@@ -8,8 +8,7 @@ fn validation_nodes(tree : Tree) -> Array[@xml.Node] raise @failure.Failure {
       )
     }
   }
-  guard tree.one(tree.root("worksheet").id, "dataValidations")
-    is Some(container) else {
+  guard tree.one(tree.sheet_root().id, "dataValidations") is Some(container) else {
     return []
   }
   guard container.attributes.all(a => {

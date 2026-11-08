@@ -43,6 +43,36 @@ fn table_profile(
 }
 
 ///|
+fn Ref::table_identity_extension(
+  self : Ref,
+  list : @xml.Node,
+) -> Bool raise @failure.Failure {
+  let (name, uri) = match self.node.name {
+    "tr" => ("rowId", "{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}")
+    "gridCol" => ("colId", "{9D8B030D-6E8A-4147-A177-3AD203B41FA5}")
+    _ => return false
+  }
+  guard list.uri == drawing_uri &&
+    list.name == "extLst" &&
+    list.attributes.is_empty() &&
+    self.tree.children.get(list.id).unwrap_or([]) is [extension] &&
+    extension.uri == drawing_uri &&
+    extension.name == "ext" &&
+    extension.attributes is [{ uri: "", name: "uri", value: uri_value, .. }] &&
+    uri_value == uri &&
+    self.tree.children.get(extension.id).unwrap_or([]) is [identity] &&
+    identity.uri == "http://schemas.microsoft.com/office/drawing/2014/main" &&
+    identity.name == name &&
+    identity.attributes is [{ uri: "", name: "val", value, .. }] &&
+    self.tree.children.get(identity.id).unwrap_or([]).is_empty() else {
+    return false
+  }
+  // Row/column identities are nonvisual; source edits retain their original XML.
+  ignore(source_identity(value))
+  true
+}
+
+///|
 fn Ref::table_children(
   self : Ref,
   allowed : Array[String],
@@ -51,13 +81,17 @@ fn Ref::table_children(
     self.tree.children
     .get(self.node.id)
     .unwrap_or([])
-    .all(node => node.uri == drawing_uri && allowed.contains(node.name)),
+    .all(node => {
+      (node.uri == drawing_uri && allowed.contains(node.name)) ||
+      self.table_identity_extension(node)
+    }),
     "Unsupported table content: " + self.node.name,
   )
 }
 
 ///|
 fn read_drawing_table(
+  opc : @opc.Package,
   source : Ref,
   theme : Theme,
   master : Tree,
@@ -65,6 +99,8 @@ fn read_drawing_table(
   geometry : Geometry,
   page_number : String,
   date_time : DateTime?,
+  parts : Map[String, @xml.Document],
+  media : Map[String, Bytes],
 ) -> DrawingTable? raise @failure.Failure {
   table_profile(
     source
@@ -104,7 +140,7 @@ fn read_drawing_table(
   }
   let book = theme.tables.unwrap()
   let rtl = table.child("tblPr").map(p => flag(p.node, "rtl")).unwrap_or(false)
-  let settings = table_style_settings(table.child("tblPr"), book)
+  let settings = table_style_settings(table.child("tblPr"))
   let style_parts = table_style_parts(book, settings.id)
   let (background, background_alpha) = fill_rgba(
     theme,
@@ -121,6 +157,10 @@ fn read_drawing_table(
       ),
     )
   grid.table_children(["gridCol"])
+  for node in grid.tree.all(grid.node.id, "gridCol") {
+    let column : Ref = { tree: grid.tree, node, }
+    column.table_children([])
+  }
   let widths = grid.tree
     .all(grid.node.id, "gridCol")
     .map(node => number(node.attribute("w").unwrap_or(""), 1, 182880000) / 12700)
@@ -187,12 +227,15 @@ fn read_drawing_table(
         widths.length() - 1,
       )
       let (paragraphs, body, reason) = read_text(
+        opc,
         theme,
         [cell],
         master,
         defaults,
         page_number,
         date_time,
+        parts,
+        media,
         run_styles=layers.filter_map(layer => layer.text),
       )
       table_profile(
@@ -283,6 +326,7 @@ fn read_drawing_table(
       let (borders, border_priorities, border_sources) = table_style_borders(
         theme,
         layers,
+        settings.id.is_empty(),
         row_index,
         column,
         row_nodes.length(),
@@ -295,11 +339,7 @@ fn read_drawing_table(
         guard properties.bind(p => p.child(name)) is Some(edge) else {
           continue
         }
-        edge.table_children(["noFill", "solidFill", "prstDash"])
-        table_profile(
-          edge.node.attributes.all(a => a.uri.is_empty() && a.name == "w"),
-          "Unsupported table cell pen",
-        )
+        edge.table_pen()
         let dash = dash_override(edge)
         if edge.node.attributes.is_empty() &&
           paint_fill(edge) is None &&

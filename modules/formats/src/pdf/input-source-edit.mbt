@@ -353,6 +353,7 @@ fn PdfTransaction::write_source_object(
 fn source_edit_probe(
   supplied : @layout.TextProbe,
   source : @layout.TextProbe,
+  selected : String?,
 ) -> @layout.TextProbe raise @failure.Failure {
   let combined = @layout.TextProbe::new()
   errdefer combined.close()
@@ -361,7 +362,12 @@ fn source_edit_probe(
       if !combined
         .font_info()
         .any(existing => existing.identity == info.identity) {
-        ignore(combined.add_font(probe.font_bytes(index), info.identity))
+        let bytes = probe.font_bytes(index) catch {
+          @failure.Failure(code="unsupported-font-embedding", ..) if selected !=
+            Some(info.identity) => continue
+          error => raise error
+        }
+        ignore(combined.add_font(bytes, info.identity))
       }
     }
   }
@@ -397,18 +403,23 @@ pub fn PdfSession::replace_source_text(
         "protected-content", "Source text keeps its original paint order",
       )
     }
-    let combined = source_edit_probe(supplied, display.probe)
-    defer combined.close()
     let profile = profile.copy()
-    if combined.font_info().any(info => info.identity == spec.font) {
+    let source_fonts = display.probe.font_info()
+    if supplied.font_info().any(info => info.identity == spec.font) ||
+      source_fonts.any(info => info.identity == spec.font) {
       profile[spec.font] = spec.font
     }
     if spec.font == target.font &&
       !profile.contains(spec.font) &&
       target.fontIndex is Some(index) {
-      let identity = display.probe.font_info()[index].identity
-      profile[spec.font] = identity
+      profile[spec.font] = source_fonts[index].identity
     }
+    let combined = source_edit_probe(
+      supplied,
+      display.probe,
+      @layout.font_profile_identity(profile, spec.font),
+    )
+    defer combined.close()
     let baseline = if target.kind == "text" {
       let original = source_placement(self, target)
       let (x, y) = target.matrix

@@ -1,0 +1,14 @@
+{
+  "file": "pdf_reader_section.mbt",
+  "originalSha256": "a99855cafa86cdd2900018414e8e152b45a8b2b430823c295b1994ed2d1ce72f",
+  "patchedSha256": "e9367a2ba90e88cb550e6acbc662070ce58d193c36a221a1aba4c4d62a7d2a3b",
+  "lineEdits": [
+    [
+      4,
+      0,
+      [
+        "  @syntax.pdf_cursor_drop_whitespace(cursor)"
+      ]
+    ]
+  ]
+}

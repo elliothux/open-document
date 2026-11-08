@@ -4,8 +4,9 @@ fn conditional_node(
   node : @xml.Node,
   attributes : Array[String],
   children : Array[String],
+  uri~ : String = spreadsheet_uri,
 ) -> Unit raise @failure.Failure {
-  guard node.uri == spreadsheet_uri &&
+  guard node.uri == uri &&
     node.attributes.all(a => a.uri.is_empty() && attributes.contains(a.name)) &&
     tree.children
     .get(node.id)
@@ -35,10 +36,15 @@ fn conditional_style(
   node : @xml.Node,
   theme : Array[String],
   table~ : Bool = false,
+  extended~ : Bool = false,
 ) -> CellFormat raise @failure.Failure {
-  conditional_node(tree, node, [], [
-    "font", "fill", "border", "numFmt", "alignment",
-  ])
+  conditional_node(
+    tree,
+    node,
+    [],
+    ["font", "fill", "border", "numFmt", "alignment"],
+    uri=if extended { sparkline_uri } else { spreadsheet_uri },
+  )
   let mut result = CellFormat::new()
   if tree.one(node.id, "font") is Some(font) {
     conditional_node(tree, font, [], [

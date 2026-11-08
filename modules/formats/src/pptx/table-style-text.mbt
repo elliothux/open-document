@@ -7,7 +7,9 @@ fn table_style_text(region : Ref) -> Ref? raise @failure.Failure {
     }),
     "Unknown table text style attributes",
   )
-  style.table_children(["fontRef", "font", "srgbClr", "schemeClr", "sysClr"])
+  style.table_children([
+    "fontRef", "font", "srgbClr", "schemeClr", "sysClr", "prstClr",
+  ])
   let attrs = StringBuilder()
   for name in ["b", "i"] {
     match style.node.attribute(name) {
@@ -48,7 +50,9 @@ fn table_style_text(region : Ref) -> Ref? raise @failure.Failure {
   let color = style.tree.children
     .get(style.node.id)
     .unwrap_or([])
-    .filter(node => ["srgbClr", "schemeClr", "sysClr"].contains(node.name))
+    .filter(node => {
+      ["srgbClr", "schemeClr", "sysClr", "prstClr"].contains(node.name)
+    })
   table_profile(color.length() <= 1, "Multiple table text colors")
   let own_color = color.get(0).map(node => (style.tree, node))
   let color = if own_color is Some(_) {

@@ -1,4 +1,33 @@
 ///|
+fn print_drawing_clip_axis(
+  start : Double,
+  length : Double,
+  scale : Double,
+) -> (Double, Double) {
+  let pixel_mm = 25.4 / 96
+  // Preserve native margin inch-to-mm-to-pixel ordering before endpoint rounding.
+  let pixels = start * scale / 72 * 25.4 / pixel_mm
+  let first = pixels.trunc()
+  let last = (pixels + length * scale / 0.75 + 0.5).trunc()
+  let mm = first * pixel_mm
+  // Native metafile paths truncate each endpoint to 1e-5 mm independently.
+  let left = (mm * 100000).trunc() / 100000 * 72 / 25.4 / scale
+  let right = ((mm + (last - first) * pixel_mm) * 100000).trunc() /
+    100000 *
+    72 /
+    25.4 /
+    scale
+  (left, right - left)
+}
+
+///|
+fn print_drawing_clip(rect : @layout.Border, scale : Double) -> @layout.Border {
+  let (x, width) = print_drawing_clip_axis(rect.x, rect.width, scale)
+  let (y, height) = print_drawing_clip_axis(rect.y, rect.height, scale)
+  { x, y, width, height, }
+}
+
+///|
 fn Session::print_sheet(
   self : Session,
   index : Int32,
@@ -9,6 +38,9 @@ fn Session::print_sheet(
   work : PrintWork,
 ) -> PrintedSheet raise @failure.Failure {
   let current = self.sheets[index]
+  if current.is_chart() {
+    return self.print_chart_sheet(index, range, probe, profile, setup, work)
+  }
   let sheet = current.id
   let mut hyperlinks : Array[(Range, String)] = []
   try {
@@ -60,30 +92,31 @@ fn Session::print_sheet(
     @failure.Failure(message~, ..) =>
       @failure.reject("unsupported-print", message, part=sheet)
   }).filter(picture => picture.printable && picture.visible)
-  guard setup.width >= 36 &&
-    setup.width <= 14400 &&
-    setup.height >= 36 &&
-    setup.height <= 14400 &&
-    setup.left >= 0 &&
-    setup.right >= 0 &&
-    setup.top >= 0 &&
-    setup.bottom >= 0 &&
-    setup.width - setup.left - setup.right >= 12 &&
-    setup.height - setup.top - setup.bottom >= 12 else {
-    @failure.reject("invalid-page", "Invalid print paper or margins")
+  let first_bar3d = for i, picture in objects {
+    if picture.chart is Some((_, chart)) && chart.native_bar is Some(_) {
+      break i
+    }
+  } nobreak {
+    objects.length()
   }
+  validate_print_page(setup)
   let ranges = range
     .map(print_areas)
     .unwrap_or(
       if print_range.area.is_empty() {
-        [drawing_used(current.used(), objects, dimensions)]
+        if current.cells.is_empty() && objects.is_empty() {
+          []
+        } else {
+          let used = drawing_used(current.used(), objects, dimensions)
+          [{ ..used, top: 1, left: 1, }]
+        }
       } else {
         print_areas(print_range.area)
       },
     )
   let tree = Tree::new(current.document)
   for diagnostic in self.diagnostics {
-    if conditional.table_styles.renders(diagnostic, sheet) ||
+    if conditional.renders(diagnostic, current) ||
       drawing_diagnostic(current, diagnostic) {
       continue
     }
@@ -135,6 +168,7 @@ fn Session::print_sheet(
         band.1,
         title_rows,
         title_columns,
+        self.print_headers(current, band.0.last().unwrap_or(1), probe, profile),
       ),
     )
   })
@@ -159,8 +193,9 @@ fn Session::print_sheet(
     guard work.pages <= 1024 else {
       @failure.reject("limit-exceeded", "Print page count exceeds budget")
     }
-    for cols in column_groups {
-      for rows in row_groups {
+    // ONLYOFFICE exhausts the horizontal page bands before advancing rows.
+    for rows in row_groups {
+      for cols in column_groups {
         let page : PagePaint = {
           width: setup.width,
           height: setup.height,
@@ -207,27 +242,32 @@ fn Session::print_sheet(
               y -
               dimensions.rows.position(first_row)
             let clip = grid_rect(
-              {
-                x: setup.left / scale + x,
-                y: setup.top / scale + y,
-                width: cols.fold(init=0.0, (sum, c) => {
-                  sum + dimensions.columns.size(c)
-                }),
-                height: rows.fold(init=0.0, (sum, r) => {
-                  sum + dimensions.rows.size(r)
-                }),
-              },
-              (setup.width + setup.left - setup.right) / scale,
+              print_drawing_clip(
+                {
+                  x: setup.left / scale + x,
+                  y: setup.top / scale + y,
+                  width: cols.fold(init=0.0, (sum, c) => {
+                    sum + dimensions.columns.size(c)
+                  }),
+                  height: rows.fold(init=0.0, (sum, r) => {
+                    sum + dimensions.rows.size(r)
+                  }),
+                },
+                scale,
+              ),
+              // Native drawing clips quantize logical endpoints before RTL reflection.
+              setup.width / scale,
               current.view.rtl,
             )
-            for picture in objects {
+            for i, picture in objects {
+              let inset = 0.75
               let rect = grid_rect(
                 {
                   ..picture.rect,
-                  x: picture.rect.x + offset_x,
-                  y: picture.rect.y + offset_y,
+                  x: picture.rect.x + offset_x + inset,
+                  y: picture.rect.y + offset_y + inset,
                 },
-                (setup.width + setup.left - setup.right) / scale,
+                setup.width / scale,
                 current.view.rtl,
               )
               let visible = grid_intersection(picture.paint_bounds(rect), clip)
@@ -239,9 +279,17 @@ fn Session::print_sheet(
                     part=sheet,
                   )
                 }
+                let first = picture_paint.length()
                 picture_paint.push(Clip(clip))
-                picture.paint(picture_paint, rect, probe, profile)
+                picture.paint(
+                  picture_paint,
+                  rect,
+                  probe,
+                  profile,
+                  after_bar3d=i > first_bar3d,
+                )
                 picture_paint.push(Restore)
+                work.add_graphics(picture_paint, first)
               }
             }
             let page_range : Range = {
@@ -275,6 +323,13 @@ fn Session::print_sheet(
               (setup.width + setup.left - setup.right) / scale,
               conditional,
               work.formulas,
+              overflow_right?=if range is None &&
+                print_range.area.is_empty() &&
+                cols.last() == columns.last() {
+                Some((setup.width - setup.right) / scale)
+              } else {
+                None
+              },
             )
             for cell in cells {
               if cell is { "display": String(text), .. } {

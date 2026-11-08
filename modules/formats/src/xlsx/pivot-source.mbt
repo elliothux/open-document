@@ -117,13 +117,14 @@ fn PivotLayout::definition(
   cache : Int32,
   range : Range,
   data_caption~ : String = "",
+  native_header~ : Bool = false,
 ) -> String raise @failure.Failure {
   let settings = self.settings
   let out = StringBuilder()
   let caption = self.caption(data_caption)
   let range = settings.body(range)
   let ordinary_columns = !settings.columns.is_empty()
-  let first_header = if ordinary_columns { 1 } else { 0 }
+  let first_header = if ordinary_columns || native_header { 1 } else { 0 }
   out <+
     "<pivotTableDefinition xmlns=\"\{spreadsheet_uri}\" name=\"\{escaped_attribute(name)}\" cacheId=\"\{cache}\" dataCaption=\"\{escaped_attribute(caption)}\" rowGrandTotals=\"1\" colGrandTotals=\"\{if ordinary_columns {1} else {0}}\" compact=\"0\" compactData=\"0\" outline=\"0\" outlineData=\"0\" gridDropZones=\"1\" createdVersion=\"6\" updatedVersion=\"6\" minRefreshableVersion=\"3\"><location ref=\"\{range.name()}\" firstHeaderRow=\"\{first_header}\" firstDataRow=\"\{settings.header_rows()}\" firstDataCol=\"\{settings.rows.length()}\"/><pivotFields count=\"\{self.cache.headers.length()}\">"
   for field in 0..<self.cache.headers.length() {

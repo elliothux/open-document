@@ -8,9 +8,55 @@ pub(all) enum PrintSheets {
 ///|
 priv struct PrintWork {
   mut cells : Int64
+  mut graphics : Int64
   mut pages : Int32
   formulas : FormulaWork
   destinations : Map[(String, Int32, Int32), @layout.LinkTarget]
+}
+
+///|
+fn PrintWork::add_graphics(
+  self : PrintWork,
+  primitives : Array[@layout.PositionedPrimitive],
+  first : Int32,
+) -> Unit raise @failure.Failure {
+  guard primitives.length() <= 262144 else {
+    @failure.reject("limit-exceeded", "Printed graphics exceed page budget")
+  }
+  for i in first..<primitives.length() {
+    // Printed hatches keep their physical period; screen device pixels belong to viewports.
+    if primitives[i]
+      is @layout.PatternRectangle(
+        rect,
+        period,
+        mask,
+        zero,
+        one,
+        screen_device=true
+      ) {
+      primitives[i] = @layout.PatternRectangle(
+        rect,
+        period,
+        mask,
+        zero,
+        one,
+        screen_device=false,
+      )
+    }
+    self.graphics += match primitives[i] {
+      @layout.Path(path, _, _, _, _) => path.length().to_int64()
+      @layout.Text(line) =>
+        line.runs.fold(init=0L, (sum, run) => {
+          sum + run.glyphs.length().to_int64()
+        })
+      _ => 1L
+    }
+    guard self.graphics <= 1048576L else {
+      @failure.reject(
+        "limit-exceeded", "Printed graphics exceed workbook budget",
+      )
+    }
+  }
 }
 
 ///|
@@ -73,11 +119,13 @@ pub fn Session::print_layout(
   }
   let work : PrintWork = {
     cells: 0L,
+    graphics: 0L,
     pages: 0,
     destinations: Map([]),
     formulas: {
       remaining: 1048576,
       date1904: self.date1904,
+      random: None,
       origin: { row: 1, column: 1, },
       names: self.formula_names(),
     },
@@ -106,6 +154,11 @@ pub fn Session::print_layout(
       }
       pages.push({ ..page, primitives: [..page.primitives, ..headers], })
     }
+  }
+  guard !pages.is_empty() else {
+    @failure.reject(
+      "unsupported-print", "Selected worksheets have no printable content",
+    )
   }
   self.font_context = Some((probe, profile.copy()))
   {

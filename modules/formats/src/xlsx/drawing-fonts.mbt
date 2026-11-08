@@ -5,7 +5,10 @@ fn Session::drawing_font_keys(
 ) -> Array[String] raise @failure.Failure {
   let drawings : Map[String, @xml.Document] = Map([])
   for link in self.relationships() {
-    if !link.external && link.kind == relationship_uri + "drawing" {
+    if !link.external &&
+      [relationship_uri + "drawing", relationship_uri + "chart"].contains(
+        link.kind,
+      ) {
       drawings[link.target] = parts
         .get(link.target)
         .unwrap_or_else(() => self.part_xml(link.target))
@@ -13,12 +16,31 @@ fn Session::drawing_font_keys(
   }
   for path, document in parts {
     let root = document.nodes()[0]
-    if root.uri == picture_uri && root.name == "wsDr" {
+    if (root.uri == picture_uri && root.name == "wsDr") ||
+      (root.uri == chart_uri && root.name == "chartSpace") {
       drawings[path] = document
     }
   }
   let keys : Map[String, Bool] = Map([])
   for document in drawings.values() {
+    if document
+      .nodes()
+      .any(node => node.uri == chart_uri && node.name == "ofPieChart") &&
+      document
+      .nodes()
+      .any(node => {
+        node.uri == chart_uri &&
+        node.name == "title" &&
+        !document
+        .nodes()
+        .any(child => {
+          child.parent == node.id &&
+          child.uri == chart_uri &&
+          child.name == "tx"
+        })
+      }) {
+      keys["Arial|bold"] = true
+    }
     if document
       .nodes()
       .any(node => {

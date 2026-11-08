@@ -11,6 +11,7 @@ fn Session::drawing_frame(
     let frame : @layout.DrawingFrame = {
       width,
       height,
+      effectExtent: tree.drawing_effect_extent(id),
       anchor,
       content: @layout.Chart(@layout.ChartFrame::new(resource.data)),
     }
@@ -20,6 +21,14 @@ fn Session::drawing_frame(
   if data.attribute("uri") == Some(word_shape_uri) {
     let frame = tree.read_basic_shape(id, data.id)
     let shape = tree.children[data.id][0]
+    if tree.linked_text_boxes(shape) is Some((members, sequence)) {
+      let result = {
+        ..frame,
+        content: self.linked_shape_text(tree, members, sequence),
+      }
+      result.validate()
+      return result
+    }
     if tree.drawing_child(shape, "txbx", uri=word_shape_uri) is Some(text) {
       guard frame.content is @layout.Shape(paint) &&
         !["line", "polyline"].contains(paint.preset) else {
@@ -40,6 +49,7 @@ fn Session::drawing_frame(
   {
     width: picture.width,
     height: picture.height,
+    effectExtent: tree.drawing_effect_extent(id),
     anchor: picture.anchor,
     content: @layout.Picture(picture.key, picture.crop),
   }
@@ -109,22 +119,7 @@ fn WordTree::drawing_geometry(
     }) else {
       @failure.reject("unsupported-layout", "Unknown inline drawing attributes")
     }
-    for child in self.children[frame.id] {
-      let node = self.nodes[child]
-      if node.name == "effectExtent" {
-        guard self.children[child].is_empty() &&
-          node.text.trim().is_empty() &&
-          node.attributes.all(a => {
-            a.uri.is_empty() &&
-            ["l", "t", "r", "b"].contains(a.name) &&
-            a.value == "0"
-          }) else {
-          @failure.reject(
-            "unsupported-layout", "Drawing effects require layout support",
-          )
-        }
-      }
-    }
+    ignore(self.drawing_effect_extent(id))
     None
   }
   let extent = self.nodes[self.anchor_child(frame.id, "extent")]
@@ -135,4 +130,32 @@ fn WordTree::drawing_geometry(
     @failure.reject("unsupported-layout", "Unknown drawing extent")
   }
   (drawing_number(extent, "cx"), drawing_number(extent, "cy"), anchor)
+}
+
+///|
+fn WordTree::drawing_effect_extent(
+  self : WordTree,
+  id : Int32,
+) -> (Double, Double, Double, Double) raise @failure.Failure {
+  let (frame, _) = self.drawing_data(id)
+  for child in self.children[frame.id] {
+    let node = self.nodes[child]
+    if node.uri == picture_inline_uri && node.name == "effectExtent" {
+      guard self.children[child].is_empty() &&
+        node.text.trim().is_empty() &&
+        node.attributes.length() == 4 &&
+        node.attributes.all(a => {
+          a.uri.is_empty() && ["l", "t", "r", "b"].contains(a.name)
+        }) else {
+        @failure.reject("unsupported-layout", "Invalid drawing effect extent")
+      }
+      return (
+        drawing_number(node, "l"),
+        drawing_number(node, "t"),
+        drawing_number(node, "r"),
+        drawing_number(node, "b"),
+      )
+    }
+  }
+  (0, 0, 0, 0)
 }

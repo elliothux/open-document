@@ -145,6 +145,7 @@ UI 与交互以 `references/genoffice` 源码为第一参考。GenOffice App 仅
 - 以文档会话为单位运行，显式释放会话与宿主资源；GC 不代替图片、Worker 等外部资源的生命周期管理。
 - 按命令、页面或批次跨边界调用，避免逐字符/逐单元格调用和每次编辑都复制完整文档。
 - Worker 间传输使用可序列化数据或字节，不假设 WasmGC 引用可直接跨 Worker 共享。
+- Web 编辑器打开文件或生成源文件失败时，可读取错误的 `stage`。`DocumentError` 保留底层 `code`、`part` 和 `offset`。浏览器资源异常保留其 `DOMException` 名称。宿主保存回调的异常由调用方处理。
 - 先用实际垂直切片确定最小 API，不预建通用 RPC、插件协议或复杂二进制协议。
 
 ## 4. 跨阶段的 SDK 验证目标

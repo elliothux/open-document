@@ -17,8 +17,15 @@ import {
 import { checkParagraphFrame, type ParagraphFrame } from "./preview-frame.js";
 import { record } from "@open-document/wasm/abi/validation";
 import { checkDocxNotes, type DocxFlowNote } from "./preview-notes.js";
-import { checkShapePath, type BasicDrawingShape } from "./preview-shape.js";
-import { checkDocxSpanField } from "./preview-fields.js";
+import {
+  checkShapePath,
+  checkDrawingEffectExtent,
+  checkMetafile,
+  checkTextBoxFlowFrames,
+  type BasicDrawingShape,
+} from "./preview-shape.js";
+import { checkDocxSpanField, checkTextBoxSpan } from "./preview-fields.js";
+import type { DocxFlowTable } from "./preview-table.js";
 import { checkDocxSections, type DocxSectionBreak } from "./docx-sections.js";
 export type { DocxSectionBreak } from "./docx-sections.js";
 import {
@@ -34,7 +41,6 @@ import {
   checkDocxCellMargins,
   checkDocxBorders,
   type DocxCellMargins,
-  type DocxBorderStyle,
 } from "./docx-table.js";
 
 export type { TextStyle } from "@open-document/wasm/abi/shape";
@@ -108,47 +114,30 @@ export interface DocxFlow {
     readOnlyReason: string;
   }[];
   diagnostics: string[];
-  headers: Record<string, DocxFlow["paragraphs"]>;
+  headers: Record<string, Pick<DocxFlow, "paragraphs" | "tables">>;
   headerDistance: number;
-  footers: Record<string, DocxFlow["paragraphs"]>;
+  footers: Record<string, Pick<DocxFlow, "paragraphs" | "tables">>;
   footerDistance: number;
   notes: DocxFlowNote[];
   differentFirst: boolean;
   differentEven: boolean;
-  tables: {
-    autoFit: boolean;
-    preferredWidth: { value: number; percent: boolean };
-    preferredWidths: DocxFlow["tables"][number]["preferredWidth"][][];
-    id: number;
-    beforeParagraph: number;
-    legacyCellAlignment: boolean;
-    nestedTables: {
-      row: number;
-      column: number;
-      table: DocxFlow["tables"][number];
-    }[];
-    rows: DocxFlow["paragraphs"][][];
-    widths: number[];
-    align: string;
-    borders: { horizontal: DocxBorderStyle[][]; vertical: DocxBorderStyle[][] };
-    margins: DocxCellMargins[][];
-    heights: number[];
-    exactHeights: boolean[];
-    splitRows: boolean[];
-    fills: string[][];
-    verticalAligns: ("top" | "center" | "bottom")[][];
-    headerRows: number;
-  }[];
+  tables: DocxFlowTable[];
 }
 
 export interface DrawingFrame {
   width: number;
   height: number;
+  /** Left, top, right and bottom inline layout extents, in points. */
+  effectExtent: [number, number, number, number];
   anchor: DrawingAnchor | null;
   content:
     | { kind: "picture"; key: string; crop: number[] }
     | { kind: "math"; math: MathFormula }
     | { kind: "chart"; chart: ChartSettings }
+    | {
+        kind: "metafile";
+        metafile: { identity: string; text: string; images: string[] };
+      }
     | ({ kind: "shape" } & BasicDrawingShape)
     | {
         kind: "textBox";
@@ -159,6 +148,7 @@ export interface DrawingFrame {
           anchor: "t" | "ctr" | "b";
           wrap: boolean;
           clip: boolean;
+          flowFrames: [number, number][];
         };
       };
 }
@@ -403,6 +393,7 @@ export function docxFlow(value: unknown): DocxFlow {
       if (
         typeof style.underline !== "boolean" ||
         typeof style.strike !== "boolean" ||
+        typeof style.caps !== "boolean" ||
         Math.abs(Number(style.spacing)) > 1584 ||
         !["baseline", "superscript", "subscript"].includes(String(style.script))
       )
@@ -442,6 +433,7 @@ export function docxFlow(value: unknown): DocxFlow {
       if (
         typeof style.underline !== "boolean" ||
         typeof style.strike !== "boolean" ||
+        typeof style.caps !== "boolean" ||
         Math.abs(Number(style.spacing)) > 1584 ||
         !["baseline", "superscript", "subscript"].includes(String(style.script))
       )
@@ -451,6 +443,7 @@ export function docxFlow(value: unknown): DocxFlow {
           throw new Error("Nested text box drawings require support");
         const image = fields(span.drawing, ["width", "height"], []);
         checkDrawingAnchor(image.anchor);
+        checkDrawingEffectExtent(image);
         const content = fields(image.content, [], ["kind"]);
         const positive = Number(image.width) > 0 && Number(image.height) > 0;
         if (
@@ -470,6 +463,10 @@ export function docxFlow(value: unknown): DocxFlow {
           if (image.anchor !== null)
             throw new Error("Mathematical expression must remain inline");
           checkMathContent(content.math);
+          continue;
+        }
+        if (content.kind === "metafile") {
+          checkMetafile(content.metafile, positive);
           continue;
         }
         if (content.kind === "shape" || content.kind === "textBox") {
@@ -500,6 +497,7 @@ export function docxFlow(value: unknown): DocxFlow {
           if (content.kind === "textBox") {
             const text = fields(content.text, [], ["anchor"]);
             const paragraphs = entries(text.paragraphs);
+            checkTextBoxFlowFrames(text);
             if (
               shape.preset === "line" ||
               shape.preset === "polyline" ||
@@ -525,8 +523,7 @@ export function docxFlow(value: unknown): DocxFlow {
               const p = record(value);
               for (const value of entries(p.spans)) {
                 const span = record(value);
-                if (span.field !== "" || typeof span.text !== "string")
-                  throw new Error("Invalid text box span");
+                checkTextBoxSpan(span, p.container);
                 units += span.text.length;
               }
             }
@@ -565,7 +562,10 @@ export function docxFlow(value: unknown): DocxFlow {
     for (const [key, story] of Object.entries(stories)) {
       if (!["default", "first", "even"].includes(key))
         throw new Error("Invalid running variant");
-      for (const value of entries(story)) checkParagraph(value);
+      const content = record(story),
+        running = entries(content.paragraphs);
+      for (const value of running) checkParagraph(value);
+      checkTables(content.tables, running.length);
     }
   }
   function checkTables(

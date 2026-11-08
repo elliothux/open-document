@@ -6,7 +6,20 @@ fn Session::initial_row_dimensions(
   probe : @layout.TextProbe,
   profile : Map[String, String],
 ) -> Dimensions raise @failure.Failure {
+  let dimensions = {
+    ..dimensions,
+    rows: {
+      ..dimensions.rows,
+      default_size: self.default_row_height(sheet, probe, profile),
+    },
+  }
   let rows : Map[Int32, Bool] = Map([])
+  // Non-custom heights are caches; measure them with the current font profile.
+  for row, cached in sheet.dimensions.automatic_rows {
+    if cached && dimensions.rows.size(row) > 0 {
+      rows[row] = true
+    }
+  }
   for cell in sheet.cells.values() {
     let row = cell.address.row
     if sheet.dimensions.automatic_rows.get(row) == Some(false) &&
@@ -25,6 +38,7 @@ fn Session::initial_row_dimensions(
     formulas: {
       remaining: 1048576,
       date1904: self.date1904,
+      random: None,
       origin: { row: 1, column: 1, },
       names: self.formula_names(),
     },

@@ -18,6 +18,7 @@ pub(all) enum DrawingContent {
   TextBox(BasicShape, DrawingTextBox)
   Math(MathFormula)
   Chart(ChartFrame)
+  Metafile(Metafile)
 }
 
 ///|
@@ -37,6 +38,7 @@ pub impl ToJson for DrawingContent with fn to_json(self) {
     TextBox(shape, text) => { "kind": "textBox", "shape": shape, "text": text }
     Math(formula) => { "kind": "math", "math": formula }
     Chart(chart) => { "kind": "chart", "chart": chart }
+    Metafile(file) => { "kind": "metafile", "metafile": file }
   }
 }
 
@@ -51,6 +53,7 @@ fn DrawingContent::copy(self : DrawingContent) -> DrawingContent {
     TextBox(shape, text) => TextBox(shape, text.copy())
     Math(formula) => Math(formula.copy())
     Chart(chart) => Chart(chart.copy())
+    Metafile(file) => Metafile(file.copy())
   }
 }
 
@@ -58,6 +61,8 @@ fn DrawingContent::copy(self : DrawingContent) -> DrawingContent {
 pub(all) struct DrawingFrame {
   width : Double
   height : Double
+  // Inline layout reserves left, top, right and bottom effect extents around the ink.
+  effectExtent : (Double, Double, Double, Double)
   anchor : DrawingAnchor?
   content : DrawingContent
 }
@@ -67,6 +72,7 @@ pub impl ToJson for DrawingFrame with fn to_json(self) {
   {
     "width": self.width,
     "height": self.height,
+    "effectExtent": self.effectExtent,
     "anchor": self.anchor
     .map(anchor => anchor.to_json())
     .unwrap_or(Json::null()),
@@ -87,10 +93,30 @@ pub fn DrawingFrame::validate(
   }) else {
     @failure.reject("invalid-drawing", "Invalid drawing dimensions")
   }
+  let (left, top, right, bottom) = self.effectExtent
+  guard [left, top, right, bottom].all(value => {
+      !value.is_nan() && !value.is_inf() && value >= 0
+    }) &&
+    self.width + left + right <= 14400 &&
+    self.height + top + bottom <= 14400 &&
+    (
+      self.anchor.map(anchor => anchor.wrapping == "none").unwrap_or(true) ||
+      self.effectExtent == (0, 0, 0, 0)
+    ) else {
+    @failure.reject("invalid-drawing", "Invalid drawing effect extents")
+  }
   if self.anchor is Some(anchor) {
     anchor.validate()
   }
   match self.content {
+    Metafile(file) => {
+      guard self.width > 0 && self.height > 0 else {
+        @failure.reject(
+          "invalid-image", "Metafile requires positive dimensions",
+        )
+      }
+      file.validate()
+    }
     Chart(chart) => {
       guard self.width >= 180 && self.height >= 150 else {
         @failure.reject(
@@ -100,8 +126,10 @@ pub fn DrawingFrame::validate(
       chart.data.validate()
     }
     Math(formula) => {
-      guard self.anchor is None else {
-        @failure.reject("unsupported-math", "Math must remain inline")
+      guard self.anchor is None && self.effectExtent == (0, 0, 0, 0) else {
+        @failure.reject(
+          "unsupported-math", "Math must remain inline without drawing effects",
+        )
       }
       formula.validate()
     }
@@ -173,6 +201,7 @@ pub(all) struct PlacedDrawingFrame {
   y : Double
   width : Double
   height : Double
+  effectExtent : (Double, Double, Double, Double)
   anchor : DrawingAnchor?
   content : DrawingContent
 } derive(ToJson)
@@ -249,6 +278,7 @@ pub fn DrawingContent::alternative_text(self : DrawingContent) -> String? {
         @failure.Failure(..) => None
       }
     Chart(chart) => Some(chart.data.title + ". " + chart.data.tsv())
+    Metafile(file) => Some(file.text())
     _ => None
   }
 }

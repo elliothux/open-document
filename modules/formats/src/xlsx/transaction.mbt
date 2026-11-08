@@ -17,6 +17,7 @@ fn Session::commit(
   table_edits~ : Array[String] = [],
   pivot_edits~ : Array[String] = [],
   pivot_moves~ : Map[String, Range] = Map([]),
+  recalculate~ : Bool = false,
   font_context~ : (@layout.TextProbe, Map[String, String])? = self.font_context,
   fit_work~ : FitWork = {
     axes: 0,
@@ -25,11 +26,15 @@ fn Session::commit(
     formulas: {
       remaining: 1048576,
       date1904: self.date1904,
+      random: None,
       origin: { row: 1, column: 1, },
       names: calculation.names,
     },
   },
 ) -> Unit raise @failure.Failure {
+  guard self.workbook.nodes()[0].uri != strict_spreadsheet_uri else {
+    @failure.reject("protected-content", self.read_only)
+  }
   let parts = parts.copy()
   let removed_parts = self.removed.copy()
   for name in removed.keys() {
@@ -48,7 +53,15 @@ fn Session::commit(
     pivot_moves,
     removed=context.removed,
   )
-  context.maintain_charts(sheets, workbook, calculation, parts, edits, media)
+  context.maintain_charts(
+    sheets,
+    workbook,
+    calculation,
+    parts,
+    edits,
+    media,
+    recalculate~,
+  )
   self.protect_table_cells(sheets, calculation.names.tables, edited=table_edits)
   guard self.revision < 2147483647 else {
     @failure.reject("limit-exceeded", "Workbook revision exhausted")
@@ -60,11 +73,24 @@ fn Session::commit(
   }) else {
     @failure.reject("malformed-xlsx", "Cell style is outside candidate styles")
   }
+  let after_random = calculation.random_values()
+  if !after_random.is_empty() {
+    // Metadata edits can also recalculate volatile formulas.
+    edits.append(
+      self.cache_edits(sheets, calculation, style_count=styles.length()),
+    )
+  }
   context.reflow_dimensions(
     sheets, calculation, styles, edits, font_context, fit_work, parts, workbook,
   )
-  let drawings = { ..context, workbook, media, calculation: Some(calculation), }
-  drawings.reflow_pictures(sheets, parts, edits, font_context)
+  let drawings = {
+    ..context,
+    workbook,
+    media,
+    styles,
+    calculation: Some(calculation),
+  }
+  drawings.reflow_pictures(self, sheets, parts, edits, font_context)
   let payload = edits
     .iter()
     .fold(init=0L, (sum, entry) => sum + entry.1.payload_bytes()) +
@@ -84,6 +110,12 @@ fn Session::commit(
     .fold(init=0L, (sum, document) => {
       sum + document.source().length().to_int64() * 2
     })
+  let before_random = self.calculation
+    .map(c => c.random_values())
+    .unwrap_or(Map([]))
+  let payload = payload +
+    random_history_bytes(before_random) +
+    random_history_bytes(after_random)
   guard payload <= 4194304 else {
     @failure.reject("limit-exceeded", "Edit exceeds history payload budget")
   }
@@ -94,6 +126,8 @@ fn Session::commit(
   }
   self.redo.clear()
   let entry : History = {
+    before_random,
+    after_random,
     edits,
     created,
     created_parts,

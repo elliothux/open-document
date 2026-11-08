@@ -55,6 +55,7 @@ const numberingFormats = [
 
 export type PptxListFormat =
   | { kind: "none" }
+  | { kind: "picture" }
   | { kind: "bullet"; value: string }
   | {
       kind: "number";
@@ -72,7 +73,7 @@ export interface PptxParagraphFormat {
   before?: PptxTextSpacing;
   after?: PptxTextSpacing;
   line?: PptxTextSpacing;
-  list?: PptxListFormat;
+  list?: Exclude<PptxListFormat, { kind: "picture" }>;
   level?: number;
   rtl?: boolean;
   listFont?: string | null;
@@ -99,7 +100,11 @@ export interface PptxParagraphFormatting {
   reason: string;
 }
 
-function paragraphProperty(key: string, value: unknown): boolean {
+function paragraphProperty(
+  key: string,
+  value: unknown,
+  imported = false,
+): boolean {
   if (key === "defaultTab")
     return (
       value === null ||
@@ -158,6 +163,7 @@ function paragraphProperty(key: string, value: unknown): boolean {
     const list = record(value),
       keys = Object.keys(list);
     if (list.kind === "none") return keys.length === 1;
+    if (list.kind === "picture") return imported && keys.length === 1;
     if (list.kind === "bullet")
       return (
         keys.length === 2 &&
@@ -236,7 +242,8 @@ export function checkPptxParagraphFormatting(value: unknown): void {
       "tabs",
       "defaultTab",
     ].some(
-      (key) => format[key] !== null && !paragraphProperty(key, format[key]),
+      (key) =>
+        format[key] !== null && !paragraphProperty(key, format[key], true),
     )
   )
     throw new Error("Invalid paragraph format query");

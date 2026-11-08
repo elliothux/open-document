@@ -47,6 +47,10 @@ fn PdfSession::build_display(
       textComplete: true,
       displayComplete: true,
       fonts: Map([]),
+      nativeOutlines: Map([]),
+      nativeOutlineBytes: Ref(0),
+      colors: Map([]),
+      optional: None,
       imageKeys: [],
       jpeg: Map([]),
       forms: Map([]),
@@ -62,8 +66,10 @@ fn PdfSession::build_display(
       text: @pdflite.pdf_content_initial_text_state(),
       font: None,
       clips: 0,
-      fillSpace: "DeviceGray",
-      strokeSpace: "DeviceGray",
+      fillSpace: GrayColor,
+      strokeSpace: GrayColor,
+      softMask: None,
+      fillPattern: None,
     }
     context.scope(
       @layout.ClipRect({ x: 0, y: 0, width: page.width, height: page.height, }),
@@ -79,11 +85,8 @@ fn PdfSession::build_display(
     )
     let object = resolve(self.document, @syntax.PdfIndirect(page.number))
     try {
-      guard raw(object, "Group") == @syntax.PdfNull else {
-        @failure.reject(
-          "unsupported-pdf", "PDF page transparency groups are unsupported",
-        )
-      }
+      let grouped = page_transparency_group(context, object, page.resources)
+      let start = context.commands.length()
       let (bytes, origin) = page_source(self.document, raw(object, "Contents"))
       interpret(
         context,
@@ -94,6 +97,13 @@ fn PdfSession::build_display(
         0,
         origin=Some(origin),
       )
+      if grouped {
+        @pdfcore.sdk_check(context.commands.length() - start)
+        let commands = context.commands[start:].to_owned()
+        input_layer_budget(commands, 1)
+        context.commands.truncate(start)
+        context.commands.push(@layout.Layer(1, commands))
+      }
     } catch {
       @failure.Failure(code="limit-exceeded", ..) as error => raise error
       @failure.Failure(message~, ..) => {
@@ -157,6 +167,20 @@ fn PdfSession::build_display(
     guard imageBytes <= 16777216 else {
       @failure.reject("limit-exceeded", "PDF page decoded images exceed budget")
     }
+    let outlines : Map[String, @layout.Outline] = Map([])
+    for outline in probe.outline_resources() {
+      outlines[outline.key] = outline
+    }
+    for (_, outline) in context.nativeOutlines {
+      outlines[outline.key] = outline
+    }
+    let outlines = outlines.iter().map(pair => pair.1).to_array()
+    guard outlines.fold(init=0L, (sum, item) => {
+        sum + item.path.length().to_int64()
+      }) <=
+      8388608 else {
+      @failure.reject("limit-exceeded", "PDF page outlines exceed budget")
+    }
     {
       extraction: context.extraction,
       sources: context.sources,
@@ -179,6 +203,7 @@ fn PdfSession::build_display(
       images: context.imageKeys,
       jpeg: context.jpeg,
       probe,
+      outlines,
     }
   })
 }
@@ -261,17 +286,14 @@ pub fn PdfSession::render(
 }
 
 ///|
-fn display_json(
-  display : PageDisplay,
-  reused~ : Bool,
-) -> Json raise @failure.Failure {
+fn display_json(display : PageDisplay, reused~ : Bool) -> Json {
   {
     "reused": reused,
     "id": display.id,
     "revision": display.revision,
     "page": display.page,
     "regions": [display.region],
-    "outlines": display.probe.outline_resources(),
+    "outlines": display.outlines,
     "images": display.images,
     "text": display.text,
     "spans": display.spans,
@@ -570,6 +592,7 @@ pub fn PdfSession::decoded_image(
       }
     }
   })
+  let output = pdf_bound(self.budget, () => icc_rgba(output, jpeg.profile))
   display.resources.add(key, width, height, output)
   images.add(key, width, height, output)
 }

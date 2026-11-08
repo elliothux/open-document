@@ -14,6 +14,51 @@ fn Ref::parent_group(self : Ref) -> String raise @failure.Failure {
 }
 
 ///|
+fn Ref::group_creation_extension(self : Ref, list : @xml.Node) -> Bool {
+  guard list.uri == drawing_uri &&
+    list.name == "extLst" &&
+    list.attributes.is_empty() &&
+    list.text.trim().is_empty() &&
+    self.tree.children.get(list.id).unwrap_or([]) is [extension] &&
+    extension.uri == drawing_uri &&
+    extension.name == "ext" &&
+    extension.attributes
+    is [
+      {
+        uri: "",
+        name: "uri",
+        value: "{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}",
+        ..
+      },
+    ] &&
+    extension.text.trim().is_empty() &&
+    self.tree.children.get(extension.id).unwrap_or([]) is [identity] &&
+    identity.uri == "http://schemas.microsoft.com/office/drawing/2014/main" &&
+    identity.name == "creationId" &&
+    identity.text.trim().is_empty() &&
+    identity.attributes is [{ uri: "", name: "id", value, .. }] &&
+    self.tree.children.get(identity.id).unwrap_or([]).is_empty() &&
+    value.length() == 38 &&
+    value[0] == 123 &&
+    value[37] == 125 else {
+    return false
+  }
+  for index in 1..<37 {
+    let unit = value[index].to_int()
+    if [9, 14, 19, 24].contains(index) {
+      if unit != 45 {
+        return false
+      }
+    } else if !((unit >= 48 && unit <= 57) ||
+      (unit >= 65 && unit <= 70) ||
+      (unit >= 97 && unit <= 102)) {
+      return false
+    }
+  }
+  true
+}
+
+///|
 fn Ref::group_problem(self : Ref) -> String raise @failure.Failure {
   if !self.node.attributes.is_empty() {
     return "Unsupported group attributes"
@@ -44,8 +89,11 @@ fn Ref::group_problem(self : Ref) -> String raise @failure.Failure {
           .unwrap_or([])
           .any(node => {
             child.name != "cNvPr" ||
-            node.uri != drawing_uri ||
-            !["hlinkClick", "hlinkMouseOver"].contains(node.name)
+            !((
+              node.uri == drawing_uri &&
+              ["hlinkClick", "hlinkMouseOver"].contains(node.name)
+            ) ||
+            self.group_creation_extension(node))
           }) {
           return "Group metadata requires editing support"
         }
@@ -137,7 +185,7 @@ fn Slide::group_preview(
       }
     }
   }
-  { ..self, objects, }
+  { ..self, objects: objects.map(object => object.with_shadow_image()), }
 }
 
 ///|

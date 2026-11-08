@@ -246,6 +246,7 @@ fn Session::delete_slides(
         index=i,
         date_time=self.date_time,
         parts~,
+        media=self.media,
       )
       parts.remove(part)
     }

@@ -30,7 +30,7 @@ pub fn PdfSession::query(self : PdfSession) -> Json raise @failure.Failure {
         }
         check_pdf_text(text)
         let reason = if reference is PdfIndirect(_) {
-          annotation_reason(object)
+          annotation_reason(self.document, object)
         } else {
           "Direct annotation is protected"
         }

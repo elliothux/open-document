@@ -18,7 +18,7 @@ fn Session::read_body_fragment(
     @utf8.encode(
       "<od:document xmlns:od=\"\{word_uri}\">" + xml + "</od:document>",
     ),
-    "body-fragment",
+    self.main,
     self.opc.budget.xml_depth,
     self.opc.budget.entry_bytes,
   )

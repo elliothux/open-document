@@ -28,6 +28,7 @@ fn drawing_fragment_dimensions() -> Dimensions {
   {
     rows: { default_size: 14401, spans: [], limit: 1048576, },
     columns: { default_size: 14401, spans: [], limit: 16384, },
+    base_column_width: None,
     automatic_rows: Map([]),
     automatic_columns: [],
   }

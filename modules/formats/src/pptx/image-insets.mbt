@@ -104,7 +104,14 @@ fn stretched_image(
   }
   result.push(
     Image(
-      { key, x: x - crop[0] * w, y: y - crop[1] * h, width: w, height: h, },
+      {
+        key,
+        interpolate: None,
+        x: x - crop[0] * w,
+        y: y - crop[1] * h,
+        width: w,
+        height: h,
+      },
       opacity,
     ),
   )

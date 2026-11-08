@@ -45,7 +45,7 @@ fn header_sections(
 ///|
 fn print_first_page(sheet : Sheet) -> Int32 raise @failure.Failure {
   let tree = Tree::new(sheet.document)
-  let node = tree.one(tree.root("worksheet").id, "pageSetup")
+  let node = tree.one(tree.sheet_root().id, "pageSetup")
   let first = if node.map(n => flag(n, "useFirstPageNumber")).unwrap_or(false) {
     print_integer(node, "firstPageNumber", 1)
   } else {

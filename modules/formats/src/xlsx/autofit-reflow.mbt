@@ -147,7 +147,9 @@ fn Session::reflow_dimensions(
     }
     let rows : Map[Int32, Bool] = Map([])
     let columns : Map[Int32, Bool] = Map([])
+    let changed_cells : Map[(Int32, Int32), Bool] = Map([])
     let mark = fn(address : Address, value : Value) {
+      changed_cells[(address.row, address.column)] = true
       if automatic_rows.contains(address.row) {
         rows[address.row] = true
       }
@@ -261,6 +263,8 @@ fn Session::reflow_dimensions(
         work,
         rows=false,
         grow=true,
+        // Existing best-fit width already covers unchanged cells and must not shrink.
+        changed=Some(changed_cells),
         parts~,
       )
       let changed : Map[Int32, Double] = Map([])

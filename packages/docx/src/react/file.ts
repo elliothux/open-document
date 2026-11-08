@@ -3,6 +3,9 @@ import { FoundationClient, DocumentEditor } from "../web/index.js";
 import type { EditorOptions } from "./types.js";
 import type { OwnedFile } from "./context.js";
 import type { OfficeDocument } from "@open-document/ui/types";
+import { openWithPassword } from "@open-document/ui/file";
+import { documentFailure } from "@open-document/web-core/connection";
+import type { DocumentStage } from "@open-document/wasm/abi/session";
 export async function prepareFile(
   options: EditorOptions,
   document: OfficeDocument,
@@ -25,6 +28,7 @@ export async function prepareFile(
   let client: FoundationClient | undefined;
   let file: { format: "docx"; editor: DocumentEditor } | undefined;
   let inputLimit = 0;
+  let stage: DocumentStage = "worker";
   const abort = () => client?.dispose();
   signal.addEventListener("abort", abort, { once: true });
   const profile = { ...options.resources.profile };
@@ -41,12 +45,23 @@ export async function prepareFile(
       signal,
     ));
     const budget = options.budget ?? (await connection.defaultBudget());
+    stage = "input";
     inputLimit = Math.min(budget.fileBytes, budget.retainedBytes);
     if ((document.bytes?.length ?? 0) > inputLimit)
       throw new Error("Document input exceeds budget");
+    stage = "open";
     if (document.blank) await connection.createDocx(budget);
-    else await connection.openDocx(document.bytes, budget);
+    else
+      await openWithPassword(
+        parent,
+        "DOCX",
+        options.locale === "zh-CN",
+        signal,
+        (password) => connection.openDocx(document.bytes, budget, password),
+      );
+    stage = "font";
     await fonts(connection);
+    stage = "layout";
     file = {
       format: "docx",
       editor: await DocumentEditor.create(surface, connection, profile, signal),
@@ -89,7 +104,7 @@ export async function prepareFile(
       surface.remove();
     }
     signal.throwIfAborted();
-    throw error;
+    throw documentFailure(stage, error);
   } finally {
     signal.removeEventListener("abort", abort);
   }

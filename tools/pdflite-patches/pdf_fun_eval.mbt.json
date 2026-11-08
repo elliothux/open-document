@@ -1,0 +1,20 @@
+{
+  "file": "pdf_fun_eval.mbt",
+  "originalSha256": "cc353b8be744456ef3fa86a83fc076acda1c9d4880eac8cd82ff752d5646e7cf",
+  "patchedSha256": "006792252fdcf87732bc2ea6c661107bca2cbf5372fb56191ef38697d111802c",
+  "lineEdits": [
+    [
+      128,
+      1,
+      [
+        "    let rate = if encoded.length() == 1 {",
+        "      encoded[0] - floors[0].to_double()",
+        "    } else {",
+        "      0.5",
+        "    }",
+        "    let averaged = floor_values[index] +",
+        "      rate * (ceiling_values[index] - floor_values[index])"
+      ]
+    ]
+  ]
+}

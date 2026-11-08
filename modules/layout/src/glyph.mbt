@@ -4,6 +4,7 @@ pub(all) struct Glyph {
   cluster : Int32
   font : Int32
   outline : String
+  strokeWidth : Double
   x : Double
   y : Double
   scale : Double

@@ -149,3 +149,25 @@ fn Session::set_view(
   }
   self.commit_view(index, changes)
 }
+
+///|
+fn neutral_mac_page_layout(tree : Tree, list : @xml.Node) -> Bool {
+  list.uri == spreadsheet_uri &&
+  list.name == "extLst" &&
+  list.attributes.is_empty() &&
+  list.text.trim().is_empty() &&
+  tree.children.get(list.id).unwrap_or([]) is [extension] &&
+  extension.uri == spreadsheet_uri &&
+  extension.name == "ext" &&
+  extension.attributes.length() == 1 &&
+  extension.attribute("uri").map(value => value.to_upper()) ==
+  Some("{64002731-A6B0-56B0-2670-7721B7C09600}") &&
+  extension.text.trim().is_empty() &&
+  tree.children.get(extension.id).unwrap_or([]) is [view] &&
+  view.uri == "http://schemas.microsoft.com/office/mac/excel/2008/main" &&
+  view.name == "PLV" &&
+  view.attributes.length() == 3 &&
+  ["Mode", "OnePage", "WScale"].all(name => view.attribute(name) == Some("0")) &&
+  view.text.trim().is_empty() &&
+  tree.children.get(view.id).unwrap_or([]).is_empty()
+}

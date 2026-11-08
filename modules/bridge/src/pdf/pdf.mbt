@@ -58,7 +58,16 @@ fn Context::pdf_operation(
         budget,
       )
     } else {
-      @model.PdfSession::open(input_bytes(request, budget.fileBytes), budget)
+      let password = if request is { "password": _, .. } {
+        Some(field_string(request, "password"))
+      } else {
+        None
+      }
+      @model.PdfSession::open(
+        input_bytes(request, budget.fileBytes),
+        budget,
+        password~,
+      )
     }
     errdefer candidate.close()
     let result = candidate.query()

@@ -1,6 +1,10 @@
 ///|
 fn Session::media_fill_reason(self : Session, object : Object) -> String {
-  let reason = self.empty_placeholder_reason(object, ["media", "obj"])
+  let reason = self.empty_placeholder_reason(
+    object,
+    ["media", "obj"],
+    preserve_group_lock=true,
+  )
   if !reason.is_empty() {
     return reason
   }

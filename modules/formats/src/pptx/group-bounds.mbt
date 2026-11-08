@@ -340,6 +340,7 @@ fn Session::normalize_groups(
     index~,
     parts~,
     date_time=self.date_time,
+    media=self.media,
   )
   let changes = source.normalized_group_changes(ids)
   let (document, edit) = source.tree.document.edit_source(changes)
@@ -355,6 +356,7 @@ fn Session::normalize_groups(
       index~,
       parts~,
       date_time=self.date_time,
+      media=self.media,
     ),
     Some(edit),
   )

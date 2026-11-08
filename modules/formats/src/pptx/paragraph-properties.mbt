@@ -238,7 +238,7 @@ fn paragraph_markup(
     if properties is Some(p) {
       check_list_properties(p)
     }
-    for name in ["buNone", "buChar", "buAutoNum"] {
+    for name in ["buNone", "buChar", "buAutoNum", "buBlip"] {
       changes[name] = ""
     }
     let (name, markup) = list_markup(list)

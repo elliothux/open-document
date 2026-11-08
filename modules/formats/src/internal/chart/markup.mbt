@@ -1,4 +1,18 @@
 ///|
+fn chart_column(index : Int32) -> String {
+  let letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  let mut column = index + 2
+  let mut result = ""
+  while column > 0 {
+    column -= 1
+    let digit = column % 26
+    result = letters[digit:digit + 1].to_owned() + result
+    column /= 26
+  }
+  result
+}
+
+///|
 fn chart_cache(
   values : Array[String],
   numeric : Bool,
@@ -91,7 +105,7 @@ pub fn markup(
     },
   )
   for index, series in data.series {
-    let column = ["B", "C", "D", "E", "F", "G", "H", "I"][index]
+    let column = chart_column(index)
     let title = chart_reference(
       "Sheet1!$" + column + "$1",
       [series.name],

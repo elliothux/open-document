@@ -20,6 +20,14 @@ fn note_marker(
     "ff9000",
     "",
     0,
-    { fillAlpha: 1, strokeAlpha: 1, dash: [], cap: 0, join: 0, miter: 10, },
+    {
+      evenOdd: false,
+      fillAlpha: 1,
+      strokeAlpha: 1,
+      dash: [],
+      cap: 0,
+      join: 0,
+      miter: 10,
+    },
   )
 }

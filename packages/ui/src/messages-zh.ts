@@ -24,8 +24,10 @@ import { xlsxShapesZh } from "./messages-xlsx-shapes.js";
 import { xlsxChartsZh } from "./messages-xlsx-charts.js";
 import { protectionZh } from "./messages-xlsx-protection.js";
 import { sparklineZh } from "./messages-xlsx-sparkline.js";
+import { xlsxFormulaZh } from "./messages-xlsx-formula.js";
 
 export const zh: Messages = {
+  ...xlsxFormulaZh,
   ...subtotalZh,
   ...consolidateZh,
   ...conditionalStatisticsZh,
@@ -285,10 +287,6 @@ export const zh: Messages = {
   fontFamily: "字体名称",
   cellFormat: "单元格格式",
   wholeTable: "整表",
-  cellRange: "单元格范围",
-  goToRange: "定位范围",
-  formulaInput: "公式输入",
-  acceptValidationWarnings: "允许触发数据验证警告的值",
   dataValidation: "数据验证",
   clearValidation: "清除数据验证",
   validationKind: "验证类型",
@@ -436,6 +434,7 @@ export const zh: Messages = {
   listFormat_lowerRoman: "小写罗马数字",
   listFormat_upperRoman: "大写罗马数字",
   listFormat_bullet: "项目符号",
+  pictureBullet: "图片项目符号",
   createList: "新建列表",
   listLevel: "列表级别",
   listDefinition: "修改列表级别",

@@ -46,6 +46,16 @@ fn Layout::portion_caret_geometry(self : Layout, hit : Hit) -> Hit {
     line.bidi_level(hit.offset, hit.affinity)
   })
   let hit = { ..hit, x: line.bidi_caret_x(hit.offset, level, hit.x), }
+  // Native Word targets keep the current text portion's full font height.
+  if line.caretPortions
+    .iter()
+    .find_first(portion => {
+      (portion.start < hit.offset && hit.offset <= portion.end) ||
+      (hit.offset == line.start && portion.start == line.start)
+    })
+    is Some(portion) {
+    return { ..hit, y: line.y + portion.y, height: portion.height, }
+  }
   let mut multiple = line.runs.length() > 1 || !line.drawings.is_empty()
   if !multiple {
     multiple = line.bidi_ranges().iter().any(range => range.2 > line.baseLevel)
@@ -211,7 +221,11 @@ pub fn Layout::hit_test(
   if !text_only && self.floating_image_hit(page, x, y) is Some(hit) {
     return hit
   }
-  for index, line in self.running.get(page).unwrap_or([]) {
+  for
+    index, line in self.running
+    .get(page)
+    .map(frame => frame.lines)
+    .unwrap_or([]) {
     if y >= line.y &&
       y < line.y + line.height &&
       x >= line.areaX &&

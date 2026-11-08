@@ -44,6 +44,7 @@ fn filled_block(
       profile,
       width,
       false,
+      cell=true,
     )
   }
   let mut result = original

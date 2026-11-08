@@ -62,7 +62,9 @@ export async function propertyDraft(
   } else if (value.startsWith("field:")) {
     const field = state.fields.find((field) => `field:${field.id}` === value);
     if (!field) throw new Error("Unknown PDF field");
-    const page = field.widgets[0]?.page || state.page;
+    const page = field.widgets.some((widget) => widget.page === state.page)
+      ? state.page
+      : field.widgets[0]?.page || state.page;
     if (page !== state.page) await paint(page);
     draft = {
       kind: "field",

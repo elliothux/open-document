@@ -4,6 +4,9 @@ fn Session::format_reason(
   sheet : Sheet,
   range : Range,
 ) -> String {
+  if sheet.is_chart() {
+    return "Chart sheets have no cell formatting"
+  }
   if !self.read_only.is_empty() {
     return self.read_only
   }
@@ -162,6 +165,7 @@ fn Session::format_pattern(
     {
       remaining: 1048576,
       date1904: self.date1904,
+      random: None,
       origin: self.focus,
       names: self.formula_names(),
     },

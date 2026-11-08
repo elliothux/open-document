@@ -16,6 +16,7 @@ fn Session::cell_plan_values(
   let work : FormulaWork = {
     remaining: 1048576,
     date1904: self.date1904,
+    random: None,
     origin: { row: target.top, column: target.left, },
     names: edit.calculation.names,
   }

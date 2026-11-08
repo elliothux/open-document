@@ -8,6 +8,7 @@ import {
 }
 
 // Values
+pub fn image_resource_bytes(@layout.ImageResource) -> Bytes raise @failure.Failure
 
 // Errors
 
@@ -283,7 +284,7 @@ pub fn Session::navigate(Self, Int32, @layout.Layout, Int32, String, extend_sele
 pub fn Session::navigate_comment(Self, Int32, String) -> Json raise @failure.Failure
 pub fn Session::note_numbering(Self, Int32, String, Int32) -> Json raise @failure.Failure
 pub fn Session::notes(Self, Int32) -> Json raise @failure.Failure
-pub fn Session::open(Bytes, @archive.Budget) -> Self raise @failure.Failure
+pub fn Session::open(Bytes, @archive.Budget, password? : String) -> Self raise @failure.Failure
 pub fn Session::overview(Self, Int32) -> Json raise @failure.Failure
 pub fn Session::page_links(Self, @layout.Layout) -> Array[@layout.PageLink] raise @failure.Failure
 pub fn Session::page_positioned(Self, @layout.Layout, @layout.TextProbe) -> @layout.PositionedDocument raise @failure.Failure

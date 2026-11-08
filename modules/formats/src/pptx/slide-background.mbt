@@ -87,7 +87,7 @@ fn Session::background_reason(self : Session, slide : Slide) -> String {
             return "Ambiguous background color is protected"
           }
         }
-        "srgbClr" | "schemeClr" | "sysClr" => {
+        "srgbClr" | "schemeClr" | "sysClr" | "prstClr" => {
           let parent = tree.nodes[node.parent]
           guard (parent.id == properties.id && properties.name == "bgRef") ||
             (
@@ -104,8 +104,14 @@ fn Session::background_reason(self : Session, slide : Slide) -> String {
             return "Unknown background color is protected"
           }
         }
-        "tint" | "shade" | "lumMod" | "lumOff" => {
-          guard ["srgbClr", "schemeClr", "sysClr"].contains(
+        "tint"
+        | "shade"
+        | "lumMod"
+        | "lumOff"
+        | "hueOff"
+        | "satMod"
+        | "satOff" => {
+          guard ["srgbClr", "schemeClr", "sysClr", "prstClr"].contains(
               tree.nodes[node.parent].name,
             ) &&
             node.attributes.all(a => a.uri.is_empty() && a.name == "val") &&

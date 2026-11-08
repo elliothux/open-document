@@ -112,7 +112,12 @@ pub fn Session::set_watermark(
       }
       ignore(@image.type_info(self.image_bytes(key)))
       Some(
-        Picture(Resource("watermark:" + link.target), width, height, opacity),
+        Picture(
+          Resource(self.image_resource_key(link.target)),
+          width,
+          height,
+          opacity,
+        ),
       )
     }
     Some(Picture(Data(bytes), width, height, opacity)) => {
@@ -242,7 +247,7 @@ pub fn Session::set_watermark(
         created_media[resource.path] = resource.data
         value = Some(
           Picture(
-            Resource("watermark:" + resource.path),
+            Resource(self.image_resource_key(resource.path)),
             width,
             height,
             opacity,

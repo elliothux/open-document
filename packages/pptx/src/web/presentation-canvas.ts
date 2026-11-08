@@ -6,10 +6,14 @@ import type {
   PptxGuide,
 } from "../core/pptx.js";
 import { CanvasSurface } from "@open-document/web-core/canvas-surface";
-import { decodeImage } from "@open-document/web-core/image";
+import { decodeImage, imageColorPlane } from "@open-document/web-core/image";
 import type { PptxClient } from "./pptx.js";
 
 export class PresentationCanvas extends CanvasSurface {
+  constructor() {
+    super();
+    this.setGlyphRasterMode("fractional");
+  }
   point(event: MouseEvent, scale: number): PptxPoint {
     const rect = this.canvas.getBoundingClientRect();
     return {
@@ -105,11 +109,14 @@ export class PresentationCanvas extends CanvasSurface {
       if (!retained.has(identity)) {
         bitmap.close();
         this.images.delete(identity);
+        this.imageColors.get(identity)?.close();
+        this.imageColors.delete(identity);
       }
     for (const key of keys) {
       if (this.keys.has(key)) continue;
       const bytes = await client.execute({ operation: "imageBytesPptx", key });
       const { bitmap, rgba } = await decodeImage(bytes);
+      let colors: ImageBitmap | undefined;
       try {
         const { key: identity } = await client.execute({
           operation: "imagePptx",
@@ -119,10 +126,15 @@ export class PresentationCanvas extends CanvasSurface {
           bytes: rgba,
         });
         if (this.images.has(identity)) bitmap.close();
-        else this.images.set(identity, bitmap);
+        else {
+          colors = await imageColorPlane(bitmap.width, bitmap.height, rgba);
+          this.images.set(identity, bitmap);
+          if (colors) this.imageColors.set(identity, colors);
+        }
         this.keys.set(key, identity);
       } catch (error) {
         bitmap.close();
+        colors?.close();
         throw error;
       }
     }

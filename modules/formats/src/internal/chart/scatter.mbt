@@ -9,7 +9,7 @@ fn scatter_markup(
   out <+
     "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><c:chartSpace xmlns:c=\"\{chart_uri}\" xmlns:a=\"\{drawing_uri}\" xmlns:r=\"\{relationship_uri}\"><c:chart>\{chart_title(data.title)}<c:autoTitleDeleted val=\"0\"/><c:plotArea><c:layout/><c:scatterChart><c:scatterStyle val=\"marker\"/><c:varyColors val=\"0\"/>"
   for index, series in data.series {
-    let column = ["B", "C", "D", "E", "F", "G", "H", "I"][index]
+    let column = chart_column(index)
     let title = chart_reference(
       "Sheet1!$" + column + "$1",
       [series.name],

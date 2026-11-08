@@ -19,11 +19,13 @@ pub struct DrawingTextBox {
   lines : Array[Line]
   bottomBorders : Map[Int32, (Double, BorderStyle)]
   borders : Array[TableStroke]
+  flowFrames : Array[(Double, Double)]
 }
 
 ///|
 /// WordprocessingShape text uses the document paragraph shaper and native styles.
 /// Insets are top, right, bottom and left, in points.
+/// `flowFrames` contains preceding text areas followed by this frame's text area.
 pub fn DrawingTextBox::new(
   paragraphs : Array[Paragraph],
   insets : Array[Double],
@@ -31,6 +33,7 @@ pub fn DrawingTextBox::new(
   wrap : Bool,
   clip : Bool,
   bottomBorders~ : Map[Int32, (Double, BorderStyle)] = Map([]),
+  flowFrames~ : Array[(Double, Double)] = [],
 ) -> DrawingTextBox {
   {
     paragraphs,
@@ -41,6 +44,7 @@ pub fn DrawingTextBox::new(
     lines: [],
     bottomBorders,
     borders: [],
+    flowFrames,
   }
 }
 
@@ -71,6 +75,7 @@ pub impl ToJson for DrawingTextBox with fn to_json(self) {
     "wrap": self.wrap,
     "clip": self.clip,
     "bottomBorders": self.bottomBorders,
+    "flowFrames": self.flowFrames,
   }
 }
 
@@ -111,15 +116,33 @@ fn DrawingTextBox::validate(
     }) else {
     @failure.reject("invalid-drawing", "Invalid text box paragraph border")
   }
+  guard self.flowFrames.is_empty() ||
+    (
+      self.flowFrames.length() <= 64 &&
+      self.wrap &&
+      self.anchor == "t" &&
+      self.clip &&
+      self.bottomBorders.is_empty() &&
+      self.flowFrames.all(area => {
+        [area.0, area.1].all(v => {
+          !v.is_nan() && !v.is_inf() && v > 0 && v <= 14400
+        })
+      })
+    ) else {
+    @failure.reject("invalid-drawing", "Invalid linked text box areas")
+  }
   let mut units = 0
   for paragraph in self.paragraphs {
-    guard paragraph.spans.all(span => {
-        span.drawing is None && span.field.is_empty()
-      }) &&
+    guard paragraph.spans.all(span => span.drawing is None) &&
       paragraph.marker is None else {
       @failure.reject(
-        "unsupported-layout", "Nested drawings fields and lists require text box support",
+        "unsupported-layout", "Nested drawings and lists require text box support",
       )
+    }
+    for span in paragraph.spans {
+      if !span.field.is_empty() {
+        ignore(PageNumbering::new().field_text(span.field, 0, 1))
+      }
     }
     units += paragraph.spans
       .iter()
@@ -142,7 +165,13 @@ fn DrawingFrame::prepare_text(
   if self.content is Chart(chart) {
     return chart.prepare(self, probe, profile)
   }
+  if self.content is Metafile(file) {
+    return file.prepare_preview(self, probe, profile)
+  }
   guard self.content is TextBox(shape, text) else { return self }
+  if !text.flowFrames.is_empty() {
+    return self.prepare_linked_text(probe, profile)
+  }
   let area = self.text_box_rect(shape, text)
   let left = area.x
   let top = area.y

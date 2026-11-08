@@ -1,5 +1,8 @@
 ///|
 fn conditional_edit_reason(tree : Tree, node : @xml.Node) -> String {
+  if node.uri != spreadsheet_uri {
+    return "Extended conditional rule markup is protected"
+  }
   let source = tree.document.source()[node.start:node.end]
   if source.contains("<!--") || source.contains("<?") {
     "Retained conditional rule markup is protected"

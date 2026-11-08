@@ -19,7 +19,7 @@ export interface ChartSettings {
     | "radar"
     | "doughnut";
   title: string;
-  /** TSV: header row, category column (numeric X for scatter), then 1-8 numeric series. Pie displays the first series by absolute value. */
+  /** TSV: header row, category column (numeric X for scatter), then 1-32 numeric series. Pie displays the first series by absolute value. */
   data: string;
   /** Doughnut only: integer percentage from 10 to 90, default 75. Each series draws a ring, innermost first. */
   holeSize?: number;

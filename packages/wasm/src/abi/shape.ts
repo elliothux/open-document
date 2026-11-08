@@ -7,6 +7,7 @@ export interface ShapeBatch {
     cluster: number;
     font: number;
     outline: string;
+    strokeWidth: number;
     x: number;
     y: number;
     scale: number;
@@ -48,6 +49,7 @@ export interface TextStyle {
   color: string;
   underline: boolean;
   strike: boolean;
+  caps: boolean;
   highlight: string;
   script: "baseline" | "superscript" | "subscript";
   spacing: number;

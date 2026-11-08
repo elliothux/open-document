@@ -35,7 +35,10 @@ export interface XlsxChartSettings {
   values: string[];
 }
 export type XlsxChartFrame = Omit<XlsxPictureSettings, "crop">;
-export interface XlsxChart extends XlsxChartSettings, XlsxChartFrame {
+export interface XlsxChart
+  extends Omit<XlsxChartSettings, "kind">, XlsxChartFrame {
+  /** Imported bubble and surface charts retain native sources and are read-only. */
+  kind: XlsxChartSettings["kind"] | "bubble" | "surface";
   id: string;
   data: string;
   bindingReason: string;
@@ -47,9 +50,7 @@ export interface XlsxCharts {
   items: XlsxChart[];
 }
 
-export function checkXlsxChartSettings(
-  value: unknown,
-): asserts value is XlsxChartSettings {
+function checkChartFields(value: unknown, requireBindings: boolean): void {
   const c = record(value);
   if (
     Object.keys(c).length !== 8 ||
@@ -66,7 +67,8 @@ export function checkXlsxChartSettings(
           "values",
         ].includes(key),
     ) ||
-    !xlsxChartKinds.some((kind) => kind === c.kind) ||
+    (!xlsxChartKinds.some((kind) => kind === c.kind) &&
+      (requireBindings || (c.kind !== "bubble" && c.kind !== "surface"))) ||
     !noteText(c.title, 256) ||
     !noteText(c.label, 256) ||
     /[\r\n]/.test(String(c.title) + String(c.label)) ||
@@ -77,17 +79,23 @@ export function checkXlsxChartSettings(
       ? !integer(c.holeSize, 10, 90)
       : c.holeSize !== null) ||
     !noteText(c.categories, 1024) ||
-    !c.categories ||
+    (requireBindings && !c.categories) ||
     !Array.isArray(c.names) ||
     c.names.length < 1 ||
-    c.names.length > 8 ||
+    c.names.length > 32 ||
     !Array.isArray(c.values) ||
     c.values.length !== c.names.length ||
     ![...c.names, ...c.values].every(
-      (value) => noteText(value, 1024) && value.length > 0,
+      (value) =>
+        noteText(value, 1024) && (!requireBindings || value.length > 0),
     )
   )
     throw new Error("Invalid worksheet chart settings");
+}
+export function checkXlsxChartSettings(
+  value: unknown,
+): asserts value is XlsxChartSettings {
+  checkChartFields(value, true);
 }
 export function checkXlsxChartFrame(
   value: unknown,
@@ -110,16 +118,20 @@ export function xlsxCharts(value: unknown): XlsxCharts {
     const id = c.id,
       data = c.data,
       bindingReason = c.bindingReason;
-    checkXlsxChartSettings({
-      kind: c.kind,
-      title: c.title,
-      label: c.label,
-      legend: c.legend,
-      holeSize: c.holeSize,
-      categories: c.categories,
-      names: c.names,
-      values: c.values,
-    });
+    // Imported caches may have literal labels or values without worksheet bindings.
+    checkChartFields(
+      {
+        kind: c.kind,
+        title: c.title,
+        label: c.label,
+        legend: c.legend,
+        holeSize: c.holeSize,
+        categories: c.categories,
+        names: c.names,
+        values: c.values,
+      },
+      false,
+    );
     checkXlsxChartFrame(c);
     if (
       typeof id !== "string" ||

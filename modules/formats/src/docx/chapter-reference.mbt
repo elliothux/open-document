@@ -1,4 +1,27 @@
 ///|
+fn cached_style_reference(instruction : String) -> Bool raise @failure.Failure {
+  let tokens = text_reference_tokens(instruction)
+  guard tokens.length() >= 2 &&
+    tokens[0].0.to_upper() == "STYLEREF" &&
+    !tokens[0].1 &&
+    tokens[1].1 &&
+    !tokens[1].0.is_empty() &&
+    tokens[1].0.length() <= 253 else {
+    return false
+  }
+  guard tokens.length() == 2 ||
+    (
+      tokens.length() == 4 &&
+      tokens[2] == ("\\*", false) &&
+      tokens[3].0.to_upper() == "MERGEFORMAT" &&
+      !tokens[3].1
+    ) else {
+    return false
+  }
+  true
+}
+
+///|
 fn chapter_reference_code(
   instruction : String,
 ) -> String raise @failure.Failure {

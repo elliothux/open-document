@@ -17,18 +17,17 @@ fn frame_extent(
   guard usable(14400) >= required else {
     @failure.reject("layout-overflow", "Text exceeds the maximum shape size")
   }
-  let mut low = 0.0
-  let mut high = 14400.0
-  // Invert the existing preset text rectangle without repeating font shaping.
-  for _ in 0..<32 {
+  // Find the first usable EMU directly, without a floating-point upper-bound rounding bias.
+  for low = 0, high = 182880000; low < high; {
     let mid = (low + high) / 2
-    if usable(mid) >= required {
-      high = mid
+    if usable(mid.to_double() / 12700) >= required {
+      continue low, mid
     } else {
-      low = mid
+      continue mid + 1, high
     }
+  } nobreak {
+    (low.to_double() / 12700).max(0.1)
   }
-  ((high * 12700).ceil() / 12700).max(0.1)
 }
 
 ///|
@@ -85,7 +84,7 @@ fn resize_text_frame(
       width.max(
         line.x -
         line.areaX +
-        line.width +
+        line.content_width() +
         object.paragraphs[line.paragraph].right,
       )
     })

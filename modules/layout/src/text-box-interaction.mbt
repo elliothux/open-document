@@ -28,31 +28,64 @@ pub fn PlacedDrawingFrame::text_lines(self : PlacedDrawingFrame) -> Array[Line] 
 
 ///|
 fn Layout::text_box_layout(self : Layout, paragraph : Int32) -> Layout? {
-  for page, frame in self.pages {
-    for line in frame.lines {
-      for drawing in line.drawings {
-        if drawing.content is TextBox(_, text) &&
-          text.paragraphs.any(p => p.id == paragraph) {
-          let lines = drawing.text_lines()
-          // Use the existing caret, bidi, range and navigation algorithms on this story.
-          return Some({
-            ..self,
-            pages: self.pages.mapi((index, source) => {
-              ..source,
-              lines: if index == page {
-                lines
-              } else {
-                []
-              },
-              cellAreas: [],
-            }),
-            running: self.running.map(_ => []),
-          })
-        }
+  let mut found = false
+  let pages = self.pages.map(frame => {
+    let lines : Array[Line] = []
+    for
+      drawing in text_box_reading_order(
+        frame.lines.map(line => line.drawings).flatten(),
+      ) {
+      if drawing.content is TextBox(_, text) &&
+        text.paragraphs.any(p => p.id == paragraph) {
+        found = true
+        lines.append(drawing.text_lines())
       }
     }
+    { ..frame, lines, cellAreas: [], }
+  })
+  if !found {
+    return None
   }
-  None
+  Some({
+    ..self,
+    pages,
+    running: self.running.map(frame => {
+      ..frame,
+      lines: [],
+      borders: [],
+      fills: [],
+      pageBorders: [],
+      cellAreas: [],
+    }),
+  })
+}
+
+///|
+fn text_box_reading_order(
+  drawings : Array[PlacedDrawingFrame],
+) -> Array[PlacedDrawingFrame] {
+  let groups : Map[Int32, Array[(Int32, PlacedDrawingFrame)]] = Map([])
+  for drawing in drawings {
+    if drawing.content is TextBox(_, text) && !text.flowFrames.is_empty() {
+      groups
+      .get_or_init(text.paragraphs[0].id, () => [])
+      .push((text.flowFrames.length(), drawing))
+    }
+  }
+  for group in groups.values() {
+    group.sort_by((a, b) => a.0.compare(b.0))
+  }
+  let indices : Map[Int32, Int32] = Map([])
+  drawings.map(drawing => {
+    if drawing.content is TextBox(_, text) && !text.flowFrames.is_empty() {
+      let key = text.paragraphs[0].id
+      let index = indices.get(key).unwrap_or(0)
+      indices[key] = index + 1
+      groups[key][index].1
+    } else {
+      drawing
+    }
+  })
 }
 
 ///|

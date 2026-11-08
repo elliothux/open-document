@@ -3,6 +3,9 @@ import { PdfClient, PdfEditor } from "../web/index.js";
 import type { EditorOptions } from "./types.js";
 import type { OwnedFile } from "./context.js";
 import type { OfficeDocument } from "@open-document/ui/types";
+import { openWithPassword } from "@open-document/ui/file";
+import { documentFailure } from "@open-document/web-core/connection";
+import type { DocumentStage } from "@open-document/wasm/abi/session";
 export async function prepareFile(
   options: EditorOptions,
   document: OfficeDocument,
@@ -25,6 +28,7 @@ export async function prepareFile(
   let client: PdfClient | undefined;
   let file: { format: "pdf"; editor: PdfEditor } | undefined;
   let inputLimit = 0;
+  let stage: DocumentStage = "worker";
   const abort = () => client?.dispose();
   signal.addEventListener("abort", abort, { once: true });
   const profile = { ...options.resources.profile };
@@ -41,9 +45,11 @@ export async function prepareFile(
       signal,
     ));
     const budget = options.budget ?? (await connection.defaultBudget());
+    stage = "input";
     inputLimit = budget.fileBytes;
     if (document.bytes && document.bytes.length > inputLimit)
       throw new Error("Document input exceeds budget");
+    stage = "open";
     if (document.blank)
       await connection.execute({
         operation: "createPdf",
@@ -53,13 +59,23 @@ export async function prepareFile(
       });
     else {
       if (!document.bytes) throw new Error("PDF input bytes are required");
-      await connection.execute({
-        operation: "openPdf",
-        bytes: document.bytes,
-        budget,
-      });
+      await openWithPassword(
+        parent,
+        "PDF",
+        options.locale === "zh-CN",
+        signal,
+        (password) =>
+          connection.execute({
+            operation: "openPdf",
+            bytes: document.bytes,
+            budget,
+            ...(password === undefined ? {} : { password }),
+          }),
+      );
     }
+    stage = "font";
     await fonts(connection);
+    stage = "layout";
     file = {
       format: "pdf",
       editor: await PdfEditor.create(surface, connection, profile, signal),
@@ -104,7 +120,7 @@ export async function prepareFile(
       surface.remove();
     }
     signal.throwIfAborted();
-    throw error;
+    throw documentFailure(stage, error);
   } finally {
     signal.removeEventListener("abort", abort);
   }

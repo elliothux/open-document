@@ -158,8 +158,9 @@ fn math_value(
   let formula = @layout.MathFormula::new(@omml.parse_latex(latex), {
     ..style,
     color: style.color.to_lower(),
-    kerning: "words",
+    kerning: "none",
     fontLeading: true,
+    caps: false,
   })
   ignore(@omml.markup(formula, drawing=true))
   formula

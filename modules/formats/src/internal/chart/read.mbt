@@ -80,6 +80,80 @@ fn chart_points(
 }
 
 ///|
+fn chart_categories(
+  series : Ref,
+  scatter : Bool,
+) -> Array[String] raise @failure.Failure {
+  let source = chart_child(series, if scatter { "xVal" } else { "cat" })
+  let numeric = source.child("numRef", uri=chart_uri)
+  let text = source.child("strRef", uri=chart_uri)
+  guard !(numeric is Some(_) && text is Some(_)) else {
+    @failure.reject("unsupported-chart", "Ambiguous chart category source")
+  }
+  let numeric = numeric is Some(_)
+  guard !scatter || numeric else {
+    @failure.reject("unsupported-chart", "Scatter categories require numbers")
+  }
+  let cache = chart_child(
+    chart_child(source, if numeric { "numRef" } else { "strRef" }),
+    if numeric {
+      "numCache"
+    } else {
+      "strCache"
+    },
+  )
+  let values = chart_points(cache, numeric)
+  if numeric {
+    for value in values {
+      if value.is_empty() {
+        continue
+      }
+      let number = @string.parse_double(value) catch {
+        _ =>
+          @failure.reject("unsupported-chart", "Invalid numeric category cache")
+      }
+      guard !number.is_nan() && !number.is_inf() else {
+        @failure.reject(
+          "unsupported-chart", "Non-finite numeric category cache",
+        )
+      }
+    }
+  }
+  values
+}
+
+///|
+fn chart_series_name(
+  series : Ref,
+  native : Bool,
+) -> String raise @failure.Failure {
+  if series.child("tx", uri=chart_uri) is Some(title) {
+    let names = chart_points(
+      chart_child(chart_child(title, "strRef"), "strCache"),
+      false,
+    )
+    guard names is [name] else {
+      @failure.reject("unsupported-chart", "Chart series requires one title")
+    }
+    return name
+  }
+  guard native else {
+    @failure.reject("unsupported-chart", "Missing chart series title")
+  }
+  let identity = chart_child(series, "idx")
+  line_fields(identity, [], attributes=["val"])
+  let index = number(
+    identity.node.attribute("val").unwrap_or(""),
+    0,
+    4294967295,
+  )
+  guard index == index.floor() else {
+    @failure.reject("unsupported-chart", "Invalid chart series identity")
+  }
+  "Series " + (index.to_int64() + 1).to_string()
+}
+
+///|
 fn chart_rich_title(
   parent : Ref,
   line? : Int32,
@@ -151,6 +225,7 @@ fn read_chart(
   part : String,
   document : @xml.Document,
   worksheet~ : Bool = false,
+  native~ : Bool = false,
 ) -> (Ref, @layout.ChartData) raise @failure.Failure {
   let tree = Tree::new(part, document)
   guard document.nodes().length() <= 16384 &&
@@ -160,12 +235,22 @@ fn read_chart(
   let root : Ref = { tree, node: tree.root("chartSpace", uri=chart_uri), }
   let chart = chart_child(root, "chart")
   let plot = chart_child(chart, "plotArea")
+  let lines = tree.all(plot.node.id, "lineChart", uri=chart_uri)
+  let scatters = tree.all(plot.node.id, "scatterChart", uri=chart_uri)
   let (plot_source, kind) = if plot.child("pieChart", uri=chart_uri)
     is Some(pie) {
     (pie, "pie")
   } else if plot.child("doughnutChart", uri=chart_uri) is Some(doughnut) {
     (doughnut, "doughnut")
-  } else if plot.child("lineChart", uri=chart_uri) is Some(line) {
+  } else if native && plot.child("ofPieChart", uri=chart_uri) is Some(split) {
+    (split, "pie")
+  } else if lines.get(0) is Some(node) {
+    guard native || lines.length() == 1 else {
+      @failure.reject(
+        "unsupported-chart", "Multiple line groups require native layout",
+      )
+    }
+    let line : Ref = { tree, node, }
     let kind = match chart_child(line, "grouping").node.attribute("val") {
       Some("standard") => "line"
       Some("stacked") => "stackedLine"
@@ -174,7 +259,15 @@ fn read_chart(
         @failure.reject("unsupported-chart", "Unsupported line chart grouping")
     }
     (line, kind)
-  } else if plot.child("areaChart", uri=chart_uri) is Some(area) {
+  } else if plot.child(
+      if native && plot.child("area3DChart", uri=chart_uri) is Some(_) {
+        "area3DChart"
+      } else {
+        "areaChart"
+      },
+      uri=chart_uri,
+    )
+    is Some(area) {
     let kind = match chart_child(area, "grouping").node.attribute("val") {
       Some("standard") => "area"
       Some("stacked") => "stackedArea"
@@ -183,12 +276,24 @@ fn read_chart(
         @failure.reject("unsupported-chart", "Unsupported area chart grouping")
     }
     (area, kind)
-  } else if plot.child("scatterChart", uri=chart_uri) is Some(scatter) {
-    (scatter, "scatter")
+  } else if scatters.get(0) is Some(node) {
+    guard native || scatters.length() == 1 else {
+      @failure.reject(
+        "unsupported-chart", "Multiple scatter groups require native layout",
+      )
+    }
+    ({ tree, node, }, "scatter")
+  } else if native && plot.child("bubbleChart", uri=chart_uri) is Some(bubble) {
+    (bubble, "scatter")
   } else if plot.child("radarChart", uri=chart_uri) is Some(radar) {
     (radar, "radar")
   } else {
-    let bars = chart_child(plot, "barChart")
+    let bars = if native &&
+      plot.child("bar3DChart", uri=chart_uri) is Some(bars) {
+      bars
+    } else {
+      chart_child(plot, "barChart")
+    }
     let direction = chart_child(bars, "barDir").node
       .attribute("val")
       .unwrap_or("")
@@ -198,7 +303,8 @@ fn read_chart(
     let grouping = chart_child(bars, "grouping").node
       .attribute("val")
       .unwrap_or("")
-    guard ["clustered", "stacked", "percentStacked"].contains(grouping) else {
+    guard ["clustered", "stacked", "percentStacked"].contains(grouping) ||
+      (native && bars.node.name == "bar3DChart" && grouping == "standard") else {
       @failure.reject("unsupported-chart", "Unsupported bar chart grouping")
     }
     (
@@ -222,35 +328,40 @@ fn read_chart(
       },
     )
   }
-  let series = tree.all(plot_source.node.id, "ser", uri=chart_uri)
-  guard series.length() >= 1 && series.length() <= 8 else {
+  let series = if native && kind == "line" {
+    let groups = if plot.child("barChart", uri=chart_uri) is Some(_) {
+      tree.children
+      .get(plot.node.id)
+      .unwrap_or([])
+      .filter(node => {
+        node.uri == chart_uri && ["barChart", "lineChart"].contains(node.name)
+      })
+    } else {
+      lines
+    }
+    groups.map(node => tree.all(node.id, "ser", uri=chart_uri)).flatten()
+  } else if native && !scatters.is_empty() {
+    scatters.map(node => tree.all(node.id, "ser", uri=chart_uri)).flatten()
+  } else {
+    tree.all(plot_source.node.id, "ser", uri=chart_uri)
+  }
+  guard series.length() >= 1 && series.length() <= 32 else {
     @failure.reject("limit-exceeded", "Chart series exceed limits")
   }
-  let categories = chart_points(
-    chart_child(
-      chart_child(
-        chart_child(
-          { tree, node: series[0], },
-          if kind == "scatter" {
-            "xVal"
-          } else {
-            "cat"
-          },
-        ),
-        if kind == "scatter" {
-          "numRef"
-        } else {
-          "strRef"
-        },
-      ),
-      if kind == "scatter" {
-        "numCache"
-      } else {
-        "strCache"
-      },
-    ),
-    kind == "scatter",
-  )
+  let first : Ref = { tree, node: series[0], }
+  let categories = if native &&
+    ["pie", "doughnut"].contains(kind) &&
+    first.child("cat", uri=chart_uri) is None {
+    let cache = chart_child(
+      chart_child(chart_child(first, "val"), "numRef"),
+      "numCache",
+    )
+    Array::makei(chart_points(cache, true).length(), index => {
+      (index + 1).to_string()
+    })
+  } else {
+    chart_categories(first, kind == "scatter")
+  }
   let data : @layout.ChartData = {
     kind,
     legend: chart
@@ -284,12 +395,16 @@ fn read_chart(
     } else {
       None
     },
-    title: if ["pie", "doughnut"].contains(kind) {
+    title: if native {
+      ""
+    } else if ["pie", "doughnut"].contains(kind) {
       chart_rich_title(chart, line=0)
     } else {
       chart_rich_title(chart)
     },
-    label: if ["pie", "doughnut"].contains(kind) {
+    label: if native {
+      ""
+    } else if ["pie", "doughnut"].contains(kind) {
       chart_rich_title(chart, line=1)
     } else if kind == "scatter" {
       guard tree.all(plot.node.id, "valAx", uri=chart_uri) is [x_axis, _] else {
@@ -304,13 +419,7 @@ fn read_chart(
     categories,
     series: series.map(node => {
       let item : Ref = { tree, node, }
-      let names = chart_points(
-        chart_child(chart_child(chart_child(item, "tx"), "strRef"), "strCache"),
-        false,
-      )
-      guard names is [name] else {
-        @failure.reject("unsupported-chart", "Chart series requires one title")
-      }
+      let name = chart_series_name(item, native)
       let values = chart_points(
         chart_child(
           chart_child(
@@ -356,7 +465,7 @@ pub fn read(
   let document = parts.get(part).unwrap_or_else(() => opc.xml(part))
   let (data, workbook_link) = read_data(part, document)
   let workbook = link(opc, part, workbook_link, "package", parts)
-  { part, workbook, data, }
+  { part, workbook, data, native_pie: None, }
 }
 
 ///|

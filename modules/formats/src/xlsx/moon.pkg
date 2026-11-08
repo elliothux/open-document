@@ -12,6 +12,8 @@ import {
   "moonbitlang/core/json",
   "moonbitlang/core/math",
   "moonbitlang/core/double",
+  "moonbitlang/core/random",
+  "moonbitlang/core/env",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/encoding/base64",
   "moonbit-community/ucd",
@@ -19,5 +21,4 @@ import {
 
 import {
   "moonbitlang/x/fs",
-  "moonbitlang/core/env",
 } for "wbtest"

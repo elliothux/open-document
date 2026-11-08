@@ -112,7 +112,7 @@ fn normal_fit_changes(
   let reduction = normal_fit_reduction(scale)
   let changes : Array[@xml.SourceChange] = []
   if fit is Some(fit) {
-    if fit.node.attribute("fontScale").unwrap_or("100000") != value {
+    if fit.node.attribute("fontScale") != Some(value) {
       changes.push(attribute_change(fit, "fontScale", value))
     }
     if fit.node.attribute("lnSpcReduction").unwrap_or("0") != reduction {
@@ -126,7 +126,7 @@ fn normal_fit_changes(
       changes[1].length == 0 {
       return [{ ..changes[0], xml: changes[0].xml + changes[1].xml, }]
     }
-  } else if scale < 1 {
+  } else {
     let xml = "<a:normAutofit xmlns:a=\"\{drawing_uri}\" fontScale=\"\{value}\" lnSpcReduction=\"\{reduction}\"/>"
     if properties is Some(properties) {
       changes.push(insertion(properties.node, xml))

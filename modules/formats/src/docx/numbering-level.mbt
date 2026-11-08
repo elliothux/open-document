@@ -4,8 +4,16 @@ fn WordTree::number_level(
   level : Int32,
 ) -> (Int32, NumberLevel) raise @failure.Failure {
   self.numbering_shape(level, ["ilvl", "tplc", "tentative"], [
-    "start", "numFmt", "lvlRestart", "lvlText", "lvlJc", "suff", "pPr", "rPr",
+    "start", "numFmt", "lvlRestart", "lvlText", "lvlJc", "suff", "pStyle", "pPr",
+    "rPr",
   ])
+  if self.numbering_value(level, "pStyle") is Some(style) {
+    guard !style.is_empty() && style.length() <= 253 else {
+      @failure.reject(
+        "invalid-numbering", "Invalid numbering paragraph style identity",
+      )
+    }
+  }
   let index = numbering_integer(
     self.nodes[level].attribute("ilvl", uri=word_uri).unwrap_or("-1"),
     8,

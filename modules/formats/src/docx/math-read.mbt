@@ -10,6 +10,7 @@ fn Session::math_base_style(
     spacing: 0,
     underline: false,
     strike: false,
+    caps: false,
     highlight: "",
   }
 }
@@ -32,6 +33,7 @@ fn Session::read_inline_math(
   {
     width: 0,
     height: 0,
+    effectExtent: (0, 0, 0, 0),
     anchor: None,
     content: Math(
       @layout.MathFormula::new(

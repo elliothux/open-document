@@ -71,6 +71,7 @@ fn Session::validation_options(
   let work = FormulaWork::{
     remaining: 1048576,
     date1904: self.date1904,
+    random: None,
     origin: address,
     names: self.formula_names(),
   }

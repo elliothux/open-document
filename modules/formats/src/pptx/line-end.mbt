@@ -173,6 +173,7 @@ fn Object::draw_line_ends(
           self.stroke,
           self.line_width,
           {
+            evenOdd: false,
             fillAlpha: self.stroke_alpha,
             strokeAlpha: self.stroke_alpha,
             dash: [],

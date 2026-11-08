@@ -470,6 +470,7 @@ export class SpreadsheetEditor extends SpreadsheetData {
         sheet: this.state.sheet,
         profile: this.profile,
         reveal,
+        screenScale: ((this.zoomValue * 96) / 72) * window.devicePixelRatio,
         ...(slicerHover ? { slicerHover } : {}),
       });
       // Queued commands must reveal their selection despite intervening scroll events.
@@ -484,6 +485,10 @@ export class SpreadsheetEditor extends SpreadsheetData {
         return;
       }
       this.layout = layout;
+      const kind = this.state.sheets.find((s) => s.id === layout.sheet)?.kind;
+      this.surface.setGlyphRasterMode(
+        kind === "chartsheet" ? "fractional" : "integer",
+      );
       this.scale = this.surface.draw(layout, 0, this.zoomValue);
       if (paintOnly) return;
       updateGridScroll(this.viewport, this.spacer, layout, this.scale);
@@ -519,7 +524,10 @@ export class SpreadsheetEditor extends SpreadsheetData {
     this.formula.update(
       !!this.draft || !!this.draftIntent,
       this.active(),
-      this.paused || this.blocked || !!this.active()?.readOnlyReason,
+      this.paused ||
+        this.blocked ||
+        !this.active() ||
+        !!this.active()?.readOnlyReason,
     );
   }
   private publish(): void {
@@ -547,7 +555,11 @@ export class SpreadsheetEditor extends SpreadsheetData {
       error: this.errorMessage,
       readOnlyReason:
         this.state.readOnlyReason || this.active()?.readOnlyReason || "",
-      diagnostics: this.state.diagnostics,
+      diagnostics:
+        this.layout?.sheet === this.state.sheet &&
+        this.layout.revision === this.state.revision
+          ? this.layout.diagnostics
+          : this.state.diagnostics,
       data,
     });
   }

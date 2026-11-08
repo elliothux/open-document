@@ -52,8 +52,11 @@ export class PdfObjectInputs {
   }
   set(spec: PdfTextSpec): void {
     this.originalAuthor = undefined;
+    // Matrix composition can leave binary floating-point noise in reopened coordinates.
     for (const key of ["x", "y", "width", "height", "rotation"] as const)
-      this.inputs[key].value = String(spec.placement[key]);
+      this.inputs[key].value = String(
+        Number(spec.placement[key].toPrecision(15)),
+      );
     this.inputs.font.value = spec.font;
     this.inputs.size.value = String(spec.size);
     this.inputs.color.value = spec.color;

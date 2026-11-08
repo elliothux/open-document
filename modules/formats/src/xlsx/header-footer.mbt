@@ -89,7 +89,7 @@ fn same_header_footer(a : HeaderFooter, b : HeaderFooter) -> Bool {
 ///|
 fn read_header_footer(sheet : Sheet) -> HeaderFooter raise @failure.Failure {
   let tree = Tree::new(sheet.document)
-  let root = tree.root("worksheet")
+  let root = tree.sheet_root()
   let node = tree.one(root.id, "headerFooter")
   let keys = HeaderFooter::default().strings().map(pair => pair.0)
   if node is Some(node) {

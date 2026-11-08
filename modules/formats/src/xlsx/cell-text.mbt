@@ -11,7 +11,38 @@ fn CellStyle::cell_text_block(
   justify~ : Bool = self.horizontal == "justify",
   distributed~ : Bool = self.horizontal == "distributed",
   fill~ : Bool = self.horizontal == "fill",
+  number~ : NumberSection? = None,
+  repeat_fill~ : Bool = true,
 ) -> @layout.TextBlock raise @failure.Failure {
+  if number is Some(section) {
+    if section.parts.any(part => part is Skip(_) || part is Repeat(_)) {
+      // shortcut: Spaced numeric sections use one unrotated line; extend for source cells that require wrapping or rotation.
+      guard !wrap && !justify && !distributed && !fill && self.rotation == 0 else {
+        @failure.reject(
+          "unsupported-text", "Spaced number format layout requires an unrotated single line",
+        )
+      }
+      return self.section_block(
+        section, probe, profile, spans, width, shrink, repeat_fill,
+      )
+    }
+    let style = {
+      ..self.text_style(),
+      color: section.color.unwrap_or(self.color),
+    }
+    return self.cell_text_block(
+      probe,
+      profile,
+      text,
+      Some(section_spans(section.parts, style, spans, section.color)),
+      width,
+      wrap~,
+      shrink~,
+      justify~,
+      distributed~,
+      fill~,
+    )
+  }
   let wrap = wrap || distributed
   let mut spans = spans.unwrap_or([
     { node: 0, text, style: self.text_style(), drawing: None, field: "", },
@@ -28,6 +59,7 @@ fn CellStyle::cell_text_block(
     wrap,
     justify~,
     distributed~,
+    cell=true,
   )
   if fill && !wrap {
     return filled_block(probe, spans, nominal, profile, width, block)
@@ -64,6 +96,7 @@ fn CellStyle::cell_text_block(
       false,
       justify~,
       distributed~,
+      cell=true,
     )
   }
   @failure.reject(
@@ -80,13 +113,15 @@ fn place_block(
   vertical : String,
   indent : Double,
   rotation~ : Int32 = 0,
+  cell~ : Bool = false,
+  mirror~ : Double? = None,
 ) -> Array[@layout.Border] raise @failure.Failure {
   if rotation != 0 && rotation != 255 {
     return place_rotated_block(
       page, block, rect, horizontal, vertical, indent, rotation,
     )
   }
-  let free = (rect.height - 3 - block.height).max(0)
+  let free = (rect.height - (if cell { 0 } else { 3 }) - block.height).max(0)
   let spread = vertical == "justify" || vertical == "distributed"
   let gap = if spread && block.lines.length() > 1 {
     free / (block.lines.length() - 1).to_double()
@@ -94,7 +129,7 @@ fn place_block(
     0.0
   }
   let top = rect.y +
-    1.5 +
+    (if cell { 0.75 } else { 1.5 }) +
     (if vertical == "center" ||
       (vertical == "distributed" && block.lines.length() == 1) {
       free / 2
@@ -112,16 +147,30 @@ fn place_block(
   let bounds : Array[@layout.Border] = []
   for index, line in block.lines {
     let y = top + index.to_double() * gap
-    let x = rect.x +
+    let x = if cell && horizontal == "center" {
+      // Native cell centers include the grid pixel and round the origin at 96 dpi.
+      let logical = mirror
+        .map(width => width - rect.x - rect.width)
+        .unwrap_or(rect.x)
+      let x = ((logical + (rect.width - block.widths[index]) / 2 + 0.75) / 0.75).round() *
+        0.75
+      mirror.map(width => width - x - block.widths[index]).unwrap_or(x)
+    } else {
+      rect.x +
       2.25 +
       (if ["left", "distributed"].contains(horizontal) { indent } else { 0.0 }) +
       (if horizontal == "right" {
-        rect.width - 4.5 - indent - block.widths[index]
+        // The right grid edge contributes one pixel to the cell's usable width.
+        rect.width -
+        (if cell { 3.75 } else { 4.5 }) -
+        indent -
+        block.widths[index]
       } else if horizontal == "center" {
         (rect.width - 4.5 - block.widths[index]) / 2
       } else {
         0.0
       }).max(0)
+    }
     page.texts.push(
       (
         [

@@ -1,0 +1,6 @@
+{
+  "file": "outline/tt_hint_engine.mbt",
+  "originalSha256": "a2f28372525855e57b4407216a1b5b79a76151fc3cdf178dac5f8ec7db8e607c",
+  "patchedSha256": "428a949065425ff53e770849262ba6520149a358b0a2d2f4a4056c0de80d2af0",
+  "lineEdits": [[215, 20, ["      Err(e) => return Err(e)"]]]
+}

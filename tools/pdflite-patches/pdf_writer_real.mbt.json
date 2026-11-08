@@ -1,0 +1,28 @@
+{
+  "file": "pdf_writer_real.mbt",
+  "originalSha256": "c73a379d29ee75cb6213d2aad0f4e65407ce36d7994c26a1e5fb78a7a27fb80a",
+  "patchedSha256": "dcfe0112efa3bbb0c783692478a17234f86ebd6c42b5d8e1cbd5837d8fccd33f",
+  "lineEdits": [
+    [35, 1, ["const PDF_WRITER_SIGNIFICANT_DIGITS : Int = 17"]],
+    [
+      203,
+      30,
+      [
+        "///|",
+        "fn pdf_writer_push_real(",
+        "  output : Array[Byte],",
+        "  value : Double,",
+        ") -> Unit raise @core.PdfError {",
+        "  guard !value.is_nan() && !value.is_inf() else { raise NumberExpected }",
+        "  let text = @ascii.encode(value.to_string())",
+        "  match pdf_writer_exponent_marker(text) {",
+        "    -1 => pdf_writer_push_plain_significant_real(output, text)",
+        "    exponent_at => pdf_writer_push_scientific_real(output, text, exponent_at)",
+        "  }",
+        "}",
+        ""
+      ]
+    ]
+  ],
+  "reason": "Preserve the shortest round-trip Double digits, including tiny values. Expand exponent notation through the existing bounded decimal writer; reject non-finite values. No twelve-digit or fixed-six rounding of unmodified PDF source objects."
+}

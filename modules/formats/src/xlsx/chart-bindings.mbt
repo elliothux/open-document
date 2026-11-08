@@ -16,13 +16,26 @@ fn broken_chart_reference(text : String) -> Bool {
 
 ///|
 fn chart_binding_reason(chart : @chart.WorksheetChart) -> String {
-  if ([chart.categories] + chart.names + chart.values).any(
-      broken_chart_reference,
-    ) {
+  if chart_references(chart).any(broken_chart_reference) {
     "A chart source was deleted; cached values are shown until its references are rebound"
   } else {
     ""
   }
+}
+
+///|
+fn chart_references(chart : @chart.WorksheetChart) -> Array[String] {
+  (if chart.categories.is_empty() &&
+    (chart.native_circular is Some(_) || chart.native_surface is Some(_)) {
+    []
+  } else {
+    [chart.categories]
+  }) +
+  chart.names.filter(name => !name.is_empty()) +
+  chart.values +
+  chart.native_bubble
+  .map(bubble => bubble.size_sources.filter_map(source => source))
+  .unwrap_or([])
 }
 
 ///|
@@ -102,13 +115,17 @@ fn Session::resolved_chart(
   chart : @chart.WorksheetChart,
   work : FormulaWork,
 ) -> @chart.WorksheetChart raise @failure.Failure {
-  let categories = if broken_chart_reference(chart.categories) {
+  let categories = if broken_chart_reference(chart.categories) ||
+    (
+      chart.categories.is_empty() &&
+      (chart.native_circular is Some(_) || chart.native_surface is Some(_))
+    ) {
     chart.data.categories
   } else {
     self.chart_reference_values(chart.categories, owner, work).map(chart_label)
   }
   let series = chart.names.mapi((index, formula) => {
-    let name = if broken_chart_reference(formula) {
+    let name = if formula.is_empty() || broken_chart_reference(formula) {
       chart.data.series[index].name
     } else {
       guard self.chart_reference_values(formula, owner, work) is [title] else {
@@ -141,7 +158,27 @@ fn Session::resolved_chart(
   })
   let data = { ..chart.data, categories, series, }
   data.validate_sources()
-  { ..chart, data, }
+  let result = { ..chart, data, }
+  if chart.native_bubble is Some(bubble) {
+    result.with_bubble_sizes(
+      bubble.size_sources.mapi((index, source) => {
+        if source is Some(source) && !broken_chart_reference(source) {
+          self
+          .chart_reference_values(source, owner, work)
+          .map(value => {
+            match value {
+              Number(number) => Some(number)
+              _ => None
+            }
+          })
+        } else {
+          bubble.sizes[index]
+        }
+      }),
+    )
+  } else {
+    result
+  }
 }
 
 ///|
@@ -153,6 +190,7 @@ fn Session::maintain_charts(
   parts : Map[String, @xml.Document],
   edits : Array[(String, @xml.Edit)],
   media : Map[String, Bytes],
+  recalculate~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   let view = {
     ..self,
@@ -171,6 +209,7 @@ fn Session::maintain_charts(
   let work : FormulaWork = {
     remaining: 1048576,
     date1904: self.date1904,
+    random: None,
     origin: { row: 1, column: 1, },
     names: calculation.names,
   }
@@ -206,6 +245,11 @@ fn Session::maintain_charts(
     let original = view.part_xml(link.target)
     let chart = @chart.read_worksheet(link.target, original)
     let (pending, inputs) = view.chart_input_state(drawing.owner, chart, work)
+    if calculation.manual &&
+      !recalculate &&
+      inputs.any(input => input.3 is Some(_)) {
+      continue
+    }
     if pending {
       guard self.part_xml(link.target).source() == original.source() &&
         self.chart_input_state(drawing.owner, chart, work) == (true, inputs) else {
@@ -216,7 +260,21 @@ fn Session::maintain_charts(
       continue
     }
     let next = view.resolved_chart(drawing.owner, chart, work)
-    if next.data == chart.data {
+    if next.data == chart.data &&
+      next.native_bubble.map(bubble => bubble.sizes) ==
+      chart.native_bubble.map(bubble => bubble.sizes) {
+      continue
+    }
+    if next.native_line is Some(_) ||
+      next.native_radar is Some(_) ||
+      next.native_area is Some(_) ||
+      next.native_bubble is Some(_) ||
+      next.native_circular is Some(_) ||
+      next.native_bar is Some(_) ||
+      next.native_surface is Some(_) {
+      let (document, edit) = next.update_caches(link.target, original)
+      parts[link.target] = document
+      edits.push((link.target, edit))
       continue
     }
     let root = original.nodes()[0]

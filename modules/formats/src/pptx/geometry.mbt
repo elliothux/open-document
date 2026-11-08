@@ -167,6 +167,12 @@ fn shape_path(
   if preset == "donut" {
     return donut_path(width, height, adjustments.0)
   }
+  if preset == "pie" {
+    return pie_path(width, height, adjustments)
+  }
+  if preset == "wedgeRoundRectCallout" {
+    return callout_path(width, height, adjustments)
+  }
   if ["rect", "line", "ellipse"].contains(preset) {
     return @layout.basic_shape_path(preset, width, height)
   }

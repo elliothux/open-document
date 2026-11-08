@@ -6,12 +6,14 @@ export function PptxShapeOptions({ t }: { t: Messages }) {
       <option value="text">{t.textBox}</option>
       <option value="rect">{t.rectangle}</option>
       <option value="roundRect">{t.roundRectangle}</option>
+      <option value="wedgeRoundRectCallout">{t.roundRectCallout}</option>
       <option value="round1Rect">{t.round1Rect}</option>
       <option value="round2SameRect">{t.round2SameRect}</option>
       <option value="round2DiagRect">{t.round2DiagRect}</option>
       <option value="snipRoundRect">{t.snipRoundRect}</option>
       <option value="ellipse">{t.ellipse}</option>
       <option value="donut">{t.donut}</option>
+      <option value="pie">{t.pieShape}</option>
       <option value="heart">{t.heart}</option>
       <option value="lightningBolt">{t.lightningBolt}</option>
       <option value="triangle">{t.triangle}</option>

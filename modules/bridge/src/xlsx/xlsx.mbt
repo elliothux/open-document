@@ -22,8 +22,16 @@ fn Context::xlsx_operation(
       xml_depth: field_int(budget, "xmlDepth"),
       output_bytes: field_int(budget, "outputBytes"),
     }
+    let random_seed = input_bytes(
+      { "bytes": field_string(request, "randomSeed") },
+      32,
+    )
     let session = if operation == "createXlsx" {
-      @model.Session::create(budget, date=xlsx_calendar_date(request))
+      @model.Session::create(
+        budget,
+        date=xlsx_calendar_date(request),
+        random_seed=Some(random_seed),
+      )
     } else if operation == "importXlsxDelimited" {
       guard request is { "options": options, .. } else {
         @failure.reject("invalid-operation", "Import options are required")
@@ -39,12 +47,14 @@ fn Context::xlsx_operation(
         dates=field_boolean(options, "dates"),
         formulas=field_boolean(options, "formulas"),
         date=xlsx_calendar_date(request),
+        random_seed=Some(random_seed),
       )
     } else {
       @model.Session::open(
         input_bytes(request, budget.file_bytes.min(budget.retained_bytes)),
         budget,
         date=xlsx_calendar_date(request),
+        random_seed=Some(random_seed),
       )
     }
     let result = session.query()
@@ -536,6 +546,7 @@ fn Context::xlsx_operation(
         accept_warnings=field_boolean(request, "acceptWarnings"),
       )
     }
+    "recalculateXlsx" => session.recalculate(field_int(request, "revision"))
     "undoXlsx" | "redoXlsx" =>
       session.undo(field_int(request, "revision"), redo=operation == "redoXlsx")
     "saveXlsx" => { "bytes": @base64.encode(session.save()) }
@@ -576,6 +587,11 @@ fn Context::xlsx_operation(
         reveal=field_boolean(request, "reveal"),
         images=self.images,
         slicer_hover=xlsx_slicer_hover(request),
+        screen_scale=if request is { "screenScale": _, .. } {
+          Some(field_number(request, "screenScale"))
+        } else {
+          None
+        },
       )
     "hitXlsx" =>
       {

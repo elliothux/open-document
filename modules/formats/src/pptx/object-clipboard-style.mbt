@@ -11,6 +11,11 @@ fn clipboard_source_change(source : Ref, markup : String) -> @xml.SourceChange {
 
 ///|
 fn check_clipboard_object(object : Object) -> Unit raise @failure.Failure {
+  guard object.metafile is None else {
+    @failure.reject(
+      "protected-content", "Metafile pictures require portable resource copying support",
+    )
+  }
   guard ["shape", "image", "group", "table", "chart"].contains(object.kind) &&
     object.geometry is Some(_) &&
     ["", "Group members are read-only"].contains(object.read_only) &&
@@ -141,6 +146,32 @@ fn clipboard_object_style(
       ["effectLst", "effectDag", "scene3d", "sp3d", "extLst"],
     ),
   )
+  if object.shadow is Some(shadow) {
+    guard props
+      .child("effectLst")
+      .map(effect => {
+        let xml = source_xml(effect)
+        !xml.contains("<!--") && !xml.contains("<?")
+      })
+      .unwrap_or(true) else {
+      @failure.reject(
+        "protected-content", "Annotated outer shadows require portable copying support",
+      )
+    }
+    let inner = props
+      .child("effectLst")
+      .bind(effect => effect.child("innerShdw"))
+      .map(source_xml)
+      .unwrap_or("")
+    changes.push(
+      paint_child_change(
+        props,
+        props.child("effectLst").map(p => p.node),
+        shadow.markup().replace(old="<a:outerShdw", new=inner + "<a:outerShdw"),
+        ["effectDag", "scene3d", "sp3d", "extLst"],
+      ),
+    )
+  }
   if object.kind == "image" && image_link is Some(id) {
     let picture = source.child("blipFill", uri=presentation_uri).unwrap()
     guard !source_xml(picture).contains("<!--") &&
@@ -249,6 +280,7 @@ fn clipboard_body_style(
               r.child("rPr"),
               "rPr",
               Some(clipboard_run_style(run.style())),
+              caps=Some(run.style().caps),
             ) +
             "</a:br>"
           } else {
@@ -261,6 +293,7 @@ fn clipboard_body_style(
                   offset,
                   offset + text.length(),
                   Some(clipboard_run_style(style)),
+                  caps=Some(style.caps),
                 ),
               )
               offset += text.length()
@@ -279,6 +312,7 @@ fn clipboard_body_style(
             ending,
             "endParaRPr",
             Some(clipboard_run_style(paragraph.runs.last().unwrap().style())),
+            caps=Some(paragraph.runs.last().unwrap().style().caps),
           ),
           [],
         ),

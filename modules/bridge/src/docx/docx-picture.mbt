@@ -7,6 +7,13 @@ fn Context::docx_flow(
   let keys : Array[String] = []
   fn retain(paragraph : @layout.Paragraph) {
     for span in paragraph.spans {
+      if span.drawing is Some({ content: @layout.Metafile(file), .. }) {
+        for key in file.image_keys() {
+          if !keys.contains(key) {
+            keys.push(key)
+          }
+        }
+      }
       if span.drawing is Some({ content: @layout.Picture(key, _), .. }) &&
         !keys.contains(key) {
         keys.push(key)
@@ -19,7 +26,7 @@ fn Context::docx_flow(
   for
     header in flow.headers.values().to_array() +
     flow.footers.values().to_array() {
-    for paragraph in header {
+    for paragraph in header.all_paragraphs() {
       retain(paragraph)
     }
   }
@@ -32,6 +39,21 @@ fn Context::docx_flow(
     for image in images {
       if image is String(key) && !keys.contains(key) {
         keys.push(key)
+      }
+    }
+  }
+  if self.layout is Some(layout) && layout.revision == flow.revision {
+    for page in layout.pages {
+      for line in page.lines {
+        for drawing in line.drawings {
+          if drawing.content is @layout.Metafile(file) {
+            for key in file.image_keys() {
+              if !keys.contains(key) {
+                keys.push(key)
+              }
+            }
+          }
+        }
       }
     }
   }

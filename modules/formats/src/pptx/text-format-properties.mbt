@@ -129,8 +129,9 @@ fn formatted_properties(
   name : String,
   format : TextFormat?,
   hyperlink~ : String? = None,
+  caps~ : Bool? = None,
 ) -> String raise @failure.Failure {
-  if format is None && hyperlink is None {
+  if format is None && hyperlink is None && caps is None {
     return if properties is Some(properties) {
       cleared_properties(properties)
     } else {
@@ -139,6 +140,9 @@ fn formatted_properties(
   }
   let format = format.unwrap_or(TextFormat::new())
   let attrs : Map[String, String] = Map([])
+  if caps is Some(value) {
+    attrs["cap"] = if value { "all" } else { "none" }
+  }
   if format.size is Some(value) {
     attrs["sz"] = (value * 100).round().to_int().to_string()
   }
@@ -256,10 +260,12 @@ fn format_run(
   format : TextFormat?,
   clear~ : Bool = false,
   hyperlink~ : String? = None,
+  caps~ : Bool? = None,
 ) -> String raise @failure.Failure {
   let source = run.source.unwrap()
   if format is None &&
     hyperlink is None &&
+    caps is None &&
     !clear &&
     start == 0 &&
     end == run.text.length() {
@@ -286,20 +292,26 @@ fn format_run(
       output.write_view(xml[cursor:node.start])
       if node.name == "rPr" &&
         node.uri == drawing_uri &&
-        (format is Some(_) || clear || hyperlink is Some(_)) {
+        (format is Some(_) || clear || hyperlink is Some(_) || caps is Some(_)) {
         output.write_string(
           formatted_properties(
             Some({ tree: source.tree, node, }),
             "rPr",
             format,
             hyperlink~,
+            caps~,
           ),
         )
       } else if node.name == "t" && node.uri == drawing_uri {
         if properties is None &&
-          (format is Some(_) || clear || hyperlink is Some(_)) {
+          (
+            format is Some(_) ||
+            clear ||
+            hyperlink is Some(_) ||
+            caps is Some(_)
+          ) {
           output.write_string(
-            formatted_properties(None, "rPr", format, hyperlink~),
+            formatted_properties(None, "rPr", format, hyperlink~, caps~),
           )
         }
         output.write_view(
@@ -319,8 +331,10 @@ fn format_run(
   }
   if source.node.name == "br" &&
     properties is None &&
-    (format is Some(_) || clear || hyperlink is Some(_)) {
-    output.write_string(formatted_properties(None, "rPr", format, hyperlink~))
+    (format is Some(_) || clear || hyperlink is Some(_) || caps is Some(_)) {
+    output.write_string(
+      formatted_properties(None, "rPr", format, hyperlink~, caps~),
+    )
   }
   if marker {
     output.write_string("<a:t xmlns:a=\"\{drawing_uri}\"/>")

@@ -3,6 +3,9 @@ fn extracted_primitives(
   display : PageDisplay,
   data : PdfExtractionData,
 ) -> Array[@layout.PositionedPrimitive] raise @failure.Failure {
+  guard data.glyphs.all(glyph => glyph.fontIndex >= 0) else {
+    @failure.reject("protected-content", "Extracted glyph has no source font")
+  }
   let primitives : Array[@layout.PositionedPrimitive] = []
   let styles : Array[@layout.DrawStyle] = []
   let mut style = @layout.DrawStyle::default()
@@ -31,8 +34,10 @@ fn extracted_primitives(
         primitives.push(@layout.Restore)
       }
       FillRect(fill) => primitives.push(@layout.Rectangle(fill))
-      StrokeRect(rect, color, width) =>
+      StrokeRect(rect, color, width, screen_fractional=false) =>
         primitives.push(@layout.Stroke(rect, color, width))
+      StrokeRect(rect, color, width, screen_fractional=true) =>
+        primitives.push(@layout.FractionalScreenStroke(rect, color, width))
       Path(path, fill, stroke, width) => {
         if data.pathCommands.get(index) is Some(record) {
           data.paths[record] = {
@@ -42,6 +47,7 @@ fn extracted_primitives(
         }
         primitives.push(
           @layout.Path(path.copy(), fill, stroke, width, {
+            evenOdd: false,
             fillAlpha: style.fillAlpha,
             strokeAlpha: style.strokeAlpha,
             dash: style.dash.copy(),
@@ -91,6 +97,7 @@ fn extracted_primitives(
                     cluster: 0,
                     font: item.fontIndex,
                     outline: glyph.outline,
+                    strokeWidth: 0,
                     x: glyph.x,
                     y: -glyph.y,
                     scale: glyph.scaleX,

@@ -1,4 +1,7 @@
 ///|
+let encrypted_docx_reason = "Encrypted DOCX is read-only"
+
+///|
 fn WordTree::protection_nodes(self : WordTree) -> Array[Int32] {
   self.children[0].filter(id => {
     self.nodes[id].uri == word_uri &&
@@ -110,6 +113,7 @@ fn WordTree::check_protection_node(
 fn Session::check_document_protection(
   self : Session,
 ) -> Unit raise @failure.Failure {
+  self.check_encrypted_edit()
   if self.settings_part() is Some(part) {
     let tree = WordTree::new(self.part_xml(part))
     let nodes = tree.protection_nodes()
@@ -120,12 +124,27 @@ fn Session::check_document_protection(
 }
 
 ///|
+fn Session::check_encrypted_edit(self : Session) -> Unit raise @failure.Failure {
+  guard self.encrypted_source is None else {
+    @failure.reject("protected-content", encrypted_docx_reason)
+  }
+}
+
+///|
 /// Reads editing restrictions without changing the document or exposing credentials.
 pub fn Session::document_protection(
   self : Session,
   revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
+  if self.encrypted_source is Some(_) {
+    return {
+      "revision": revision,
+      "protected": true,
+      "passwordRequired": false,
+      "reason": encrypted_docx_reason,
+    }
+  }
   let mut enabled = false
   let mut password = false
   let mut reason = ""
@@ -172,6 +191,7 @@ pub fn Session::set_document_protection(
   salt : Bytes,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
+  self.check_encrypted_edit()
   @protection.password(password)
   guard salt.length() == (if enabled && !password.is_empty() { 16 } else { 0 }) else {
     @failure.reject(

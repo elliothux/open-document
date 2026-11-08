@@ -160,6 +160,7 @@ export const xlsxNumberFormats = [
   "#,##0.00",
   "0%",
   "0.00%",
+  "0.00E+00",
   "yyyy-mm-dd",
   "mm-dd-yy",
   "d-mmm-yy",
@@ -184,6 +185,99 @@ export const xlsxNumberFormats = [
   "¥0.00",
   "¥#,##0.00",
 ] as const;
+
+function numberFormatSource(value: string): boolean {
+  return (
+    value.length > 0 &&
+    value.length <= 256 &&
+    value.isWellFormed() &&
+    !Array.from(value).some(
+      (c) => c < " " || ["\u007f", "\u2028", "\u2029"].includes(c),
+    )
+  );
+}
+
+function integerNumberFormat(value: string): boolean {
+  if (!numberFormatSource(value)) return false;
+  const tokens = value.match(/0|\\[\s\S]|"[^"]*"|,+/gu);
+  if (tokens === null || tokens.join("") !== value || !tokens.includes("0"))
+    return false;
+  const comma = tokens.findIndex((token) => token.startsWith(","));
+  return (
+    comma < 0 || (comma === tokens.length - 1 && tokens[comma - 1] === "0")
+  );
+}
+
+function dateNumberFormat(value: string): boolean {
+  if (!numberFormatSource(value)) return false;
+  const locale = /^\[\$-([0-9a-f]{1,4})\]/iu.exec(value);
+  if (locale) {
+    const id = Number.parseInt(locale[1]!, 16);
+    if (id === 0xf800 || ((id & 0x3ff) !== 9 && id < 0xf000)) return false;
+    value = value.slice(locale[0].length);
+  }
+  const tokens = value.match(
+    /AM\/PM|(?:yyyy|yy)(?!y)|m{1,4}(?!m)|d{1,2}(?!d)|h{1,2}(?!h)|s{1,2}(?!s)(?:\.000)?|"[^"]*"|\\[\s\S]|[ /:,.-]/giu,
+  );
+  return (
+    tokens !== null &&
+    tokens.join("") === value &&
+    tokens.some((token) => /^[ymdhs]|^AM\/PM$/iu.test(token))
+  );
+}
+
+function sectionNumberFormat(value: string): boolean {
+  if (!numberFormatSource(value)) return false;
+  const tokens = value.match(
+    /\\[\s\S]|"[^"]*"|[_*][\s\S]|\[[a-z]+\]|[#0?][#0?,.]*|@|[ ;+()$¥%-]/giu,
+  );
+  if (tokens === null || tokens.join("") !== value) return false;
+  let sections = 1,
+    position = 0,
+    numeric = false,
+    text = false,
+    percent = false;
+  for (const token of tokens) {
+    if (token === ";") {
+      if (++sections > 4) return false;
+      position = 0;
+      numeric = false;
+      text = false;
+      percent = false;
+      continue;
+    }
+    if (token.startsWith("[")) {
+      if (
+        position !== 0 ||
+        ![
+          "black",
+          "blue",
+          "cyan",
+          "green",
+          "magenta",
+          "red",
+          "white",
+          "yellow",
+        ].includes(token.slice(1, -1).toLowerCase())
+      )
+        return false;
+    } else if (token === "@") {
+      if (numeric || text || percent) return false;
+      text = true;
+    } else if (token === "%") {
+      if (text) return false;
+      percent = true;
+    } else if (/^[#0?]/u.test(token)) {
+      if (numeric || text) return false;
+      const mask = /^([#?0]+(?:,[#?0]+)*)(?:\.(0{1,30}))?$/u.exec(token);
+      if (!mask || !/^[#?]*0*$/u.test(mask[1]!.replaceAll(",", "")))
+        return false;
+      numeric = true;
+    }
+    position++;
+  }
+  return true;
+}
 
 export function checkXlsxCellFormat(value: unknown): void {
   const patch = record(value);
@@ -248,7 +342,12 @@ export function checkXlsxCellFormat(value: unknown): void {
     if (key === "numberFormat")
       valid =
         typeof value === "string" &&
-        xlsxNumberFormats.some((format) => format === value);
+        (xlsxNumberFormats.some((format) => format === value) ||
+          (/^0(?:\.0{1,30})?E[+-]0{1,6}$/iu.test(value) &&
+            value === value.trim()) ||
+          dateNumberFormat(value) ||
+          integerNumberFormat(value) ||
+          sectionNumberFormat(value));
     if (["left", "right", "top", "bottom"].includes(key)) {
       const border = record(value);
       valid =

@@ -28,11 +28,36 @@ export class PageCanvas extends CanvasSurface {
     return context;
   }
   private constructor(private readonly client: FoundationClient) {
-    super();
+    // Keep vector geometry while filled glyphs use Office's horizontal subpixel phases.
+    super("fractional");
   }
   async layout(profile: Record<string, string>) {
     await this.prepare();
-    return this.client.layout(profile);
+    const layout = await this.client.layout(profile);
+    for (const identity of layout.images) {
+      if (this.images.has(identity)) continue;
+      const { bitmap } = await decodeImage(
+        await this.client.imageBytes(identity),
+      );
+      try {
+        const pixels = await this.client.imagePixels(identity);
+        if (pixels.length !== bitmap.width * bitmap.height * 4)
+          throw new Error("Prepared image pixels differ from their dimensions");
+        this.imagePixels.set(identity, pixels);
+        this.images.set(identity, bitmap);
+      } catch (error) {
+        bitmap.close();
+        throw error;
+      }
+    }
+    const retained = new Set(layout.images);
+    for (const [identity, bitmap] of this.images)
+      if (!retained.has(identity)) {
+        bitmap.close();
+        this.images.delete(identity);
+        this.imagePixels.delete(identity);
+      }
+    return layout;
   }
   private async prepare(signal?: AbortSignal): Promise<void> {
     signal?.throwIfAborted();
@@ -45,12 +70,15 @@ export class PageCanvas extends CanvasSurface {
     ];
     const paragraphs = [
       ...flow.paragraphs,
-      ...Object.values(flow.headers).flat(),
-      ...Object.values(flow.footers).flat(),
-      ...flow.sectionBreaks.flatMap((section) => [
-        ...Object.values(section.headers).flat(),
-        ...Object.values(section.footers).flat(),
-      ]),
+      ...[flow, ...flow.sectionBreaks].flatMap((section) =>
+        [
+          ...Object.values(section.headers),
+          ...Object.values(section.footers),
+        ].flatMap((story) => [
+          ...story.paragraphs,
+          ...story.tables.flatMap(tableParagraphs),
+        ]),
+      ),
       ...flow.notes.flatMap((note) => note.content),
       ...flow.tables.flatMap(tableParagraphs),
     ];
@@ -59,7 +87,9 @@ export class PageCanvas extends CanvasSurface {
         paragraph.spans.flatMap((span) =>
           span.drawing?.content.kind === "picture"
             ? [span.drawing.content.key]
-            : [],
+            : span.drawing?.content.kind === "metafile"
+              ? span.drawing.content.metafile.images
+              : [],
         ),
       ),
     );
@@ -67,12 +97,6 @@ export class PageCanvas extends CanvasSurface {
       keys.add(key);
     for (const key of this.keys.keys())
       if (!keys.has(key)) this.keys.delete(key);
-    const retained = new Set(this.keys.values());
-    for (const [identity, bitmap] of this.images)
-      if (!retained.has(identity)) {
-        bitmap.close();
-        this.images.delete(identity);
-      }
     for (const key of keys) {
       if (this.keys.has(key)) continue;
       const { bitmap, rgba } = await decodeImage(

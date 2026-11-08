@@ -105,6 +105,7 @@ fn watermark_paint(
       @layout.Image(
         {
           key,
+          interpolate: None,
           x: page.left + (page.width - page.left - page.right - width) / 2,
           y: page.top + (page.height - page.top - page.bottom - height) / 2,
           width,

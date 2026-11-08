@@ -5,6 +5,7 @@ pub(all) struct TextStyle {
   color : String
   underline : Bool
   strike : Bool
+  caps : Bool
   highlight : String
   script : String
   spacing : Double
@@ -24,6 +25,7 @@ pub fn TextStyle::new(
     color,
     underline: false,
     strike: false,
+    caps: false,
     highlight: "",
     script: "baseline",
     spacing: 0,
@@ -34,7 +36,30 @@ pub fn TextStyle::new(
 
 ///|
 fn TextStyle::render_size(self : TextStyle) -> Double {
-  self.size * (if self.script == "baseline" { 1.0 } else { 0.65 })
+  // Native CRunText.SetMetrics rounds scaled script fonts to half points.
+  if self.script == "baseline" {
+    self.size
+  } else {
+    (self.size * 0.65 * 2).round() / 2
+  }
+}
+
+///|
+fn capital_char(ch : Char) -> Char {
+  // ONLYOFFICE TextShaper uses the first uppercase code point per source character.
+  @casing.to_uppercase(ch).iter().next().unwrap_or(ch)
+}
+
+///|
+fn TextStyle::display_text(self : TextStyle, text : String) -> String {
+  if !self.caps {
+    return text
+  }
+  let out = StringBuilder()
+  for ch in text {
+    out.write_string(capital_char(ch).to_string())
+  }
+  out.to_string()
 }
 
 ///|
@@ -101,6 +126,7 @@ pub extend LineSpacing with ToJson::{to_json}
 ///|
 pub(all) struct ParagraphMarker {
   text : String
+  image : PlacedImage?
   numbering : ParagraphNumbering?
   style : TextStyle
   align : String
@@ -215,9 +241,9 @@ pub(all) struct Flow {
   paragraphs : Array[Paragraph]
   diagnostics : Array[String]
   tables : Array[Table]
-  headers : Map[String, Array[Paragraph]]
+  headers : Map[String, RunningStory]
   headerDistance : Double
-  footers : Map[String, Array[Paragraph]]
+  footers : Map[String, RunningStory]
   footerDistance : Double
   notes : Array[Note]
   differentFirst : Bool
@@ -291,10 +317,12 @@ pub(all) struct Line {
   justified : Bool
   bars : Array[Double]
   marker : Array[PlacedRun]
+  markerImage : PlacedImage?
   markerText : String
   runs : Array[PlacedRun]
   drawings : Array[PlacedDrawingFrame]
   carets : Array[Caret]
+  caretPortions : Array[CaretPortion]
   readOnlyReason : String
 } derive(ToJson)
 
@@ -337,7 +365,7 @@ pub(all) struct Layout {
   reusedPages : Int32
   profile : Map[String, String]
   pages : Array[PageFrame]
-  running : Array[Array[Line]]
+  running : Array[PageFrame]
   sectionNumbering : Array[PageNumbering]
   /// Section ordinal and local page, or None for a parity spacer.
   pageSections : Array[(Int32, Int32)?]
@@ -370,11 +398,29 @@ fn PageSetup::validate(self : PageSetup) -> Unit raise @failure.Failure {
 ///|
 pub(all) struct PlacedImage {
   key : String
+  // An absent source flag uses the drawing host's image sampling policy.
+  interpolate : Bool?
   x : Double
   y : Double
   width : Double
   height : Double
-} derive(ToJson)
+}
+
+///|
+pub impl ToJson for PlacedImage with fn to_json(self) {
+  // Derived optional fields omit None, but the drawing ABI requires an explicit null.
+  {
+    "key": self.key,
+    "interpolate": match self.interpolate {
+      Some(value) => Json(value)
+      None => Json::null()
+    },
+    "x": self.x,
+    "y": self.y,
+    "width": self.width,
+    "height": self.height,
+  }
+}
 
 ///|
 pub extend PlacedImage with ToJson::{to_json}

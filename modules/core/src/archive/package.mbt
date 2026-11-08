@@ -70,6 +70,13 @@ pub fn Package::open(
       "limit-exceeded", "Package or retained source budget exceeded",
     )
   }
+  if source.length() >= 512 && source[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" {
+    @failure.reject(
+      "unsupported-package",
+      "OLE compound files are unsupported. This container is used by legacy Office files and encrypted OOXML packages.",
+      offset=0,
+    )
+  }
   let floor = (source.length() - 22 - 65535).max(0)
   let end = for cursor = source.length() - 22
                 cursor >= floor

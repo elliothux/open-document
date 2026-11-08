@@ -20,6 +20,11 @@ fn Session::chart_workbook(
   self : Session,
   chart : @chart.Resource,
 ) -> Bytes raise @failure.Failure {
+  guard chart.native_pie is None else {
+    @failure.reject(
+      "protected-content", "Native chart styling requires copying support",
+    )
+  }
   let bytes = self.media
     .get(chart.workbook)
     .unwrap_or_else(() => self.opc.read(chart.workbook))

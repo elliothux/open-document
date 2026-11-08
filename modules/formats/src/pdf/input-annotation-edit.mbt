@@ -22,7 +22,7 @@ fn PdfSession::annotation_target(
     if reference is PdfIndirect(number) &&
       "\{number}:\{self.generations.get(number).unwrap_or(0)}" == identity {
       let object = self.document.lookup_object_or_null(number)
-      let reason = annotation_reason(object)
+      let reason = annotation_reason(self.document, object)
       guard reason.is_empty() else {
         @failure.reject("protected-content", reason)
       }
@@ -130,7 +130,16 @@ pub fn PdfSession::annotation_details(
       rgb(items.map(number))
     }
     let alpha = raw(object, "CA")
-    let border = get(self.document, get(self.document, object, "BS"), "W")
+    let border = if drawing_annotation_kind(object) {
+      drawing_annotation_border(self.document, object)
+    } else {
+      let width = get(self.document, get(self.document, object, "BS"), "W")
+      if width == @syntax.PdfNull {
+        1.0
+      } else {
+        number(width)
+      }
+    }
     let strokes = match get(self.document, object, "InkList") {
       PdfArray(paths) => paths.map(path => annotation_points_json(page, path))
       PdfNull => []
@@ -155,11 +164,7 @@ pub fn PdfSession::annotation_details(
         } else {
           number(alpha)
         },
-        "border": if border == @syntax.PdfNull {
-          1.0
-        } else {
-          number(border)
-        },
+        "border": border,
         "author": if raw(object, "T") == @syntax.PdfNull {
           ""
         } else {
@@ -201,24 +206,46 @@ pub fn PdfSession::edit_annotation(
     let mut object = tx.object(number)
     let old = annotation_placement(page, object)
     let p = style.placement
-    let sx = p.width / old.width
-    let sy = p.height / old.height
-    let screen : @layout.Matrix = {
-      a: sx,
-      b: 0,
-      c: 0,
-      d: sy,
-      e: p.x - old.x * sx,
-      f: p.y - old.y * sy,
-    }
-    let transform = page.matrix.inverse().then(screen).then(page.matrix)
-    let (x, y) = page.matrix.inverse().point(p.x, p.y)
-    let (r, t) = page.matrix.inverse().point(p.x + p.width, p.y + p.height)
-    object = object
-      .with_entry(
+    if p.x != old.x ||
+      p.y != old.y ||
+      p.width != old.width ||
+      p.height != old.height {
+      let sx = p.width / old.width
+      let sy = p.height / old.height
+      let screen : @layout.Matrix = {
+        a: sx,
+        b: 0,
+        c: 0,
+        d: sy,
+        e: p.x - old.x * sx,
+        f: p.y - old.y * sy,
+      }
+      let inverse = page.matrix.inverse()
+      let transform = inverse.then(screen).then(page.matrix)
+      let (x, y) = inverse.point(p.x, p.y)
+      let (r, t) = inverse.point(p.x + p.width, p.y + p.height)
+      object = object.with_entry(
         pdf_name("Rect"),
         pdf_rectangle(x.min(r), y.min(t), x.max(r), y.max(t)),
       )
+      for key in ["QuadPoints", "L", "Vertices"] {
+        if raw(object, key) != @syntax.PdfNull {
+          object = object.with_entry(
+            pdf_name(key),
+            transform_pdf_points(raw(object, key), transform),
+          )
+        }
+      }
+      if raw(object, "InkList") is PdfArray(paths) {
+        object = object.with_entry(
+          pdf_name("InkList"),
+          @syntax.PdfArray(
+            paths.map(path => transform_pdf_points(path, transform)),
+          ),
+        )
+      }
+    }
+    object = object
       .with_entry(
         pdf_name("C"),
         @syntax.PdfArray(
@@ -232,22 +259,6 @@ pub fn PdfSession::edit_annotation(
       )
       .with_entry(pdf_name("T"), pdf_string(style.author))
       .with_entry(pdf_name("Contents"), pdf_string(style.text))
-    for key in ["QuadPoints", "L", "Vertices"] {
-      if raw(object, key) != @syntax.PdfNull {
-        object = object.with_entry(
-          pdf_name(key),
-          transform_pdf_points(raw(object, key), transform),
-        )
-      }
-    }
-    if raw(object, "InkList") is PdfArray(paths) {
-      object = object.with_entry(
-        pdf_name("InkList"),
-        @syntax.PdfArray(
-          paths.map(path => transform_pdf_points(path, transform)),
-        ),
-      )
-    }
     tx.objects[number] = if is_name(raw(object, "Subtype"), "Stamp") {
       stamp_annotation_appearance(tx, object)
     } else {

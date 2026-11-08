@@ -42,6 +42,7 @@ fn Session::consolidate_plan(
   let labels : Map[String, Int32] = Map([])
   let references : Map[(Int32, Int32), Array[String]] = Map([])
   let work : FormulaWork = {
+    random: None,
     remaining: 1048576,
     date1904: self.date1904,
     origin,

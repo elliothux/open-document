@@ -20,7 +20,7 @@ pub fn read_text_lines(PdfExtraction, Map[String, String], Array[String], Int32)
 
 pub fn read_warning(Array[String], String) -> Unit
 
-pub fn write(@layout.PositionedDocument, @layout.TextProbe, @layout.Images, Int32, clean_fonts? : Bool, text_groups? : Array[PdfTextGroup]) -> Bytes raise @failure.Failure
+pub fn write(@layout.PositionedDocument, @layout.TextProbe, @layout.Images, Int32, clean_fonts? : Bool, text_groups? : Array[PdfTextGroup], image_smoothing? : Bool) -> Bytes raise @failure.Failure
 
 // Errors
 
@@ -289,7 +289,7 @@ pub fn PdfSession::move_object(Self, Int32, String, String, PdfPlacement, @layou
 pub fn PdfSession::navigation(Self) -> Json raise @failure.Failure
 pub fn PdfSession::nup_pages(Self, Int32, Array[String], Int32, Int32, Double, Double) -> Json raise @failure.Failure
 pub fn PdfSession::objects(Self, Int32, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
-pub fn PdfSession::open(Bytes, PdfBudget) -> Self raise @failure.Failure
+pub fn PdfSession::open(Bytes, PdfBudget, password? : String?) -> Self raise @failure.Failure
 pub fn PdfSession::preview_redaction(Self, Int32, Array[PdfRedactionRegion], @layout.TextProbe, Map[String, String], decoded? : @layout.Images) -> Json raise @failure.Failure
 pub fn PdfSession::query(Self) -> Json raise @failure.Failure
 pub fn PdfSession::release_view(Self, Int32) -> Unit

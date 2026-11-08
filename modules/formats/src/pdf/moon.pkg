@@ -10,13 +10,19 @@ import {
   "moonbitlang/pdflite/page",
   "moonbitlang/pdflite/content",
   "moonbitlang/pdflite/geometry",
+  "moonbitlang/pdflite/reader" @pdfreader,
+  "moonbitlang/pdflite/flate",
   "moonbitlang/core/encoding/utf16",
   "moonbitlang/pdflite/subsetter",
+  "shunge/image" @jpeg,
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/math",
+  "moonbitlang/core/string",
+  "moonbitlang/x/crypto",
 }
 
 import {
   "moonbitlang/x/fs",
   "moonbitlang/core/env",
+  "moonbitlang/core/json",
 } for "wbtest"

@@ -309,7 +309,12 @@ export type PdfCommand =
       profile: Record<string, string>;
     }
   | { operation: "defaultPdfBudget" }
-  | { operation: "openPdf"; bytes: Uint8Array; budget: PdfBudget }
+  | {
+      operation: "openPdf";
+      bytes: Uint8Array;
+      budget: PdfBudget;
+      password?: string;
+    }
   | { operation: "createPdf"; width: number; height: number; budget: PdfBudget }
   | { operation: "queryPdf" }
   | {

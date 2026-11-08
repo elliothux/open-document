@@ -77,6 +77,7 @@ fn Session::reflow_source(
       },
       parts~,
       date_time=self.date_time,
+      media=self.media,
     )
   })
   let updates : Map[String, (Tree, Array[@xml.SourceChange])] = Map([])
@@ -175,6 +176,7 @@ fn Session::reflow_source(
       },
       parts~,
       date_time=self.date_time,
+      media=self.media,
     )
   })
 }

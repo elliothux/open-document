@@ -5,6 +5,8 @@ fn show_text(
   op : @content.PdfContentOp,
   source : String,
   depth : Int32,
+  resources : @syntax.PdfObject,
+  uncolored : Bool,
 ) -> GraphicsState raise {
   guard state.font is Some(font) else {
     @failure.reject("unsupported-pdf", "PDF text has no font resource")
@@ -23,7 +25,7 @@ fn show_text(
     }
     guard strings.all(bytes => bytes.length() % 2 == 0) else {
       @failure.reject(
-        "invalid-pdf", "Identity-H text requires complete two-byte codes",
+        "invalid-pdf", "Identity CMap text requires complete two-byte codes",
       )
     }
   }
@@ -39,6 +41,15 @@ fn show_text(
     geometry_matrix(state.matrix),
     op,
   )
+  // Hidden optional text still advances the text matrix (ISO 32000-1, 8.11.3.1).
+  if !context.visible() {
+    return { ..state, text: result.text_state, }
+  }
+  guard text_state.rendering_mode == 3 ||
+    !(state.fillSpace is PatternColor(_)) ||
+    font.font is PdfFontSimple({ fonttype: PdfType3(_), .. }) else {
+    @failure.reject("unsupported-pdf", "Pattern text requires glyph clipping")
+  }
   let extractionGroup = context.extraction
     .map(data => data.glyphs.length())
     .unwrap_or(0)
@@ -70,25 +81,6 @@ fn show_text(
     if !actual {
       context.append(value)
     }
-    context.spans.push({
-      start,
-      end: context.units,
-      text: if actual {
-        ""
-      } else {
-        value
-      },
-      quad,
-      source: "\{source}:\{index}",
-      mapped: mapped is Some(_) || actual,
-      invisible: text_state.rendering_mode == 3,
-      cropVisible: crop_intersects(context.page, quad),
-    })
-    if font.font is PdfFontStandard(_) &&
-      [9, 10, 13].contains(glyph.charcode) &&
-      mapped is Some("\r" | "\n" | "\t") {
-      continue
-    }
     let transform = state.matrix
       .then(matrix(glyph.text_matrix))
       .then({
@@ -99,6 +91,26 @@ fn show_text(
         e: 0,
         f: text_state.rise,
       })
+    context.spans.push({
+      start,
+      end: context.units,
+      text: if actual {
+        ""
+      } else {
+        value
+      },
+      quad,
+      horizontalEm: (transform.a * transform.a + transform.b * transform.b).sqrt(),
+      source: "\{source}:\{index}",
+      mapped: mapped is Some(_) || actual,
+      invisible: text_state.rendering_mode == 3,
+      cropVisible: crop_intersects(context.page, quad),
+    })
+    if font.font is PdfFontStandard(_) &&
+      [9, 10, 13].contains(glyph.charcode) &&
+      mapped is Some("\r" | "\n" | "\t") {
+      continue
+    }
     let extracted = context.extracted_glyph(
       state,
       font,
@@ -114,7 +126,40 @@ fn show_text(
     if text_state.rendering_mode == 3 || text_state.font_size == 0 {
       continue
     }
-    if font.index is Some(font_index) {
+    if font.font is PdfFontSimple({ fonttype: PdfType3(data), .. }) {
+      draw_type3_glyph(
+        context,
+        data,
+        glyph.charcode,
+        font.font.sdk_glyph_name(glyph.charcode),
+        transform,
+        state,
+        resources,
+        source,
+        depth,
+        uncolored,
+      )
+    } else if font.cff is Some(cff) {
+      draw_font_outline(
+        context,
+        "pdf-native:\{font.font.embedded_fontfile_number().unwrap()}:\{glyph.charcode}:\{font.font.sdk_glyph_name(glyph.charcode)}",
+        cff.outline(glyph.charcode, font.font.sdk_glyph_name(glyph.charcode)),
+        glyph.width,
+        transform,
+        state,
+        value,
+      )
+    } else if font.type1 is Some(type1) {
+      draw_font_outline(
+        context,
+        "pdf-native:\{font.font.embedded_fontfile_number().unwrap()}:\{glyph.charcode}:\{font.font.sdk_glyph_name(glyph.charcode)}",
+        type1.outline(font.font.sdk_glyph_name(glyph.charcode)),
+        glyph.width,
+        transform,
+        state,
+        value,
+      )
+    } else if font.index is Some(font_index) {
       let id = if font.cid && !font.substituted {
         match font.gidMap {
           None => glyph.charcode
@@ -129,10 +174,17 @@ fn show_text(
       } else {
         -1
       }
+      let encoded = source_unicode(encoded_font(font.font), glyph.charcode)
       let encoded = if font.substituted {
-        mapped
+        if font.cid {
+          mapped
+        } else if encoded is Some(_) {
+          encoded
+        } else {
+          mapped
+        }
       } else {
-        source_unicode(encoded_font(font.font), glyph.charcode)
+        encoded
       }
       let point = encoded
         .filter(text => text.iter().count() == 1)
@@ -204,10 +256,14 @@ fn show_text(
       context.commands.push(@layout.Style(state.style))
       context.scope(@layout.Transform(transform))
       context.extracted_glyph_draw(extracted, outline.2)
+      let bounds = context.probe.font_info()[font_index].bbox
       context.commands.push(
         @layout.Glyphs(0, 0, state.fill, [
           {
             outline: outline.0,
+            upem: outline.1,
+            fontBounds: Some((bounds[0], bounds[1], bounds[2], bounds[3])),
+            strokeWidth: 0,
             x: glyph.pvx,
             y: -glyph.pvy,
             scaleX: 1.0 / outline.1.to_double(),
@@ -228,7 +284,8 @@ fn finish_marked(context : ContentContext) -> Unit raise @failure.Failure {
   guard context.marked.pop() is Some(mark) else {
     @failure.reject("invalid-pdf", "PDF marked content stack underflow")
   }
-  if mark.replacement is Some(replacement) &&
+  if mark.visible &&
+    mark.replacement is Some(replacement) &&
     !context.marked.any(parent => parent.replacement is Some(_)) {
     context.extracted_mark(mark.glyph, replacement)
     let spans = context.spans[mark.span:].to_owned()
@@ -287,7 +344,7 @@ fn separate_text(
     let vertical = (px * dy - py * dx).abs() / length
     if vertical > height.max(1) * 0.5 {
       context.append("\n")
-    } else if across > height.max(1) * 0.15 {
+    } else if across > height.min(previous.horizontalEm).max(1) * 0.15 {
       context.append(" ")
     }
   }

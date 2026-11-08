@@ -60,6 +60,18 @@ fn object_size(
     @failure.reject("limit-exceeded", "PDF object depth exceeds budget")
   }
   let size : Int64 = match value {
+    PdfReal(_) | PdfExactReal(_) => {
+      let bytes = @pdflite.pdf_write_object(value) catch {
+        _ => @failure.reject("invalid-pdf", "PDF real is not serializable")
+      }
+      @pdfcore.sdk_check(bytes.length()) catch {
+        _ =>
+          @failure.reject(
+            "limit-exceeded", "PDF real serialization exceeds work budget",
+          )
+      }
+      bytes.length().to_int64()
+    }
     PdfString(bytes) => bytes.length().to_int64() * 4 + 2
     PdfNameObject(name) => name.bytes().length().to_int64() * 3 + 1
     PdfArray(items) => {

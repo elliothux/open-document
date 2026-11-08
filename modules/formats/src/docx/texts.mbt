@@ -60,7 +60,8 @@ fn docx_texts(tree : WordTree) -> Array[TextNode] {
     }
     if node.uri != word_uri ||
       ![
-        "t", "delText", "br", "cr", "tab", "drawing", "footnoteReference", "endnoteReference",
+        "t", "delText", "br", "cr", "tab", "drawing", "pict", "object", "footnoteReference",
+        "endnoteReference",
       ].contains(node.name) {
       continue
     }
@@ -118,7 +119,7 @@ fn inline_text(node : @xml.Node) -> String {
       }
     "cr" => "\u2028"
     "tab" => "\t"
-    "drawing" => "\ufffc"
+    "drawing" | "object" | "pict" => "\ufffc"
     "fldSimple" => "\ufffc"
     "footnoteReference" | "endnoteReference" => "\ufffc"
     "oMath" | "oMathPara" => "\ufffc"

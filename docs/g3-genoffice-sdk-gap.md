@@ -2,6 +2,8 @@
 
 状态：`research`。本文件依据 2026-10-14 的源码对照，并随阶段交付更新本项目状态；上游源码对照不代表运行验收。目标与职责归 [SDK 合同](references/sdk.md)，实施顺序归[路线图](references/roadmap.md)，当前支持范围归[格式合同](references/formats.md)。
 
+P14 已完成选定范围，实际文件覆盖另见[兼容性矩阵](references/compatibility.md)。[C0](implemented/c0-real-file-compatibility.md) 已完成首批登记范围，下文更广文件变体仍需按 [C1](c1-corpus-and-producer-compatibility.md)补齐，不能因阶段完成而视为全部支持。
+
 ## 结论与对照口径
 
 P0–P9 提供四类文件底座与默认 UI。P10–P13 已完成各自最低核心范围；复杂文件兼容及外围能力继续按路线图实施。下表仍记录完整 GenOffice 功能面的差距，阶段完成不表示所有变体可编辑。后续继续按操作补齐核心、API、UI 和保存。

@@ -151,6 +151,7 @@ fn ChartData::paint_legend(
             color,
             1.5,
             {
+              evenOdd: false,
               fillAlpha: 1,
               strokeAlpha: 1,
               dash: [],

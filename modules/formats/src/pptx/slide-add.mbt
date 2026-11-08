@@ -127,6 +127,7 @@ fn Session::add_slide(
     index=index + 1,
     date_time=self.date_time,
     parts~,
+    media=self.media,
   )
   let slides = self.slides.copy()
   slides.insert(index + 1, added)

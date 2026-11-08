@@ -3,6 +3,9 @@ fn Session::image_content(
   self : Session,
   key : String,
 ) -> Bytes raise @failure.Failure {
+  if key.has_prefix("#shadow:") {
+    return self.shadow_png(key)
+  }
   self.media.get(key).unwrap_or_else(() => self.opc.read(key))
 }
 
@@ -103,6 +106,24 @@ fn Slide::image_keys(self : Slide) -> Array[String] {
     []
   }
   for object in self.objects {
+    let paragraphs = object.paragraphs +
+      object.table
+      .map(table => {
+        table.rows
+        .map(row => row.cells.map(cell => cell.paragraphs).flatten())
+        .flatten()
+      })
+      .unwrap_or([])
+    for paragraph in paragraphs {
+      if paragraph.picture is Some((key, _)) && !keys.contains(key) {
+        keys.push(key)
+      }
+    }
+    if object.shadow is Some(shadow) &&
+      shadow.image is Some(image) &&
+      !keys.contains(image.key) {
+      keys.push(image.key)
+    }
     if object.image is Some(key) && !keys.contains(key) {
       keys.push(key)
     }
@@ -143,4 +164,27 @@ fn background_change(
     length: background.map(bg => bg.end - bg.start).unwrap_or(0),
     xml: markup,
   }
+}
+
+///|
+pub fn Session::image_keys(
+  self : Session,
+  all : Bool,
+  hidden : Bool,
+) -> Array[String] raise @failure.Failure {
+  self.check()
+  let keys : Array[String] = []
+  for slide in (if all { self.slides } else { [self.current()] }) {
+    if !all || hidden || !slide.hidden {
+      for key in slide.image_keys() {
+        if !keys.contains(key) {
+          keys.push(key)
+        }
+      }
+    }
+  }
+  guard keys.length() <= 256 else {
+    @failure.reject("limit-exceeded", "Presentation images exceed 256")
+  }
+  keys
 }

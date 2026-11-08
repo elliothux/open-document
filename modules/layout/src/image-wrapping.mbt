@@ -118,6 +118,7 @@ fn Pagination::detach_wrapping_images(
         caretOnly: true,
         runs: [],
         marker: [],
+        markerImage: None,
         markerText: "",
         bars: [],
         drawings: [image],

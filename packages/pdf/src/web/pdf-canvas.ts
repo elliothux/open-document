@@ -1,10 +1,14 @@
 import type { PdfLayout } from "../core/pdf.js";
 import { CanvasSurface } from "@open-document/web-core/canvas-surface";
+import { documentFailure } from "@open-document/web-core/connection";
 import { decodeImage } from "@open-document/web-core/image";
 import type { PdfClient } from "./pdf.js";
 
 export class PdfCanvas extends CanvasSurface {
   private disposed = false;
+  constructor() {
+    super("pdf");
+  }
   async prepare(client: PdfClient, layout: PdfLayout): Promise<void> {
     for (const image of this.images.values()) image.close();
     this.images.clear();
@@ -44,7 +48,7 @@ export class PdfCanvas extends CanvasSurface {
     } catch (error) {
       for (const bitmap of this.images.values()) bitmap.close();
       this.images.clear();
-      throw error;
+      throw documentFailure("image", error);
     }
   }
   selection(quads: number[][], scale: number): void {

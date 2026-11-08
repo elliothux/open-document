@@ -88,20 +88,8 @@ fn Session::read_sheet_chart(
       "unsupported-chart", "Chart requires an internal chart relationship",
     )
   }
-  let chart = @chart.read_worksheet(link.target, self.part_xml(link.target))
-  let work : FormulaWork = {
-    remaining: 1048576,
-    date1904: self.date1904,
-    origin: { row: 1, column: 1, },
-    names: self.formula_names(),
-  }
-  let (pending, _) = self.chart_input_state(sheet.id, chart, work)
-  let chart = if pending {
-    chart
-  } else {
-    self.resolved_chart(sheet.id, chart, work)
-  }
-  let (anchor, rect) = tree.drawing_rect(frame, dimensions)
+  let transform = tree.picture_node(source.id, "xfrm")
+  let (anchor, rect) = tree.drawing_rect(frame, dimensions, transform~)
   let client = tree.picture_child(frame.id, "clientData")
   if client is Some(client) {
     guard tree.children.get(client.id).unwrap_or([]).is_empty() &&
@@ -114,6 +102,58 @@ fn Session::read_sheet_chart(
         "unsupported-chart", "Unknown worksheet chart client data",
       )
     }
+  }
+  let visible = !flag(identity, "hidden")
+  let document = self.part_xml(link.target)
+  let chart = @chart.read_worksheet(link.target, document) catch {
+    @failure.Failure(code="unsupported-chart", message~, offset~, ..) =>
+      @failure.reject("unsupported-chart", message, part=link.target, offset~)
+    error => raise error
+  }
+  let chart = if chart.native_line is Some(_) ||
+    chart.native_radar is Some(_) ||
+    chart.native_area is Some(_) ||
+    chart.native_bubble is Some(_) ||
+    chart.native_circular is Some(_) ||
+    chart.native_bar is Some(_) ||
+    chart.native_surface is Some(_) {
+    chart.with_native_theme(self.theme, self.chart_theme_line_width())
+  } else {
+    chart
+  }
+  let work : FormulaWork = {
+    remaining: 1048576,
+    date1904: self.date1904,
+    random: None,
+    origin: { row: 1, column: 1, },
+    names: self.formula_names(),
+  }
+  let (pending, inputs) = self.chart_input_state(sheet.id, chart, work)
+  let manual = self.calculation.map(c => c.manual).unwrap_or(false) &&
+    inputs.any(input => input.3 is Some(_))
+  let chart = if pending || manual {
+    if !pending &&
+      inputs.any(input => input.2 is Error(_)) &&
+      (
+        chart.native_bar is Some(_) ||
+        chart.native_area is Some(_) ||
+        chart.native_bubble is Some(_) ||
+        (
+          chart.native_line is Some(_) &&
+          ["line", "scatter"].contains(chart.data.kind)
+        ) ||
+        (
+          chart.native_circular is Some(_) &&
+          chart.data.kind == "pie" &&
+          chart.categories.is_empty()
+        )
+      ) {
+      self.manual_chart_error_gaps(sheet.id, chart, work)
+    } else {
+      chart
+    }
+  } else {
+    self.resolved_chart(sheet.id, chart, work)
   }
   {
     id,
@@ -138,6 +178,6 @@ fn Session::read_sheet_chart(
     printable: client
     .map(node => flag(node, "fPrintsWithSheet", fallback=true))
     .unwrap_or(true),
-    visible: !flag(identity, "hidden"),
+    visible,
   }
 }

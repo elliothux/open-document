@@ -17,6 +17,7 @@ fn Session::set_validation(
       let work = FormulaWork::{
         remaining: 1048576,
         date1904: self.date1904,
+        random: None,
         origin: anchor,
         names: self.formula_names(),
       }

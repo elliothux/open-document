@@ -1,0 +1,38 @@
+{
+  "file": "pdf_content_text_layout.mbt",
+  "originalSha256": "9ec36dd59e209c4363342d8ecc8895ca1ec0fc7c350b6780a5c2996f542d70d3",
+  "patchedSha256": "130c246b7d97be15561d75df72119f04c387f4d027b34bb9d0914bfb13614e7d",
+  "lineEdits": [
+    [
+      127,
+      15,
+      [
+        "    // Identity-V uses two-byte codes, to which PDF word spacing does not apply.",
+        "    let current_layout = {",
+        "      ..layout,",
+        "      text_matrix,",
+        "      word_spacing: if self.is_identity_v() { 0.0 } else { layout.word_spacing },",
+        "    }",
+        "    let width_data = self.content_width_of_charcode(charcode)",
+        "    let advance_width = width_data.0 / divisor",
+        "    let width = match self {",
+        "      PdfFontCIDKeyed(font) if vertical =>",
+        "        pdf_content_cid_horizontal_width(font, charcode) / divisor",
+        "      _ => advance_width",
+        "    }",
+        "    let pvx = -width_data.1 / divisor",
+        "    let pvy = width_data.2 / divisor",
+        "    let bounding_box = pdf_content_text_bounding_box(",
+        "      pdf_content_text_render_matrix(current_layout),",
+        "      width,",
+        "      pvx,",
+        "      pvy,",
+        "      ascent,",
+        "      descent,",
+        "    )",
+        "    let advance = pdf_content_text_advance(",
+        "      vertical, charcode, advance_width, current_layout,"
+      ]
+    ]
+  ]
+}

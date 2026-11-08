@@ -3,10 +3,14 @@ fn Tree::drawing_rect(
   self : Tree,
   frame : @xml.Node,
   dimensions : Dimensions,
+  transform? : @xml.Node,
 ) -> (String, @layout.Border) raise @failure.Failure {
+  let dual_move = frame.name == "twoCellAnchor" &&
+    frame.attribute("editAs") == Some("oneCell") &&
+    transform is Some(_)
   let anchor = if frame.name == "absoluteAnchor" {
     "fixed"
-  } else if frame.name == "oneCellAnchor" {
+  } else if frame.name == "oneCellAnchor" || dual_move {
     "move"
   } else {
     guard frame.attribute("editAs").unwrap_or("twoCell") == "twoCell" else {
@@ -29,7 +33,12 @@ fn Tree::drawing_rect(
     let (right, bottom) = self.picture_mark(frame.id, "to", dimensions)
     (right - x, bottom - y)
   } else {
-    let ext = self.picture_node(frame.id, "ext")
+    let ext = if dual_move {
+      ignore(self.picture_mark(frame.id, "to", dimensions))
+      self.picture_node(transform.unwrap().id, "ext", uri=picture_drawing_uri)
+    } else {
+      self.picture_node(frame.id, "ext")
+    }
     (
       picture_integer(ext.attribute("cx").unwrap_or("")) / 12700,
       picture_integer(ext.attribute("cy").unwrap_or("")) / 12700,

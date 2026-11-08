@@ -1,8 +1,1253 @@
 # 测试说明
 
+## 当前兼容证据入口
+
+2026-11-07，C0 登记范围全部通过：核心 251/251；浏览器 PPTX 28/28、DOCX 10/10、PDF 28/28、XLSX 62/62，共 128 条。有界扫描的 48 份正向输入通过，3 份控制按预期拒绝。最终记录为私有 `cases/c0-current.json` 的 `finalCompatibilityQualification`，完整汇总为 `.temp/c0/final-qualification.json`。
+
+C43 原始工作表 15 页的 30 组、重算后全部可见页的 32 组完整 Canvas/PDF 比较均为 0/0。源保存、新 Worker 的相同 PDF、104 个非随机值、26 个 RAND 范围及 19 张图表缓存检查通过。当前 `native-line-final` 构建修复零长线段、曲面端点和色带精度，并按 ONLYOFFICE 将相邻直线分别绘制。原件、参考和阈值保持。旧连续路径断言现检查全部数据线段与图例线，独立视觉断言保持。
+
+最终 XLSX、登记核心和扫描绑定优化 WASM `333765a20c69f6bc0f0a9a2feefda289ccdb2fde830f61603b9a0bee7cb14cad`。PPTX、DOCX、PDF 复用下面共享 Renderer 构建的全部登记结果；后续产品修改仅影响原生工作表图表。最终 XLSX 逐文件记录为 `.temp/c0/xlsx-registered-geometry-current/summary.json`，图表定向复查为 `.temp/c0/native-line-final/browser-summary.json`。固定工具链为 MoonBit 0.1.20261023 / moonc 0.10.17+d971670cd、Node 24.19.0、Bun 1.4.2 和 Chromium 153.0.8010.12。
+
+C13 的 130 组、C17 的 28 组严格比较保持 0/0。用户批准的原图 RGB 独立参考、ONLYOFFICE 降级外观与气泡同倍率对照继续生效。未跑全仓或性能套件；本结论限 C0 固定输入及登记操作。持续边界归[格式合同](formats.md)，交付归[C0](../implemented/c0-real-file-compatibility.md)。
+
+### 历史批次与定向证据
+
+以下按各批构建读取，保留当时的失败与未执行项。当前完整资格以上方最终记录为准。
+
+2026-11-07 的共享描边构建通过 250 项登记核心检查。全部登记 PPTX 28/28、DOCX 10/10、PDF 28/28 浏览器流程通过，C13 的 130 组严格比较保持 0/0。构建与逐文件日志归私有 `.temp/c0/cross-format-primary-current/summary.json`。后续 XLSX 圆形图修改使用新构建，资格按下面的独立批次读取；未跑全仓和性能测试。
+
+2026-11-06 的回归归私有 `registeredCompatibilityReplay`。正常发行构建通过 10 条登记的 DOCX 浏览器用例。复用同批已构建的 Wasm，原扫描器完成 51 份输入，48 份正向通过，3 个控制项按预期拒绝。扫描范围仍限打开和选定核心布局。
+
+首次复扫使用本机 `0.1.20261105`，编译在 HarfBuzz 的 JSON 调用报错。临时替换该调用后，严格检查另报 46 处旧 `derive` 语法。临时修改已恢复。
+
+改用固定的 MoonBit `0.1.20261023` 和 moonc `0.10.17+d971670cd` 后，正常发行构建与 237 项登记核心测试通过。用 Node `24.19.0` 和 Bun `1.4.2` 运行正式扫描，48 份正向通过，3 个控制项按预期拒绝。C08 和画布页面边界的两条 Chromium 流程通过。C17 在固定 MoonBit 构建上复查仍为 27/28，仅未旋转的第 11 页为 0/8。证据归私有 `registeredCompatibilityReplay.pinnedReplay`。
+
+此前同一份固定构建的四格式登记浏览器用例共 126 条，107 条通过。DOCX 10/10、PDF 27/28、PPTX 22/28、XLSX 48/60。19 条失败都发生在严格视觉对照。该批 DOCX 复跑覆盖裁剪、双栏、字段、链接文本框、内嵌 EMF、页眉图片、VML 和三份加密原件。
+
+该批其余 27 条登记 PDF 浏览器用例全部通过。合并 C17 的正式复查，当时 PDF 浏览器用例为 27/28，唯一失败为 C17。用例、参考和阈值沿用登记版本。
+
+当前固定构建已通过全部 28 条登记 PDF 浏览器用例，Node 为 `24.19.0`。C17 的 14 页及旋转共 28 组均为 0/0；28 张 SDK 栅格与前批候选逐字节相同，27 张参考与旧工具相同。唯一修正的参考是未旋转第 11 页。源文件、保存字节、997 个源对象、精确历史和阈值保持。结果归私有 `nativePdfRegisteredSuiteCurrent` 与 `nativePdfShadingCacheDiagnosis.formalReplay`，不授予完整 C0 资格。
+
+通用 PDF 颜色和覆盖用例现统一使用固定的 Poppler 缓存范围修复。它在参数超出缓存区间时调用原函数，不按样本选择工具。从根目录运行私有 `moon run test-lab/tools/c0-poppler-reference.mbtx`，校验源码包、补丁、工具、动态库及四个字面采样控制。工具缺失时按固定配方构建；当前复用前批已核验的二进制，另查验了解包与正式补丁重放，未重复原生编译。旧工具、旧参考及失败证据保留。首次未固定 Node 的运行已中止，不计入结果。
+
+Poppler 26.11.0 的轴向渐变取色、缓存构建和参数范围函数与固定 26.05.0 版逐字节相同。两版进入缓存插值前均只检查缓存非空。此项只核对正式发布源码，C17 栅格结果仍以固定版实测为准。[Poppler 发布记录](https://poppler.freedesktop.org/releases/)
+
+前批 C17 图表构建复跑中，冻结参考为 27/28，缓存边界候选为 28/28。两次运行的 28 张 SDK 栅格逐字节相同，27 张参考栅格相同；候选仅将未旋转第 11 页从 0/8 修正为 0/0。与更早的固定构建相比，22 张 SDK 栅格相同，6 张变化后仍通过候选整页对照。精确历史、保存字节和 997 个非目标源对象通过检查。当时尚未切换生成器。证据归私有 `nativePdfShadingCacheDiagnosis.currentReplay`。
+
+2026-11-07，独立单页只保留 C17 第 11 页的源渐变、裁剪、坐标变换、取样函数和 ICC 配置。固定 Poppler 在同一行复现蓝通道回绕。加缓存边界检查后，中心像素由 `[169, 200, 0]` 恢复为 `[169, 205, 255]`，两张栅格仅该行九个像素不同。证据归私有 `nativePdfShadingCacheDiagnosis.originalShadingReproduction`。
+
+同日复跑登记核心套件。C10 的两条旧断言仍从外缘起笔。现按冻结 ONLYOFFICE PDF 检查内缘起点和径向边，并保留原外缘点及坐标容差。登记核心从 236/238 恢复为 238/238。C10 的 Chromium 原件、改后和导出整页对照通过，保存、精确历史和重开通过。证据归私有 `nativeCircularChart.pinnedRingPathReplay`。
+
+2026-11-07 用同一构建复查 C43。15 页导出的 PDF、30 组 SDK 与参考栅格的哈希和计数均与前批一致。原样保存通过，严格对照仍为 10/30。
+
+同一构建分四批复跑 `test:c0-xlsx` 的全部 60 条 Chromium 用例，48 条通过。13 条工作簿流程和 25 条打印与图表对照全部通过。21 条图表用例中 10 条通过，11 条在严格视觉断言处失败。C43 整表用例仍为 10/30。
+
+C41、C42、C44–C47 及两份手工重算工作簿通过工作簿流程。C43 原件重算后导出 16 页，精确历史和新 Worker 重开通过，重开前后 PDF 字节一致。
+
+同一构建复跑 `test:c0-pptx` 的全部 28 条 Chromium 用例，22 条通过。6 条均在 C13 的严格视觉断言处失败，涉及整稿、圆角标注、SmartArt、两条表格流程和原色 WMF 组件。SmartArt 的 16 组对照有 4 组通过，双色 WMF 组件的 Canvas 和 PDF 均为 0/0。
+
+两条表格用例关闭浏览器下载落盘后复跑。保存字节、非目标部件、精确历史及新 Worker 重开检查通过。两份对照报告逐字节等同于调整前，严格视觉仍失败。
+
+C13 首轮完成 48 页原稿，随后在第 42 页重做时触及四分钟上限。通过 Playwright 直接传输 `Uint8Array` 后，整条流程在约 2.4 分钟内完成。编辑、精确历史和新 Worker 重开通过。原稿 78/96、改后 5/6，102 组结果和栅格哈希均与前批一致。严格用例仍在第 3 页 Canvas 的 99/218 处报错。
+
+Word 2010 的 Agile 加密 DOCX 归私有 `nativeDocxAgile2010PasswordOpen`。LibreOffice 上游断言和固定 ONLYOFFICE 均读出 `abc`。浏览器与参考共用 Arial，整页 Canvas 和导出 PDF 均为 0/0。三份加密 DOCX 在同构建下的六组整页对照均为 0/0，错密重试、取消、只读、原样保存及新 Worker 重开通过。五项核心通过，包含两种 Agile 密文改一位后的完整性拒绝。[LibreOffice 上游断言](https://github.com/LibreOffice/core/blob/2821d29a87b28785d74fa64d975465e4c99d4416/sw/qa/extras/ooxmlexport/ooxmlencryption.cxx#L33-L40)
+
+PDF.js 的 `vertical.pdf` 归私有 `nativePdfIdentityV`。原件首页显示 8 个嵌入 TrueType 字形，另两页保留页边细线。默认 Chromium 编辑器的三页 Canvas 对 Poppler 26.05.0 的 144 dpi 参考均为 0/0，原样保存和新 Worker 重开通过。核心另核对 `W2`、`DW2`、`TJ`、两字节字距和源编辑保护。首页缺少可信 Unicode 映射，仍报告提取不完整。[PDF.js 上游用例](https://github.com/mozilla/pdf.js/blob/24de17e81b3357b30ffd710ec080be00d65ac98d/test/test_manifest.json#L7816-L7820)
+
+独立 PDF.js 6.4.299 对照的三页均为 998/1497，首批差异坐标都落在页边细线上。Poppler 参考沿用原件和绘制规则，通过本地数据目录加载 Adobe-Japan1 后生成。
+
+两份加密 DOCX 的整页检查归私有 `nativeDocxPasswordVisual`。C49 使用 Times New Roman，Word 2013 原件使用 Carlito，与各自 ONLYOFFICE 10.0.0.170 参考同字体。Poppler 26.05.0 以 144 dpi 栅格化。两份原件的 Canvas 与导出 PDF 各为一页，四组整页颜色对照均为 0/0。两条 Chromium 流程还核对错密重试、取消、原样保存及新 Worker 重开的 Canvas 和 PDF 字节。
+
+Word 2013 的 Agile 加密 DOCX 归私有 `nativeDocxAgilePasswordOpen`。LibreOffice 上游断言和固定 ONLYOFFICE 转换均读出 `ABC`。默认 Chromium 编辑器通过错密重试、取消保留旧文档、只读、原样保存和新 Worker 解锁。密文改一位后，核心在读取 ZIP 前拒绝。四项核心和四条 Chromium 定向检查通过。此原件单列于 51 份固定扫描之外。[LibreOffice 上游断言](https://github.com/LibreOffice/core/blob/2821d29a87b28785d74fa64d975465e4c99d4416/sw/qa/extras/ooxmlexport/ooxmlencryption.cxx#L43-L51)
+
+PDF AES-128 解锁归私有 `nativePdfAesV2PasswordOpen`。qpdf 12.4.1 用 C50 原件生成 V4/R4 AESV2 对照，核对字符串、流和压缩对象。Poppler 26.05.0 的 AESV2 与 RC4 栅格逐字节相同。两份 SDK Canvas 也逐字节相同，各自整页笔画覆盖为 0/0。错密重试、取消、只读、原样保存和新 Worker 重开通过。AESV2 禁止打印、RC4 禁止复制及 AESV2 版本不匹配的对照均拒绝，并保留当前文档。13 项定向核心和五条 Chromium 流程通过。
+
+PDF 文件尾偏移恢复归私有 `nativePdfClassicXrefRecovery`。只改 C22 原件末尾四个偏移数字，原交叉引用表和对象保持。Poppler 26.05.0 的原件与损坏件栅格逐字节相同。Chromium 打开损坏件，整页笔画覆盖为 0/0，源保存和新 Worker 重开通过。13 项定向核心与五条 Chromium 流程通过，包含三种错误偏移、旧修订链接拒绝及 C51 的原文档保留。
+
+C49 的 Standard 加密 DOCX 归私有 `nativeDocxPasswordOpen`。LibreOffice 上游测试与固定 ONLYOFFICE 转换均读出 `ABC`。默认 Chromium 编辑器显示该段，布局诊断为空。错密重试、取消保留旧文档、原生输入只读、原样保存和新 Worker 解锁通过。两项核心测试覆盖密码验证、FAT 循环、保留预算与写入保护。三条 Chromium 流程通过，包含共享 PDF 密码对话框和失败替换回归。
+
+同构建扫描 51 份固定原件。48 份正向原件通过已有打开及有界检查，C48 旧版 PPT、未提供密码的 C50 和 C51 损坏 PDF 按预期拒绝。
+
+语料登记同步了 12 个已更新的项目自有测试文件的哈希，九项完整性检查通过。五条图元文件白盒测试已移入私有测试登记，源码逐字节相同。公开 `bun run check` 和图元文件与 DOCX OLE 的八项定向检查通过。当前构建的画布页面边界用例通过 24 组精确像素对照。
+
+C14 渐变原件的当前证据归私有 `nativeC14GradientVerification`。原件和改后 Canvas 各从 1/0 降为 0/0。原件和改后 SDK PDF、LibreOffice 重开也为 0/0。原件 PDF 检查已加入既有 Chromium 用例。两张 ONLYOFFICE 参考栅格与前批逐字节相同。文字输入、源保留、精确历史和新 Worker 重开通过。共用测试助手的 C11 回归四组对照也为 0/0。
+
+C44 条件格式的完整打印预览归私有 `nativeC44PrintPreview`。原件和跨表编辑后各有两页，四张 Canvas 对同一独立 ONLYOFFICE 参考均为 0/0。原有十组对照的实际栅格和参考哈希均相同。精确历史、十个非目标部件、SDK 重开和独立保存重开通过。
+
+C31、C32 的 AcroForm 后备字段归私有 `nativePdfXfaFallbackFields`。C32 的只读列表从父字段继承空字符串，查询现返回空选区。两份原件分别读取七个、五个后备字段，保留已选值并报告 XFA 保护。核心验证拒绝修改后原样保存。四条 Chromium 流程通过，覆盖两份原件的字形、旋转重开，以及 C34 和跨页共享字段的编辑回归。
+
+C33 的无外观线批注归私有 `nativePdfLineAnnotationEdit`。默认编辑器读取原 4 pt 宽度，可修改颜色、宽度和批注文字。qpdf 核对原对象编号、端点及 14 个非目标源对象。Poppler 重开改后文件，在原矩形之外核对红色笔画像素。原样保存、逐字节撤销重做和新 Worker 重开通过。12 项定向核心及十条 Chromium 流程通过，覆盖原件与旋转页的既有 Poppler 对照，以及表单、绘图和批注关系回归。
+
+C23 原生图片编辑归私有 `nativePdfCmykImageMove`。默认编辑器把图片横坐标移到 80 pt。独立参考用 qpdf 只改原页的横向平移。Poppler 26.05.0 以 144 dpi 栅格化，改后 Canvas 和保存 PDF 的整页颜色对照均为 0/0。qpdf 核对 34 个源对象，包含原 CMYK JPEG 和内容流。改后调用仍在原可选内容层和绘制状态内。精确撤销重做及新 Worker 重开通过，重开的属性框显示 `80`。五条定向 Chromium 流程通过。
+
+C18 正文编辑归私有 `nativePdfKitSourceTextEdit`。默认编辑器拒绝再次嵌入受限的源 Palatino。显式选择 Arial 后可替换正文，宿主为该名称供应 Noto Sans。qpdf 核对原字体、原内容流等 11 个源对象，Poppler 提取出替换文字。改后 Canvas 与 Poppler 重开保存 PDF 的整页笔画覆盖为 0/0。精确撤销重做、新 Worker 重开及五条定向 Chromium 流程通过。
+
+C47 的 Strict XLSX 只读查看归私有 `nativeC47StrictXlsxReadOnly`。原件打开三张表，显示主题蓝字、黄色填充及公式结果 13。LibreOffice 26.8.1.1 另存核对公式和结果。核心保护单元格编辑。默认 Chromium 界面通过切表、黄色填充、可访问只读状态和新 Worker 原样重开。混合关系命名空间的派生文件会保留原编辑器并报告打开失败。一项定向核心和三条 Chromium 流程通过。有界扫描的 47 份正向原件和四份控制均符合预期。
+
+C47 的打印证据归私有 `nativeC47StrictXlsxPrint`。ONLYOFFICE 10.0.0 将纸型代码 `0` 和省略纸型的工作表均按 A4 导出。独立参考只在样式和次要主题字体中将 Calibri 换成固定 Noto Sans，另 11 个包部件逐字节相同。浏览器加载原件，核对网格长文本、两张有内容的表、原样保存及新 Worker 的相同 PDF。qpdf 结构检查通过，144 dpi 的两页 Canvas 和两页 PDF 均为 0/0。另有核心检查核对空格、有值邻格及显式打印区域。
+
+C47 的横向滚动归私有 `nativeC47StrictXlsxScrollOverflow`。滚出 A4 后，先确认 A4 从视口单元格列表移除，再检查蓝色文字尾部仍在 Canvas 中。修复前该像素检查失败。新构建的四条 Chromium 流程覆盖原样保存、重开、两页打印、冻结窗格和绘图滚动。打印 PDF 与上批逐字节相同，四组整页对照均为 0/0。九项核心检查通过。
+
+PDF 2.0 只读查看归私有 `nativePdf2ReadOnly`。复用 ONLYOFFICE 10.0.0 的两页原件。qpdf 验证结构和版本，Poppler 26.05.0 的两页 144 dpi 整页笔画覆盖均为 0/0。第二页按源 `TJ` 位移恢复词间空格，提取与 Poppler 一致，前后栅格逐字节相同。原样保存、新 Worker 重开及旋转和提取成新 PDF 的保护通过。目录声明 2.0 的独立控制可打开；新版本和缺失文件头拒绝并保留当前会话。十二项定向核心和十一条 Chromium 流程通过。
+
+C50 加密 PDF 归私有 `nativePdfPasswordOpen`。默认打开流程以错密重试，取消保留原编辑器。四个空格解锁后可只读查看，保存和新 Worker 重开均保留原加密字节。qpdf 核对加密方式及权限。Poppler 26.05.0 核对原件的提取文字和 144 dpi 整页笔画覆盖，结果为 0/0。qpdf 解压确认挖空组内容为空。独立禁止复制的对照文件会拒绝打开并保留当前会话。十二项定向核心和七条 Chromium 流程通过。
+
+C43 气泡图的打印裁剪归私有 `nativeC43BubblePrintOverflow`。LibreOffice 固定参考在图框下边缘之外绘制蓝色气泡。打印沿用页面或打印带裁剪，屏幕沿图框裁剪。SDK 的独立打印对照从 47603/48128 降至 47004/47876，从 45224/45444 降至 44612/45186。两张对照仍有差异，原样保存和新 Worker 的 PDF 字节一致检查通过。
+
+三个气泡图核心检查通过。无图例视图为 0/0，有图例视图为 5/4。原件 15 页的 30 张 SDK 栅格及全部参考栅格与前批逐字节相同，正式通过 10/30。
+
+C43 的打印底纹取样归私有 `nativeC43FractionalBitmapCells`。独立 PDF 以 144 dpi 绘制双色索引底纹，6 pt 周期对应 12 个设备像素。首行取样沿用原生平铺的末行。新对照与 Poppler 逐像素相同，整数格、变换裁剪和缩小回归均通过。
+
+15 页原件保留源字节，沿原参考和容差执行 30 组比较，通过 10 组。第 7 页圆环图区的 Canvas 从 1773/347 降为 0/1，PDF 为 0/0。第 4 页原参考省略部分源底纹，修正后该页 SDK 一侧的差异增加。整表通过临时测试从内存 PDF 取样，沿用整页断言；本次跳过 qpdf 结构检查。两次同构建对照的导出 PDF 字节一致。
+
+C43 的复合饼图连接线归私有 `nativeC43OfPieConnectors`。LibreOffice 的等价末尾 12 点拆分对照保留原值和样式。其两条连接线均从主饼外缘向次图延伸。C43 原件和合成条形检查先失败，修复后四项核心检查通过，覆盖条形和饼形次图的切点。
+
+Chromium 中，两张隔离图的原样保存和新 Worker 重开通过，完整视觉仍有差异。原工作簿保留源字节和 18 个绘图对象，打印导出 15 页。全部 30 张参考栅格与前批相同，26 张 SDK 栅格相同。变化集中在第 7、10 页，两页的 Canvas 和 PDF 仍有差异。正式结果为 10/30。
+
+C43 的主饼合并扇区样式探针归私有 `nativeC43OfPieConnectors.aggregateStyleProbe`。仅在上述原生对照加入编号 16 的着色点，PDF 页面操作流逐字节相同。LibreOffice 的读取器只为编号 0–15 的源数据点创建样式属性。该对照无法验证合并扇区的显式样式。[LibreOffice 数据点读取](https://github.com/LibreOffice/core/blob/bf6ef2662401c7d6dce671ab4deb26ee0af3a7c1/chart2/source/model/main/DataSeries.cxx#L285-L328)
+
+C43 的复合饼图默认值归私有 `nativeC43OfPieDefaults`。LibreOffice 另存位置拆分对照时省略间距和次图尺寸。原生间距归零、尺寸改为 100 和省略两项的三个对照，均与原生位置拆分对照的 PDF 操作流逐字节相同，因此该引擎无法验证这两项的几何响应。
+
+复合饼图的位置拆分边界归私有 `nativeC43PositionalOfPie.boundaries`。LibreOffice 对照只改拆分位置。`0` 仅绘主饼，`15` 和 `16` 均保留主饼合并扇区、15 段条形和两条连接线。SDK 接受 Office 规定的整数范围 `0` 至 `32000`。超过可拆点数时保留首点给主组，沿用微软二进制格式记载的行为。LibreOffice 对 `32000` 只绘次图。五项定向检查覆盖零值、缺失值、非法位置和原样保存。[Office 的 OOXML 范围](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-oe376/99656dce-2698-452b-ad7d-63ba27d19f7b) [微软二进制格式的超限规则](https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-xls/810df3fd-6503-4545-9bf5-09ab2061818a)
+
+自动拆分归私有 `nativeC43PositionalOfPie.automatic`。条形和饼形两套 LibreOffice 对照只改拆分规则。两套的 `auto`、空节点和省略节点均与显式末尾两点的 PDF 内容流逐字节相同。Chromium 的自动和显式两点版均绘出两段条形，Canvas、PDF 及 PDF 栅格逐字节相同。四条浏览器流程通过原样保存和新 Worker 重开。46 项定向核心检查通过。C43 原件复跑保留源字节、18 个绘图对象和 15 页 PDF，30 组比较与前批一致。
+
+原件的 15 页 PDF 字节及 30 组整页对照与前批一致。两张隔离复合饼图均通过原样保存和新 Worker 重开，正式视觉仍失败。冻结参考将两张图都绘成普通饼图。
+
+C43 原件派生对照先因缺少 `gapWidth` 失败，修复后四项核心检查通过。Chromium 的显式默认值、省略节点和空节点三份对照各保留源字节及新 Worker 重开。三份 Canvas、PDF 和 PDF 栅格逐字节相同，对冻结参考的严格比较仍失败。
+
+C43 条形复合饼图的 LibreOffice 另存件归私有 `nativeC43OfPieLibreOfficeRoundtrip`。在首张工作表中，Chromium Canvas 和 SDK 导出的单页 A4 PDF 均绘出原生对照中的 12 段颜色。原样保存和新 Worker 的 PDF 字节一致通过。原生整页诊断仍有 164104/164105 个差异。第二张工作表仍报告未绘制对象，原件两条复合饼图严格对照仍失败。
+
+空值点的图例填充归同条记录的 `emptyPointLegendFill`。LibreOffice 对照只把首点显式颜色从 `9999FF` 改为 `D24726`，原生 PDF 仅变化一条图例填充指令。正常 Chromium 的 Canvas 绘图指令与 SDK PDF 均保留原件的 `9999FF`。另存件保留源字节，新 Worker 导出相同 PDF。46 项定向核心和两条 Chromium 流程通过。另存件的整页诊断为 164115/164120，图例文字仍有差异。C43 原件的 15 页 PDF 和 30 组比较与前批一致，整页严格对照仍为 10/30。
+
+另存件的第二张工作表现可预览条形和饼形复合饼图，其他 16 张图表按部件报告。Chromium 核对了两张图的源颜色、编辑器诊断、打印拒绝和原样保存。52 项定向核心检查通过，覆盖重复绘图编号的拒绝。C43 原件的主图表页仍通过严格对照，18 张工作表图表可读，15 页 PDF 与新 Worker 重开后的输出逐字节相同。两张隔离复合饼图的严格对照仍失败，SDK 与参考的输出均与前批逐字节相同。原件整表视觉沿前批结果。
+
+同一 LibreOffice 另存件新增显示第二张表的四系列圆环图。104 条重复标签的绘制指令与仅保留系列设置的控制逐项相同。真实逐点覆盖继续拒绝。固定 ONLYOFFICE 的工作区输出验证两种底纹；LibreOffice 的 PDF 保留标签，标签字段顺序与 SDK 有差异。正常 Chromium 核对底纹、扇区颜色、原样保存和新 Worker 的相同画面。47 项定向核心通过，第二张表还有 15 张图表未显示，整表打印仍受保护。C43 原件的 15 张打印预览和整份 PDF 与前批逐字节相同。证据归私有 `nativeC43OfPieLibreOfficeRoundtrip.doughnutPreview`。
+
+另存件第二张表的普通饼图现显示外置标签和源引导线。LibreOffice 对照只关闭源开关，原生 PDF 少 15 条黑色细线，其余绘制指令一致。SDK 使用文件声明的红色细线，在现有标签位置画出 7 条。47 项核心检查通过，包含关闭开关后省略引导线。Chromium 通过原样保存和新 Worker 重开。第二张表还有 14 张图表未显示，整表打印仍受保护。C43 原件的 15 张打印预览和整份 PDF 逐字节一致。证据归私有 `nativeC43OfPieLibreOfficeRoundtrip.pieLeaders`。
+
+同一普通饼图的 25 个标签均保留，文字区域重叠从 27 对降到零。Chromium 原样保存和新 Worker 重开均画出 11 条源红色引导线。48 项定向核心通过。C43 原件的 15 张打印预览和整份 PDF 与前批逐字节相同。两张气泡图的四组同倍率整页打印对照仍为 0/0。证据归私有 `nativeC43OfPieLibreOfficeRoundtrip.pieBestFit`。
+
+LibreOffice 另存件的两张雷达图现可在默认编辑器预览。独立 PDF 只切换分类轴方向，蓝色系列的第二点随之从左移到右。ONLYOFFICE 对照保留红、蓝标记填充，并分别使用主题的蓝、红描边及 0.75 pt 线宽。核心复用既有主题解析，保留显式图框和圆角连接，可见标签和反向数值轴继续保护。51 项定向核心和四条 Chromium 流程通过。C43 原件两张隔离雷达图的 Canvas/PDF 四组均为 0/0，15 张打印预览和整份 PDF 与前批逐字节相同。另存件还有 12 张图表未显示，整表打印仍受保护。证据归私有 `nativeC43OfPieLibreOfficeRoundtrip.radarPreview`。
+
+同一另存件的百分比面积图现显示全部 26 个系列。独立 ONLYOFFICE 控制分别关闭分类轴和数值轴刻度，核对主次刻度尺寸及位置。移除全部 `round` 节点后，原生 PDF 内容流逐字节相同。修正两条轴的绘制顺序后，整图 Canvas 和整页 PDF 从 4/0 降至 0/0。52 项定向核心和三条 Chromium 流程通过，包含原件面积图的两组 0/0、另存件预览、源保存及新 Worker 重开。C43 原件完整用例仍为 10/30，30 张实际栅格和全部参考栅格与前批逐字节相同。PDF 字节随轴绘制顺序变化。另存件还有 11 张图表未显示，整表打印仍受保护。证据归私有 `nativeC43OfPieLibreOfficeRoundtrip.areaPreview`。
+
+原生图表的缺省系列名称归私有 `nativeC43OfPieLibreOfficeRoundtrip.defaultSeriesNames`。六种图表读取控制省略中间系列名称，并把源 `idx` 设为 77；显示名均为 `Series 78`，其他引用与缓存保持。气泡图继续更新无名称系列的数值及独立尺寸缓存，保留精确历史、源保存和重开。显式空引用仍拒绝。独立 ONLYOFFICE 对缺省名称与显式同名产生逐字节相同的栅格。该控制暴露长数据标签未换行；修正后完整 Canvas 从 3023/1990、整页 PDF 从 3007/2017 均降为 0/0。53 项核心检查和新增名称、原件折线两条 Chromium 流程通过。两张气泡图的四组同倍率整页对照及另存件预览在换行修正前通过。C43 原件整表仍为 10/30，PDF 和全部 30 张实际、参考栅格与前批逐字节相同。另存件两张气泡图仍被后续样式阻挡，未显示数仍为 11。
+
+另存件的两张气泡图现可在默认编辑器预览，未显示图表减为 9 张。核心保留缺省名称、缺失尺寸、显式图框、主次刻度及关闭的逐点标签。无尺寸系列采用 ONLYOFFICE 绘制源码的 4 mm 半径；14 个圆的直径已核对，保存不补写名称或尺寸。固定 ONLYOFFICE 的独立导出画为散点标记，LibreOffice 导出省略无尺寸系列，两份结果均保留为诊断。55 项定向核心和三条 Chromium 流程通过，包含原样保存、新 Worker 相同预览和原件两张气泡图的四组同倍率整页 0/0。C43 原件的 15 张打印预览和整份 PDF 与前批逐字节相同；整表沿用 10/30 的严格失败。整图视觉资格与另存件整表打印仍未通过。证据归私有 `nativeC43OfPieLibreOfficeRoundtrip.bubblePreview`。
+
+C43 的气泡图打印缩放归私有 `nativeC43BubblePrintFitRoutes`。同一份 chart14 工作簿在 ONLYOFFICE 和 SDK 中均按 62% 打印。仅将工作簿默认字体换成 Noto Sans，ONLYOFFICE 的变换保持，LibreOffice 的图框从 470.395 pt 缩至 455.921 pt。
+
+C43 的整文件目标已确认为贴近固定 ONLYOFFICE 10.0，包括其降级外观；原始数据和属性保留。现有独立工作表参考及固定字体、100% 打印设置继续使用。无需等待其他引擎完整实现所有源特征。源保留、保存重开与整页零差异断言保持。两张隔离气泡图沿用已批准的同倍率独立打印对照。参考选择归私有 `nativeC43ReferenceContract`。
+
+后续共享描边结果归私有 `nativeC43IntegerFilledStroke`。普通 `integer` Canvas 的填充直线多边形现复用已有 PDF 描边覆盖。未修改的透视柱图正式流程在旧构建复现 Canvas 0/5，修复后为 0/0，整页 PDF 保持 0/0。两张三维柱图的 Canvas/PDF 四组全部为 0/0，源保存与新 Worker 相同 PDF 通过。WASM 字节、独立参考和阈值保持，发行构建及私有类型检查通过。
+
+同构建六项渲染回归通过。独立多边形在 `integer/pdf` 两种模式下共 32 组比较通过；表面预算包含父层，两个模式的四项边界检查通过。曲线、设备像素控制及七种不支持样式的原生回退通过。这些通用控制在修改前已通过，实际回归基线是透视柱图的 0/5。跨格式验收结果见本节开头，完整 XLSX 验收继续开放。
+
+重算后的整本对照归私有 `nativeC43RecalculatedPagesCurrent`。原件在默认界面编辑并执行 Calculate now，已记录精确历史和新 Worker 缓存。独立引擎用相同数值的字面控制，避免再次生成随机数。主图页与 15 张工作表页按可见页顺序无损合并，32 组整页 Canvas/PDF 对照中 23 组为 0/0。源保存和新 Worker 的相同 PDF 通过，19 张图表缓存与已保存单元格数值全部一致。第 5、6、12、14、15 页仍有差异，完整 C43 未通过。
+
+后续原生旋转控制只修改饼图起始角。0° 和 90° 省略单象限扇区底纹，45° 保留跨象限底纹。核心已按路径曲线数量修正打印分支，并移除主引擎没有的纵向标签避让。六项相关核心、发行构建和类型检查通过；新构建的六条圆形图流程通过。原始与重算后的完整页面仍在复跑，旧 23/32 结果继续保留。
+
+最新结果归私有 `nativeC43BubblePrimaryDisplay`。气泡图复用原生散点布局，保留原始尺寸、编号、引用、缓存错误和属性。单点尺寸变化不改变显示，零尺寸系列仍显示标记。三维图之后的自动边距、数值 X 轴末端字宽和图例三角形均沿主引擎；工作区复用分数描边与字体适配。曲面 `between` 网格已从六个中心改为七条边界，并保留原生路径方向。相关回归在旧行为下先失败，修复后 73 项核心、正常发行构建及 `moon info` 通过。[格式合同](formats.md#工作表图表)
+
+八条正式流程全部通过。两张气泡图的原件和新 Worker 完整 Canvas、62% 与 65% 整页 PDF 共八组均为 0/0。三张原始曲面图的 Canvas/PDF 六组均为 0/0。原始工作表的 15 页预览及 PDF 共 30 组均为 0/0，原样保存通过；全部 30 张冻结参考与此前通过的 20 张 SDK 栅格逐字节保持。透视柱图工作区及剩余登记流程尚未在该构建完成，完整 C43 和 C0 仍开放，未跑全仓。
+
+气泡图的 14 份主引擎资产固定在私有 `cases/c0-bubble-reference/`。62% 原生 PDF 与栅格逐字节保留。65% 控制只把右边距改为 0.35 英寸，并固定原生打印倍率；SDK 的显式纸张得到同一倍率。完整 2304×650 工作区由原生引擎按同一 96 dpi 分两块绘制，再无损拼接，绕过单图 2000 像素限制；前 1000 列与原生单图逐字节相同。期望不使用 SDK 布局、像素或合成留白。独立生成脚本和旧二级输出保留。从根目录运行 `moon run test-lab/tools/c0-bubble-reference.mbtx` 校验固定资产及单页 PDF。
+
+前批三维堆积面积批次归私有 `nativeC43Area3dPrimaryDisplay`。数轴用紧凑缓存位置累计，面几何仍按原点编号累计。主引擎为全部堆积面使用编号 0 的样式点，缺少该点时不画该系列的面。原件保留全部四个系列、缓存零和工作表错误；真实零值仍画出 25 个黄色面。原生首点空值、第二点空值和真实零控制支持这一规则。旧行为的核心断言先以 `25 != 0` 失败，修复后 70 项相关核心通过，正常发行构建及 `moon info` 通过。[格式合同与上游依据](formats.md#工作表图表)
+
+原始三维面积图的正式用例和独立真实零值流程均通过，完整 Canvas/PDF 四组均为 0/0。原样保存及新 Worker 的相同 PDF 检查通过。整表沿用原浏览器用例、参考和严格断言，从 18/30 提高到 20/30。仅第 8 页两张 SDK 栅格变化，并新增两组 0/0；其他 28 张 SDK 栅格及全部 30 张冻结参考逐字节保持。第 10–14 页仍失败，完整 C43 未通过，未跑全仓。
+
+前批深度轴标题归私有 `nativeC43AutomaticDepthTitlePrimaryDisplay`。固定主引擎未对 `SerAx` 计算自动标题位置，原生图框裁剪使其不可见。柱图和曲面图现沿此显示，保留标题源属性及布局留量。显式边缘位置和贴边限制保持。两个旧行为回归先失败，修复后 70 项相关核心全部通过，正常发行构建及 `moon info` 通过。[ONLYOFFICE 标题定位分支](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L655-L708)
+
+未修改的三张曲面图及堆积条图正式流程通过，Canvas/PDF 八组均为 0/0。透视柱图整页 PDF 为 0/0，Canvas 仍有 0/5 差异；五张图均通过源保存及新 Worker 的相同 PDF 检查。完整工作表沿用冻结参考和严格断言，从 16/30 提高到 18/30。第 1 页两种输出新增 0/0，第 14 页差异减少；其余 26 张 SDK 栅格及全部 30 张参考逐字节保持。六条流程共四条通过，两条保持严格失败。完整 C43 未通过，未跑全仓。
+
+前批圆形图归私有 `nativeC43CircularPrintHatches`。现有打印上下文传到圆形图扇区：打印省略图案填充并保留轮廓，矩形图框、绘图区和图例底纹保持；工作区及源属性保持。定向回归先在旧实现得到 5 项中 1 项失败，修复后 34 项相关核心全部通过。正常发行构建及 `moon info` 通过。
+
+两条正式圆形图流程已通过，完整工作区 Canvas 和整页 PDF 四组均为 0/0。源保存及新 Worker 的 PDF 字节一致。完整工作表沿用原用例、固定参考和严格断言，结果由 14/30 提高到 16/30。第 4 页两种输出新增通过；其余 28 张 SDK 栅格和全部 30 张参考逐字节相同。完整工作表仍失败，未跑全仓。
+
+圆形组件的工作区现与同倍率原生直接绘图比较。八份资产固定在私有 `cases/c0-circular-reference/`，原输入、原生 PDF 和打印栅格字节保持。独立生成脚本另保留；从根目录运行 `moon run test-lab/tools/c0-circular-reference.mbtx` 校验资产及单页 PDF。该工具只校验登记资产。
+
+前批散点结果归私有 `nativeC43ScatterPrimaryDisplay`。单系列逐点配色组沿主引擎省略绘图区标记，源属性和图例规则保留。稀疏缓存的标记画笔按原生路径位置读取，缺项沿用此前填充和描边。两个定向回归在旧行为下先失败，修改后 70 项相关核心检查通过；真实零、空位、坐标、范围、隐藏及主题检查保持。正常发行构建和 `moon info` 通过。
+
+未修改的原始散点浏览器用例已通过，完整 Canvas 和整页 PDF 均为 0/0。原始输入、保存及新 Worker 的 PDF 一致。完整工作表继续使用冻结参考和原断言，严格结果由 12/30 提高到 14/30。第 5 页两种输出新增 0/0，其余 28 张 SDK 栅格及全部 30 张参考逐字节相同。完整工作表仍失败，未跑全仓。
+
+当前复合饼图显示沿 ONLYOFFICE 转为普通饼图。拆分专用几何和内部状态已移除，源规则、非法索引和尺寸校验保持。等价普通饼图的核心控制先在旧实现复现失败，修改后 69 项相关检查通过。正常发行构建及 `moon info` 通过。两条登记组件用例完整通过，Canvas 和整页 PDF 共四组均为 0/0；原始组件输入、保存及新 Worker 的 PDF 保持。证据归私有 `nativeC43OnlyOfficeDisplay`。
+
+组件旧参考的自动标题实际使用 Avenir。独立对照现将全部显式字体统一到整表相同的 Arimo 配置，图表 XML、缓存、几何和纸张设置保持。原生直接图形生成同倍率的完整工作区图，原生 PDF 则生成整页打印图。两张 SDK PDF 与修正参考前的失败批次逐字节相同。十份原始输入、字体别名输入及图像/PDF 资产已移到私有 `cases/c0-ofpie-reference/`，从根目录运行 `moon run test-lab/tools/c0-ofpie-reference.mbtx` 校验。该工具只校验登记资产；独立生成脚本及旧参考另保留。
+
+同构建复跑完整工作表，严格结果由 10/30 提高到 12/30，第 7 页两种输出新增 0/0。原件保存、18 个绘图对象和 15 页导出检查通过。第 7、8、10、11、12 页的差异计数减少，其余 20 张 SDK 栅格逐字节相同；全部 30 张参考栅格及参考身份保持。完整工作表用例仍失败，不能据两张组件通过授予完整 C43 资格。
+
+手工面积图现复用已有的源错误与缓存零区分。两种面积图的数据目录均以空值报告已知源错误。独立控制只把 E2 换成真实数值零，两份图表部件保持，零值仍读取为零。六项面积图检查包含在 55 项相关核心检查中，全部通过。Chromium 的默认编辑器、原样保存及新 Worker 数据目录和 PDF 一致检查通过。15 张打印预览和完整 SDK PDF 与前批逐字节相同；整表沿用 10/30，未重跑或增加视觉资格。证据归私有 `nativeC43ManualAreaErrorGap`。
+
+C43 的自动标题现采用与显式文字相同的字体原生行距及字距设置。等价显式标题控制先复现 20.1 与 20.6982421875 pt 的行高差异，修复后两种原件的行高和宽度均一致。55 项相关核心及最后一项定向复验通过。三个非空标题字形的轮廓与独立原生 PDF 相同；基线的 SVG 坐标误差从约 0.5803 缩至 0.0028 pt。中性字形层在既有像素容差下，修复前后都为 0/0，因此不增加像素资格。直接裁图会混入穿过标题的原生扇区，失败诊断另存。
+
+自动标题批次曾复跑两张隔离复合图及完整工作表。源保存和新 Worker 检查通过，三条严格视觉用例当时仍失败。整表 30 组对照为 10/30；仅第 7、8 页的四张 SDK 栅格变化，其余 26 张及全部参考保持。当时普通饼图路线只作诊断，完整拆分绘制保持；后续按选定主引擎显示的结果见上方。历史证据归私有 `nativeC43AutomaticTitleMetrics`。
+
+只将图表绝对锚点的宽高减半后，ONLYOFFICE 和 SDK 都按 100% 打印。LibreOffice 图框为 363.005 × 224.646 pt，SDK 为 363.770 × 225.411 pt。半尺寸整页仍有 3829/4077 个差异，图框和绘图区尺寸也有差异。诊断件的原样保存和新 Worker 的 PDF 字节一致检查通过。正式参考与共享缩放规则沿用原验收。
+
+C43 的气泡图打印锚点适配归私有 `nativeC43BubblePrintEmbedding`。LibreOffice 三份对照仅改变图框描边。白底和绘图区随描边加宽而内缩，图框外边界的最大差异小于 0.02 pt。修复后半尺寸对照的 SDK 图框四条边与原生各差不足 0.008 pt，整页 PDF 从 3829/4077 降至 0/1。三个核心检查通过。原样保存及新 Worker 的 PDF 字节一致通过。[LibreOffice 图表边界](https://github.com/LibreOffice/core/blob/bf6ef2662401c7d6dce671ab4deb26ee0af3a7c1/svx/source/svdraw/charthelper.cxx#L89-L95)
+
+半尺寸对照的余差位于左轴短刻度与气泡描边之间。临时 PDF 只将该刻度的纵坐标移至原生位置，相差 0.032 pt，整页即为 0/0。26 根纵轴刻度的坐标误差有正有负。诊断归私有 `nativeC43BubblePrintEmbedding.halfAnchorTickProbe`，产品输出仍为 0/1。
+
+两张全尺寸气泡图的 PDF 差异增加，分别为 51147/52015、48640/49268。无图例和有图例的屏幕对照仍为 0/0、5/4。C43 整表导出 15 页，保留 18 个绘图对象和原文件字节。第 10 至 14 页的 Canvas/PDF 栅格发生变化，其余 20 张与前批相同。第 10、11、13、14 页的差异减少，第 12 页的差异增加。全部参考栅格逐字节相同，正式通过仍为 10/30。
+
+全尺寸气泡图的同倍率对照归私有 `nativeC43BubblePrintMatchedScale`。诊断只将 SDK PDF 的打印倍率从 62% 改到 65%，两张整页均为 0/0。只对齐原点时，两张仍有差异。LibreOffice 转存记录的默认列宽分别为 0.5492、0.6728 英寸，原始锚点各占 19、16 列。原字体与 Noto Sans 的打印倍率分别为 65%、63%。半尺寸 PDF 的一个余差在原点对齐后仍存在。[LibreOffice 分页缩放](https://github.com/LibreOffice/core/blob/bf6ef2662401c7d6dce671ab4deb26ee0af3a7c1/sc/source/ui/view/printfun.cxx#L2607-L2678)
+
+两个独立 XLSX 候选只将图表页右边距从 0.7 调到 1.05 英寸，使 LibreOffice 按 62% 打印。其余包部件逐字节相同。Chromium 读取未改的两份 XLSX，原样保存和新 Worker 重开通过。两张 SDK PDF 与前批逐字节相同，对候选均为 0/0。ODS 另存改变了有图例图的绘图区宽度，该路线单列。冻结的 65% 参考和正式结果保持。登记的 227 项 C0 核心检查全部通过。
+
+旧 LibreOffice 圆形气泡方案的两条打印用例分别验收默认 62% 和纸张右边距为 0.45 英寸时的 65%；当前主引擎方案见上方。62% 使用新增的独立 LibreOffice 对照，65% 沿用冻结参考。两条用例核对 PDF 实际倍率、整页 0/0、原样保存和新 Worker 的 PDF 字节一致。私有工具 `moon run test-lab/tools/c0-bubble-print-62-reference.mbtx` 从根目录重建 62% 参考，两个整页栅格与登记件逐字节相同。
+
+四条气泡图 Chromium 用例在前批全部通过。两张图在 62% 和 65% 的四组整页 PDF 均为 0/0。两张完整 Canvas 在原件和新 Worker 重开后的四组比较也为 0/0。确认同倍率验收后，当前构建复跑两条打印用例，四组整页 PDF 仍为 0/0。源保存及新 Worker 的 PDF 字节一致通过。证据归私有 `nativeC43BubblePrintMatchedScale.currentReplay`、`currentPrintReplay` 和 `approvedPrintReplay`。C43 整表最近一次严格结果仍为 10/30。
+
+C47 的历史拒绝批次在主关系解析前报告 `unsupported-xlsx`，错误为 `Strict OOXML is unsupported`。旧实现误报主关系缺失。原件断言先失败，修复后通过。`bun run test:c0-core` 现从已有登记装载共用测试助手，执行 63 份 C0 测试文件的 227 项检查，全部通过。两条 PPTX 断言同步了源 XML 省略缩放的表示，实际 100% 缩放、原生几何及精确历史断言保持。复跑有界扫描，46 个正向候选打开，五个控制项在打开阶段拒绝。仅 C47 的错误信息变化，证据归私有 `nativeC47StrictXlsxRejection`。
+
+C13 的 SmartArt 参考诊断归私有 `nativeC13SmartArtMaskGroupCandidate`。固定原生 PDF 有 117 个亮度软遮罩 Form 缺少透明组。候选只补这些字典。全部 216 个 PDF 流逐字节相同，42 页参考栅格逐字节相同。受影响六页的 Poppler 软遮罩警告消失。
+
+首轮复用已核验哈希的 SDK 栅格。第 8–12 页的十组 Canvas/PDF 均为 0/0。第 14 页仍为 Canvas 960/970、PDF 954/948。候选的整稿结果为 88/96，正式结果为 78/96。直接原生 PNG 作为独立补充，第 8 页两组均为 0/0。
+
+第 14 页行高归私有 `nativeC13SmartArtWhitespaceMetrics`。固定原生对照只调整段首空格字号。16、19、22 pt 的三行基线相同，同行横向位置随空格宽度变化。将空格换成可见字母后，三行基线分别移动 −1.620、+0.828、+1.620 pt。核心按可见文字计算混排行高，保留空格宽度。36 项 SmartArt 和 43 项相关排版检查通过，两批有重叠。
+
+新构建对软遮罩候选复查第 8–12 页均为 0/0。第 14 页 PDF 降为 0/0，Canvas 降为 9/26。剩余点位集中在右侧竖排 `Topic` 字形。原件、背景编辑、精确历史及新 Worker 重开通过。[ONLYOFFICE 行度量](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js#L5060-L5134)
+
+正式参考复跑全部 48 页，仅第 14 页的两张 SDK 栅格变化。全部参考和其余 94 张 SDK 栅格逐字节相同。正式结果为 78/96，软遮罩候选为 89/96，候选待确认。
+
+第 14 页两个竖排标签的对照归 `nativeC13SmartArtRotatedRasterRoutes`。同一固定引擎的屏幕 PNG 与软遮罩 PDF 候选在两个区域合计为 26/0。SDK Canvas 对屏幕 PNG 为 3/2，对 PDF 候选为 9/26。SDK PDF 对候选整页为 0/0。两个区域的结果只用于区分绘制路径。
+
+C13 第 14 页旋转字形归私有 `nativeC13QuarterTurnGlyphPhases`。独立参考的 Carlito 28 和 32 像素字形旋转后，设备缓存高度分别为 48 和 54 像素。沿用原生的 50 像素分界后，Canvas 对软遮罩 PDF 候选从 9/26 降为 0/0，对原生屏幕 PNG 从 464/700 降为 446/437。PDF 栅格保持。正式整稿为 78/96，软遮罩候选为 90/96。仅第 9、13、14 页 Canvas 栅格变化，第 9 页对候选保持 0/0，第 13 页对正式参考保持 0/0。
+
+首轮浏览器在编辑重开阶段超时。关闭测试浏览器的下载副本后，原件及编辑流程的 102 组对照全部执行。编辑、精确历史及新 Worker 重开通过，正式视觉仍失败。227 项核心与六条共用浏览器像素回归通过。
+
+C13 第 7 页的 SmartArt 背景编辑现有独立整页对照。原生输入只在该页加入黄色背景，其他 282 个部件逐字节相同。固定 ONLYOFFICE 输出只改变一条背景绘制指令，另有时间与交叉引用元数据变化。正式 Chromium 用例新增改后 Canvas/PDF 对照，两组均为 0/0。背景修改后的保存、精确撤销重做及新 Worker 重开通过。原稿 16 组对冻结参考通过 4 组，对软遮罩候选通过 16 组。关闭重复下载后的正式报告逐字节相同。证据归私有 `nativeC13SmartArtMaskGroupCandidate.backgroundEdit`。
+
+文件替换的最新证据归私有 `c0CompoundContainerDiagnostics`。Chromium 使用 C47–C51 五个固定对照。旧版 PPT 和加密 DOCX 识别为 OLE 复合容器，报告 `unsupported-package`。Strict XLSX 报告 `unsupported-xlsx`。加密 PDF 和损坏 PDF 分别报告加密限制和交叉引用错误。
+
+五项归档核心检查与两条 Chromium 流程通过。51 份有界扫描中，46 个正向输入通过，五个对照按预期拒绝。只有 C48 和 C49 的诊断与前批不同。截断 ZIP 仍报告包损坏，超预算输入先按预算拒绝。
+
+PPTX 和 PDF 各另触发一次字体和画布故障。九次失败均清理候选，保留原编辑器及 revision。四份当前文档均可逐字节原样保存。前批归 `c0AllReplacementControls` 和 `c0DocumentFailureStages`。损坏 GIF 在后者的构建报告 `image`，保留 `InvalidStateError` 名称，当前编辑稿仍可逐字节原样保存。
+
+同构建的七条 Chromium 流程全部通过，覆盖四种格式的保存、重开和会话保留。XLSX 检查核对分段边线、滚动后可见单元格的格式刷及列宽更新。DOCX 检查核对撤销后工具栏的键盘焦点。
+
+C13 第 42 页的 GIF 颜色候选归私有 `nativeC13GifBulletReferenceCandidate`。原件和独立编辑参考各有两条 GIF 转成的 JPEG 颜色流。两份 PDF 的透明遮罩均与对应源 GIF 的 Alpha 逐字节相同。候选只恢复两条颜色流。两份候选各有 47 页栅格逐字节相同。
+
+对照复用已核验哈希的 SDK 原件和改后栅格。第 42 页两张 Canvas 各消除四处颜色差异，两张 PDF 继续为 0/0。候选合计四组为 0/0。正式参考与验收计数保持，候选待确认。
+
+联合诊断归私有 `nativeC13CombinedReferenceCandidate`。SmartArt 遮罩修正只影响第 8 至 12、14 页。GIF 颜色修正只影响第 42 页。其余 41 页参考栅格逐字节相同。
+
+当前构建完成 102 组 Chromium 对照。原稿通过 91/96，改后通过 6/6。48 次 PDF 导出、原生输入、精确历史和新 Worker 重开通过。102 张 SDK 栅格与正式批次逐字节相同。候选仍有第 3、15、28、36 页的五组差异。正式参考的通过数仍为原稿 78/96、改后 5/6。
+
+C43 扇区底纹的定位归私有 `nativeC43SectorPatternBounds`。图案以扇区路径边界为原点。核心依据原生画刷的位置和尺寸断言，修复前失败，修复后 13 项定向检查通过。
+
+冻结的原生 PDF 为图案扇区选中画刷，却以空路径填充。诊断仅复用紧随其后的原生红色描边路径。底纹图像、图案矩阵和页面其余内容保持。整表另外 14 页栅格逐字节相同。修复后，第 4 页 PDF 对诊断候选从 2/8 降至 0/0，隔离饼图 PDF 从 2850/2450 降至 0/0。第 4 页 Canvas 对候选仍为 11376/4819。
+
+正式整表比较仍为 10/30，除第 4 页外的 28 张 SDK 栅格和全部冻结参考栅格逐字节相同。第 4 页正式 Canvas 为 1907/9162，PDF 为 10/11719。原件保存、重开及四份圆形图控制共五条 Chromium 流程通过。两条隔离圆形图流程仍失败，正式参考保持冻结。
+
+同一构建的隔离圆环图 Canvas 对直接原生 PNG 为 85/71，对冻结原生 PDF 栅格为 11555/9903。PDF 正式对照为 0/0。直接输出与 PDF 的底纹周期不同，这组结果用于归因。
+
+C43 圆环图的绘制顺序归私有 `nativeC43DoughnutPaintOrder`。修复后，103 个扇区的颜色顺序和 PDF 提取的标签顺序与原生一致。七项核心检查通过。隔离图 Canvas 对直接原生 PNG 从 85/71 变为 67/74。只把两处底纹改为纯白的对照从 29/5 变为 11/8。
+
+圆环图的正式 Canvas 仍为 11555/9903，PDF 为 0/0。普通饼图的 Canvas、PDF 和栅格逐字节相同。C43 整表保留 18 个绘图对象，原样保存通过。15 页 PDF 结构检查通过，30 组比较仍为 10/30。第 4、7 页四张 SDK 栅格发生变化，第 7 页 Canvas 减少一个差异像素。全部正式参考栅格相同，三条严格用例均仍失败。
+
+原生圆环扇区路径归私有 `nativeC43DoughnutPath`。新版 PDF 的 103 条路径操作顺序与独立原生 PDF 一致。2,252 个坐标的最大误差为 0.00024 pt。旧版路径断言失败，修复后七项核心及 C10 的 Chromium 回归通过。
+
+圆环图正式 PDF 为 0/0，Canvas 为 11558/9903，参考一侧比前批多三个差异像素。直接原生 PNG 对照仍为 67/74，纯白底纹对照由 11/8 变为 11/7。普通饼图的 Canvas 和 PDF 逐字节相同。C43 整表第 4、5、7、8 页共八张 SDK 栅格变化，全部比较计数保持，正式结果仍为 10/30。三条 C43 严格用例仍失败。
+
+圆环图的原生 PNG 按输出像素宽高与 A4 纸张尺寸分别计算横纵比例。Chromium 诊断使用这两个比例和原生打印原点后，原始底纹版从 67/74 降至 7/2，纯白对照从 11/7 降至同一组 7/2。九次差异中，最后绘制的是七次文字和两次扇区填充。普通重放逐字节复现 SDK 原图。证据归私有 `nativeC43DoughnutPath.directPageMapping`，正式结果沿用上批记录。[ONLYOFFICE 页面比例](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/DesktopEditor/graphics/Graphics.cpp#L301-L346)
+
+前批构建复跑 C43 正式整表，30 张 SDK 栅格与上一批逐字节相同。原样保存、15 页 PDF 结构检查及 18 个绘图对象断言通过，严格整表仍为 10/30。第 4 页对恢复扇区底纹的诊断候选，Canvas 和 PDF 均为 0/0。隔离饼图对同样修正的参考，PDF 为 0/0，工作区 Canvas 为 737/944。冻结参考和断言沿用原验收。证据归私有 `nativeC43SectorPatternBounds.currentVerification`。
+
+当前构建复跑整表与隔离圆形图候选。原生打印候选只在第 4 页和隔离饼图的空填充指令前复用同一原生扇区轮廓。另 14 页的 PDF 内容流和栅格逐字节相同。SDK 的 15 页 PDF 与 30 组正式比较复现上一批。整表第 4 页两组候选均为 0/0，整表候选为 12/30。隔离饼图和圆环图的同倍率工作区 Canvas 与整页 PDF 四组均为 0/0，圆环图 75% 另有两组为 0/0。四条 Chromium 流程通过，包含源保存及隔离图的新 Worker 重开。正式参考维持冻结，候选待确认。证据归私有 `nativeC43SectorPatternBounds.reviewedCandidate`。
+
+GenOffice 0.11.727 在 C43 原件的 `Лист1!A57` 显示饼图，但把源扇区底纹画成纯色。先前的 ONLYOFFICE 直接 PNG 来自打印转换。现在用同一固定构建的工作区绘制函数，从未改的隔离工作簿导出图表。绘制前在内存应用原图表锚点尺寸，按工作区缩放输出。两个图框区块共 51,744 个像素与 8×8 源掩码逐值一致，绘图区沿用小数起点。
+
+工作区按设备像素平铺后，圆环图对原生工作区从 14037/13736 降至 6/5，另一档缩放的重放从 12998/4262 降至 12/4。普通饼图从 1973/1034 降至 991/401。两张 SDK PDF 与前批逐字节相同，原样保存和新 Worker 重开通过。四条 Canvas 流程与 11 项核心检查通过。两条正式 Canvas 仍比较冻结的打印参考，圆环图为 12732/12255，饼图为 4/6124。整表沿用前批证据。本批归私有 `nativeC43ChartScreenHatches`。
+
+圆环图仅跳过文字绘制后，两边整图为 0/0。478 个可见字形编号逐个一致，设备原点最大横向误差低于 0.0003 像素。工作区按整数设备坐标落字后，93% 缩放的圆环图从 6/5 降至 0/1，75% 缩放整图为 0/0。普通饼图对原生工作区为 974/398。正常 Worker 原样保存和重开通过，两张导出 PDF 逐字节相同。11 项核心检查和 4 条共享 Canvas 流程通过。93% 的两条正式用例仍用冻结的打印参考，圆环图 Canvas 为 12732/12260，饼图为 20/6137。整表未复跑。证据归私有 `nativeC43ChartScreenGlyphs`。[ONLYOFFICE 字形落点](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/DesktopEditor/graphics/Graphics.cpp#L1024-L1065)
+
+C43 普通饼图的图例描边归私有 `nativeC43PieLegendScreenStroke`。原生跟踪逐字节复现工作区参考。0.25 pt 图例外框与 1 pt 标记描边均使用小数设备坐标。Chromium 重放只改外框时从 974/398 降至 0/397，再改标记后为 0/0。正常 SDK 工作区在 93% 缩放下复现整图 0/0。
+
+11 项核心及 6 条共享 Canvas 流程通过。两张图的导出 PDF 与前批逐字节相同，原样保存和新 Worker 重开通过。圆环图 75% 工作区为 0/0，93% 为 0/1。两条正式用例沿用冻结打印参考，饼图 Canvas 为 988/6561、PDF 为 0/4483，圆环图为 12732/12260、0/0。整表未复跑。
+
+圆环图 93% 工作区的余差归私有 `nativeC43CircularGlyphSizeProbe`。整数落点重放逐字节复现 75% 和 93% 的 SDK 原图。余差落在百分号，原生该点无文字覆盖。用同一字体的设备字号轮廓替换 8 pt 百分号后，两档均为 0/0。所有字形统一取整也使圆环图为 0/0，但普通饼图新增四点。完整设备轮廓对照中，普通饼图仍为 0/0，圆环图仍为 0/1。产品沿用现有字号和绘制规则。[FreeType 整数像素字号](https://github.com/freetype/freetype/blob/VER-2-10-4/src/truetype/ttobjs.c#L1245-L1277)
+
+固定 ONLYOFFICE 的单字形输出定位到 8 pt 粗体百分号。随附 FreeType 执行字体内置指令后，复算该区域的 RGB 与原生最多相差一级。MoonBit 复用现有轮廓库按设备倍率执行内置指令，保留原点及字距。正常 Chromium 的圆环图 93% 和 75%、普通饼图 93% 均为 0/0。两张隔离 PDF 对各自独立对照为 0/0，普通饼图的冻结参考仍有 0/4483。完整原件的 15 页 PDF 与此前通过 qpdf 的文件逐字节相同，30 组整页栅格和差异计数也相同。239 项登记核心通过。证据归私有 `nativeC43CircularGlyphSizeProbe.deviceFit`。
+
+C43 第 12 页的气泡图例归私有 `nativeC43WorksheetChartResiduals`。固定原生打印使用蓝色菱形、红色方形和绿色三角形。SDK 按源系列样式绘制圆形。独立打印保留气泡图的原始锚点。加入前置三维柱图，或只更改第一个气泡系列的填充色，第 12 页均逐字节相同。
+
+第 10、11 页的冻结 PDF 复现了隔离参考中的两种降级，复合饼图只显示普通饼图，气泡只显示散点。正式整表结果仍为 10/30。
+
+C43 第 1 页的深度轴标题初始诊断归私有 `nativeC43Page1DepthTitle`。源标题布局为空。固定 ONLYOFFICE 把标题放在页面原点附近，图框裁剪使它不可见。两个独立对照只给标题设置显式位置，第一页操作流均只改一条平移指令。该批 Canvas 为 42/315，PDF 为 45/318，标题区域外均为 0/0。核心两项通过，包括当时的标题留量、图框内显示及移除后不再绘制。当前按用户选择跟随主引擎，结果见上方深度轴标题批次。[ONLYOFFICE 标题定位分支](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L655-L674)
+
+显式深度轴标题位置归私有 `nativeC43DepthTitleEdgeLayout`。两份对照先因手工布局受保护而失败。修复后两项核心检查通过，标题原点与独立 PDF 相差小于 0.001 pt，绘图区保持同一位置。Chromium 三条流程保留 18 个绘图对象、源字节和 15 页导出。两个显式位置对照的首页 Canvas/PDF 四组均为 0/0。自动位置原件的 15 页 PDF 与前批逐字节相同，首页的正式差异保持。
+
+显式贴边标题现按含内边距的标题框限制位置。独立 C43 对照只改标题坐标，`0.99` 和 `1.0` 得到相同的标题平移，其余首页绘制指令相同。修复前核心测试复现标题越界，修复后五项三维柱图和曲面图检查通过。正常 Chromium 的贴边对照首页 Canvas/PDF 均为 0/0，原样保存及新 Worker 的预览和 15 页 PDF 字节一致。原件 30 组正式对照仍通过 10 组，首页仍为 Canvas 42/315、PDF 45/318，全部冻结参考栅格保持。证据归 `nativeC43DepthTitleEdgeLayout.clamped`。[ONLYOFFICE 位置限制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L5780-L5796)
+
+LibreOffice 在 C43 原件和隔离柱图中均显示自动深度轴标题。仅加长隔离图标题，右端位置保持在 0.02 pt 内。SDK 的宽标题控制曾超出图框约 10 pt，该批采用显式标题的边界限制，绘图区保持。五项核心和正常 Chromium 的完整标题提取、原样保存通过。该批 C43 原件 15 页 PDF 和 30 张栅格与前批逐字节相同，冻结参考下为 10/30。证据归 `nativeC43Page1DepthTitle.automaticBounds`，当前自动标题显示已跟随选定主引擎。[LibreOffice 自动标题边界](https://github.com/LibreOffice/core/blob/bf6ef2662401c7d6dce671ab4deb26ee0af3a7c1/chart2/source/view/main/ChartView.cxx#L1023-L1042)
+
+C43 曲面图的显式系列轴标题归私有 `nativeC43SurfaceSeriesTitleEdgeLayout`。只在隔离 chart11 中给 `YYY` 设置 `edge` 位置，其他解包部件逐字节相同。ONLYOFFICE 导出的页面内容流只改了一条平移指令。修复后五项曲面图和三维柱图核心检查通过，首字原点与原生相差小于 0.001 pt。
+
+显式位置对照的 Canvas 与 PDF 整页均为 0/0。原样保存、新 Worker 重开和 PDF 字节一致通过。三张自动位置原图的 PDF 和两种栅格与固定批次逐字节相同。chart12 和 chart13 两条用例通过，chart11 对冻结参考仍为 Canvas 0/48、PDF 0/48。整表未复跑。
+
+C43 第 13 页归私有 `nativeC43Page13BubbleSize`。现有一像素邻域与颜色容差下，PDF 的 38687/42104 个差异全在顶部气泡图区。中部柱线组合图和底部等高线图均为 0/0。
+
+隔离对照只把首个气泡的绑定单元格 `C2` 与对应缓存改为原值的四分之一。其余解包部件逐字节相同。ONLYOFFICE 两张整页 PNG 与旧隔离参考逐字节一致。LibreOffice 首个气泡的 PDF 路径高度由 60.729 pt 缩为 30.365 pt。该对照只验证源尺寸的影响，正式验收仍使用冻结参考。[ONLYOFFICE 气泡转散点路径](https://github.com/ONLYOFFICE/sdkjs/blob/3679e0375a758d7dc59d31337a45461be3525ed8/common/Drawings/Format/ChartFormat.js)
+
+C43 第 14 页和第 5 页的整页 PDF 分区归私有 `nativeC43WorksheetPageAttribution`。第 14 页的面积图区为 0/0。顶部为 1440/2000，集中在上一页延续的气泡图。中间为 22/154，其中 `YYY` 标题所在区域占 17/151。第 5 页的 1057/1194 个差异中有 1049/1194 在中间带，主要集中在逐点着色的散点标记。固定参考省略了这组标记。两页使用最近正式批次的栅格和容差，严格通过仍为 10/30。
+
+第 5 页顶部的八个差异坐标在 Canvas 和 PDF 中相同。原件指定第 23 号点使用灰色圆形标记，冻结 PDF 保留同色曲线但省略圆形。临时重放仅略过该圆形，顶部 Canvas 从 8/0 降为 0/0。正式结果保留原件标记。证据归私有 `nativeC43WorksheetPageAttribution.page5TopMarker`。
+
+C43 第 8 页的面积图对照归私有 `nativeC43Area3dCachedReference`。同一固定引擎只把第三系列的工作表引用换成原有 26 个缓存数值，首点仍为零。原生输出增加 25 个黄色面。只改变第 8 页的面积图区，其余 14 页栅格逐字节相同。
+
+Chromium 用未改的原件复查。SDK 两张栅格及 15 页 PDF 与正式批次逐字节相同，原样保存通过。候选的面积图区 Canvas/PDF 均为 0/0，整页仍为 Canvas 3790/3513、PDF 3142/2883。正式第 8 页仍为 20484/20798、19843/20173。
+
+当前 PDF 对面积图候选的 3142/2883 个差异全部位于页底 190 个像素行。原件 `chart17.xml` 定义带自定义分组的复合饼图。页底是该图跨页的起始区域，冻结参考绘制普通饼图。证据归私有 `nativeC43Area3dCachedReference.currentContinuation`。
+
+第 8 页预览另有 487 个差异位于面积图底边。独立 PDF 的四种设备相位和三种线宽确认，往返重叠的水平描边与单条直线在线段内部覆盖相同。核心把零旋转的底面描边输出为单条直线，五项检查和独立显式零值图的完整 Canvas/PDF 通过。第 8 页预览与 SDK PDF 从 487/0 降至 0/0。与面积图候选相比，两种输出的余差均只在页底复合饼图区。正式整表仍通过 10/30，另 28 张 SDK 栅格与全部参考逐字节相同。第 8 页 PDF 仅右端一个像素变化，仍在原容差内。证据归私有 `nativeC43Area3dCachedReference.floorStroke`。
+
+C43 的 15 页打印预览与 SDK PDF 用相同容差逐页比较。第 5 页的旋转轴标题从 121/137 降至 0/0。预览按旋转后的字体高度选择横向四分之一像素或整像素落点，现有字形回归覆盖 50 和 51 像素的边界。第 5 页 Canvas 对冻结参考从 1185/1303 降至 1050/1182。其余三张有字节变化的预览保持原比较结果。15 页 PDF、全部冻结栅格和原样保存的工作簿字节一致。整表对冻结参考通过 10/30。证据归私有 `nativeC43WorksheetPageAttribution.rotatedTitlePhases`。
+
+第 12 页的曲线图例描边先拆成线段，再复用零宽描边规则。独立 PDF 的直线和曲线覆盖均与预览逐像素一致。第 12 页的预览与导出从 25/0 降至 0/0，至此 15 页均为 0/0。其余 29 张实际栅格、全部冻结参考及 SDK PDF 字节一致。第 12 页 Canvas 对冻结参考为 4943/5124，整表正式结果仍为 10/30。证据归私有 `nativeC43WorksheetPageAttribution.curvedHairlines`。[Poppler 的字体缓存规则](https://gitlab.freedesktop.org/poppler/poppler/-/blob/poppler-26.05.0/splash/SplashFont.cc) · [Poppler 的零宽描边](https://gitlab.freedesktop.org/poppler/poppler/-/blob/poppler-26.05.0/splash/Splash.cc)
+
+最终构建通过 17 条 Chromium 定向用例，覆盖字形、直线和曲线描边及两张气泡图的预览、打印和重开。两张图按 62% 和 65% 复跑，四组整页 PDF 均为 0/0。
+
+C43 的 15 页严格整表用例已纳入 `bun run test:c0-xlsx`。在 `test-lab/` 运行该命令并加 `--grep 'Complete original C43 worksheet'` 可单独复跑。用例读取已冻结的 100% 比例参考，核对其 PDF、源工作簿、字体和各页栅格的哈希。
+
+C43 圆形图的打印顺序归私有 `nativeC43CircularDrawingOrder`。原生对照保留饼图和图框，只改绘图锚点列表。单独打印或先于三维柱图时，饼图半径为 175.31 pt。三维柱图在前时，半径为 173.40 pt。定向核心共 11 项通过，包括三份顺序对照和原样保存。
+
+复跑全部 15 页，第 4、5、7、8 页的 Canvas/PDF 差异均减少。第 4 页 Canvas 从 24312/30406 降到 1904/9170，PDF 从 22379/32940 降到 8/11731。其余 22 张 SDK 栅格及全部参考栅格逐字节相同，严格通过仍为 10/30。五条 Chromium 流程通过，包括原件保存和新 Worker 重开。隔离饼图与圆环图的 PDF 字节与前批一致，圆环图 PDF 为 0/0。两张隔离圆形图的 Canvas 及两张复合饼图仍有差异。
+
+C43 第 7 页分区对照归私有 `nativeC43Page7CircularResiduals`。整页 PDF 的 3994/4411 个差异全在下方复合饼图区，冻结参考在那里绘制普通饼图。中间雷达图区和上方圆环图区的 PDF 均为 0/0。圆环图区 Canvas 为 1773/347，只打开底纹平滑采样的诊断降至 1257/298。诊断沿用正式颜色容差，保留现有 PDF 画布的像素单元规则。
+
+复合饼图的数值阈值选中源数据末尾 12 点，首个错误单元格继续视为空值。只将诊断文件的拆分方式改为等价的位置规则，LibreOffice PDF 的次图由默认两段变为 12 段。这份对照用于核对分组。[LibreOffice 拆分导入](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/oox/source/drawingml/chart/typegroupconverter.cxx#L474-L480)
+
+2026-11-07 的正式 15 页用例通过源字节和 qpdf 结构检查，整页对照仍为 10/30。第 7 页的圆环图区和雷达图区在两种输出中均为 0/0。Canvas 的 3981/4417 和 PDF 的 3992/4428 差异全部位于第 1500 行起的复合饼图区。现有核心用例按上述 LibreOffice PDF 核对条形次图 12 段的颜色、自下而上的顺序和相对高度，三项定向核心检查通过。证据归私有 `nativeC43Page7CircularResiduals.currentVerification`。
+
+C43 的位置拆分读取归私有 `nativeC43PositionalOfPie`。两项核心检查通过，覆盖等价拆分、原样保存和非法点数。Chromium 的隔离图对照中，末尾 12 点版与数值阈值版的 Canvas 和 PDF 逐字节相同。两版均通过原样保存及新 Worker 重开，冻结视觉对照仍失败。正式整表的 30 组栅格与前批一致，仍为 10/30。
+
+C43 的百分比拆分归私有 `nativeC43OfPiePercent`。8.25% 与末尾 12 点版的两页打印指令完全相同。四项核心检查覆盖阈值相等、空值、零总和与非法范围。旧 Chromium 探针改的是未显示的 `chart16.xml`。当前复跑改用实际显示的 `chart1.xml`，两版均绘出 12 段条形，Canvas、导出 PDF 和 PDF 栅格逐字节相同。原样保存及新 Worker 重开通过。冻结视觉对照继续失败。
+
+C43 的饼形次图尺寸和间距归私有 `nativeC43OfPieGeometryControls`。把原图表定义放入单页幻灯片，GenOffice 0.11.727 的三个对照测得次图直径为主图的 169.6%、59.8%、169.8%，间距为次图直径的 120.9%、121.2%、354.8%。已有核心测试新增原件的 170% 和 120% 几何断言，两项通过。幻灯片使用替代分组，条形次图也被绘成饼形。工作表对照均绘成柱图，三份栅格逐字节相同。
+
+C43 第 17 张图的自定义拆分归私有 `nativeC43OfPieCustomNative`。将 11 个源成员移到字面数值序列末尾，保留两组内的顺序、数值和逐点样式。LibreOffice 的位置拆分对照与 SDK 原件导出的 25 个源扇区颜色相同，含合并扇区的角度最大差为 0.029°。原件核心用例现核对全部 11 个次图扇区的颜色和两条径向边，五项定向核心通过。该对照的合并扇区颜色和尺寸不同，完整视觉仍以冻结参考验收。[OOXML 拆分方式](https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.drawing.charts.splitvalues?view=openxml-3.0.1)
+
+第 10、11 页的正式 PDF 分区沿用同一容差。堆积条图与曲面图区均为 0/0，全部差异位于复合饼图及气泡图区。区域结果归 `nativeC43WorksheetPageAttribution`，最近正式整表仍为 10/30。
+
+C39 文字装饰线归私有 `nativeC39TextRuleGrid`。全页差异定位到七条像素行。核心标记 DOCX 文字装饰线，Canvas 复用已有轴对齐实线描边。原件 Canvas 从 855/178 降至 0/0，原件及改后 SDK PDF 均与前批逐字节一致。独立改后参考只在末尾空白正文段插入 `!`。原件及改后 Canvas/PDF 四组整页均为 0/0。正常界面的源保留、精确撤销重做和新 Worker 重开通过。LibreOffice 重开 SDK 保存文件的页面栅格与独立改后参考逐字节相同。最终构建通过 21 项定向核心及三条 Chromium 流程。PPTX 字号回归分别校验源 XML 的 22.35 pt 和显示的 22.5 pt。[ONLYOFFICE 屏幕横线绘制](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/word/Drawing/Graphics.js#L2178-L2230)
+
+C39 混合字号空格归私有 `nativeC39SpaceMetrics`。ONLYOFFICE 对照只缩小五处空格，横向位置和断行变化，同行基线一致。原件采用 LibreOffice 的字体替代配置及三份固定 Liberation 字体。SDK 续框首行与该参考一致。该批原件 144 dpi 整页 PDF 从 32196/34112 降至 0/0，Canvas 从 32664/34201 降至 855/178。六项核心和四条浏览器流程覆盖空格宽度、全空格行、链接框分配、原生输入、精确历史及保存重开。
+
+C01 的母版及版式归私有 `nativeC01MasterLayouts`。默认界面按源顺序读取 11 个版式，空白页隐藏母版提示。输入 `Native title` 保留居中标题占位符及 39 个非目标包部件，包括母版和版式的日期域。固定 Carlito 和 144 dpi 时，原件与独立编辑参考的四组 Canvas/PDF 整页对照均为 0/0。精确撤销重做及新 Worker 重开通过。ONLYOFFICE 重开 SDK 保存文件后，页面栅格与独立编辑参考逐字节相同。[LibreOffice 上游用例](https://github.com/LibreOffice/core/blob/2821d29a87b28785d74fa64d975465e4c99d4416/sd/qa/unit/export-tests-ooxml5.cxx#L1194-L1209)
+
+C43 三维柱图的错误占位零归私有 `nativeC43BarErrorGap`。独立对照仅把 E2 从 `#DIV/0!` 改为数值零，原生 PDF 随即绘出零高度柱面。核心把对应缓存零绘为空点，保存保留源错误和缓存。实际数值零的源控制通过，10 项定向核心全部通过。15 页严格复查中，第 1 页 Canvas 从 46/341 降到 43/316，PDF 从 48/344 降到 45/318。其余 28 张 SDK 栅格及全部参考栅格逐字节相同，整表仍为 10/30。
+
+原工作簿的原样保存和新 Worker 重开通过。独立堆积条图的 Canvas/PDF 保持 0/0。透视柱图的隔离用例仍为 Canvas 0/130、PDF 0/125，包含源轴标题区域。首页完整视觉仍待通过。
+
+C43 首页的虚线图框归私有 `nativeC43OpenDashedFrame`。固定原生 PDF 的图框路径显式回到起点，首尾为平端。核心保留这一路径，Canvas 复用矩形虚线的相位与像素边界规则。两项核心检查和三条 Chromium 流程通过，独立双轴折线的 Canvas/PDF 均为 0/0。整表首页 Canvas 从 43/316 降至 42/315，其余 29 张 SDK 栅格及全部参考栅格逐字节相同。原样保存通过，整表严格结果仍为 10/30。
+
+C43 气泡图例的细线归私有 `nativeC43BubbleLegendHairline`。三枚圆形标记在固定原生 SVM 中都使用零线宽。核心按设备细线绘制图例，数据气泡沿用源线宽。两项核心检查通过。无图例屏幕用例原件和重开均为 0/0，有图例从 4/4 变为 5/4。旧描边差异消失，另有两个描边差异点。原生圆弧有两个控制点与 SDK 相差 0.01 mm。两张气泡图的严格 PDF 对照仍失败。
+
+整表仅第 12 页的 SDK 栅格变化。Canvas 从 4301/5234 降到 4280/5164，PDF 从 4294/5251 变为 4302/5159。全部冻结参考逐字节相同，原样保存通过，整表仍为 10/30。
+
+C43 气泡图例圆弧归私有 `nativeC43BubbleLegendCoordinates`。按图表坐标取整后，Chromium 实际绘制指令的 111 个坐标点全部匹配三枚原生 SVM 圆形描边。两项核心检查通过。无图例原件与重开仍为 0/0，有图例两组仍为 5/4，隔离 PDF 仍为 45224/45444。原样保存及新 Worker 重开通过。整表仅第 12 页栅格变化，Canvas 从 4280/5164 变为 4281/5165，PDF 差异计数相同。冻结参考相同，严格整表仍为 10/30。
+
+当前构建的有图例气泡图在 Chromium 逐字节重放后仍为 5/4。七处差异最后由轴标签或图例文字绘制写入，两处落在黄色图例标记的细描边。给文字统一加四分之一像素偏移后，有图例为 1/4，无图例从 0/0 变为 0/1。绘制保留现有取样位置，证据归私有 `nativeC43BubbleLegendCoordinates.remainingViewRaster`。
+
+固定 LibreOffice 重放原生气泡图，输出与冻结 PNG 逐字节一致。只把三个图例圆形描边从零线宽改为 96 dpi 下的一设备像素后，整图从 5/4 降为 4/3。消失的坐标是 `(899, 307)` 和 `(899, 299)`，其余七处位置相同。该对照验证细线与几何描边的差异。正式视图仍为 5/4。[LibreOffice 描边实现](https://github.com/LibreOffice/core/blob/bf6ef2662401c7d6dce671ab4deb26ee0af3a7c1/vcl/skia/gdiimpl.cxx#L1124-L1203)
+
+Chromium 预先换算设备坐标、使用软件 Canvas 或将线宽改为 0.999 像素时，整页输出逐字节相同。逐段绘制三枚图例标记时，圆端和方端覆盖了上述两处差异，平端仍为 5/4。原生闭合路径使用平端，因此这些对照只用于定位覆盖率差异。证据归私有 `nativeC43BubbleLegendCoordinates.remainingViewRaster.browserHairlineReplay`。[Skia 细线绘制](https://github.com/google/skia/blob/ad8ecedbfdef9f4ae4b1e73347b6dd56e6637d38/src/core/SkDraw.cpp#L852-L908)
+
+同一份原生视口文件显式用 LibreOffice 的 `svp` 后端渲染时，PNG 与冻结参考逐字节一致。只允许默认字体 hinting 后，1,712 个像素改变，对 SDK 为 4/6，原有两处描边差异坐标的 RGB 保持。切到 macOS 的 Skia 后端后，27,285 个像素改变，对 SDK 为 80/4。两处描边差异消失，其他位置出现差异。证据归私有 `nativeC43BubbleLegendCoordinates.remainingViewRaster.nativeBackendReplay`。[LibreOffice 后端选择](https://github.com/LibreOffice/core/blob/bf6ef2662401c7d6dce671ab4deb26ee0af3a7c1/vcl/source/app/salplug.cxx#L229-L245) [Cairo 字体选项](https://github.com/LibreOffice/core/blob/bf6ef2662401c7d6dce671ab4deb26ee0af3a7c1/vcl/unx/generic/gdi/cairotextrender.cxx#L459-L497)
+
+Chromium 将三枚细线标记的坐标按 1/256 设备像素取整，并核对闭合路径和同次描边的分离曲线。取整改变部分像素，三组重放均仍为 5/4。该批四条正式用例通过三条，四组打印均为 0/0。两张图的原件与新 Worker Canvas 栅格均与上一批逐字节一致。有图例视图两组仍为 5/4，正式参考及断言保持。[Cairo 细线绘制](https://github.com/LibreOffice/core/blob/bf6ef2662401c7d6dce671ab4deb26ee0af3a7c1/vcl/headless/CairoCommon.cxx#L1079-L1114)
+
+气泡图屏幕字形保留逻辑宽度，高度仍按设备像素取整。固定 LibreOffice 随附的 Cairo 1.18.4 与 FreeType 用原生 SVM 的 17 段文字重放。13 像素宽时没有一段逐像素相同，约 13.34 像素宽时有七段相同。Chromium 的字形覆盖回归由 63 修正到预期 127。五项共享绘制测试通过。无图例原件和新 Worker 均为 0/0，有图例两组从 5/4 降到 1/3，仍有两处图例细线和两处轴标签边缘差异。62% 和 65% 四组打印为 0/0，PDF 字节与修改前相同。证据归私有 `nativeC43BubbleLegendCoordinates.remainingViewRaster.fractionalEmWidth`。[Cairo 1.18.4 源码](https://www.cairographics.org/releases/cairo-1.18.4.tar.xz)
+
+关闭固定 LibreOffice 的细线吸附后，原生 PNG 与一像素描边对照逐字节相同。仅轮换闭合曲线的起点时，PNG 与冻结参考逐字节相同。Canvas 现按原生 Cairo 图元规则把零线宽描边的端点和贝塞尔控制点吸附到设备像素中心。变换后的曲线回归通过，六项既有共享绘制测试通过。有图例原件和新 Worker 从 1/3 降到 0/2，只剩轴标签 `6` 上缘的两点。无图例为 0/0。四组打印为 0/0，PDF 字节与修改前相同。证据归私有 `nativeC43BubbleLegendCoordinates.remainingViewRaster.hairlinePixelCenters`。[LibreOffice Cairo 路径吸附](https://github.com/LibreOffice/core/blob/bf6ef2662401c7d6dce671ab4deb26ee0af3a7c1/drawinglayer/source/processor2d/cairopixelprocessor2d.cxx#L282-L350)
+
+固定 FreeType 的轻度字形调整配合四分之一像素基线后，两张气泡图的完整视图重放均为 0/0。固定 Fontations 移植复现该结果。正式产品复用轮廓资源，原件和新 Worker 的四组 Canvas 均为 0/0，保存字节和重开栅格一致。62% 和 65% 的四组整页 PDF 均为 0/0，导出字节与前批一致。五项核心检查和十一项 Chromium 用例通过。首轮构建因依赖调试日志引入 Wasm 导入而无法打开，补丁移除日志后通过。证据归私有 `nativeC43BubbleLegendCoordinates.remainingViewRaster.lightScreenOutlines`。
+
+C43 的散点图例归私有 `nativeC43ScatterLegendPointColors`。独立控制只关闭第二组的 `varyColors`，原生 PDF 恢复该系列的图例标记。核心按双组散点图的系列图例规则绘制，保留图内源标记。11 项核心检查通过。复跑 15 页后，第 6 页 Canvas 从 77/102 降为 0/0，PDF 从 78/103 降为 0/0。整表由 8/30 增至 10/30，其余 28 张 SDK 栅格及全部参考栅格逐字节相同。原工作簿和双轴折线的 Chromium 流程通过。隔离散点图仍为 Canvas 291/363、PDF 294/380。[ONLYOFFICE 标记编译](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L10164-L10257) [ONLYOFFICE 图例绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L7884-L7908)
+
+C13 原图 RGB 验收归私有 `nativeC13SourceRgbReference`。正式参考从旧 ONLYOFFICE PDF 派生。四个图片流与原 PNG 解码的 RGB 逐字节相同。第 3、15、36、43 页的参考栅格变化，其余 44 页逐字节相同。旧参考保留。浏览器沿用五个固定字体、144 dpi、一像素和每通道 96 的容差。
+
+C13 现从 `test:c0-pptx` 运行原稿全部 48 页。78/96 组为 0/0，旧参考已通过的 74 组保持通过。全部 96 张 SDK 栅格与旧参考那批相同。第 3、36 页 PDF 和第 43 页 Canvas/PDF 新增通过。第 15 页 Canvas 从 3/1 降至 3/0，第 36 页从 1678/393 降至 41/125。48 次 PDF 导出、无布局诊断及原样保存通过。11 页共 18 组视觉差异保留。
+
+第 20、23、42 页的原生输入、源保留、精确历史及新 Worker 重开通过。六组改后对照中五组为 0/0，第 42 页 Canvas 为 0/4。第 36 页标注用例的框外指针选择、透明度编辑、精确历史和保存重开通过。两条正式用例的整页零差异断言仍失败。
+
+C13 裁剪采样诊断归私有 `nativeC13OpaqueCropSampling`。以 PDF 像素边界取整，第 3、15、36 页的 Canvas 对正式参考均为 0/0。对独立的 ONLYOFFICE 直接 PNG，第 3、15 页从 0/0 退为 79/60、3/5，第 36 页从 78/35 退为 126/158。产品保留现有采样，正式参考和通过数量保持。
+
+当前构建的裁剪图片复核归 `nativeC13OpaqueCropSampling.pinnedRouteReview`。第 3 页的原图 RGB 与冻结 PDF 图片流逐字节相同。按 PDF 图像矩阵取整，再按 Poppler 的双线性规则取样，图像内部 1,300,776 个像素全部相同。SDK Canvas 对原生直接 PNG 为 0/0，两者对冻结 PDF 栅格分别为 99/218 和 42/97。
+
+全稿诊断只将第 3、15 页的 Canvas 与原生直接 PNG 比较，两页均为 0/0。其余 100 张参考栅格和全部 102 张 SDK 栅格哈希一致。48 次 PDF 导出、原生输入、精确历史及新 Worker 重开通过。该诊断为 80/96，首个严格失败为第 8 页。正式原稿仍为 78/96。
+
+C13 第 36 页的分区复核归私有 `nativeC13Page36PhotoRoutes`。以原有容差比较，正式 PDF 栅格与原生直接 PNG 本身相差 156/188。仅保留原生 PDF 底图后，正式 Canvas 对照的 41/125 个差异坐标处，参考像素全部一致。SDK PDF 对正式参考为 0/0。SDK Canvas 对原生直接 PNG 的 78/35 个差异中，32/27 个在底图之外，集中在页首重叠文字。两种对照的 SDK 侧差异坐标无交集。
+
+Chromium 与固定 ONLYOFFICE 的单页控制复现了页首的 32/27。移除白色标题后为 45/36，移除黑色模拟粗体文本框后为 0/0。单页原样版的两张完整栅格各自与整稿同页逐字节相同，四次原样保存通过。直接 PNG 将字形遮罩向右加一像素，原生 PDF 使用轮廓描边。用同源常规字重复算首个 `E` 和 `G`，343 个字形像素逐值一致。[ONLYOFFICE 字形遮罩](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/DesktopEditor/fontengine/FontFile.cpp#L929-L999)
+
+单独比较第 36 页的照片层，SDK Canvas 对原生直接 PNG 为 0/0。固定采样规则在 144 dpi 复算照片内部的 982,760 个像素，全部逐值一致。加入前景后，标题下方的 46/8 个差异均涉及 SDK 的标注描边。诊断将 Canvas 的尖角连接改成斜角后，该区对原生 PNG 为 0/0，整页对冻结 PDF 参考从 41/125 变为 50/171。原生 PNG 和 PDF 的描边连接规则各自记录于 `nativeC13Page36PhotoRoutes.photoAndOutlineIsolation`。[原生 PNG 画笔默认值](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/DesktopEditor/graphics/structures.h#L205-L220)
+
+第 36 页的独立诊断将原生直接 PNG 的照片采样放入原生 PDF，只替换照片绘制指令。照片框外像素全部一致。Chromium 以此对照 Canvas，以冻结参考对照 PDF，整页均为 0/0。尾部点击、半透明填充、精确历史及新 Worker 重开均通过。原件和改后的四张 SDK 栅格与正式运行的对应哈希相同。正式参考仍冻结，证据归 `nativeC13Page36PhotoRoutes.photoComposite`。
+
+C09 媒体占位符归私有 `nativeC09MediaPlaceholder`。默认对象列表可选中空槽，媒体面板填入 VP8 WebM。对象 ID、`media` 类型、`quarter` 尺寸、索引 13 和禁止分组设置均保留。34 个非目标包部件逐字节保持。精确撤销重做、新 Worker 重开和实际解码放映通过。原件由固定 ONLYOFFICE 渲染，改后参考由同一工具重开 SDK 保存的 PPTX 生成。两种状态各两组 Canvas/PDF 整页对照均为 0/0。八项核心和四条 Chromium 流程通过。
+
+本机 LibreOffice 26.8.1.1 另存未经编辑的原件时，将版式槽改为正文槽，并在幻灯片写入内部图标。这复现上游用例所记的旧问题。另存 SDK 改后文件时，该版本保留原 WebM 字节和两条媒体关系，省略占位符身份及分组限制。两份另存结果单独保留。[LibreOffice 上游用例](https://github.com/LibreOffice/core/blob/2821d29a87b28785d74fa64d975465e4c99d4416/sd/qa/unit/export-tests-ooxml4.cxx#L1019-L1036)
+
+C12 的版式继承证据归私有 `nativeC12LayoutText`。两页显示同一个只读版式文本框。第二页显示上标 `nd` 和源页脚。母版占位提示在两页均隐藏。默认输入把首页副标题改为 `First page revised`，其他包部件逐字节保持。撤销重做和新 Worker 重开通过。固定 Carlito 和 144 dpi 时，原件和改后共八组 Canvas/PDF 整页对照均为 0/0。LibreOffice 另存保留改后副标题、共享文字、页脚和上标。[Apache POI 上游用例](https://github.com/apache/poi/blob/ae62bb5116b9aee19ebd5834e3a82066132c9f7f/poi-ooxml/src/test/java/org/apache/poi/xslf/extractor/TestXSLFPowerPointExtractor.java#L181-L211)
+
+C08 的 RTL 项目符号归私有 `nativeC08RtlSymbolBullet`。原件声明 Wingdings 和 `v`，固定 ONLYOFFICE 参考绘制菱形。核心从实际符号字体读取对应字形。原件和四组独立控制核对悬挂缩进、换行及三种对齐方式。42 项核心检查和七条 Chromium 流程通过。
+
+默认界面把 `Text` 改为 `Bext`。字形映射、原段落和非目标包部件保持，文字框按内容重算高度。精确撤销重做及新 Worker 重开通过。相同字体和 144 dpi 下，原件、改后 Canvas/PDF 四组整页对照均为 0/0。LibreOffice 另存保留 RTL、Wingdings 和正文，将标记改写为等价的私用区字符。[LibreOffice 上游用例](https://github.com/LibreOffice/core/blob/2821d29a87b28785d74fa64d975465e4c99d4416/sd/qa/unit/export-tests-ooxml1.cxx#L894-L907)
+
+精确字宽改动曾使原件正文起点左移 0.029 pt。正文和标记共用原生文本框宽度后，原件和四份原生对照的正文起点误差均小于 0.001 pt。最终构建通过全部 237 项登记的 C0 核心检查，C08 四组整页对照继续为 0/0。证据归私有 `nativeC08RtlSymbolBullet.precisePortionRegression`。
+
+C45 原生大纲透视表归私有 `nativeC45OutlinePivot`。原件缓存的紧凑行标题为 `Row Labels`，字段名为 `K`。将源表 `A2` 从 1 改为 11 后，刷新将两组汇总由 5、5 更新为 15、5，总计为 20。样式、修订标识、已识别扩展和 11 个非目标部件保持。53 项核心检查与四条 Chromium 流程通过。LibreOffice 26.8.1.1 用 `K` 显示行标题，原件及改后汇总值均符合独立预期。另存改后文件仍包含原生透视表、缓存定义和记录。[LibreOffice 上游用例](https://github.com/LibreOffice/core/blob/2821d29a87b28785d74fa64d975465e4c99d4416/sc/qa/unit/pivottable_filters_test.cxx#L2577-L2613)
+
+C45 样式证据归私有 `nativeC45PivotStyle`。固定 Carlito 和 144 dpi 时，指定 `A1:B6` 的原件及刷新版各打印一页，四组整页 Canvas/PDF 对照为 0/0。六个采样位置的颜色也与 ONLYOFFICE 一致，覆盖 `D8D8D8` 灰底、白底及 `A5A5A5` 边线。同构建通过 69 项核心检查和六条 Chromium 流程。
+
+C45 整本打印证据归私有 `nativeC45PrintOrigin`。工作簿无适页设置，原比例为 100%。SDK 默认从 `A1` 开始，保留报表前两行空白。ONLYOFFICE 显式使用工作簿比例时，原件和刷新版各三页，12 组整页 Canvas/PDF 对照均为 0/0。同构建通过 82 项核心检查和 11 条 Chromium 流程，其中四条复查 C41 和 C42 的原件及改后整本打印。旧参考沿用转换器的自动适页，整本共两页。该参考的两条整本对照继续失败，首张报表页均为 0/0。[ONLYOFFICE 转换器打印设置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/api.js#L7134-L7159)
+
+C46 隐藏锚点归私有 `nativeC46HiddenAnchors`。固定原件有五个绘图对象。网格为可见图片返回显示区域，重合锚点图片没有显示区域。ONLYOFFICE 原件 PDF 为可见图片绘制有面积的路径，重合锚点只产生空路径。SDK 原件和改后单页 PDF 各包含一张 672 × 581 的图片及其遮罩。检查依据包括 [LibreOffice 原件测试](https://github.com/LibreOffice/core/blob/2821d29a87b28785d74fa64d975465e4c99d4416/sc/qa/unit/subsequent_filters_test4.cxx#L379-L399)。
+
+正常界面输入保留 13 个非目标包部件，包含绘图、关系和两份媒体。工作簿只更新计算标记。撤销和重做精确恢复源文件。新 Worker 重开的改后 PDF 字节一致。ONLYOFFICE 重开改后文件后读出新文字，两张图片的页面操作与原件逐字节相同。37 项定向核心和六条 Chromium 流程通过。该轮使用固定 Arimo 替代。
+
+C46 同字体打印证据归私有 `nativeC46CropSampling`。SDK 和 ONLYOFFICE 都使用系统 Arial、Tahoma、Palatino 和源文件的 80% 缩放。原件和改后文件各打印两页，第二页为空白。合并格边框分段后，两份首页 Canvas 各剩 18 个像素差异。只替换原生 PDF 图片流的无损对照确认，这列像素来自相邻源像素的平均值。打印预览复用缩小采样后，八组整页 Canvas/PDF 对照均为 0/0，两个输入均可逐字节原样保存。一项核心检查与八条 Chromium 流程通过，覆盖原件、改后文件、常规图片编辑及共享图片采样。旧转换器的 78% 适页证据单列。
+
+C46 插列证据归私有 `nativeC46StructureEdit`。首列前插一列后，五个对象的起止列均加一，偏移和尺寸保持，打印区域从 `A1:H34` 移到 `B1:I34`。已识别的 Mac 工作簿和页面视图元数据逐字节保持。含未知引用的扩展仍原子拒绝。37 项核心检查和五条 Chromium 流程通过，覆盖插列、精确历史及新 Worker 重开。ONLYOFFICE 重开保存后的文件，同字体和 80% 比例下两页 Canvas/PDF 四组为 0/0。
+
+C43 手工散点图的错误占位零归私有 `nativeC43ManualScatterErrorGap`。只将 E2 从 `#DIV/0!` 改为数值零的原生控制，在第 5 页绘出 `1 / x` 的首段。原件省略该段。修复后 SDK PDF 曲线起点与原生相差小于 0.001 pt。11 项核心检查通过，包含首点为空、真实零、后续缓存点及原样保存。
+
+C43 全部 15 页仍为 8/30。第 5 页 Canvas 从 7809/8200 降为 6607/6195，PDF 从 7063/7872 降为 5847/5857。其余 28 张 SDK 栅格和全部原生栅格逐字节一致。三条 Chromium 流程通过，覆盖双轴折线、组合图和原件保存重开。新 Worker 导出的 15 页 PDF 字节一致。隔离散点图仍为 Canvas 303/385、PDF 306/404。
+
+C43 第 5 页纵轴标题归私有 `nativeC43ScatterAxisTitleMargin`。独立原生控制只移除前置三维柱图的锚点，两侧标题各向外移动 2.25 pt，纵坐标保持。核心沿用已有打印顺序传入标题留量。旧实现未通过横坐标检查，修复后五项定向核心检查通过。[ONLYOFFICE 轴标题定位](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L789-L806)
+
+复跑原件 15 页，第 5 页 Canvas 从 4630/4341 降为 1895/1575，PDF 从 3825/3980 降为 1057/1194。其余 28 张 SDK 栅格和全部原生栅格逐字节相同。双轴折线和原件主图的 Chromium 流程通过，原样保存与新 Worker 重开通过。隔离散点图仍为 Canvas 291/363、PDF 294/380，整表仍为 10/30。
+
+C43 柱线组合图的打印顺序归私有 `nativeC43MixedDrawingOrder`。单独打印或排在柱图前时，原生绘图区底色宽约 508.203 pt。排在三维柱图后时，宽约 505.578 pt。原生第 10 页在组合图先出现的两份控制中逐字节相同。核心复用面积图已有的打印顺序，三份独立尺寸断言通过。严格对照每组还剩 53–55 个底边像素差异。单独调整分类轴线宽或改用等价的描边路径，诊断栅格逐字节相同。
+
+C43 复跑全部 15 页，整表仍为 8/30。第 13 页 Canvas 从 62563/67209 降至 39047/42022，PDF 从 62548/67263 降至 39077/42104。第 14 页 Canvas 从 15462/16999 降至 1515/2144，PDF 从 15463/17021 降至 1515/2154。其余 26 张 SDK 栅格和全部原生栅格逐字节相同。十项核心检查与三条正式 Chromium 流程通过，覆盖组合图、面积图和原件保存重开。
+
+C43 组合图的柱形裁剪归私有 `nativeC43MixedColumnClip`。打印时按原生边界裁剪柱形，随后恢复绘制范围再画坐标轴。三份原生控制的裁剪坐标误差小于 0.001 pt，三项定向核心检查通过。隔离组合图和原件主图的 Canvas/PDF 均为 0/0，保存及新 Worker 重开通过。[ONLYOFFICE 柱形裁剪](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L6488-L6499)
+
+复跑原件全部 15 页，第 13 页 Canvas 和 PDF 各减少 390 个差异像素，第 14 页各减少 53 个。其余 26 张 SDK 栅格及全部冻结参考栅格逐字节相同。整表通过仍为 10/30。
+
+C43 面积图打印顺序归私有 `nativeC43AreaDrawingOrder`。保持两张图的锚点和所有其他部件，仅交换它们在绘图 XML 中的顺序。面积图在柱图前时，原生第 14、15 页与仅面积图版本逐字节相同。柱图在前时，绘图区宽度从 429.663 pt 缩至 425.163 pt。核心按各工作表的可打印锚点顺序计算边距。十项核心检查通过，三份顺序控制的六组第 14 页 Canvas/PDF 对照均为 0/0。
+
+复跑 C43 全部 15 页。第 15 页 Canvas 从 2782/2816 降到 0/0，PDF 从 2770/2831 降到 0/0。第 14 页 Canvas 从 48741/49251 降至 15462/16999，PDF 从 48706/49362 降至 15463/17021。其余 26 张 SDK 栅格和全部原生栅格逐字节相同。整表通过从 6/30 增至 8/30。七条 Chromium 流程通过，覆盖原样保存及新 Worker 重开。隔离透视柱图仍为 Canvas 0/130、PDF 0/125。
+
+C43 字形裁剪归私有 `nativeGlyphRectangleClip`。字面 PDF 控制在同一半像素边界保留整列字形像素，矢量边缘仍有部分覆盖。PDF Canvas 复用矩形裁剪范围，按绘制类型选择整像素或分数边界。嵌套裁剪回归先失败，修复后通过。
+
+复跑 C43 全部 15 页。第 2 页 Canvas 从 4/0 降到 0/0，整页通过从 5/30 增至 6/30。第 3、9 页保持通过。其余仍失败的 Canvas 页单向计数最多增加七点，原生栅格与 SDK PDF 逐字节一致。17 条 Chromium 流程通过，覆盖 C41、C42、C46 的原件及改后整本打印。C17 复查仍为 27/28，仅未旋转第 11 页为 0/8。
+
+C43 手工饼图的错误占位零归私有 `nativeC43ManualPieErrorGap`。只把 E2 的 `#DIV/0!` 改成数值零，固定原生参考的首项图例从深蓝无字变为带红边的浅紫色块和 `1`。核心将已知源错误对应的缓存零绘为空点，保留源错误和图表缓存。原件断言先失败，修复后十项定向核心通过。六条 Chromium 流程通过，两条隔离的饼图及圆环图严格视觉仍失败。原件可原样保存，新 Worker 的 15 页 PDF 逐字节一致。
+
+复跑全部 15 页，整页对照从 4/30 增至 5/30。第 2 页 PDF 从 196/311 降到 0/0，Canvas 从 200/311 降到 4/0。四点位于折线图文字和打印左边界的交界。第 8 页两组差异也减少，其余 26 张 SDK 栅格与全部原生栅格逐字节相同。仍有 25 组整页对照未通过。
+
+C43 短图框的堆积条图证据归私有 `nativeC43ShortBarLabels`。两份独立控制保留原始 528 × 267.75 pt 锚点，仅增删前置三维柱图。两份原生页面逐字节相同，横条内部像素与冻结第 10 页一致。旧实现的纵坐标最大偏差为 2.731 pt。按两次标签留量调整后，26 个可见面与原生坐标相差不足 0.001 pt。57 项核心检查通过。混合图的既有测试同时检查源缓存零和绘制空点。
+
+C43 复跑全部 15 页，仍为 4/30。第 10 页 Canvas 从 314260/316807 降为 244658/247154，PDF 从 314217/316940 降为 244593/247269。第 11 页两组对照也减少。其余 26 张 SDK 栅格与全部原生栅格逐字节一致。堆积条图、柱线混合图和原工作簿的三条 Chromium 流程通过。原件可原样保存，新 Worker 的 15 页 PDF 逐字节一致。整份工作表的严格视觉仍失败。
+
+三维堆积面积的首点分歧已用独立控制复现。只将 E2 置空，原生 PDF 的页面操作流与 E2 为 `#DIV/0!` 时逐字节相同，整组黄色面都省略。E2 为数值零时，将 E3 置空或改为同类错误，原生仍绘制 25 个黄色面，两份操作流一致。控制均保留图表缓存及其他包部件。该批 SDK 仍显示有效黄色面；当前已按用户选择跟随主引擎，结果见上方三维堆积面积批次。原件、参考与严格断言保持。
+
+C43 手工折线图的错误占位零归私有 `nativeC43ManualLineErrorGap`。固定原生控制只把源单元格 E2 从 `#DIV/0!` 改成数值零，图表缓存和其他包部件逐字节一致。错误版本的青色折线从第二点开始，数值零版本保留第一段。核心绘制按源值类型区分两者，保存保留图表缓存与源错误。旧实现的点值断言先失败，修复后 28 项定向核心和两条正式 Chromium 流程通过。原件原样保存，新 Worker 导出的 15 页 PDF 字节一致。
+
+原件 15 页的严格对照仍为 4/30。第 1 页 Canvas 从 48/899 降为 45/349，PDF 从 51/903 降为 48/344。第 13 页的柱线混合图也引用同一源错误。该页 Canvas 从 64302/69672 降为 62565/67204，PDF 从 64282/69727 降为 62548/67263。其他 26 张输出栅格和全部原生栅格逐字节一致。仍有 26 组未通过严格对照。
+
+C43 趋势线方程换行归私有 `nativeC43TrendLabelWrap`。固定原生 PDF 的 672 pt 图框将方程末项单独排一行。旧实现把整个方程排在同一行。修复后三行原点与原生相差均小于 0.001 pt，原有宽图框坐标检查通过。两批共十项定向核心检查通过。独立双轴折线和原工作簿的 Chromium 用例通过，主图 Canvas/PDF 均为 0/0。原样保存通过，新 Worker 导出的 15 页 PDF 逐字节一致。
+
+整页对照复跑 15 页，仍为 4/30。相较前一构建，第 1 页 Canvas 从 764/2444 降为 48/899，PDF 从 774/2458 降为 51/903。第 2 页 Canvas 从 6454/5416 降为 200/311，PDF 从 6411/5356 降为 196/311。第 3、9 页继续通过。另有九页 Canvas 的计数随构建变化。只有第 1、2 页 PDF 栅格发生变化。全部原生栅格逐字节一致，18 个图表可读，原样保存通过。第 6 页的 Canvas 77/102、PDF 78/103 全部集中在散点图图例的黄色三角。源系列声明该标记，固定主参考在图例中省略了它。
+
+C13 第 28 页复核归私有 `nativeC13P28PdfTextAdvance`。原件对固定整页参考为 Canvas 3070/3749、PDF 3048/3665。仅移除 WMF 双色效果的控制为 Canvas 92/123、PDF 97/226。两条流程都通过原生输入、精确历史、单元格属性、282 个非目标部件及新 Worker 重开。各三次 PDF 导出成功，布局诊断为空。四组严格视觉对照仍失败。
+
+两行 Carlito 正文的 17 个词，按固定 ONLYOFFICE 的 PDF 字宽取整和相邻字形合批复算，横坐标最大误差为 0.002 pt。Arial 页脚一行的 16 个词最大误差为 0.005 pt。SDK PDF 中这 33 个词与未取整的源字体推进相差不足 0.000001 pt。主参考的 WMF 图标仍缺少源双色效果。复算只解释所测文字的 PDF 位置，原件仍需通过固定整页参考。[字宽取整](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/SrcWriter/FontCidTT.cpp#L543-L550)、[字形合批](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/SrcWriter/Pages.cpp#L1754-L1780)。
+
+在原始色 WMF 控制的 SDK PDF 副本中重放这两条规则，正文从 96/99 降为 0/0。页脚文字两次均为 0/0。整页剩下的 1/127 全在图标内。原生 PDF 将 WMF 存成 196 × 226 的 JPEG 和透明遮罩，SDK 保留矢量。正式整页仍失败，SDK PDF 继续沿用预览的字形位置。
+
+用固定 ONLYOFFICE 转换 C13 原件两次，截取第 28 页写入 PDF 前的绘图指令。两份指令逐字节相同。两次输出在 144 dpi 下均与冻结栅格逐字节相同。同一批 33 个词的横坐标，SDK PDF 距原生绘图指令最多 0.006 pt，原生 PDF 最多 0.160 pt。以原生的 1/16384 mm 网格截断每个字形的推进量，可将三行 152 个可见字形的最大复算误差降至 0.0004 pt。该排版精度与 PDF 写出偏差分别记录于 `nativeC13P28PdfTextAdvance.prePdfMetafile`。
+
+C13 第 28 页的精确字宽归私有 `nativeC13P28PrecisePortions`。演示稿文本框不再采用 Writer 的整数 twip 字宽。旧版居中表头向右偏 0.023 pt，紧接粗体的短横线向左偏 0.045 pt。两处修复后都与原生绘图指令相差小于 0.001 pt，四项表格核心测试通过。
+
+C13 第 28 页的 WMF 裁剪归私有 `nativeC13WmfCrop`。原件编辑只改 `a:srcRect`，其余幻灯片 XML 和包部件逐字节相同。核心测试核对保存、精确撤销重做、重开及空裁剪原子拒绝。Chromium 从默认控件裁去合成 WMF 的左、上各 25%，Canvas/PDF 对独立字面 PDF 均为 0/0。五项核心和三条浏览器流程通过。原色组件流程仍失败，四张 SDK 组件栅格和参考与该流程的前批逐字节相同。
+
+两条第 28 页浏览器流程均通过输入、精确历史、源保留和新 Worker 重开。对同一固定参考，原件为 Canvas 3100/3804、PDF 3078/3716，去除双色效果的控制为 Canvas 122/178、PDF 127/277。整稿仍为 78/96，改后仍为 5/6。102 张参考栅格逐字节相同，只有第 28 页的差异计数变化。C08 的 RTL 项目符号与 C39 的 DOCX 链接框浏览器回归通过。
+
+第 28 页的直接 PNG 边框复核归私有 `nativeC13P28TableBorderSampling`。表格区 6,528 个原生 PNG 侧差异中，4,512 个位于两条一磅横边的四条灰色像素行。只向下移动表格 0.25 和 0.5 pt 后，原生 PDF 保留相同的边框宽度及局部坐标。三组对照的 PNG 灰度按像素覆盖率复算，最大误差为一级。PDF 栅格按边界取整，216 个采样点逐值一致。这些边框差异属于输出路径，正式第 28 页的文字和图标差异仍开放。
+
+第 28 页的双色参考诊断归私有 `nativeC13P28DuotoneCandidate`。ONLYOFFICE 的直接 PNG 和 PDF 均省略源双色效果。LibreOffice 与 App 的图标区域为 0/0，整页仍有 15877/23658 差异。
+
+诊断只把固定 PDF 图标的 RGB 和 Alpha 换成 LibreOffice 的原生流。原生位置、图案变换和页面内容流逐字节相同，图标框外的像素逐值相同。SDK Canvas 对候选为 187/190，PDF 为 208/219。两组余差都在图标和表格正文。候选与 App 的图标区域为 0/0。正式参考继续冻结。
+
+第 28 页矢量与文字位置候选归私有 `nativeC13P28VectorPageCandidate`。先用 LibreOffice 从原始 WMF 导出的独立矢量替换原生 PDF 的图标绘制。双色沿用独立原生 PNG 验证过的三种颜色。两份参考的图标框外像素逐值一致，原色和双色的 Canvas/PDF 图标区域均为 0/0。此时两份整页 Canvas 均为 122/152，PDF 均为 126/150。
+
+再按固定 ONLYOFFICE 写入 PDF 前的绘图指令恢复 1,740 个字形的横坐标。56 条文字显示指令按原字体、字号、基线和字符顺序逐一匹配，九个旋转字形沿用原指令。两份候选的其他 PDF 对象相同，提取文字去除空白后相同。四组整页 Canvas/PDF 均为 0/0，四张 SDK 栅格的哈希与正常复跑一致。原生输入、282 个非目标部件、精确历史和新 Worker 重开通过。两条正式用例仍沿用冻结参考。
+
+整稿联合复跑归私有 `nativeC13IntegratedReferenceCandidate`。第 3、15 页的 Canvas 使用原生直接 PNG，第 36 页的 Canvas 使用独立照片合成参考，第 28 页两种输出使用双色矢量与文字位置候选。其余沿用 SmartArt 和 GIF 联合候选。48 页原稿 96 组、三页编辑后六组整页对照均为 0/0。48 份 SDK PDF 和 102 张 SDK 栅格与最近的冻结参考复跑逐字节一致。原生输入、精确历史和新 Worker 重开通过。正式参考继续冻结，最近正式结果为原稿 78/96、改后 5/6。
+
+当前发行构建复跑整稿、圆角标注、SmartArt、两条表格用例和 WMF 组件。六条 Chromium 用例在候选参考下通过，合计 130 组均为 0/0。整稿的 48 份 SDK PDF 和 102 张 SDK 栅格均与冻结参考复跑逐字节相同。候选在整稿中只改变 21 份参考栅格。候选结果和正式结果分开登记。
+
+切换前的图表构建复验六条 C13 候选流程，130 组对照均为 0/0，额外的共享 WMF 填充回归也通过。运行前后核对六份独立候选资产哈希。整稿的 102 张 SDK 栅格、102 张参考栅格和 48 份 SDK PDF 与前批候选复跑逐字节相同，28 条组件比较记录也相同。证据归私有 `nativeC13IntegratedReferenceCandidate.currentReplay`，保留当时的冻结失败。
+
+2026-11-07，经用户批准，完整独立参考已成为正式参考。九份带哈希的资产保存在私有 `cases/c0-pptx-c13/`，正式用例直接读取。包括原图 RGB、原生透明组及已核验的屏幕、矢量和照片采样路线。SDK 输出和比较阈值保持。根目录运行 `moon run test-lab/tools/c0-c13-reference.mbtx` 可核对全部资产、原件身份和 PDF 结构。
+
+正式复跑七条 Chromium 用例全部通过。六条 C13 流程包含原稿 96 组、三页修改后六组及组件 28 组，130 组严格比较均为 0/0；另含一条共享 WMF 填充回归。源输入、282 个非目标部件、精确历史和新 Worker 重开通过。整稿的 102 条比较记录及 48 份 SDK PDF 与获批候选相同。结果归私有 `nativeC13ApprovedReference`。C43 与 C17 仍按各自未完成状态记录。
+
+当前构建已复跑 `test:c0-pptx` 的全部 28 项登记测试，15 份测试文件分三组执行，全部通过。覆盖该批 16 份固定 PPTX 原件的登记显示、编辑、保存与重开操作，以及大小写、阴影和 WMF 填充控制。每组前后核对临时用量，测试源码及构建哈希保持。C13 子集的 130 组比较均为 0/0；整稿 102 条比较记录与 48 份 SDK PDF 复现获批正式批次。结果归私有 `nativePptxRegisteredSuiteCurrent`，资格限定于这些原件与操作。
+
+固定 ONLYOFFICE 和 LibreOffice 分别计算第 28 页的双色端点。源色 `4F81BD` 依次应用 `shade=45000` 和 `satMod=135000` 后，ONLYOFFICE 得到 `275791`，与 SDK 相同。LibreOffice 得到 `295A93`，与其原生图标相同。把 ONLYOFFICE 端点预先写入临时 WMF 画笔和画刷后，SDK 的双色 Canvas 对原生直接 PNG 为 0/0。[ONLYOFFICE 颜色变换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L2225-L2284)
+
+原色 WMF 的候选从 LibreOffice 导出的 12 条矢量路径生成 PDF，沿用原图框位置和尺寸。在保留图框外两像素的独立对照中，原色 Canvas、SDK PDF 和 ONLYOFFICE 直接 PNG 对该候选均为 0/0。冻结 ONLYOFFICE PDF 使用 196×226 的 JPEG 图标。证据归私有 `nativeC13P28DuotoneCandidate.sourcePaletteAndVector`。
+
+Chromium 按正式用例的原 96×112 裁图和容差复跑。候选原色 Canvas/PDF 均为 0/0，双色的 GenOffice 对照也均为 0/0。四张 SDK 栅格与正式批次逐字节相同。候选待确认，整页表格继续按原参考验收。
+
+模拟粗体遮罩细化归私有 `nativeRefinedGlyphCornerCoverage`。独立字形角点的红通道从 147 降至原生的 89。15 份独立字面 PDF 控制在三种 Canvas 模式下共 45 组为 0/0。九项定向浏览器测试通过，覆盖曲线、相接轮廓、原有预算回退、图片颜色面及后续绘制。
+
+C13 正常构建复跑全部 48 页，整页对照从 73 增至 74/96。仅第 32 页 Canvas 的差异计数发生变化，从 3/0 降为 0/0。前批通过的 73 组全部保持。48 份 SDK PDF、SDK PDF 栅格及原生参考栅格逐字节相同，48 次导出、无布局诊断及原样保存检查通过。仍有 12 页共 22 组差异。
+
+第 45 页正式整页对照及编辑通过。正文效果的 30 组正式对照从 24 增至 25 组为 0/0，新增第 32 页原稿 Canvas。原生输入、282 个非目标部件、精确历史和新 Worker 重开通过。首个严格失败仍为第 15 页 Canvas 3/1。
+
+八条跨格式回归最终七条通过。C10 首轮在 LibreOffice 保存重开时退出，使用同版转换器单独复跑后四组整页均为 0/0，保存字节和参考栅格相同。C17 全部 28 组栅格与前批逐字节相同，仍为 27/28。C43 主图 Canvas/PDF 为 0/0，完整 15 页 PDF 与前批及重开后逐字节相同。本轮未重跑 C43 的 30 组整页视觉对照。正常构建、私有类型、定向 lint 和格式通过。
+
+第 42 页四个余差来自 12×12 GIF 项目符号。两张项目符号的原生 PDF 遮罩与源 GIF 的 Alpha 逐字节相同。两张原生颜色流均为 JPEG，12×12 图的原始不透明色与原生解码最大相差 117 级。独立候选保留遮罩和几何，只恢复原始颜色。当前 Canvas 对固定 PDF 仍为 0/4，对无损候选为 0/0，对原生直接 PNG 为 195/77，前批为 185/68。三种图片采样候选均未使固定对照通过。原件、参考和断言按各自用途保留。
+
+PPTX 下划线的证据归私有 `nativePptxUnderlineDescent`。独立 Arial 控制与原件 Carlito 超链接核对四条原生 PDF 描边中心。旧实现复现位置误差，复用演示文稿行下降部后，19 项定向核心检查通过。范围覆盖共享装饰、文本框、表格及超链接。
+
+下划线批次复跑 C13 全部 48 页。严格整页对照从 68 增至 73/96，第 31、38 页 Canvas/PDF 和第 32 页 PDF 新增通过。第 32 页 Canvas 从 6/0 降为 3/0。前批通过的 68 组全部保持，原生参考逐字节相同。48 次导出成功，布局诊断为空，原样保存通过。
+
+下划线批次的第 45 页正式用例通过。当批正文效果的 30 组正式对照从 23 增至 24 组为 0/0。原生输入、282 个非目标部件、精确历史及重开通过。另四条 Chromium 回归通过，覆盖 PPTX 文本框和表格超链接、DOCX 超链接及 XLSX 单元格装饰。正常构建、加载私有测试后的严格检查、类型、格式及接口生成通过。
+
+曲线描边覆盖的正式证据归私有 `nativeFilledCurveCoverage`。同一展开轮廓在普通 Canvas 填充下丢失急角重叠处的覆盖。复用有界 4×4 遮罩后，独立曲线的四档相位及反射共 16 组整页对照为 0/0。选定急角像素与原生逐值相同。九项定向浏览器测试通过，覆盖既有多边形、描边预算、裁剪与图片采样。
+
+曲线描边批次将 C13 的 96 组原稿对照从 67 增至 68 组为 0/0。第 6 页 Canvas 从 3/0 降为 0/0，第 15 页从 19/1 降为 3/1，第 36 页从 1681/393 降为 1678/393。当批 48 份 SDK PDF、SDK 栅格及原生参考栅格与前批逐字节一致，全部导出成功，布局诊断为空，原样保存通过。
+
+曲线描边批次的第 45 页正式整页对照、背景编辑、精确历史及新 Worker 重开通过。当批正文效果的 30 组正式对照中，23 组为 0/0，仅第 15 页原稿 Canvas 栅格有变化。原生输入、282 个非目标部件、精确历史及重开通过。
+
+第 15 页照片采样诊断归私有 `nativeC13PhotoSamplingRoutes`。在固定原生 PDF 和无损颜色候选中，四个余差点均由照片决定。分离阴影和描边后，四点保持相同。按 Poppler 的整数图像边界和双线性取样复算，无损候选照片内部 868210 点逐像素一致。
+
+正常 Canvas 对固定 PDF 为 3/1，对无损 PDF 候选为 3/0，对 ONLYOFFICE 直接 PNG 为 0/0。单独调整裁剪方式仍为相同计数。照片按整数设备边界绘制的两项候选使两份 PDF 对照为 0/0，但直接 PNG 分别变为 3/5 和 4/6。四种浏览器绘制均完成整页对照和原样保存。正式验收仍使用固定参考，照片试验仅用于区分两条原生输出路线。
+
+曲线描边批次的八条跨格式回归中七条通过，覆盖 C10 环形图、C33 PDF 标注、C43 原件和四个圆形标签控制。C17 保持 27/28，第 11 页未旋转时仍为 0/8。28 组 SDK 和原生栅格身份与前批相同。C43 主图 Canvas/PDF 为 0/0，完整 15 页 PDF 与前批和重开后逐字节相同。当批未重跑 C43 全部 30 组整页视觉对照。正常构建、私有类型、定向 lint 及格式通过，未跑全仓。
+
+PPTX 模拟粗体的文字批次证据归私有 `nativePptxBoldPenBatches`。15 个原生控制覆盖升降字号、换行、段落、颜色、真实粗体、装饰及表格单元格。原生在同一批连续模拟粗体中沿用首个宽度，遇到普通字形、真实粗体或独立图形时按批次重置。旧版核心测试复现 0.343 pt 与 0.57167 pt 的差异。修复后 26 项定向核心测试和绘图参数边界检查通过。
+
+C13 正常构建复跑 48 页原稿，96 组对照从 66 增至 67 组为 0/0。第 6 页 Canvas 从 5/0 降至 3/0，PDF 从 1/0 降至 0/0。第 6、36 页的 PDF 字节发生变化。全部原生参考栅格逐字节相同，48 次导出成功，布局诊断为空，原样保存通过。仍有 16 页共 29 组差异。
+
+模拟粗体批次复跑时，第 45 页原件的整页对照、背景编辑、精确历史和新 Worker 重开通过。正文效果用例完成原生输入、精确历史、源保留与重开。当批全部 30 张对照栅格与前批逐字节一致，23 组为 0/0，首个严格失败在第 15 页。
+
+模拟粗体的曲线分段证据归私有 `nativeGlyphCurveFlattening`。第 46 页的原生数字分层诊断在差异位置得到填充灰度 251、描边灰度 24。Canvas 旧值分别为 255 和 129。按 Poppler 的设备像素容差分段后，Canvas 描边灰度为 24。14 个独立嵌入字体文字控制覆盖三种画布策略，42 组整页均为 0/0。半像素两侧灰度均保持 165。八项定向浏览器测试通过，包含原有状态、预算和图片采样检查。
+
+C13 全部 48 页原稿在正常界面复跑。96 组严格对照从 64 增至 66 组为 0/0，前批 64 组全部通过。第 34、46 页的 Canvas 新增通过。第 6 页 Canvas 从 3/0 增至 5/0，新增点为 (709,916) 和 (420,918)。仍有 16 页共 30 组差异。48 份 SDK PDF、PDF 栅格和原生参考栅格逐字节一致。布局诊断均为空，48 次导出成功，原样保存通过。
+
+前批采样证据归私有 `nativeBoldGlyphCoverage`。第 45 页正常构建的 Canvas 从 1/0 降为 0/0，PDF 为 0/0。背景编辑、精确历史、282 个非目标部件及新 Worker 重开通过。前批 39 组原生文字对照、12 个预算及回退控制通过。独立预算压力控制确认字形预算耗尽后仍可采样图片颜色面。
+
+十二页原稿和三页编辑后的 30 组正式对照从 22 增至 23 组 0/0。编辑后的第 20 页 Canvas 从 1/0 降为 0/0。原生输入、非目标部件、精确历史和新 Worker 重开通过。第 15 页 Canvas 仍为 19/1，严格用例失败。第 45 页独立用例和 C43 工作簿流程通过，后者的完整 15 页 PDF 与前批逐字节一致。DOCX 两份原件及改后布局没有模拟粗体描边，沿用前批结果。四字体 C43 整稿沿用前批 4/30 资格。正常构建、私有类型、定向 lint 和格式通过。
+
+前批第 6 页修正了 Grade 文字的模拟粗体宽度。其后余下三点位于标注的白色斜描边。原生的完整轮廓和相接斜边均覆盖三点，共用曲线描边助手的普通填充则得到红通道 141、123、105。相同轮廓经 4×4 采样，在三个点均完全覆盖。
+
+修复前的诊断归 `nativeBoldGlyphCoverageProbe`。第 45 页余差位于 Writing 的第二个 i 字干角点：SDK 灰度为 105，原生邻域只有黑白，超出 96 级颜色容差。隔离采样复现了修复方向，正式实现沿用原字形和布局，只调整描边覆盖。候选使用的 SVG DOM 边界测量未进入产品。
+
+Office 放大图案采样的当前证据归私有 `nativeOfficeHatchSampling`。普通画布现始终平滑采样，PDF 策略保留放大像素单元和缩小平均规则。修改只增加既有模式判断，没有改变核心、图案周期、坐标、源文件或公共接口。三份独立 Letter 控制覆盖两种点纹、砖纹和两种分辨率。六组完整原生 PNG 比较均为 0/0，源字节保持；修改前两组高倍率点纹分别为 51638/37482、25782/18780。
+
+正常构建、严格类型、lint、格式和源码上限通过。十二条浏览器流程中十条通过，两条原始圆形严格用例仍失败。既有 PDF 像素单元、嵌套变换、裁剪、缩小采样及四页 PDF 原点控制通过。原饼图和圆环图的 Canvas/PDF 与前批逐字节相同，C43 正常原件及新 Worker 的完整十五页 PDF 保持相同字节。本批未重跑 C43 全部三十组，PDF 策略和 Wasm 保持，沿前批完整比较读取；未跑完整 C13/C17 或全仓。
+
+A4 两倍输出的 185/188、87/91 余差已定位为网格密度不同。原生把纸张映射到整数 PNG 宽高，普通预览采用固定像素倍率。诊断仅按原生纸面像素网格绘制未改的 Worker 批次，三种底纹的完整 A4 比较均为 0/0。正常预览几何、A4 固定倍率诊断和原始 PDF 参考保持，未用该诊断替换原件验收。参考代码与完整身份归上述私有记录。C0 尚未通过。
+
+图案采样诊断归私有 `nativeOfficePatternSamplingDiagnostic`。三份字面空图表控制覆盖两种点纹、对角砖纹及两倍、三倍分辨率，源字节保持。打印预览采用 PDF 策略，只改普通画布的候选没有改变六张输出。隔离的全模式平滑试验使三倍分辨率两种点纹从 48256/36060、24257/18068 降为 0/0，砖纹保持零差异；两倍点纹仍为 185/188、87/91。六组中四组通过，两组失败。本批没有修改产品或正式参考，既有 PDF 像素合同仍待独立复核，未授予原件资格。初次选错工作表及视口超出资源预算的准备失败保留，重复栅格和已结束的编译缓存按长期授权清理。C0 尚未通过。
+
+右到左绘图打印的当前证据归私有 `nativeRtlDrawingPrint`。绘图以纸张宽度作镜像基准，裁剪端点先沿原逻辑轴量化，再镜像。修改前冻结的十二份原生控制覆盖两个方向、左右不等边距互换及 50%/100%/150% 比例。显式 A1:B8 区域有意裁切第三个矩形，三种锚点的源位置与尺寸保持。正常打印预览 Canvas 和完整 PDF 的 24 组对照均为 0/0。修正前六份右到左控制的十二组比较均失败，六份左到右控制保持零差异。
+
+十三项定向核心检查通过，包含独立原生变换坐标、镜像后的裁剪、源字节与查询状态，以及打印区域、重复标题和整本打印保护。公共接口、正常构建、严格类型、lint、格式与源码上限通过。原生自动选择绘图打印范围仍可能裁掉有效源内容，自动范围诊断继续单列；显式区域的通过不授予该路线资格。
+
+九条既有界面流程通过，包含页面设置、区域与重复标题、整本打印、图片、形状及 C43 原件。C43 主图 Canvas/PDF 保持 0/0，18 个图表、源保存和新 Worker 保持。完整 15 页工作表 PDF 与前批逐字节相同，重开后也相同。本批未重跑 C43 全部 30 组图像比较，沿前批 `nativePatternOriginPrecision` 的四组零差异和 26 组失败读取。自动范围的三份右到左原生 PNG 与显式 A1:B8 参考逐字节相同；SDK 保留被其额外裁掉的蓝色矩形部分，六组严格比较继续失败。未跑全仓或完整 C13/C17；C0 尚未通过。
+
+前批 PDF 图案原点证据归私有 `nativePatternOriginPrecision`。核心写出图案原点时保留五位小数，变换基向量保持布局精度。独立字面 PDF 的四页平移、剪切、反射与旋转控制均为 0/0。七项核心和十一条图案、圆形与不同边距流程通过；原件默认操作及新 Worker 另有一条通过。
+
+原饼图的六个新增缺点已消除，完整 PDF 从 6/4493 恢复为 0/4488，源中有效的底纹仍保留。原圆环 PDF 保持 0/0。两张屏幕 PNG 与前批逐字节相同，原始严格用例继续失败。六个点实际位于黄色图案图例标记，前批“字形余差”的归因已纠正。单独套用原生矩阵或调整纸张高度未消除这些点；诊断与失败均保留，正式参考和容差保持。
+
+本批已复跑 C43 全部 15 页、30 组严格对照。所有差异计数与前批相同，第 3、9 页 Canvas/PDF 为 0/0，其余 26 组失败。15 张 Canvas 和 14 张 PDF PNG 逐字节保持；第 5 页 PDF 的 PNG 有变化，计数仍为 7063/7872。正常默认流程与新 Worker 导出的 15 页 PDF 字节相同，源保存保持。正常构建、所属包严格检查、公共接口、类型、lint、格式和源码上限通过。未跑全仓或完整 C13/C17；C0 尚未通过。
+
+前批图表页打印原点证据归私有 `nativeChartSheetPrintOriginPrecision`。物理坐标现按原生元文件向零截断到十万分之一毫米。修改前冻结的四份控制只改变页边距，覆盖两种拟合比例；正常预览可显示，原样保存保持，完整 SDK PDF 的四组对照均为 0/0。基础控制修正前为 129/0，另外三组保持零差异。核心另核对独立原生 PDF 的变换坐标，十项定向检查通过。
+
+原圆环图 PDF 从 129/0 降为 0/0；两张圆形图的屏幕 PNG 与前批逐字节相同。原饼图继续保留原生漏画的源底纹，PDF 从 0/4488 变为 6/4493，新增少量图例字形余差完整保留。两条原始严格用例均仍失败。C43 主图 Canvas/PDF 保持 0/0，18 个图表目录、原样保存及新 Worker 保持。正常工作表的完整 15 页 PDF 与前批逐字节相同；其前批全部 30 组比较继续按明确构建读取，第 3、9 页为零，其余 26 组失败。本批未重新授予整稿 Canvas 资格。
+
+14 条既有图表流程全部通过，覆盖面积图、原尺寸工作表打印、32 系列上限、三维条图、双轴折线、混合图、雷达、曲面及四份圆形文字控制。正常构建、所属包严格检查、公共接口保持、私有类型、lint、格式及源码上限通过。本批只修改 XLSX 图表页打印原点。四份新控制只授予完整 PDF 资格，打印预览 PNG 留作诊断；屏幕与 PDF 的纹理周期差异继续开放。未跑全仓或完整 C13/C17；C0 尚未通过。
+
+前批圆形文字边距证据归私有 `nativeCircularTextInsets`。数据标签现保留原生一毫米内容留量，并逐行居中。标题计入正文边距，顶部按七个 96 dpi 像素计算。修改前冻结的四份字面 XML 控制包含饼图、双圈圆环、单行百分比和多行分类标签，使用不同常规/粗体字号与标题。相同 Arimo 字节下，正常打印预览 Canvas 与完整 SDK PDF 的八组对照均为 0/0。十二个原生水平文字起点和四个标题基线另有核心检查，修正前失败，修正后通过。
+
+主批 28 项核心检查通过；复合饼图补查的五项中有三项重叠，合计 30 项不同核心检查。正常原件流程保持主图、18 个工作表图表、15 页打印、原样保存和新 Worker 的相同 PDF。两条原始圆形严格用例仍失败：饼图 Canvas 从 232/4972 降为 2/4765，PDF 从 227/4693 降为 0/4488；圆环 Canvas 从 11978/10234 降为 11550/9901，PDF 从 540/319 降为 129/0。逐点审计确认，圆环 PDF 的全部 129 点都在 y=108 的顶部底纹边缘，以七像素周期重复。完整直接原生 PNG 诊断仍保留，未替换正式 PDF 参考。原生漏画的饼图底纹继续保留源内容。
+
+C43 全部 30 组严格对照已复跑，第 3、9 页 Canvas/PDF 保持 0/0，其他 26 组仍失败。第 5、8 页 Canvas/PDF 计数均有所增加，完整结果保留，未用错误文字位置抵消原生跨图表状态差异。本批只修改 XLSX 圆形绘制；宿主渲染器和公共接口保持。正常构建、严格检查、类型、lint、格式、链接及源码上限通过。未跑全仓或完整 C13/C17；其他格式沿各自明确构建的证据读取。准备错误、标题基线失败、容量守卫及原始严格失败均保留，可重建缓存和与当前逐字节相同的重复栅格已清理。C0 尚未通过。
+
+前批填充多边形描边证据归私有 `nativeFilledPolygonStroke`。PDF 策略复用既有描边轮廓和 4×4 覆盖遮罩，保留仅触及边界的子像素。修改产品前冻结的 16 份独立字面 PDF，覆盖四种相位、显式闭合、返回起点和相邻色带。当批正常产品全部为 0/0。初版遮罩在四个角点失败的证据保留，最终规则没有平移几何或放宽容差。
+
+菱形回归归私有 `nativeFilledPolygonStroke.diamondOracle`。210 组中，185 组仍逐像素比较。其余 25 组用同一几何、颜色和透明度生成字面 PDF，以固定 Poppler 栅格比较 RGB 总误差。每组误差均低于浏览器直接描边，诊断中 25 组的颜色覆盖均为 0/0。停用 PDF 多边形描边时，新断言复现失败。14 条共享绘制和 5 条 C43 面积图 Chromium 用例通过。产品渲染和真实文件参考沿用同一构建。
+
+原始 528 × 293.25 pt 图框的仅面积图控制，正常 Worker 整页 Canvas 从 0/63 降为 0/0，PDF 保持 0/0。15 页输出及原样保存保持。该页正常预览在本机 Chromium 中实测约 0.5 秒；修改前同一流程约 1 ms，覆盖遮罩增加绘制成本。十条绘制流程和三条面积图流程通过，包含独立多边形、耗尽共享资源预算后的精确回退、父层资源、七种不适用描边样式、曲线、圆头虚线、裁剪和遮罩。C43 全部 30 组严格对照已执行，第 3、9 页 Canvas/PDF 保持 0/0，其余 26 组仍失败。第 5、8 页 Canvas 的差异计数有所增加，完整结果保留；15 页 PDF 及全部 PDF 栅格逐字节保持。完整 C0 尚未通过。
+
+最终构建的四格式回归为 34 条通过、一条失败。C17 仍为第 11 页未旋转的 0/8，其余 27 组为 0/0；全部 SDK 和原生 PNG 身份与前批相同。图表补查为七条通过、两条失败，范围包含堆积条图、双轴折线、组合图、雷达和曲面。饼图与圆环图仍失败；正常流程替换为修改前的两个渲染模块后，两图 Canvas、PDF 和参考 PNG 均逐字节相同。原有失败未授予资格。Wasm 保持，复用前批 32 项核心结果。正常构建、严格类型、lint、格式、链接与源码上限通过，未跑全仓及完整 C13。可重建脚本缓存已按授权清理，源快照、独立参考和失败证据保持。
+
+前批面积图 Canvas 裁剪证据归私有 `nativeAreaCanvasClip`。PDF 策略的矩形命令复用已有矩形路径覆盖规则。当批原始尺寸面积图的 Canvas 从 2/119 降为 0/63，PDF 保持 0/0。正常 Worker 的 PNG 与修改前隔离裁剪试验逐字节相同。全量像素审计及逐次绘制追踪保留；当批 63 个余差全部位于三条色带描边覆盖行。
+
+248 组绘制检查通过，涵盖两种等价裁剪命令、渐变、变换、小范围、零面积、透明度和后续状态。旧页面边界用例的 PDF 预期先由四份独立字面 PDF 核对，再保留 24 组精确像素断言；平移的实心填充预期同时扣除了重复的边缘混色。原始失败和全部 24 组像素明细保留。四格式回归首轮为 32 条通过、两条失败；边界预期校正后通过，C17 继续保持第 11 页未旋转的 0/8，其余 27 组通过。未推广待定参考或改变容差。
+
+C43 全部 30 组对照再次执行，第 3、9 页 Canvas/PDF 保持 0/0，其余 26 组仍失败。第 14 页 Canvas 为 48798/50360，较前批增加；原生跨图表边距状态差异继续保留，未用错误裁剪抵消它。全部 PDF 栅格及完整 15 页 PDF 与前批逐字节相同。原样保存和新 Worker 保持。Wasm 未变，复用前批 32 项核心结果；本批正常构建、严格类型、lint、格式、链接及源码上限通过。可重建临时安装依赖已清理，源、清单和证据保持。未跑全仓或完整 C13，C0 尚未通过。
+
+前批工作表绘图打印裁剪证据归私有 `nativeWorksheetDrawingClip`。核心先按 96 dpi 量化绘图裁剪端点，再保留原生元文件的十万分之一毫米截断。缩放后的物理边界参与计算。单元格裁剪、源锚点、对象位置和宿主渲染器保持。三种缩放的独立原生 PDF 端点新增核心回归，修改前失败，修改后通过。
+
+32 项核心和十九条正常界面流程通过。范围包含 C41/C42 原件及编辑后全部页面、C43 主图、固定图框面积图、系列容量、图片与裁剪、重复标题、整本打印、形状、切片器及时间线。三种缩放的左到右整页 Canvas/PDF 六组保持 0/0；双向诊断的十二组全部执行，六组右到左仍失败，计数与前批相同。公共接口、正常构建、严格检查和格式通过。
+
+原始尺寸的仅面积图控制，完整第 14 页 PDF 从 164/0 降为 0/0；Canvas 从 150/119 降为 2/119。附带三维柱图的控制仍受原生共享边距状态影响，四组严格比较完整保留。C43 原件全部 15 页、30 组比较已复跑。第 9 页 Canvas/PDF 首次均为 0/0，第 3 页保持 0/0，其余 26 组仍失败。18 个图表、原样保存和新 Worker 的完整 15 页 PDF 保持。各页差异及两个独立流程的 PDF 身份均归私有记录，未将页数相同当作视觉通过。
+
+旧构建的二进制与 CMake 编译缓存已按授权清理，当前必要基线、原生参考、补丁源码、可执行文件和紧凑失败证据保留。完整 C43/C0 尚未通过，未跑全仓。下一步继续核对原始尺寸面积图的 Canvas 边界；原生跨图表状态、右到左定位及 C13/C17 的参考决定仍保持。
+
+四格式兼容状态、历史证据强度和上游测试方式统一见[文件兼容性矩阵](compatibility.md)，补齐顺序见 [C0](../implemented/c0-real-file-compatibility.md)。`cases/c0-upstream-candidates.json` 保留候选身份快照；后续执行见 `cases/c0-current.json`，不将候选清单的 `not-run` 当作当前运行状态。
+
+C43 原始尺寸面积图的前批上下文诊断归私有 `nativeAreaContextDiagnosis`，该批未改产品。当批构建复跑固定图框面积图和系列容量，两条流程通过，固定图框 Canvas/PDF 保持 0/0。该图框不是原工作表的 528 × 293.25 pt 图框，不能据此授予原件整页资格。
+
+两份独立原生控制仅保留面积图锚点，或额外保留一个不在第 14 页的三维柱图锚点。其他 OPC 部件逐字节保持，包含面积图定义、缓存、原始锚点、字体和页面设置。固定转换器均输出完整 15 页 PDF。增加柱图后，原生第 14 页面积图左右各收缩 2.25 pt，纵向共收缩 3 pt；SDK 两份第 14 页 Canvas 和 PDF 栅格分别逐字节相同。原生两控制间的完整页面差异为 32337/33241。固定版本源码将共享边距从 14 改为 17 像素且未恢复，控制结果确认了跨图表状态影响。
+
+四组原始尺寸严格比较全部执行并保留失败：仅面积图的 Canvas 为 150/119、PDF 为 164/0；附带三维柱图后分别为 31088/32571、33410/32350。仅面积图的 PDF 余差全部位于打印右边缘。PDF 运算符确认原生绘图裁剪先量化到 96 dpi 像素，再按元文件的十万分之一毫米截断；SDK 仍使用未量化裁剪。本项尚待修正，Canvas 另有边界余差待核对。原件、正式参考、阈值及失败断言保持；完整 C43/C0 尚未通过，未跑全仓。
+
+工作表实心矩形填充的当前证据归私有 `nativeWorksheetRectangleFill`。无描边矩形在核心复用已有矩形填充图元。固定、随格移动及随格缩放锚点在 50%、100%、150% 下，由默认 UI 的正常预览 Canvas 和 PDF 对照同一份修改前冻结的 ONLYOFFICE 参考，六组全部为 0/0。此前两个 Canvas 各三个角点失败已消除，源字节保持。带描边与其他形状保留原路径，宿主、渲染器、字体与阈值保持。
+
+31 项核心和九条正常界面流程通过，覆盖三个新原生控制、形状默认控件与同步 SDK、绘图滚动、图片及裁剪和 C43 原件。完整双向诊断的十二组比较均已执行，六组左到右通过；三组右到左的 Canvas/PDF 差异计数现分别一致，定位、不等边距及原生自动范围裁剪仍待核对，严格失败保留。C43 原件的 15 页完整 PDF 与前批逐字节相同，原样保存及新 Worker 保持，主图 Canvas/PDF 仍为 0/0。其余整稿视觉继续复用前批明确构建身份的结果，本批未重跑全部 30 组。第 14 页增加的差异、C13/C17 及两个参考决定继续保持。
+
+正常构建、所属包严格检查、公共 XLSX 接口保持、私有 TypeScript、定向 lint、格式、链接与源码上限通过，未跑全仓。首轮将 worker 选项放入 describe 的准备失败保留。两个旧 XLSX 可重建二进制缓存已清理，源快照、脚本和失败记录保留。完整 C0 尚未通过。
+
+前批工作表绘图打印原点与 C43 整表证据归私有 `nativeWorksheetDrawingOrigin`。核心在绘图打印坐标加入原生的一个网格像素偏移，保留源锚点、尺寸、网格视图和单元格打印。六个独立原生控制在修改前冻结，覆盖固定、随格移动、随格缩放锚点、50%/100%/150% 以及两个方向。左到右的三个完整 PDF 均为 0/0；150% Canvas 也为 0/0，50% 和 100% 各为 0/3。完整十二组严格断言仍失败，矩形路径角点与右到左不等边距、原生自动范围裁剪差异均保留，未授予全部控制资格。
+
+31 项定向核心和十四条 Chromium 流程通过，覆盖打印设置、区域、重复标题、整本输出、源保存、精确历史、新 Worker、形状、图片裁剪、绘图滚动、切片器和时间线。C41 原件/改后全部六页、C42 原件/改后全部三页的 Canvas/PDF 仍为 0/0。C43 主图保持 0/0，18 个原始图表可查询，15 页打印与新 Worker 的 PDF 字节保持一致。正常构建、所属包严格检查、格式、源码上限和公共 XLSX 接口保持通过；宿主与渲染器未改，未跑全仓。
+
+C43 全部 15 页、30 组严格对照已完整重跑。第 3 页 Canvas/PDF 首次均为 0/0。首面从 Canvas 14774/15956、PDF 15076/16590 降为 788/2497、802/2470。第 14 页反而从 Canvas 38999/41448、PDF 39697/42681 增为 46577/49556、48903/49360；其余页面的比较结果完整保留。该页尚无完整视觉资格，继续定位局部布局，不能靠恢复错误打印原点抵消差异。原样保存保持，冻结参考及容差保持。剩余 28 组仍失败，完整 C43/C0 尚未通过。准备错误、初始化字体上下文前的查询快照失败、容量守卫和修复前后严格失败均保留。后续核对矩形角点、右到左打印及 C43 余差；两个参考决定仍待答复。
+
+前批 General 列宽适配与 C43 整表复核归私有 `nativeGeneralColumnWidth`。五种列宽、十五个 General 数值与一行固定小数控制的 80 个预期，均在修改产品前由固定 ONLYOFFICE 的独立字面 XML 控制生成。原生 PDF 文字只按源行距和原生表头坐标提取。核心现按 Normal 数字宽度给出预算，再测量并减少精度，科学计数进位沿原生剩余预算处理。80 个网格显示值及完整打印文字全部匹配；控制文件的正常整页 Canvas/PDF 均为 0/0，原样保存保持。
+
+30 项定向核心和十二条 Chromium 流程通过，覆盖原件、格式输入、精确历史、公式、TEXT、缩小适配、页面设置、打印区域、整本打印及新 Worker。C42 原件与改后全部三页的 Canvas/PDF 继续为 0/0；C43 主图也保持 0/0，原件全部 18 个图表可读取，15 页打印及新 Worker PDF 字节保持一致。正常构建、所属包严格检查、格式、源码上限与公共 XLSX 接口保持通过，未跑全仓。
+
+C43 原件的全部 15 页、30 组严格比较已重新执行。首面 Canvas 从 20468/26457 降为 14774/15956，PDF 从 20576/27467 降为 15076/16590；其余 14 页的 28 张 PNG 逐字节保持。30 组仍全部非零，完整 C43/C0 尚未通过。源、冻结参考、96 通道与一像素容差保持。初始井号失败、科学计数进位失败及一次准备语法错误保留。后续继续核对原尺寸图表布局与已知原生漏画、气泡退化；C13/C17 的参考决定仍待答复。
+
+C43 前批整表打印与目录证据归私有 `nativeWorksheetPrintBounds`。绘图尾端按右、下开区间计算占用范围，边界恰好贴合行列时止于前一个可见格；零宽高线保留锚点。原件工作表在相同 Arimo 字体下从 18 页修正为独立原生的 15 页。原生转换器未指定比例时把全部内容缩成一页；该路线完整保留，正式诊断显式选择 SDK 合同的 100% 并关闭拟合。参考从既有独立字面缓存控制生成，只替换明确的字体属性，原始锚点、缓存与页面设置保持。
+
+宿主目录现保留曲面类型及字面缓存的空绑定，原件全部 18 个图表可查询。读取与编辑共用字段校验，编辑仍要求完整引用；未知类型、非法字段和原生配置保护保持。23 项核心、56 个宿主边界断言和十条 Chromium 流程通过，覆盖原件末页预览与完整 PDF、新 Worker 字节一致、图表编辑、C41 完整页、C44 条件格式、页面设置、打印区域、整本打印、形状和绘图滚动。主图的完整 Canvas/PDF 仍为 0/0。正常核心构建、宿主模块与 Worker 重建、公共接口保持、类型、lint、格式和源码上限通过。
+
+该前批构建的全部 15 页正常预览 Canvas 与 PDF 共 30 组严格比较已完整执行，均仍有差异。原样保存保持；96 通道与一像素容差保持。整表结果包含既有原生漏画与气泡退化，以及仍待定位的数值 General 列显示和原尺寸图表布局差异，未授予整稿视觉资格。首次诊断被目录校验阻断；宿主单元检查通过后曾遗漏 Worker 重建，补齐后完成全部比较。准备错误、旧 Worker 失败和最终严格失败均保留。下一步先核对原始列宽下的数值显示，再处理图表整页差异。其余 C13/C17 的参考决定与 C0 缺口继续保持。
+
+C43 前批工作表打印修复归私有 `nativeWorksheetPhoneticDefaults`。原件的空 `phoneticPr fontId="1" type="noConversion"` 曾被误报为未绘制内容，整张工作表因此无法导出 PDF。核心现校验并保留该默认设置。固定 ONLYOFFICE 的独立控制只增删这项元数据，完整原生页 PNG 逐字节相同。九种合法默认设置保持打印几何；十一种非法声明仍保留诊断并拒绝打印，实际 `rPh` 文本的编辑与打印保护保持。十五项定向核心检查通过，公共接口保持。
+
+该前批构建的正常 Chromium 界面可预览原件工作表末页并导出当时的 18 页 PDF。18 个原始图表对象可读取，原样保存保持，新 Worker 的完整 PDF 逐字节相同。主图的完整 Canvas 与整页 PDF 对照仍为 0/0。该原件流程及六条相关回归通过，覆盖 C41 原件/改后完整页、C44 条件格式、打印区域、页面设置与整本输出。正常构建、所属包严格检查、私有 TypeScript、格式及行数上限通过。此项修复只证明打印通路恢复；整张工作表和重算后输出的独立视觉对照仍待补齐。其余 C13、C17、C43 的严格失败与两个参考决定继续保持，完整 C0 尚未通过。
+
+C40 当前证据归私有 `nativeMetafilePreviews`。完整默认流程的原稿、改后 Canvas 与 SDK PDF 四组独立整页比较均为 0/0。原始 EMF、工作簿和非目标部件保留，背景输入、对象保护、精确撤销重做及新 Worker 保存重开通过。核心生成 321×209 的完整预览，PDF 提取仍包含源标签。原件、固定字体、参考工具及 96 通道/1 像素容差保持。实现与预算归[格式合同](formats.md#docx-内嵌-ole-预览)。
+
+本批复用已安装 Zeno 的路径遮罩，沿既有图片资源与无损 PNG 管线输出核心 RGBA。宿主保留透明像素的源颜色，并对该预览按原生源像素块缩小；普通 PDF 图片保持既有采样。8 项定向核心、7 条 DOCX、9 条 Canvas 和 16 条 PDF 回归通过。完整 C17 的 28 组比较中 27 组为 0/0，仅原稿第 11 页保留已确认的八个参考工具差异；首轮通用缩小引入的第 2 页两点回归已消除，失败证据保留。51 文件有界扫描无意外失败：46 个正向输入通过，五个控制项拒绝。扫描范围仅为打开与选定核心布局，XLSX 只检查打开。正常构建、严格 MoonBit、类型、lint、格式和源码产物重建核对通过。全仓未跑，C13、C43 及页面边缘差异仍待处理；C17 参考工具变更仍待单独决定。
+
+C13 当前完整原稿证据归私有 `nativeOfficeTextDecorationSpaces`。2026-11-05 的 48 页正常 Canvas 与整页 SDK PDF 复查中，第 32 页下划线余差从 Canvas 111/33、PDF 102/33 降为 12/0、3/0。其余 47 页的 94 组 PNG 和全部原生 PNG 逐字节保持。96 组比较仍有 57 组为 0/0；25 页保留 39 组严格失败。全部布局诊断为空，48 次 PDF 导出成功，原样保存保持。原件、五个字体、冻结参考及 96 通道/1 像素容差保持，没有新增整页或编辑资格。
+
+12 个独立原生控制核对行首、内部、行尾及全空格、格式 run 边界、软换行、显式换行、不换行空格和删除线。共享布局复用已有行尾内容边界，只收窄下划线和删除线；逻辑文字、塑形、光标与高亮保留。17 项装饰/间距/单元格核心及 42 项 PPTX 核心通过。六条正常 Chromium 流程覆盖 DOCX 超链接输入、PPTX 文字/表格链接与字符/段落格式、XLSX 装饰；源、精确历史和保存重开通过。
+
+正式 C13 的 30 组比较完整执行，原生输入、282 个非目标部件、精确历史及新 Worker 重开通过，严格视觉仍失败。同构建 51 文件有界扫描符合预期：46 个正向输入打开，五个控制项在打开时拒绝；扫描只覆盖打开和选定布局，XLSX 仅检查打开。正常构建、所属 MoonBit 包严格检查、公共接口保持、格式、XML、登记和源码上限通过。宿主 TS 与渲染模块保持，复用前批类型/lint 和 JS 重建证据。未跑全仓；C13、C43、页面边缘及 C17 参考工具决定仍待处理。首轮私有未改文件的格式差异另存，公共源码和本批私有文件分别完成格式检查。
+
+C13 图片颜色补充诊断归私有 `nativeOfficeImageRouteDiagnosis`。固定原生 PDF 将四个不透明 PNG 转为 JPEG85。临时使用 Chromium 现成编码器，第 43 页 Canvas/PDF 及第 36 页 PDF 均为 0/0；第 36 页 Canvas 为 34/23，第 26 页仍保持 0/0。三个原稿的正常 Canvas/PDF 先逐字节复现当前构建，原样保存保持；该临时路径未进入产品。另对完整 48 页复查两条原生路线，当前 Canvas 对直接 PNG 为 4/48 零差异，对冻结 PDF 为 23/48。直接 PNG 还改变字体等绘制结果，因此没有整批替换参考。
+
+同一 P12 原图经原生直接 PNG 保留红色 255/0/0、绿色 0/255/0、蓝色 0/0/255；经原生 PDF 为 252/1/0、0/255/0、0/1/251。现有 P12 显示与 PDF 精确颜色断言及核心源 RGBA 保留检查要求原色。直接加入有损转码会改变这个合同。已准备独立无损颜色候选：只把四个唯一关联的原生 JPEG 图片流替换为包内 PNG 解码 RGB，保留原生字体、内容、几何、图案、裁剪与顺序。44 页原生 PNG 逐字节保持，变化仅在第 3、15、36、43 页。未改 SDK 的全部 96 组比较对候选为 61 组零差异，原已通过项保持；第 3 页 Canvas 仍为 99/218，第 36 页仍为 46/125，其他缺口继续保留。
+
+57/96 是旧 JPEG 参考在当时构建的诊断基线。该批新增三条诊断浏览器流程，并复用 59 项核心、六条界面和 51 文件有界扫描。用户随后确认保留原图 RGB，采用上方正式参考。C17 的参考工具选择另行记录。
+
+前批图片采样完整原稿证据归私有 `nativeOfficeImageAlpha`。2026-11-05 的正常 UI 复查覆盖全部 48 页 Canvas 与整页 SDK PDF。96 组冻结原生比较中 57 组为 0/0，25 页仍有 39 组差异。第 26、30、41、44 页 Canvas 从 2/0 降为 0/0；第 31、32、42 页也减少差异。48 页 PDF、其余 41 页 Canvas 及全部原生参考 PNG 与上轮逐字节一致。全部布局诊断为空，48 次 PDF 导出成功，原样保存保持。原件、五个固定字体及 96 通道/1 像素容差保持。
+
+普通 PPTX 图片现独立采样颜色与透明遮罩。三个独立原生控制只改变 GIF 全透明调色板项的 RGB；原生整页 PNG、颜色面与遮罩均逐字节相同。固定 ONLYOFFICE 源码也将全透明 RGB 归白，再独立写入遮罩。宿主按现有资源身份缓存派生颜色位图，原始 RGBA 与压缩源保持。非透明图跳过派生资源；替换、淘汰和销毁关闭位图。最终遮罩按八位 Alpha 合并对象透明度，解决既有平铺图片半透明回归。采样范围及预算见[格式合同](formats.md#通用绘制输出)。
+
+10 条 Canvas、5 条原件/阴影/GIF/OLE、6 条图片编辑和 2 条页面图片导出流程通过。既有 P12 平铺透明度断言保持。正式 C13 的十二页原稿及三页编辑共 30 组比较完整执行；原生输入、282 个非目标部件保留、精确历史、新 Worker 重开及重开 PDF 栅格一致性通过，严格视觉仍失败。新通过的四页仅增加原稿 Canvas 显示证据，不增加编辑资格。正常构建、根与私有类型/lint、定向格式、登记、源码上限及五个 JS 模块重建核对通过。Wasm 与核心解码器保持，复用前批 8 项核心和 51 文件有界扫描；扫描仅检查打开及选定布局，XLSX 仅检查打开。未跑全仓，C13、C43、页面边缘及 C17 参考工具决定仍待处理。首轮过宽浏览器组超时及平铺透明度失败证据保留。
+
+前批混合字体完整原稿证据归私有 `nativePptxMixedFontLines`，首次审计归 `nativeC13FullPageAudit`。正常 UI 逐页显示全部 48 页，并分别导出整页 PDF。96 组固定原生对照中 53 组为 0/0；29 页仍有 43 组差异。全部布局诊断为空，48 次 PDF 导出成功，原样保存保持。整轮在既有 180 秒时限内完成。正式用例检查十二页原稿及第 20、23、42 页编辑，共 30 组整页比较。原生输入、精确历史、非目标源保留及新 Worker 流程通过，严格视觉仍失败。
+
+本批修复混合字体的自动行度量。核心先按每种实际字体归一升降部，再合并最大值，复用固定行距的度量读取。16 个独立原生控制核对三个字体族、字体顺序、混合字号、软换行、百分比与固定行距、继承缩减及存储缩放，含两组重复固定行距控制。48 处行基线及冷热缓存的完整行几何匹配。41 项定向核心及九条相关 Chromium 流程通过，覆盖文字框、列、适配、母版默认值、列表、表格文字/组合及图示。第 5 页整页 Canvas 从 930/980 降为 5/0，PDF 从 909/964 降为 0/0。其余 47 页的 94 组完整比较和图片 hash 均逐字节保持，没有回退。原件、字体、冻结参考、渲染器及容差保持。
+
+同构建的 51 文件有界扫描无意外失败：46 个正向输入通过，五个既有控制项在打开时拒绝。XLSX 仅检查打开，其他格式仅覆盖选定布局。正常构建、严格 MoonBit、私有类型、lint、格式、XML、登记、源码上限及 1355 个本地链接检查通过。未跑全仓；本批新增第 5 页 PDF 显示资格，Canvas 和整稿仍失败，没有新增该页编辑资格。
+
+SmartArt 补充诊断归私有 `nativeC13ShadowRoutes`。同一固定主引擎导出 16 个中性阴影控制的 PDF 与直接 PNG。同类控制的四种模糊半径在 PNG 控制区内逐像素相同，印证原生绘制未使用该半径。50% 渐变阴影在直接 PNG 中为灰色，PDF 则丢失透明度并报告缺少软遮罩组；纯色控制仍保留透明度。另对原件 48 页完成 144 组补充整页比较。第 8 页 SDK Canvas/PDF 对直接 PNG 均为 0/0，对冻结 PDF 仍失败。该诊断绑定修复前构建，只用于归因；冻结 PDF、严格断言和原有阴影功能保持，不据此增加资格。其余页面的差异继续独立处理。
+
+前批字体资源证据归 `nativeC13FontResources`。原生字体清单覆盖全部 48 页。冻结 PDF 实际使用五个字体，正式验收此前只加载两个。该批补齐固定字体表中已有的 Carlito Italic、Arial Bold 和 Times New Roman，保留原始字节和来源。五页独立诊断后，全部原稿与扩展正式流程重新验收。首次扩展因重复传送字体触及时限；复用字体字节后，各新 Worker 仍独立注册全部字体，最终流程在 180 秒内完成。超时及严格视觉失败证据均保留。该批产品代码和正常构建保持，复用同构建核心、相关界面及 51 文件有界扫描证据；未重跑核心或全仓。私有类型、lint、格式及源码上限通过。
+
+前批段距证据归 `nativePptxParagraphGaps`。16 个独立原生控制核对相邻段距、点值与百分比、继承、空段、软换行、混合字号、固定行距及存储缩放。PPTX 现合并相邻段距，百分比按自然文字行高换算。48 处原生基线与冷热缓存的完整行几何匹配。该批 40 项定向核心通过，覆盖正文、框适配、列表、数学、表格、SmartArt 及编辑历史。第 20 页真实原生输入、282 个非目标部件保留、原段落与文字段属性检查及新 Worker 重开通过；编辑后 Canvas/PDF 字节保持。
+
+该段距批次的九条相关 Chromium 流程取得通过记录，覆盖文字框、列、适配、母版默认值、列表、表格文字/组合及图示。首轮为 8/9，组合表格停在禁用的复制按钮；独立复查未重现该状态。用例现等待组合选中后再读取组身份，单条完整复验通过；复制、取消组合像素、历史和 PDF 断言保持。修复前构建在该处的查询与当前构建相同，其后因探针缺少 `pdftotext` 路径失败，该环境失败保留。同构建的 51 文件有界扫描无意外失败；XLSX 只检查打开，其余格式只覆盖选定布局，不授予完整视觉或编辑资格。
+
+前批断行证据归 `nativeOfficePunctuationBreaks`。24 个独立原生控制核对 Calibri/Arial 的十二种分隔符。共享段落现取消词内斜杠、Unicode 连字符及短破折号后的可选断点，保留普通连字符与长破折号的断点。单段和跨样式分段共 48 种情况，96 次冷热缓存查询均匹配原生行文字，逻辑源和不换行空格保持。控制显式使用与原生相同的本机 Helvetica 回退资源；字体校验和公共构建保持。该批 105 项定向核心通过，包含 27 项共享布局、41 项 PPTX 和 37 项 DOCX；资源迁移后另复验新增用例。
+
+该断行批次的 Chromium 流程通过 11/12 条，包含五条 PPTX 与六条 DOCX。C40 原有 EMF 白底残差仍使严格用例失败：原件 Canvas 为 9/0、PDF 为 6/0，编辑后两种输出均为 0/0。四份完整差异报告及坐标与前批相同。链接文字框仅通过功能流程，未补授其缺少的独立原稿视觉资格。该批 51 文件有界打开与选定布局扫描无意外失败；其范围不含完整视觉或编辑验收。
+
+前批 C40 诊断归 `nativeEmfRasterDiagnosis`。该批构建重跑完整默认流程，仍为原稿 Canvas 9/0、PDF 6/0，改后均为 0/0；原稿 SDK PNG 与固定原生 PNG 分别保持前批字节。[原生纹理路线](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/PdfWriter.cpp#L3921-L3963)按 300 dpi 将整个 EMF 预览转成 321×209 图像，再放入 PDF 平铺图案。隔离对照只替换该图像的颜色或透明度流，保持页面、图案、尺寸和原生采样；原生遮罩对照逐字节复现固定整页 PNG。SDK 字形按同一中间尺寸绘制，再使用无损 RGB 和自身遮罩时，三种既有字形策略的完整 PDF 对照均为 0/0。这说明该用例无需先增加 JPEG 编码或字体提示解释器，但尚未构成产品修复。浏览器直接缩放同一图像仍失败；现有像素字号策略虽降为 3/0，却新增差异位置，均未采用。正式用例、阈值和 SDK 实现保持，后续须核对共享元文件预览与图像采样，不能只改变这一原件。
+
+前批字号证据归 `nativePptxScaledSizes`。20 个独立原生控制核对字号导入、缩放取整及列表大小；额外控制证明空 `normAutofit` 在 10×1 pt 框内仍保留 10.5 pt 原字号。MoonBit 现按半点导入字号，缩放后取整数点；百分比标记跟随缩放文字，固定点数标记保持大小。读取不重新缩小原稿，实际编辑才重算并保存明确比例；核心检查精确历史和重开字号保持。该批 41 项定向核心及十条 Chromium 流程通过，覆盖文字框、列、主题字体、列表、页码、数学和形状调节。
+
+前批颜色和文字段偏移修复归 `nativeHyperlinkThemeColors`。四个独立原生控制核对点击链接与项目符号颜色。点击文字使用映射后的主题 `hlink`；直接和继承颜色的源定义保持，移除链接后恢复。悬停文字及项目符号保留源颜色。正文和表格同步文字段的全文偏移，修复样式分段导致的 PDF 提取错字。该批记录的合并表格行高失败保留，当前结论见下段。
+
+两条 P12 旋转用例曾在新旧渲染器下均报告缺墨。固定 ONLYOFFICE 重开两份保存稿，点击链接文字均使用主题色 `0563C1`，源 XML 仍保留 `0055AA`。按独立结果校正取色后，两条旋转用例及 C08 原件通过。像素容差、文字几何、链接和历史断言保持。证据归私有 `nativeHyperlinkThemeColors.rotationReplay`。
+
+表格最小行高复查归 `nativePptxTableMinimums`。三个独立单元格控制使用 18 pt Arial、上下各 4 pt 边距，源行高分别为 12、30、12 pt；第三格含四段文字。固定 ONLYOFFICE 10.0.0 的 PDF 单元格填充路径给出 29.6、30、94.4 pt。当前核心匹配原生结果，三处旧精确断言仍沿用早期字体行框，现按独立结果更新。44 项 PPTX 表格定向核心全部通过，覆盖合并、拆分、尺寸、变换、文字、选择、保护与历史；新增控制另检查源保存、精确撤销重做和重开行高。SDK 源码、发布产物、真实原件和冻结整页参考保持，本次不增加整页视觉资格。
+
+字体资源批次将首次审计的 33 组 0/0 增至 52 组。该批新增第 24、39 页的完整 Canvas/PDF 及第 25、34 页 PDF。第 25、34 页 Canvas 仍为 2/0、3/0，第 38 页两种输出仍为 1/2。第 28 页 Canvas 降为 3070/3749，PDF 降为 3048/3665，剩余 WMF 等差异继续保留。其余 41 页的 82 组完整比较与图片 hash 均与段距修复构建相同，没有新增退步。正式用例中前批二十组比较也逐字节保持。第 20 页原稿与编辑后的输出仍为 Canvas 3/0、PDF 0/0。完整 C13/C0 仍未通过；第 24、39 页原稿通过不授予新增编辑资格。
+
+C17 前批整稿证据归私有 `nativePdfGradientClips`，首次完整审计归 `nativeType1FullPageAudit`。正常用例检查全部 14 页及其 90° 旋转，共 28 组完整页面。该批 27 组为 0/0，仅第 11 页原稿有 0/8 差异。该页原稿从 6/8 降为 0/8，旋转从 2/0 降为 0/0。其余 26 组完整比较及 PNG hash 逐字节保持。前批第 2、4、5、6、7、13 页保持通过。原样保存、整稿旋转、精确撤销重做、保存重开和 997 个独立源记录检查通过。图形子集的空 ToUnicode 保留不完整标记。
+
+八点颜色诊断归私有 `nativePdfShadingCacheDiagnosis`。固定 Poppler 按裁剪范围缓存渐变函数，再对缓存起点前的首行像素外推。第 11 页蓝色分量由源函数的 1 外推至 `1.002139…`，转成 8 位值时从 256 回绕为 0。独立复算原函数、缓存及 LittleCMS 转换，得到与冻结画面相同的 `169/200/0`。原采样函数自身仍有界。源码依据 [Poppler 缓存插值](https://gitlab.freedesktop.org/poppler/poppler/-/blob/3a79c6217fe185311e4905204d99c7a53a480883/poppler/GfxState.cc#L3689-3820)及[ICC 输入编码](https://gitlab.freedesktop.org/poppler/poppler/-/blob/3a79c6217fe185311e4905204d99c7a53a480883/poppler/GfxState.cc#L1902-1950)。
+
+四个独立控制用字面采样表、ICC/RGB 两种色彩空间及两个裁剪相位复现该问题。仅第一组 ICC 的首行 81 个像素受影响，另外三组及其他像素逐字节保持。候选参考只加一行缓存范围守卫，超出范围时复用原函数求值。未修正源码重编译的第 11 页 PNG 与冻结参考逐字节相同。加入守卫后，未修改 SDK 和正式用例完成全部 28 组整页零差异检查，997 个源记录、精确历史和保存重开也通过。28 份 SDK PNG 全部保持，27 份参考 PNG 保持，仅第 11 页原稿参考改变。候选尚未切换为正式对照，当前正式门槛仍为 27/28。
+
+固定 ONLYOFFICE 10.0.0 的 PDF 直接栅格路线另生成原件全部 14 页，八点所在区域保持蓝色方向。该主引擎第 11 页与 SDK 的整页比较为 351/492，不能据此授予整页资格。原工具、冻结参考和旧失败均保留。通用缓存修复已纳入正式参考工具，当前结果见[本页入口](#当前兼容证据入口)，产品像素和既有阈值保持。
+
+本批修复线性渐变前的矩形裁剪。逐像素追踪证明，原生残差行已经进入彩色柱体，SDK 仍显示后方灰色阴影。原始 RGBA、图像矩阵和图像绘制保持；此前按图像重采样归因不够准确。16 个独立控制覆盖横纵渐变、四种小数相位、两组颜色及透明度。旧构建原稿为 472/0，旋转为 114/0；最终原稿、旋转及 16 个控制区均为 0/0。内容流、透明度定义、精确历史、保存重开及实际加载字节检查通过。120 组既有裁剪像素、透明度和状态检查通过；PDF 线性渐变预期改为独立四档覆盖率常量，Office、径向、实心与其他变换预期保持。边界规则归[格式合同](formats.md#字体资源与替代)。
+
+仅复用普通 PDF 裁剪可清除该页旋转残差，但独立控制仍失败。把两侧全部取整会让旋转侧边退步。最终按四档覆盖率、校正及渐变有效区间表达普通裁剪路径，没有新增遮罩、缓存或栅格器。首轮其余 PDF 复查发现 C30 未延伸端点的一个新增旋转边角像素；按设备整数位置限制着色范围后，四种延伸组合均恢复通过。前述候选和失败控制保留，原件、参考及容差保持。
+
+前批内容数值证据归 `nativePdfContentDecimals`。PDF 内容操作数按原生顺序累加小数，源对象仍使用原词法器。绘制器直接组合六个双精度矩阵分量，保留字形定位前的精度及保存恢复状态。16 个独立控制覆盖四种字号、相位及相消的文字移动。当前原稿与旋转仍为 0/0，各 16 个原稿控制区也为 0/0。嵌入 URW 字体与原件对象 8 逐字节相同，嵌入许可声明保留。内容流、字体流、文字、透明度语义、精确历史和重开保持。42 组字形几何及缓存页面、覆盖层、图片导出的四次策略切换继续通过，包含低于整数边界的轴对齐及旋转控制。
+
+第 5 页的 67 次文字移动在标准小数转换下得到横向位置 `54.00000000000003`，原生逐位累加得到 `53.99999999999997`，设备取整相差一行。浏览器矩阵运算也会提前舍入该边界。两处修复共同保留原生采样位置。全局数值转换曾改变源对象的 BBox，已撤回；重复转换并增加工作计费曾触及第 11 页预算，也已撤回。最终替换内容操作数的普通转换，保留既有整数、异常回退及逐字节工作计费。对象词法器逐字节保持，没有提高预算。轮廓定点量化未改善差异，没有采用。
+
+前批字形相位证据归 `nativePdfGlyphPhases`。PDF 普通轴对齐填充字形复用已有横向四档定位，保留字体缓存高度上限。此前 16 个独立 `fi/n/e` 控制在当前构建仍通过原稿、旋转及控制区对照。字形和策略切换的旧 PDF 横向坐标预期按原生四档值更新，逐像素断言保持。
+
+将四档规则同时应用到 90° 字形，会让第 6 页旋转从 0/0 退为 0/1；该候选已撤回。仅量化字体矩阵也未清除三处字形差异。最终只复用轴对齐路径，旋转字形保持原规则。没有新增字体栅格器、缓存、模型、配置或依赖。
+
+前批图案证据归 `nativePdfPatternCells`。按最终设备重复格数直接绘制小图案，并仅在这些格内对齐正向轴对齐图片的设备边界。32 个独立控制的原稿与旋转共四组整页仍为 0/0，各 16 个原稿控制区也为 0/0。内容流、透明度语义、历史及重开检查继续通过。单格表面、深度、4096 格预算、直接重放工作上限及缓存回退保持。
+
+前批曲线描边证据归 `nativePdfFlattenedRectangles`。曲线细分后复用已有矩形描边，保留回到起点但未显式闭合的端帽规则。16 个独立控制的原稿与旋转仍为 0/0，原稿控制区、内容流、透明度语义、历史及重开检查继续通过。
+
+前批圆头虚线证据归 `nativePdfRoundDashes`。其相位、闭合连接、轴线对齐与有界子像素遮罩保持。该批的 16 组独立控制在当前构建的完整原稿与旋转仍为 0/0；颜色、一次透明度、外层裁剪、状态和五类回退检查继续通过。
+
+最终构建的其余十六条 PDF 原件流程及 C34 双页表单全部通过。二十四条 Canvas 检查中二十三条通过，平移页边界仍为原输入失败；修改前绘制模块已独立复现，原断言保持。七条共用 PDF 策略的表格打印流程通过，含 C41/C42 原稿及改后整本的 36 组 Canvas/PDF 对照、保存重开，以及打印范围、设置、页序和缓存。正常构建、公共与私有 TypeScript、lint、格式、登记、源码上限及本地文档链接通过。首轮四处字面量精度 lint 警告改用相等分数表达，独立数值断言、定向像素复验及最终六项静态检查通过。Wasm、图案与描边模块逐字节保持。复用前批同引擎的七项核心与 51 文件扫描：46 份正向输入通过，五份控制项在打开时拒绝。该扫描只检查有界打开和选定布局，不授予完整视觉或编辑资格。C02、C13 等其他格式保留各自完整流程的原构建身份，本批未重复其完整流程或全仓检查。
+
+八组失败邻域追踪逐字节重放当时的正式画面。第 4、6 页同为 Type1 连字，现已按横向分档修复；第 5 页旋转已按内容小数和矩阵精度修复。第 7 页来自小曲线描边。第 13 页余差来自条形边框附近的图案图片上边缘；此前边框归因仍不够精确。第 11 页八点已定位为固定对照工具的渐变缓存外推溢出，详见上方诊断。旧全局图片边界对齐、重采样和取消圆角边界的候选继续只作诊断。该批尚未采用缓存修复，完整 C17/C0 当时未通过正式门槛；当前正式结果见[本页入口](#当前兼容证据入口)。
+
+前批私有绘制助手复用一次旋转、历史与重开，逐页生成画面后调用 `releasePdfView`。首轮因未释放视图触发九页/16 MiB 上限，修正调用后完成全稿。180 秒时限、核心预算、原件、参考、每通道 96 及一像素邻域均保持。该批另 16 条 PDF 原件流程全部通过；C34 保留当时同构建的完整通过结果。私有类型、lint、格式及源码上限通过，该批产品和正常构建未变，未重跑核心或全仓。
+
+首次四页诊断逐字节复现当时画面。第 2 页残差由圆头虚线绘制产生，第 4 页涉及 Type1 连字轮廓，第 11 页涉及带 Alpha 图像覆盖灰色网格；第 13 页当时尚未确定来源，当前归因见上方八组邻域追踪。仅在诊断中将轴对齐图片边界取整，第 11 页从 6/8 退为 10/8；该候选未进入产品。继续沿原生虚线、字体实例与图像下采样规则定位，严格用例保持失败。
+
+前批圆头虚线诊断归私有 `nativeRoundDashControls`。显式切分虚线后，四页画面仍与原基线逐字节相同。按原生平坦度生成圆头轮廓后，第 2 页整页对照为 0/0，另三页差异保持。16 个独立 PDF 控制覆盖轴线、斜线、转角、曲线、闭合路径、粗细线、透明度、变换及相位。首个轮廓候选让原本通过的细线变为 0/4；改用端点方向并复用已有轴线描边后，水平、垂直及转角控制为 0/0，细线仍退为 0/1，闭合框保持 448/673。当批候选只作诊断，没有新增资格。其退步证据继续保留，当前结果见上方记录。
+
+C34 双页表单与路径闭合修复归私有 `nativeTwoPageForms`。未改原件包含四个独立文本域和两个受保护按钮，每个字段只有一个 widget；候选标签不能证明跨页共享同一字段。原生输入分别修改两页的 `Text1/Text3`，其余值保持。精确撤销重做、新 Worker 重开、51 个非目标源对象及两个按钮的安全拒绝均通过。
+
+核心现省去重复闭合指令。八组独立控制覆盖 `re/h/s/b/b*`、显式闭合、复合矩形和空路径，先复现旧实现的六段矩形，再验证规范化的五段结构。原件两页及编辑后两页的完整 Canvas 对照由每组 1191/0 降到 0/0。原件参考来自独立 Poppler；编辑后对照采用独立引擎读取 SDK 保存的外观，并核对各页文字和值，不授予原生作者引擎的外观放置资格。字体显式使用固定 Arimo，实际加载的 Wasm、绘制模块及像素模块字节均有断言。规则归[格式合同](formats.md#表单与批注)。
+
+26 项 PDF 核心、C34 完整流程及九条既有 Chromium 回归通过。范围覆盖 CFF、渐变、透明组、平铺、批注及表单导入、重命名、移除和选项。正常构建、严格 MoonBit、私有类型、lint、格式、源码上限与新增登记通过。最终构建的固定 51 份有界扫描仍为 46 个正向通过、五个控制项打开时拒绝。首轮测试准备误用了字段页序、错误信息中的代码和绘制前的当前页快照；这些准备失败及真正的严格视觉失败均保留。未改原件、参考或容差，未跑全仓，完整 C0 继续实施。
+
+补充原件 `issue14023.pdf` 归私有 `nativeSharedPdfFields`。测试从固定的本地 PDF.js Git 修订提取原始 blob 并核对 SHA-256。从第 1、5 页编辑时保留当前页，第 1、2、5 页同步文本与复选值，单选组仅激活所选 widget。qpdf 和 Poppler 核对两次保存的字段值、外观及 51 个非目标源对象。撤销精确恢复中间版本和原件，重做恢复末版，新 Worker 读回同一字段树。共八条 Chromium 表单流程通过，含同构建 C34 的四组整页 0/0。补充原件的验收范围为字段同步、保存和历史。预期来自 [PDF.js 原件测试](https://github.com/mozilla/pdf.js/blob/24de17e81b3357b30ffd710ec080be00d65ac98d/test/integration/annotation_spec.mjs#L300-L395)。
+
+同批 C13 诊断逐字节重放第 15、23、41、42、47 页。第 47 页四个残差均对应合成粗体年份标题；其他页还涉及图片和形状。主引擎对合成粗体采用填充加描边，并从 FreeType 的字体实例取得路径。该证据尚不足以修改通用字形算法。本批只改 PDF 输入的路径闭合；C13 保留前批构建的严格失败与完整流程证据。
+
+C13 字形采样实现归私有 `nativeFontBoundGlyphSampling`。核心从实际字形字体提供上下边界，通用 Canvas 采样按原生缓存高度选择四档或整数横向原点。PPTX 保留整数几何，字形采用该规则。无 SFNT 字体的 PDF 原生矢量轮廓显式携带空边界。规则和职责归[格式合同](formats.md#字体资源与替代)，未增加样本特判。
+
+21 项 PPTX 与 17 项跨格式核心检查通过。ABI 用例的 97 个断言覆盖空边界、缺失字段及非法边界。六条 Canvas 回归覆盖 36 组字形变换，包括缓存高度 50/51 像素、负坐标及反射。九条跨格式 Chromium 流程通过，覆盖两份 PPTX 表格、DOCX 裁剪、页眉图片、双栏、XLSX 主图及三类 CFF PDF。严格检查、正常构建、类型检查、lint、格式、源码上限及已有用例登记通过。
+
+最终构建的十四组 C13 整页比较均完成。第 47 页实际 Canvas 从 426/500 降为 4/0，四个余差点仍在白色年份标题。第 23 页原件及编辑后 Canvas/PDF 四组保持 0/0；七组 PDF 全为 0/0。原生输入、282 个非目标部件、完整形状属性、精确历史和新 Worker 的画面及 PDF 字节一致通过。第 15、41、42 页及编辑后第 42 页 Canvas 仍为 19/1、2/0、3/4 和 3/4。正式用例首先在第 15 页失败，严格零差异断言保持。七条相关 PPTX 流程复用前一构建通过结果；两次构建之间只修正 PDF 空边界序列化，PPTX 字形数据及宿主产物相同。
+
+最终构建复查固定 51 份语料：46 份正向候选及五个打开时拒绝的控制项符合预期。首轮新增字段曾使五份 PDF 因空值字段被省略而校验失败，核心现显式序列化 `null`，未放宽宿主校验。DOCX 独立参考首轮缺少字体配置而超时，补充双栏流程另缺少 `pdffonts`；修正工具环境后各自完整重跑通过。失败日志保留。扫描只覆盖各格式既有打开与有界布局，不授予整稿视觉或编辑资格。原件、参考、容差和旧记录保持，未跑全仓，完整 C0 仍未完成。
+
+C13 前批小字形重放诊断归私有 `nativeGlyphCacheDiagnosis`，保留当时构建身份。同一正常构建的第 15、23、41、42、47 页，整数规则重放逐字节复现原 UI PNG。二十组整页比较只改变字形设备原点，不改布局、图片、源、参考或容差。按字体原始边界计算缓存高度，并复现固定 [ONLYOFFICE Splash 字形缓存](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/lib/splash/SplashFont.cc#L65-L69)及[大字形无小数相位规则](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/lib/splash/SplashFont.cc#L117-L122)，第 47 页诊断从 426/500 降为 4/0；四个余差点均在白色年份标题。第 23 页仍为 0/0，其他三页余差保持。统一改为小数规则会使第 23 页退为 692/696。该批只校准固定 PDF 栅格的采样，没有改变产品或授予整稿资格；当前实现及验收见上方记录。
+
+同构建重新执行固定 51 份语料的有界扫描：46 份正向候选均通过打开及各格式已有检查，五个控制项均在打开时拒绝。PPTX/PDF 沿首、中、末页，DOCX 保留原有布局及源保存检查，XLSX 只检查打开；图片复用正常 Chromium 解码。该结果不授予整稿视觉、编辑或独立重开资格。详细记录为 `scan-after-exact-lines/scan.json`；原扫描、字体替代、产品身份和前批资格均保留。
+
+C13 固定行距证据归私有 `nativeExactLineBaselines`。固定 ONLYOFFICE 10.0.0 的两份独立单页控制覆盖 32 组 Calibri/Arial、16/32 pt、16/33/52 pt 行高、混合字体字号、大标记及 0.01/0.5/1/2 pt 下限。原生 PDF 操作流给出每行基线；固定脚本与原生 Builder 内部度量另行交叉核对，预期不来自 SDK。核心按各字体原生比例计算基线，并将有效固定行距限制到至少 1 pt。共享 DOCX 固定行距保持，规则归[格式合同](formats.md#pptx)。
+
+21 项 PPTX 定向核心和六项共享文字度量检查通过。范围覆盖全部 32 组控制、重复缓存读取、原件编辑、精确历史、重开、空行、字体资源边界、列表、图片标记、文本框和公式。正常构建、严格检查、格式、生成接口、源码上限及三项新增登记通过。七条相关 Chromium 回归通过，原正式整页用例仍保持失败，未改参考、原件、容差或断言。
+
+第 23 页首行基线现为原生 172.35 pt。原件及独立 `Familiarize`→`EDIT` 后的整页 Canvas/PDF 四组均为 0/0。原生输入、282 个非目标部件、完整形状属性、精确历史和新 Worker 的画面及 PDF 字节一致通过。第 15 页 PDF 从 1792/1744 降到 0/0，Canvas 从 1810/1714 降到 19/1。第 41、42、47 页及编辑后第 42 页 PDF 保持 0/0；Canvas 分别为 2/0、3/4、426/500 和 3/4。十四组整页比较均完成，正式用例首先在第 15 页 Canvas 的非零差异处失败。其他 C0 缺口和整稿资格保持未完成，未跑全仓。
+
+C13 第 28 页的行距证据归私有 `nativeExpandedLineSpacing`。扩大百分比自动行距时，基线取自然升部与扩展行高 75% 中较大值；负行隙规则保持。固定 ONLYOFFICE 的十组独立控制覆盖两个字体族、两个字号及四档行距。字体映射与原参考相同；未改 115% 行距的单页控制，其整页 PNG 与冻结第 28 页逐字节一致。九项直接检查和三十四项排版回归通过。规则归[格式合同](formats.md#pptx)。
+
+独立对照只将 `Grade` 单元格的行距改为 150%。固定 ONLYOFFICE 的首行从 15.62386 pt 增至 19.79997 pt。四项定向核心检查通过，覆盖首行高度、文字基线和其余行高。默认 Chromium 界面编辑后，表格外框增高 4.17614 pt。原样保存、精确撤销重做和新 Worker 重开通过。整页严格结果仍为 Canvas 3100/3804、PDF 3078/3716，两份栅格与前批相同。证据归私有 `nativeExpandedLineSpacing.rowGrowth`。
+
+正常 UI/Worker 的原生输入、精确历史、单元格属性、282 个非目标部件及新 Worker 重开保持。三次 PDF 导出成功，诊断为空。原件整页 Canvas 从前批 5289/4009 降为 5139/3865，PDF 从 3213/3813 降为 3048/3665，严格零差异仍失败。新增派生控制仅移除原图标的双色效果，对同一固定整页参考仍为 Canvas 2161/239、PDF 97/226。该控制也完成全部输入、历史、源保留与重开流程；它只定位双色效果之外的差异，不授予原件资格。首轮控制准备因 XPath 输出末尾换行未能替换 XML，修正准备后重跑整条控制流程，原件结果复用。
+
+对已有完整 PNG 逐像素归类，复核了全部残差数量。原色控制的标题、表头与竖排区域没有剩余像素；Canvas 的差异位于正文和页脚，PDF 的差异位于正文及 WMF。字形栅格与路径边缘的具体原因尚未确认，本批未调整渲染器。
+
+后续栅格诊断归私有 `nativeC13RasterDiagnosis`。正常 Canvas 和整数模式重放与原产物逐字节一致。小数字形模式对冻结 PDF 降为 564/123，仍未通过；考虑字体边界的缓存候选没有进一步改善。原生 PDF 的字宽取整和相邻字形合并已查到固定源码，但近似重放仍失败，不能据此修改布局。相同源页和字体映射的 ONLYOFFICE 直接 PNG 也忽略双色效果，且与它自己的 PDF 相差 323/6768。正常 Canvas 对直接 PNG 为 180/4644，小数模式反而为 415/6288。单一模式切换不能同时改善两种原生输出，因此产品、主参考和严格断言保持。
+
+最终构建的十条 Chromium PPTX 回归通过，覆盖两个 SmartArt、两份表格、制表位、方向、列、框适配与旋转。前批四条 DOCX 回归保留其构建身份；本批只改 PPTX 行距，未重复执行。严格构建、MoonBit、私有 TypeScript、格式、lint 及源码上限通过，未跑全仓。
+
+主参考仍未应用原图标双色效果。次选 LibreOffice 26.8.1.1 的未改原件显示蓝色图标，与 GenOffice 和 SDK 一致；但它将标题换为两行并覆盖表格，不能替换完整页面预期。固定主参考该页没有图片流，图标是矢量，不能将余差归因于 JPEG。两套参考和原件保持；基线控制、次选诊断及严格失败均保留在私有记录。
+
+C13 第 28 页的前批换行证据归私有 `nativeTrailingSpaces`。共享排版延迟结算行末普通空格，按可见内容判断换行、对齐和 PPTX 框适配。原文、UTF-16 范围、完整空格几何与光标保持；不换行空格沿塑形器既有空格字形回退，制表位和强制换行保留语义。独立原生首行宽 246.83 pt，小于可用 247.09 pt；旧实现因末尾空格将其判为 249.32 pt。两项直接检查先复现旧失败，修复后的 42 项定向核心与十四条 PPTX/DOCX Chromium 回归通过。三份 DOCX 原件、改后 Canvas/PDF 和独立保存重开保持零差异。表格回归首轮因缺少测试环境的 `OPEN_DOCUMENT_PDFTOTEXT` 路径中断；补上路径后单独重跑整条流程通过。该批保留原构建身份，当前结果见上方行距批次。换行边界归[格式合同](formats.md#字体资源与替代)。
+
+C13 第 28 页的字体前批证据归私有 `nativePresentationTextDefaults`。普通文字框按演示稿默认样式优先于母版合成，标题现读取固定原生 PDF 的 18 pt Arial Bold。占位符、表格及本地覆盖保持原有优先级。两项新增核心检查先在旧实现上失败，修复后的 17 项定向检查全部通过。原件表头的显式 Calibri Bold 保持；初轮新检查漏写该粗体预期的准备错误另存日志。
+
+该字体批次的四条 Chromium 流程中，母版文字编辑及 C15/C16 两份原生表格通过。C13 原生输入、精确历史、单元格属性、282 个非目标部件与新 Worker 重开保持，三次 PDF 导出成功且诊断为空。当时整页 Canvas 从 13508/13506 降为 7877/6780，PDF 从 11503/13198 降为 5777/6463；严格零差异继续失败。固定原件、字体、参考与容差未改。该批证据保留原构建身份，当前结果见上方换行批次。样式顺序归[格式合同](formats.md#母版与版式编辑视图)。
+
+C13 第 28 页的图片证据归私有 `nativeWmfPictures`，保留其原构建身份。核心现读取有界 Placeable WMF 的实心多边形与折线，保留有符号窗口映射、对象槽复用、原生填充规则和图片变换。双色效果按次选 LibreOffice 的整数亮度规则处理；主选 ONLYOFFICE 的固定 PDF 未应用该效果。该批 38 项定向核心通过，覆盖 WMF、EMF、浮动图片、PDF 提取及既有 PPTX 图片、主题与表格路径。边界与来源归[格式合同](formats.md#pptx-wmf-图片)。
+
+共享路径直接携带填充规则，取消同一路径的裁剪再填充。Chromium 的独立同向内外轮廓检查确认奇偶填充留孔、非零填充实心，Canvas 与 PDF 均通过。固定 96×112 原图框的双色 Canvas、PDF 对 GenOffice 0.11.727 均为 0/0；去除双色后的原色控制对固定 ONLYOFFICE 仍为 Canvas 2/26、PDF 3/127。此比较只覆盖图片，不授予整页资格。
+
+该 WMF 批次的原件、编辑后和新 Worker 重开均已无诊断，三次 PDF 导出成功。原生输入、精确历史、完整单元格属性和 282 个非目标部件保持。当时整页 Canvas 为 13508/13506，PDF 为 11503/13198，严格零差异断言继续失败；上方字体批次记录当前结果。
+
+本批七条 Chromium 流程共四条通过、三条失败。通过项为独立填充规则、C07 OLE、图片透明度和柔边阴影。失败项为原色 WMF 组件、C13 整页及 C40 原件。C40 保持此前的 Canvas 9/0、PDF 6/0，改后深色背景均为 0/0。原件、固定参考、容差与失败断言保持。构建、MoonBit、私有 TypeScript、格式、lint 和源码上限通过，未跑全仓。
+
+C13 原生表格前批证据归私有 `nativeTablePens`。第 28 页的十行、三列表格现可读取显式边框默认值、无箭头端标和原生下划线。17 项定向核心通过，覆盖直接/样式边框、共享边、文字格式、输入、源保留和非法标记。恢复旧画笔与文字解析规则后，两条旧行高断言仍失败；现按 120% 行距与单元格内边距改为 65.6 pt 和保留 40 pt 源行高。
+
+八条既有 Chromium 回归通过，覆盖普通表格、底色/边框透明度、虚线、剪贴板、表样式、表格及普通文字格式。旧解析路径另复现两项浏览器预期差异：`#1268ac` 在线性 RGB 中保留 40%/20% 的 tint 得到 `#ccd4e3/#e7ebf1`；36 pt 文字按 120% 行距，加 6 pt 段前及上下各 4 pt 内边距，仍容纳于 60 pt 源行。断言按这些既有规则修正后，两条完整流程通过。严格构建、MoonBit、私有 TypeScript、格式、lint 和源码上限通过。本批未重跑 SmartArt 八页或全仓，其既有资格保留原构建身份。
+
+该表格批次已完成原件显示、原生输入、精确撤销重做、282 个非目标部件保留及新 Worker 重开。文字修改保留完整 `tcPr`、`heavy` 和 `uFill`。当时第 28 页 Canvas 为 14393/14074，原图标报告 `Unsupported picture effect`，三次 PDF 导出均失败。该失败基线保留原构建身份；上方 WMF 批次记录当前结果。
+
+本机 GenOffice 0.11.727 的第 7、8、28 页仅用于视觉核对。第 7、8 页保留柔边阴影，第 28 页的下划线使用文字色。单独诊断副本为冻结 PDF 的 117 个缺失透明组的亮度遮罩 Form 补上 `Group`；第 7 页栅格逐字节不变，第 8 页不再报告软遮罩错误，但橙色渐变仍不同。该副本不替换主参考，不参与资格判定。原件、固定 PDF、严格浏览器断言与产品阴影保持；字体映射不同的 App 画面不能充当整页像素预期。
+
+C13 内阴影元数据批次归 `nativeInnerShadowMetadata`。独立原生控制只移除第 23 页正文对象的 `innerShdw`，完整 144 dpi PNG 逐字节复现冻结原件。另两份控制为同一源对象增加实色填充，带/不带内阴影的整页 PNG 也逐字节相同。第四份原生控制只把 `Familiarize` 改为 `EDIT`，其余解包内容保持，供完整编辑页面对照。核心现验证并保留该元数据，沿主引擎二维路径绘制；混合外阴影复制保留直接内阴影。
+
+38 项定向核心通过，覆盖直接/主题属性、外阴影不变、复制、填充与正文编辑、精确历史、重开、元数据数值边界及未知/重复/注释保护。原件 48 页原样保存保持，读取清单已无对象诊断；这项清点不授予整稿视觉资格。同构建七条相关 Chromium 回归通过。第 23 页正常原生输入、282 个非目标部件、完整形状属性、精确历史和新 Worker 的页面图像及 PDF 字节一致通过。第 15 页透明度、第 47 页背景和第 42 页输入流程继续通过。
+
+内阴影前批中，冻结第 23 页字体资源明确为 Carlito 正文、Arial 标记；首轮漏配 Arial 的失败与修正后日志均保留。该批原件第 23 页 Canvas/PDF 为 37470/37187 和 37203/36967，编辑后为 36731/36432 和 36453/36205。正式用例保留十四组整页零差异断言，继续失败。第 41、42、47 页及编辑后第 42 页的整页 PDF 仍为 0/0，其余十组既有比较保持。原生操作流给出第 23 页首行基线 172.35 pt，SDK 为 174 pt；这项基线缺口现由上述固定行距批次补齐。原件、冻结参考及容差未改，其他 C0 视觉/格式缺口保持，未跑全仓。
+
+C13 空列表标记前批证据归 `nativeEmptyListMarkers`。冻结第 47 页在空段标记中心为背景色 `[211,242,220]`，前批 SDK 多画了黑点；普通标记中心两者均为黑色。独立原生控制只将该空段的 `buChar` 改为 `buNone`，其余 XML 和解包部件保持，整页 144 dpi PNG 逐字节复现冻结原件。核心保留原列表与测量，只省略空段绘制。
+
+35 项定向核心检查通过，覆盖字符、编号和图片空列表、原始多字符符号、测量缓存、行高/宽度、续号、重新输入、资源、精确历史及保存重开。三项既有用例扩展了这些行为，原实现下均失败。构建、严格 MoonBit、格式、登记和源码行数检查通过。七条 Chromium 回归通过；第 15 页透明度、第 47 页背景编辑、281 个非目标部件、3D 源、精确历史和新 Worker 重开继续通过。
+
+第 47 页整页 PDF 从 117/71 降至 0/0，Canvas 为 426/500，严格原件用例仍失败。第 15 页 Canvas/PDF 仍为 1810/1714 和 1792/1744。原件第 41、42 页及独立原生编辑后的第 42 页整页 PDF 仍为 0/0，既有 Canvas 残差保持。十组完整页面对照及零差异断言保持，原件、冻结参考和容差未改。全稿仍有一处对象 `effectLst` 诊断及其他格式/视觉缺口，未授予完整 C0 资格，未跑全仓。
+
+C13 对象直接 3D 元数据前批证据归 `nativeObject3DMetadata`。固定原生控制只移除第 15 页及第 47 页 SmartArt 缓存的 34 个 `scene3d/sp3d` 节点，两张完整 144 dpi PNG 均与冻结原件逐字节相同。当前读取验证并保留已支持的场景、材质、斜面和轮廓，沿原生二维路径绘制。32 项定向核心通过，覆盖源保留、外阴影、复制、透明度、精确历史、保存重开与未知/重复/注释/非法数值保护。48 页原样保存保持，17 处直接 3D 诊断已消除，剩一处对象 `effectLst`。
+
+七条 Chromium 回归通过。正常 Worker 已验证第 15 页透明度、第 47 页背景修改、281 个非目标部件、直接 3D 源、精确历史和新 Worker 的页面图像一致。原件第 15、47 页整页 Canvas 为 1810/1714、541/570，PDF 为 1792/1744、117/71，严格原件用例保持失败。第 41、42 页及独立原生编辑后的第 42 页整页 PDF 仍为 0/0，原有 Canvas 2/0 和 3/4 保持。该批有十组完整页面对照，没有裁剪、参考或容差变更。第 47 页缓存正文现能绘制，SmartArt 缓存编辑仍按既有保护；整稿和全部 C0 未完成，未跑全仓。
+
+C13 字符项目符号前批证据归 `nativeCharacterBulletPrefix`。第 47 页四个 SmartArt 缓存文本框含十六处 `char="••"`。独立原生控制只将它们改为单点，其余解包内容保持，整页 144 dpi PNG 与冻结原件逐字节相同。核心按原生首个 UTF-16 单元解析，同时保留完整源属性；写入接口仍要求单个字素。23 项列表、导入、段落与效果定向检查通过，覆盖中性多字符/组合字符源、编辑、保存重开、精确历史及空值、控制符、超长和无效首单元保护。48 页原样保存保持，字符列表诊断已消除。四个文本框仍因直接 `scene3d` 受保护；当前清单为十七处对象 `scene3d` 和一处对象效果。第 47 页尚未取得可编辑或视觉资格，全部 C0 仍未完成。 本批构建、严格 MoonBit 检查、格式、登记、源码行数及 1340 个本地文档链接检查通过。七条 Chromium 回归通过；原件第 41、42 页及编辑后的第 42 页整页 PDF 仍为 0/0，Canvas 仍为 2/0 和 3/4，严格原件用例保持失败。未跑全仓。
+
+C13 图片项目符号批次归 `nativePictureBullets`。原件第 42 页使用 15×15 和 12×12 的两张 GIF，十二处标记现复用既有图片解码。固定原生 PDF 的图片矩阵、24 pt 字号及正文坐标独立验证约 16.82498 pt 高度、比例、首行位置和基线。共享图片标记不占正文或光标范围，首行、换行、RTL、缓存、资源校验及坐标移动已有检查。图片关系按源部件读取，跨文稿导入使用待提交资源，保持精确历史和保存重开。支持范围归[格式合同](formats.md#pptx)。
+
+50 项 PPTX 与 18 项共享布局定向核心通过，另有三项宿主边界检查通过。核心覆盖原件、长方形图片、文字替换、清除/移除列表、跨文稿图片映射、源保留、精确历史、非法或外链关系和未知标记。七条 Chromium 回归通过，覆盖 PPTX 普通列表/标记样式、DOCX/PPTX 全角及圆圈编号、形状阴影、母版文字和主题字体。共享标记首轮的固定文字没有换行，缩窄中性页宽后覆盖换行；缺图检查改在与既有图片相同的绘制序列化边界执行，准备失败日志保留。
+
+图片列表批次的原件第 41、42 页整页 PDF 均为 0/0，导出诊断为空。Canvas 分别为 2/0 与 3/4，严格用例仍失败，原件、冻结参考及容差保持。第 42 页图片列表的正常原生输入、十二处标记源码、282 个非目标部件、精确历史及新 Worker 的 Canvas 和完整 PDF 栅格一致检查通过。独立原生控制只把原件的首个 `English` 改为 `EDIT`，其余解包内容保持；改后整页 PDF 为 0/0，Canvas 仍为 3/4，完整视觉资格未授予。48 页原样保存保持，图片列表诊断已消除，仍有十三处对象 `scene3d`、一处对象效果及四处字符项目符号诊断。整稿、其他残差及全部 C0 仍未完成；未跑全仓。
+
+C13 平面主题元数据前批证据归 `nativeFlatThemeMetadata`。固定原生转换器只移除主题第三效果样式的场景与顶部斜面，其余解包部件保持；第 41、42、44 页原样重导、独立控制和冻结 PNG 分别逐字节相同。核心现验证并保留支持范围内的正面相机、灯光和顶部斜面，按原生路径使用外阴影，不创建 3D 投影。非平面、扩展和对象自身的 3D 继续保护，合同与来源见[格式合同](formats.md#pptx-外阴影)。
+
+37 项定向核心通过，覆盖正常源、缺省值、边界、非法数值、重复/未知节点、注释、非目标主题部件和精确历史。三条形状阴影、母版文字及主题字体界面回归通过。第 41 页已成功导出完整 PDF，与冻结原件为 0/0；整页 Canvas 为 2/0，残差坐标为 (1077,1021)、(1078,1021)，严格验收仍失败。第 42 页 Canvas 为 28891/54257，PDF 只由两处图片列表保护阻断。原生正文输入、282 个非目标部件、精确历史及新 Worker 重开完成；编辑后与新 Worker 的完整 PDF 栅格一致，不据此授予改后原生视觉资格。
+
+48 页原样保存保持，三处主题 `scene3d` 诊断已消除。对象 `scene3d` 十三处、对象效果一处、图片列表两处及字符项目符号四处仍在。初次负例因未声明测试命名空间中断，改为合法未知命名空间后保持保护，原日志保留。构建、严格类型、格式、lint、补丁、注册及源码上限通过。此前椭圆批次的 SmartArt 与曲面图证据保留其构建身份，本批未重复；未跑全仓，整稿与全部 C0 仍未授予资格。
+
+C13 椭圆正文与曲线描边前批证据归 `nativeEllipseText`。第 41 页按最近一级完整描边合入主题默认值，恢复原生蓝色 0.75 pt 轮廓。椭圆使用内接文字矩形；未给缩放值的普通适配按 100% 读取，编辑时继续重算。原生 PDF 的线宽、颜色、28 pt 字号、六行换行及首行坐标分别用于独立检查。只描边的曲线阴影复用共享有界轮廓，平滑凸曲线保留内孔，真实拐角、反向控制点和资源上限均有检查。
+
+35 项 PPTX/轮廓、36 项 SmartArt 和 56 项图表定向核心分别通过，部分用例重叠。四条阴影、方向、列和框适配界面回归通过。当前原件第 41 页整页 Canvas 从 62090/62178 降为 4802/0；第 42 页为 34719/54257。两页 PDF 继续因主题 3D 和图片列表拒绝，严格用例保持失败。正文原生输入、282 个非目标部件、精确历史及新 Worker 重开通过。第 45 页 PDF 仍为 0/0，Canvas 仍在 (401,456) 为 1/0。
+
+共享路径复核保持前批结果：SmartArt 八页的十六组整页 Canvas/PDF 对照逐项一致，第 7 页均为 0/0，其余七页仍失败；背景编辑、源保留、精确历史及新 Worker 重开完成。曲面图 12、13 的整页 Canvas/PDF 和新 Worker 通过，图 11 保持原有 0/48，严格用例仍失败。48 页原样保存通过，剩余诊断类别与前批一致。构建、严格类型、格式、补丁、注册和源码上限检查通过。原件、冻结参考、渲染器与容差未改，未运行全仓，整稿与全部 C0 仍未授予资格。
+
+C13 文字效果与空域段落属性前批证据归 `nativeTextEffects`。核心验证并保留空效果列表、支持范围内的文字外阴影及不可见轮廓，绘制遵循 ONLYOFFICE 跳过文字效果记录的行为。独立控制只移除第 41、42 页三个文字框中的十处效果，其余解包内容不变；两页分别与冻结原件及原样重导的 PNG 字节相同。形状阴影继续绘制，未知效果、扩展颜色、非数值属性和带内容的域段落属性继续保护。
+
+第 41 页正文已恢复读取和绘制。十一处圆角标注均无几何或文字诊断。简单页码与日期域现接受单个空 `pPr`，原字段 ID、缓存和源保持；重复、带属性/子元素、注释或处理指令的段落属性仍保留缓存并诊断。42 项定向核心通过，覆盖有效样式、非法输入、格式/源保留、精确历史、动态页码、日期及页脚。三条日期/形状阴影界面回归通过。原件的正文原生输入、282 个非目标部件、精确历史与新 Worker 重开完成。
+
+整页验收仍失败：第 41、42 页 Canvas 分别为 62090/62178 与 34719/57569，PDF 仍因主题 3D 及图片项目符号拒绝。两个标题已读出文字，但主题保护保留；第 42 页两段正文仍由图片列表保护。48 页原样保存保持，原有十五处文字效果诊断已消除，其余对象/主题 3D、对象效果和列表缺口仍在。首次界面检查暴露的空 `pPr` 页码误判已修正，原失败日志保留。没有据此授予整页或整稿资格，冻结输入、参考、容差及零差异断言保持。
+
+C13 第 45 页空文字轮廓与主题字体修复归 `nativeEmptyTextOutline`。三个空 `a:ln` 曾让正文整框拒绝。核心现保留空标签并读取正文，带属性、子元素、注释或处理指令的轮廓仍保护。原始 48 页包与只移除三个空标签的独立原生控制，其余解包内容一致。两份原生导出在 144 dpi 下均复现冻结第 45 页 PNG，三个 PNG 字节相同。
+
+界面测试使用原生实际加载的 Carlito 与 Arial；初次将 Arial 映射到 Carlito 的 496/503 与 495/497 失败保留。加入 Arial 后，标题暴露主题字体引用被继承 Arial 越过的核心错误；该失败同样保留。读取器现按格式链在主/次主题引用和直接脚本字体间选择。28 项定向核心通过，覆盖拉丁、东亚和复杂文字、直接格式、母版、表格、片段、轮廓保护及精确历史。第 45 页整页 PDF 为 0/0；Canvas 在正文边缘的 (401,456) 仍为 1/0，正式用例保持失败，未调整容差或补像素。背景编辑、282 个非目标部件、精确历史与新 Worker 重开通过。两条主题字体和母版编辑界面回归通过。既有轮廓迁移的两处私有调用已改到共享函数；装饰路径与半磅上下标检查保持原数量和独立原生规则。
+
+修复前的同轮 SmartArt 复核仍归前一构建：第 7 页整页 Canvas/PDF 已为 0/0，其余七页继续失败，完整十六组结果保留。该批 48 页清点已消除第 45 页的文字轮廓诊断，其余文字效果、列表、对象效果和 3D 缺口仍在。第 15 页十二个框原本没有正文，不把段末阴影保护误记为正文丢失。C13 整稿与全部 C0 文件仍未授予完整资格。
+
+C13 字号修复的历史批次归私有 `nativeSmartArtFonts`。`hierarchy4` 缓存沿布局与内容关系重算同组字号，保留自定义文字、显式边距及段落行距。第 7、8、11、12 页分别匹配固定原生 PDF 的 30、24、18、17 pt；第 8 页的 `Topic` 已保持一行。36 项 PPTX 定向核心与一项共享表格回归通过，覆盖占位文字、无效属性、关系、容量上限、组变换及既有文字适配。
+
+八条 Chromium 回归通过，覆盖缓存图、空缓存组织图、组内输入、文字方向、列、框适配、直立文字和 DOCX 表格适配。最终构建另重跑缓存图、原生组织图及 C13 八页；前两项的原件和改后独立对照保持 0/0。其余六条复用本批未变路径的结果。恢复旧内联文字布局与默认词宽测量后，两项旧尺寸断言仍得到 114.4 pt 和 478.8 pt。断言现按 120% 行高和 Word 表格外边距更新；输入、精确历史、保存重开和 PDF 检查继续通过。严格构建、MoonBit、私有 TypeScript、格式、lint 和源码上限通过，未跑全仓。
+
+C13 八页的背景编辑、源保留、精确历史和新 Worker 重开保持。原生 PDF、原件与字体字节未变，十六组完整页面颜色对照仍未达到 0/0。第 8 页 Canvas 由 32231/32227 降至 2090/4961，第 11 页由 33826/33573 降至 4375/9082。原生参考第 8 页的一处渐变阴影软遮罩指向缺少 `Group` 字典的 Form，已另存对象证据；第 7 页只用普通透明度，没有该软遮罩。此问题不能解释所有差异，也未用于修改参考或降低断言。渐变、阴影和其他布局继续核对。
+
+C13 独立 SmartArt 文字框的首批证据归私有 `nativeSmartArtTextFrames`。原件第 7–14 页共九个缓存图，独立偏移和尺寸不再阻断读取。33 项定向核心检查覆盖原件文字框、缩放、直立裁剪、非法输入、组变换与既有文字布局。自动适配直接查找可容纳文字的整数 EMU，避免浮点上界多取一单位；旧直立文字预期按现有 120% 自动行高更新。原实现的尺寸失败另存，未归为本次回归。
+
+正常 UI/Worker 已逐页显示这八页并导出单页 PDF。背景编辑、精确撤销重做、全部非目标部件保留和新 Worker 重开通过。固定原生 PDF 的十六组完整页面颜色对照均已执行，均未达到 0/0，严格用例继续失败。该批第 8 页直接采用缓存声明的 31/25 pt，原生 PDF 正文为 24 pt，字号和换行当时仍有差异；原生 PDF 另报告 `Invalid soft mask in ExtGState - missing group`。参考字节和容差保持，不据此删去产品阴影。现有缓存图、空缓存组织图和直立文字的三条 Chromium 回归通过；前两项的独立原件/改后对照保持 0/0。严格构建、MoonBit 检查、私有 TypeScript、格式、lint 和源码上限通过，未跑全仓。
+
+同批保留 C02 虚线椭圆的设备坐标重放诊断。当时原件和修改后 Canvas 为 1/2，SDK PDF 为 0/0。当前共享描边修复后的完整流程已为 0/0，归 `nativeCubicStroke`。仅把虚线路径变换到设备坐标仍为 1/2，变换全部描边则为 1/5；均未接入产品，原断言保持。临时探针已移出正式浏览器用例，脚本、对照和失败记录保留。
+
+共享曲线描边、两张雷达、C02 与双轴折线的当前通过证据归私有 `nativeCurveStrokeOutline`，前批细分证据归 `nativeCubicStroke`，前批底色证据归 `nativeDualLineRectangleFill`，前批边框证据归 `nativeDualLineDashedFrame`，打印证据归 `nativeDualLinePrint`，绘制证据归 `nativeDualLinePaint`，全图清点归 `nativeDualLine`，上一批归 `nativeBubbleLegend`，圆形批次归 `nativeCircularCharts`。19 张原生图表现已全部可读取：主折线、双轴折线、双轴散点、三维柱图、零旋转堆积条图、饼图、百分比面积、零旋转三维堆积面积、圆环图、两张雷达、两张气泡图、三张曲面图、两张复合饼图与柱线混合图。这是读取清点，不证明整份 C43 完整通过。两张圆形图表的独立参考已在产品修改前保存：仅显式替代为固定 Arimo，其他缓存工作簿部件逐字节保持；控制沿用既有原生图表页框。圆环图原始 XML 实有四个系列，先前“五环”描述已更正。
+
+三维柱条图当前证据归 `nativeBar3dStroke`，投影修正归 `nativeBar3dProjection`，首批归 `nativeBar3dCharts`。独立参考、原件和容差保持。全部 388 个控制面已匹配坐标、RGB、顶点顺序和绘制顺序。三维面尖角描边限制从 8 修正为原生 PDF 的 10；其余路径保留原限制。原件缓存零值和已解析控制空值分别保持。27 项定向核心检查通过，新增原生端头、连接和尖角限制断言；修正前的尖角断言失败。正常 Worker 原样保存和新 Worker 重开通过，两图分别保持相同 PDF 字节。同构建十条 Chromium 流程九条通过，包含堆积条图、面积、32 系列边界、双轴折线、两张雷达及共享曲线和菱形回归。堆积条图完整 Canvas/PDF 保持 0/0。透视柱图 Canvas 从 75/130 降至 0/130，整页 PDF 从 73/125 降至 0/125，严格断言继续失败。主参考将有效系列轴标题放在页面原点，产品保留该源标题；抽样仍有五个 Canvas 柱边缘位置，其余差异尚未全部归因。位置抽样不能证明差异仅来自标题。共享直线描边试验未改善原件，已撤回。补充证据归 `nativeBar3dCoverage`。回放与产品 PNG 字节一致，五处边缘位置最后均由同一浅紫色侧面描边覆盖；对应参考的 3×3 邻域全黑，产品仍有浅色细缝。源线宽与独立 PDF 均为 1 pt，具体栅格原因仍待核对。同一控制文件的 LibreOffice 补充输出把有效系列轴标题保留在图框内；其字体有替代，只证明标题行为分歧。chart7 三维面积的独立原生参考已在实现前固定，本批读取与绘制结果见下。源改写、复制及手工计算保护保持。该柱图构建的读取清点为十二张可读、七张保护；当前读取清点见下。未跑全仓，完整 C43 与 C0 继续开放。
+
+双轴散点前批证据归 `nativeScatterCharts`。修改前冻结原图定义，仅替代固定 Arimo，其余缓存工作簿部件逐字节保持。五个系列、逐点样式、四个数轴标题及共同数字 X 接入共用折线路径。25 项定向核心检查覆盖原始锚点、源保存、非等距 X、范围外标记及非法来源；曲线首点和右标题在 0.001 pt 内匹配独立 PDF。正常 Worker 的原样保存、打印与新 Worker 重开通过，新旧 PDF 字节一致。同构建六条 Chromium 流程五条通过：面积、32 系列边界、双轴折线与两张雷达保持原断言通过。散点的严格整图断言仍失败，Canvas 从 2792/3985 降为 303/378，整页 PDF 从 2745/3982 降为 306/404。主参考未显示单系列 `varyColors` 组的逐点标记，产品保留实际源标记；该批差异尚未全部归因。当前 Canvas 完整归因见后文 `nativeScatterFullResidualAudit`，不替换预期或修改容差。该批全十九图读取清点通过，当时原件完整工作表先受三维柱图保护。完整 C43 与 C0 均未通过。
+
+前批散点参考复核归 `nativeScatterSparseAudit`。当时重跑原严格用例，Canvas 为 303/384，PDF 为 306/404。新增的六个 Canvas 差异已定位到首个正数 `1 / x` 点的青色 X，不是源标记路径顺序改变。新旧不可变绘制指令分别配合两种通用直线描边策略重放，只有轮廓策略使额外像素从 378 变为 384，缺失像素始终为 303；正常重放 PNG 与当时产品逐字节相同。六点均由同一青色描边覆盖，主参考对应区域却为品红色。
+
+原生独立控制只将工作表 E2 的错误值改成图表缓存已有的零，图表 XML 和其他部件逐字节保持。固定 ONLYOFFICE 在首个正数点绘制完全相同的路径和坐标，却从前一系列的品红填充/描边恢复为源青色描边。全部六个新增像素通过这一独立控制的原有颜色阈值。新增一项核心检查通过：缺首点与显式零分别绘制 25/26 个源青色 X，后续点坐标完全相同，首个正数点在 0.001 pt 内匹配原生。检查保留源输入字节。
+
+固定上游[散点绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L14845-L14935)和[标记画笔选择](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L3040-L3084)存在按位置压入路径、按点编号取样式及沿用旧画笔的组合。它解释了可能机制；已交付转换器的实际表现由上述原生控制证明，不把静态源码当成二进制执行证据。补充 LibreOffice 在相同输入上保留 X 形和逐点标记，但采用系列线色、字体替代及不同轴布局，不能授予颜色或整页资格。
+
+另一独立诊断仅把零值控制的 `varyColors` 从 1 改为 0，保留全部显式逐点定义。主参考绘出更多标记，却仍把不同源形状画成统一三角；该诊断严格比较仍为 Canvas 116/75、PDF 117/80。两项浏览器归因检查通过，不授予整张散点资格。产品、原始错误、原始图表定义、原始严格用例和阈值保持；完整散点及其余 C43/C0 视觉失败继续处理。前批手工计算的 54 项核心及五条浏览器结果沿相同产品字节复用，本批未重复全 C0。
+
+透视柱图完整余差复核归 `nativeBar3dFullResidualAudit`。相同正常构建重跑两条原严格流程，堆积条图完整 Canvas/PDF 保持 0/0，透视柱图保持 0/130 和 0/125。重新比较全部像素后，Canvas 的五个柱边差异与另外 125 个标题区域差异分开。PDF 的全部 125 个差异都在对应标题区域；其中 122 个坐标与 Canvas 的标题余差相同。五处柱边在正常 SDK PDF 和原生 PDF 中均为黑色，Canvas 留有色缝。
+
+独立 PDF 副本分别隔离该侧面、移除该侧面、代入 SDK 精确坐标，并交叉原生/SDK 等价变换及序列化线宽。孤立侧面在这些坐标控制中均保持黑色，排除坐标或线宽舍入及矩阵分解作为五处色缝的解释。全部 388 个面的通用描边轮廓诊断仍为 Canvas 0/130。该试验只触发现有轮廓算法，没有改变非退化几何、实际线宽、源文件或原生参考。产品未修改；五处 Canvas 覆盖和有效标题的原生分歧继续保留，未授予原件资格。
+
+当前构建的五处柱面接缝归私有 `nativeBar3dSeamRasterRoutes`。ONLYOFFICE 直接导出的 PNG 与 SDK Canvas 在五点最多相差五个色阶。以 Cairo 栅格化原生及 SDK PDF 时，五点分别逐值相同。按两道描边之间的实际未覆盖面积复算，原生直接 PNG 和 Cairo 的最大通道误差均为一级。同一原生 PDF 经冻结的 Splash 路径栅格化时，这五点是纯黑。
+
+两条正式 Chromium 用例复跑。堆积条图通过，透视柱图仍为 Canvas 0/130、PDF 0/125。两图的 SDK 和参考栅格与先前结果逐字节相同。直接 PNG 全图仍有差异，这次只确认五个接缝点的原因。
+
+固定 ONLYOFFICE 另用工作区绘制入口直接输出两张原始尺寸图表。堆积条图的工作区输出对 SDK 和冻结打印栅格均为 3556/52。条形边沿可见原生工作区的小数覆盖，SDK 与打印栅格落在整像素行。透视柱图的工作区输出对 SDK 为 446/1164，主要差异涉及右侧边线、轴标题和细线。两条正式用例仍复现 0/0 与 0/130、0/125。工作区结果单列，沿用原严格测试和冻结参考。证据归私有 `nativeBar3dSeamRasterRoutes.workspace`。
+
+散点完整 Canvas 归因续批归 `nativeScatterFullResidualAudit`。正常重放与产品 PNG 逐字节相同，全部 303/384 个差异像素覆盖 526 个坐标。首个稀疏点的错误着色对应 88/62 个；次轴组缺失的源标记对应 203/300 个；图例标记对应 12/22 个。三类覆盖全部差异坐标，没有未归类坐标。此归因只针对已记录的 Canvas 输出，不把整页 PDF 的 306/404 个差异自动归入同类。
+
+独立原生控制仅把五个系列及逐点定义的 28 个标记符号设为 `none`。曲线、数据缓存、工作表错误、轴、文字、线条及其他包部件保持。相同产品构建的完整 Canvas 和整页 PDF 均为 0/0；原样保存和新 Worker 重开保持相同 PDF。该控制验证不带标记的完整图框几何，不替代原件或其严格断言。原件仍为 Canvas 303/384、PDF 306/404；全部标记及完整 C43/C0 仍未取得视觉资格。本批没有修改产品代码。
+
+前批散点标记复核归私有 `nativeScatterCurrentMarkerAttribution`。同一无标记对照的完整 Canvas 和整页 PDF 为 0/0，原样保存和新 Worker 重开通过。当时正式原件 Canvas 的 291/363 与 PDF 的 294/380 全落在绘图区的标记范围内。首个稀疏点在两种输出中均为 88/62，其余均落在 SDK 次轴逐点标记范围内。该批正式原件仍失败；后续通过结果见[本页入口](#当前兼容证据入口)。
+
+散点标记描边归私有 `nativeScatterMarkerOutline`。原生对照只改首系列的描边。固定 ONLYOFFICE 的 PDF 对 26 个菱形和一枚图例标记分别保留 2 pt、0 pt 或无描边。省略描边节点会改用主题色。旧解析拒绝 2 pt 和 0 pt，修复后 10 项定向核心检查通过。
+
+独立整页对照从无标记控制恢复首系列的菱形。三份 PDF 均为 0/0。散点图区沿原生保留菱形左侧开口后，2 pt Canvas 从 1/0 降至 0/0，无描边 Canvas 保持 0/0。0 pt Canvas 仍为 0/5。首轮共用开口路径令双轴折线图新增 6 个 Canvas 差异。限定到散点图区后，双轴折线图、混合图和两张雷达图均为 0/0。各控制保留源字节，新 Worker 导出相同 PDF。正式散点原件 Canvas 为 290/362、PDF 为 294/379，严格视觉仍失败。
+
+C43 原件导出 15 页，保留源字节与 18 个绘图对象，qpdf 结构检查通过。最终仅第 5 页的 SDK 栅格变化，Canvas 从 1182/1303 变为 1185/1303，PDF 从 1057/1194 变为 1057/1192。其余 28 张 SDK 栅格及全部参考栅格逐字节相同。30 组严格比较仍通过 10 组。
+
+零宽描边的设备行覆盖归私有 `nativeScatterMarkerOutline.hairlineReplay`。独立字面 PDF 覆盖反射、横竖斜线、闭合路径和画布边缘。整数及 PDF 两种 Canvas 策略的灰度值逐像素相同。原生散点的三份隔离控制现在全部为 Canvas/PDF 0/0，保存源字节和新 Worker 导出一致。原件散点仍为 Canvas 290/362、PDF 294/379。C43 的 30 张实际栅格、参考栅格及整表 PDF 字节与上批一致，严格通过 10/30。14 条共享 Chromium 用例通过 13 条。半透明菱形在启用和停用新路径时均在同一断言失败。四条气泡图用例复跑通过。
+
+主题描边继承归私有 `nativeScatterMarkerOutline.themeOutline`。三个独立原生控制分别核对默认主题 0.75 pt、按源 `idx` 选中的自定义主题 1.5 pt，以及只改填充的点保留系列 2 pt 描边。三个整图 Canvas 和整页 PDF 均为 0/0，源字节和新 Worker 导出的 PDF 字节保持。11 项核心和 7 条 Chromium 用例通过，包含双轴折线、混合图和两张雷达图。C43 整表 30 张实际和参考栅格及 15 页 PDF 与上批逐字节相同，仍通过 10/30。原件散点仍为 Canvas 290/362、PDF 294/379。
+
+单系列逐点配色的描边归私有 `nativeScatterMarkerOutline.pointOutline`。固定 ONLYOFFICE 的图例显示系列蓝色 2 pt 和逐点红色 1.25 pt。LibreOffice 的绘图区确认同一点由蓝色改为红色。两个引擎都省略了控制文件明确指定的黄色标记填充，因此整页原生比较用于诊断。正常 Worker 的三个控制验证 2、1.25 和 1 pt 描边、Canvas/PDF 黄色填充、原样保存及新 Worker 的 PDF 字节。11 项核心和 5 条 Chromium 用例通过。原件散点的 Canvas、PDF 和参考栅格均与上批逐字节相同。C43 整表复跑仍通过 10/30，30 张实际栅格及 15 页 PDF 与上批逐字节相同。
+
+单系列散点的逐点图例归私有 `nativeScatterMarkerOutline.pointLegend`。原生控制核对源点编号、缺失点留空和显式逐点样式。三种右侧尺寸分别容纳 20、13、26 项，底部控制在第 15 项后换行。12 项核心检查通过。旧构建的 PDF 只显示系列名，新构建的三份 PDF 各匹配原生的 20 个图例编号，原样保存和新 Worker 的 PDF 字节一致。原始双轴折线和混合图通过。原件散点仍有视觉差异，C43 整表严格通过 10/30，30 张实际和参考栅格及 15 页 PDF 与前批逐字节相同。
+
+圆形图表已接通缺省分类、标题、右侧图例、标签、扇区填充与轮廓、旋转及外环爆炸偏移。原始两个锚点分别读取和绘制，源字节保持；全隐藏时保留背景与标题。22 项定向核心、公共扇区接口示例及三条相关 UI 回归通过。两个固定控制均通过正常 Worker 打开、打印、源保存和新 Worker 重开，活动图表不再有未呈现诊断；非活动数据表的既有诊断仍保留。圆形批次的原工作表整组读取当时在 `chart2.xml` 的重复 `lineChart` 失败；下述双轴批次已消除该处失败，完整工作表仍受其他图表保护。
+
+圆形图区背景现已修正为居中正方形，缺失点图例沿所属主题取色，图案标记使用局部原点。22 项核心和三条相关 UI 回归通过。完整可见图框的 Canvas 与整页 SDK PDF 对照仍失败：饼图现为 Canvas 232/4970、PDF 227/4693；圆环图为 Canvas 11979/10235、PDF 540/319。未修改容差或原始断言。原生 PDF 的饼图图案扇区只有 `scn` 和 `f`，缺少填充路径；同输入、同字体的直接原生 PNG 也省略该扇区底纹。SDK 保留实际源图案，两张图及整份 C43 均未授予资格。
+
+圆环底纹的完整诊断区分直接 PNG 与 PDF 栅格。固定原生 PDF 的纹理每 7 像素重复；同输入的直接原生 PNG 和 Canvas 保留 7.44 像素周期。缩小纹理平滑采样后，圆环 Canvas 对直接原生 PNG 的完整图框差异从 14520/8370 降为 323/299。PDF 与直接 PNG 自身相差 9861/11864；该诊断解释取样差异，不替换原始严格断言。标签、边界和剩余像素继续核对。当前包、完整失败图像及诊断归私有 `nativeCircularPlotAndLegend`，旧 `nativeCircularCharts` 保留原包身份和失败。
+
+零旋转三维堆积面积的当前布局结果归 `nativeFlatArea3dProjection`，初步失败归 `nativeFlatArea3dInitial`。原始 chart7 保留四个系列、26 个分类、全部实色面及只读源保护。手工外绘图区现按分类数收缩纵向范围，分类标签占用留量；三维标题使用最终 17 像素边距。28 项定向核心检查全部通过，包含原始锚点、保存重开、六项非法配置、独立首面坐标及三组仅改字号的原生控制。原件图表缓存的首个黄色系列值为零，但绑定 E2 实为 `#DIV/0!`；冻结的原生错误值控制省略黄色面，且使用 450 上限。只将该单元格改为数值零、其他部件逐字节保留后，所有缓存与绑定值一致；独立原生输出恢复 25 个黄色面并使用 500 上限。该诊断件的正常 Worker 完整 Canvas 与整页 PDF 均为 0/0，原样保存、新 Worker 重开和相同 PDF 字节通过。同输入 LibreOffice 补充输出也显示黄色系列；其字体替代与三维布局不同，只证明有效源系列的保留行为，不能替代主参考。原始错误值控制的完整严格断言继续失败，当前数值见私有记录；未改原件、原始参考或容差。同构建八条原始 Chromium 流程为六条通过、两条失败；百分比面积、32 系列边界、堆积条图、双轴折线和两张雷达保持通过，透视柱图保留既有严格失败。该面积图构建的读取清点为十三张可读、六张保护；当前曲面结果见下。显式零值诊断不授予原始错误值文件、完整 C43 或 C0 视觉资格；未跑全仓。
+
+气泡图的打印检查范围修正归 `nativeBubblePrintScope`。旧用例把 0.93 倍屏幕 Canvas 与打印 PDF 裁剪作零差异比较。独立原生 PDF 的图框宽度为 940.790 px，屏幕同一源框仅为 902.150 px；仅将工作簿默认字体统一为 Noto 后，原生打印仍为 911.842 px。该跨缩放断言不能证明屏幕正确性，原测试源码、图像及失败记录完整保留。正式屏幕检查继续使用未修改 SVM 的完整 2448×650 原生视口，全部断言保持；打印用例只比较独立整页 PDF，并新增原样保存后新 Worker 导出的 PDF 字节一致检查。四条用例仍为一条通过、三条失败，未增加任何视觉通过资格。
+
+相同构建的两张原始打印 PDF 仍为 47603/48128 与 45229/45458；新 Worker 的保存字节、对象与 PDF 一致检查通过。仅改默认字体的独立控制，PDF 为 18078/17544，旧跨缩放 Canvas 诊断为 15700/11313。早期 secondary 身份文字声称所有 Arial 声明都已替换，实际只替换了图表声明；工作簿默认字体仍为 Arial Cyr，其原生回退字体未确立。SDK 当前打印缩放为 0.62，独立原生图框反推约为 0.64656，统一默认字体后约为 0.62666；该推算只定位拟合差异，未确立根因。打印原点、尺寸与边界继续核对，不据此修改共享分页或源内容。
+
+原生气泡文字的位图诊断归 `nativeBubbleGlyphBitmaps`。相同构建重跑两个完整原生视口，chart14 在保存前及新 Worker 重开后保持 0/0，chart15 均为 4/4。逐次绘制重放与正常产品 PNG 字节相同；四个缺失点与三个额外点最后由数字 `6`、`4` 和图例 `cos2` 的 `o` 绘制；另一个额外点 (899, 298) 位于图例圆形标记的描边边缘，不能归因于字形。两份固定原生 SVM 各自重放，PNG 均与冻结参考逐字节相同。随后只删除非文字绘制动作，保留全部字体、原点、字距、变换、状态和裁剪；同版 LibreOffice 与相同 Noto 字节直接导出完整文字页。SDK 也只滤除非文字绘制，全部字形指令保持。完整文字页的独立颜色对照分别为 0/0 与 4/3，说明有图例残差存在于字形覆盖。透明 PNG 导出曾得到全黑页，已拒绝；当前使用经目视核对的白底文字位图。新增诊断通过，原产品、原图、原参考与严格阈值保持；这些结果不授予有图例视口或气泡打印资格。下一步处理气泡打印的默认字体及图框拟合，暂不重复 hinting、原点或裁剪候选。
+
+三张原生曲面图的当前结果归 `nativeSurfaceContour`，布局依据归 `nativeSurfaceMargins`，首批归 `nativeSurfaceInitial`。chart11 透视曲面、chart12 俯视等高线与 chart13 线框曲面的独立 PDF/PNG 在产品修改前固定，仅替代 Arimo 字体。矩形缓存、缺省分类与系列名、源引用、视角、墙面及手工图框保持；切分沿原生对角线与数值区间，标签先预留空间再投影。独立首面、旋转标题与三组标题/字号控制坐标误差小于 0.001 pt。源改写、复制及非法配置继续保护。
+
+填充色带现在复用 MoonBit 的现有描边轮廓，分开输出面填充与边框填充。该轮廓从 PPTX 阴影目录移入共享布局层，PPTX 调用同一实现。顶点、线宽、端头和尖角限制保持；正常 Canvas 不再自行扩宽色带边框。等高线交点的单像素差异已消除，chart12 完整 Canvas 与整页 PDF 均为 0/0；chart13 继续为 0/0。两图的原样保存、新 Worker 重开及相同 PDF 字节通过。chart11 完整 Canvas/PDF 仍为 0/48；有效系列轴标题 `YYY` 保留，主参考把它放在图框外的页面原点，该严格失败继续保留。原件、参考和容差保持。
+
+同构建 56 项图表/计算核心与四项 PPTX 阴影检查通过；新增独立直角轮廓检查覆盖端头、尖角、曲线拒绝及输出预算。三条曲面浏览器流程两条通过、一条严格失败。五条相关正常 UI/Worker 流程通过，覆盖主图、混合图、数据编辑、显式重算、精确历史及新 Worker 重开。旧 55/56 核心结果来自测试仍按已替换的画笔字段查找填充面，独立坐标预期保持后复跑为 56/56。未运行全部 22 条图表流程或全量 C0；其他已记录视觉失败及重算后的完整视觉继续开放。
+
+两张复合饼图的首批结果归 `nativeOfPieInitial`。产品修改前已冻结 chart16 条形复合饼图与 chart17 饼形复合饼图的原生 PDF/PNG；其他工作簿部件逐字节保持，仅替代显式字体。主参考把两图转换成普通饼图；同字节 LibreOffice 补充输出显示第二图，但仅采用末尾两点，未执行原件的数值阈值或自定义点集，也未保留全部尺寸和线型设置。两套参考均保留。SDK 现按原件阈值或源点编号拆分，保留第二图比例、间距、逐点颜色、聚合扇区及实线/虚线连接；隐藏后仍使用原点编号。第二图避让手工图例，修正前新增留量检查失败，修正后通过。32 项定向核心全部通过，另有两项字面检查覆盖严格阈值、隐藏编号、条图矩形及连接端点。拆分语义已有证据，间距当前按第二图宽度解释，完整 Office 布局仍待独立核对。正常 Worker 的打开、打印、原样保存及新 Worker 重开通过，两图分别保持相同 PDF 字节。与原生普通饼图的完整 Canvas/PDF 严格对照均失败；未替换参考或降低断言。首批同构建十条 Chromium 流程四条通过、六条失败，折线、两张雷达及线框曲面的 0/0 保持；圆形图与另两张曲面的既有严格失败继续保留。源重写和复制、未知拆分规则及拆分图数据标签/爆炸偏移仍受保护。该复合饼图构建当时为十八张可读、一张保护；当前清点和整表流程见下述混合图结果。完整 C43 与 C0 尚未通过，未跑全仓。
+
+柱线混合图的结果归 `nativeMixedInitial`。修改产品前已冻结 chart18 的独立原生 PDF/PNG，仅替代显式字体，其他工作簿部件逐字节保持。SDK 保留三组柱体、两组右轴折线、源簇内位置、绘制顺序、逐点颜色及三角/X 标记。独立绘图区与四种柱体首面坐标误差小于 0.001 pt。34 项定向核心全部通过，包含两套轴、隐藏原点编号、非法配置、只读复制保护及原样保存重开。原始工作表的十八个对象均按源尺寸绘制，视口不再因三维图例越界拒绝。480×369.75 pt 的独立原生控制证明手工图例应移回图框；共享边界修正另通过一项字面检查。
+
+固定图框和 Arimo 替代的 chart18 控制，完整 Canvas 与整页 SDK PDF 均为 0/0，源保存及新 Worker 重开保持相同 PDF。最初 Canvas 的一个差异像素已通过字节相同的绘制重放定位到青色 X 标记。修正源路径顺序后差异仍在；复用共享描边轮廓后消除。直线轮廓仅扩展至无填充的开放路径，闭合及带填充直线保留既有覆盖规则；早期回归失败完整保留。12 条共享 Canvas 流程通过，其中 66 组直线/曲线变体与 31 组独立轮廓几何检查通过，覆盖透明度、变换、虚线、裁剪及预算回退。原件默认打开、切表、主图显示/打印、原样保存及新 Worker 重开通过；缓存查询在编辑器接管 Worker 前完成，避免测试绕过编辑器队列。十九张原件现全部可读取；这不授予整份 C43 或手工易变公式重算资格。同构建的 22 条图表流程为 10 条通过、12 条严格视觉失败；百分比面积、堆积条图、双轴折线、两张雷达、线框曲面和无图例气泡的既有通过范围保持。另有五条跨格式原件/编辑回归通过。散点 Canvas 现为 303/384，额外像素较本批描边修改前增加六个；PDF 保持 306/404。该批差异当时未归因，当前新增六点的参考样式原因见 `nativeScatterSparseAudit`；严格失败及前后结果均保留。复合饼图的额外像素也按当前产物记录，不声称全部失败计数不变。
+
+手工计算的当前证据归 `manualCalculation`。54 项定向核心通过，覆盖原件缓存、普通输入、新公式、共享/跨表依赖、显式计算、十九张图表缓存、精确历史和重开，也复查隔离公式、自动 RAND、链接、公式视图及图表打印。C43 原件的三次数据输入保留全部源缓存，随后一次重算更新十九张图表；缓存数据点外的图表 XML 逐字节保持。未知公式和无熵计算失败保留源与历史；拒绝计算后原重做仍有效。源缓存和公式依赖保留分别核对。
+
+固定 ONLYOFFICE 对原件 A2=2 的显式重算，与 SDK 的全部 104 个非随机公式格一致，绝对误差不超过 1e-10；26 个随机结果分别落在源基础值加 `[0,10)` 的区间，随机序列不要求相同。中性文件在实现前固定，含共享、跨表、链接和错误缓存。主参考虽然保存手工模式，打开时仍重算 RAND；LibreOffice 的 never/always 导入也均取样并移除手工模式。它们不授予手工缓存保留资格，原始输出和失败保留。核心直接对照输入缓存与源字节。
+
+同构建五条 Chromium 流程通过。默认 UI 在中性文件及 C43 原件中执行公式栏输入、点击“立即重算”、两轮精确撤销/重做和新 Worker 重开。原件主图、混合图及混合图修改固定控制继续通过，后两者完整 Canvas/整页 PDF 均为 0/0。纯数值控制继续即时更新；含公式来源的手工图表等待显式重算。原件功能流使用显式 Noto 字体映射，不授予原件重算后的整页视觉资格。十二项原有严格图表失败继续保留；散点新增六点的参考样式原因见 `nativeScatterSparseAudit`；本批未重跑完整图表视觉集合和全 C0。
+
+重算后的整本导出归私有 `nativeC43RecalculatedWorkbookPrint`。两条手工计算流程现由 `test:c0-xlsx` 收录，在固定 Arimo 下通过。C43 改写 A2 后显式重算，默认文件菜单导出 16 页。PDF 提取确认主图表页在前，工作表在后。导出保留保存字节，新 Worker 重开后的 PDF 逐字节相同。核心另验证四个状态的分页，Arimo 均为 16 页，Noto Sans 均为 19 页。
+
+同一保存稿的视觉对照归私有 `nativeC43RecalculatedPrintVisual`。诊断副本只去掉 129 个公式节点并固定 Arimo，保留单元格缓存和图表数据，交给固定 ONLYOFFICE 渲染。Chromium 重开保留公式的保存稿。主图表的整图 Canvas 与单页 PDF 均为 0/0。工作表完成 15 页共 30 组比较，第 2、3、6、9、15 页的两组及第 4 页 PDF 通过，共 11/30。原件正式整表仍为 10/30，两个结果分别记录。
+
+原生图表缓存更新的证据归 `nativeChartCacheUpdates`。36 项定向核心全部通过。由 C43 只改计算模式得到的自动副本，连续三次修改 A2 后，十九张图表的缓存与已计算来源一致；剔除缓存数据点后，其他图表 XML 逐字节相同。三轮精确撤销/重做、易变公式状态和保存重开保持。该副本只隔离缓存事务，未授予原件手工模式资格。气泡尺寸来源现可修改，独立检查缓存、精确历史及重开；图框修改继续保留原定义。带前缀和缺省命名空间、名称转义、空值移除/恢复、缓存元数据、外部注释及含注释数据点的拒绝均有检查。气泡尺寸来源按稳定节点编号读取，缓存编辑后的节点编号不再被当成数组位置。
+
+浏览器对照在产品修改前冻结：仅将既有混合图固定控制的工作表 B2 从 100 改为 600，图表缓存和其他部件逐字节保持，再由固定 ONLYOFFICE 独立生成参考。默认公式栏输入、精确撤销/重做、完整 Canvas 和整页 SDK PDF 通过，两个视觉对照均为 0/0。SDK 保存文件由新 Worker 重开，保留相同文件及 PDF；再由 ONLYOFFICE 重开，其整页 PNG 与预先冻结的参考逐字节一致。同构建的混合图原控制和原件主图流程也通过。新增输入用例等待编辑器队列完成公式栏切换后，再使用已有原生键盘流程；早期镜像输入等待失败保留。该缓存更新批次未验收原件手工计算；当前结果见 `manualCalculation`。其他严格视觉失败保留，未跑全仓。
+
+原生图表底纹所需的共享 8×8 两色位图原语已实现。两页独立单比特图像 PDF 覆盖局部原点、剪切、反射、嵌套裁剪和后续实色绘制；SDK PDF 的两页完整颜色对照均为 0/0。Canvas 按独立字面行网格与逆变换检查：第一页全部 3072 像素、第二页避开抗锯齿外边与采样临界点的 2338 像素均精确匹配。新增二分之一缩小检查覆盖 88 个完整内部像素，各值符合独立 2×2 面积平均；修复前失败，修复后通过。Poppler 会平滑参考 PDF 的图案单元；放大 Canvas 对该栅格的差异 18/189、66/123 保留为诊断，不作为原生图表资格。非法输入与输出预算有核心及宿主检查。产品边界归[通用绘制输出](formats.md#通用绘制输出)，初版证据归私有 `nativeBitmapPatternFill`，本次采样回归归 `nativeCircularPlotAndLegend`。
+
+C43 气泡图当前视图与裁剪证据归私有 `nativeBubbleClipGrid`，前批外框证据归 `nativeBubbleFrame`，字形修复归 `nativeBubbleGlyphRaster`，独立视图参考归 `nativeBubbleView`。固定 LibreOffice 将原生 SVM 按原尺寸直接绘到完整视口，独立核对屏幕显示。参考包含原生背景，不裁图、不缩放栅格、不合成留白。私有 `tools/c0-bubble-view-reference.mbtx` 从同字节输入重建 SVM、FODG 和 PNG，结果与修正前基准一致。早期缺少样式上下文的载体及打印裁图继续作为诊断保留。
+
+本批统一了气泡几何与视图裁剪的 1/100 毫米尺寸。原生 SVM 首选范围为 25666×15905，旧裁剪仍使用未取整的源框。独立重放与正常 PNG 逐字节一致；仅统一裁剪后，无图例图从 3/0 降至 0/0，有图例图从 7/4 降至 4/4。正常 Worker 的原样保存和新 Worker 重开确认相同结果；原件、字体、参考和阈值保持。21 项气泡、图例及共享图表核心检查通过。四条正式 Chromium 流程一条通过、三条失败：无图例完整视图通过，有图例视图及两张图的打印对照继续失败。有图例图全部 17 段文字的原点、每个字距均匹配独立 SVM；这项几何检查不能证明剩余字形像素已正确。后续字形重放归 `nativeBubbleGlyphCandidates`。同一字体的嵌入指令、自动拟合及 Chromium 原生文字候选均未通过完整视图；原生文字减少缺失时又引入额外像素，并使已通过的无图例图回退。候选保留为诊断，当前产品与严格断言保持。现有结果尚不能证明具体的字体后端差异。
+
+C43 双轴折线复用既有原生折线模型。五组系列沿两个 `lineChart` 的源顺序读取，各用所属数轴；固定 20–160 主轴与自动 1850–2250 副轴分别生效。平滑曲线、菱形/方形/圆形/叉形标记、数据标签、六阶趋势线、方程、R²、文字装饰、旋转轴标题和底部图例均接入。原锚点读取和绘制、显式外框保留、源保存、隐藏系列及非法轴链接通过检查。26 项相关核心、独立六阶函数拟合及五项扩展锚点回归通过。
+
+独立 ONLYOFFICE 控制在产品修改前冻结。只替代三个原字体为固定 Arimo，并保留原粗斜体；其他缓存工作簿部件逐字节保持。绘图区四项边界、标题、刻度、受右边界约束的数据标签、方程、R² 及打印原点在 0.001 pt 内匹配独立 PDF。全部六种曲线的 1,948 个边端点逐一核对，最大误差低于 0.00004 pt；原主折线坐标断言保持。图表页打印原点沿原生页边距加一个逻辑像素，不随外框笔宽移动。文字装饰使用顶边描边和原生字符宽度；上下标字号按半磅舍入，段落保留原字号行高。26 项图表核心、16 项共享文字检查及九条 Canvas 回归通过。五条编辑流程回归覆盖主折线、DOCX 原生域与链接样式、PPTX 字符格式及 XLSX 单元格装饰，主折线完整 Canvas/PDF 保持 0/0。
+
+正常 Worker 的打开、单页打印、原样保存和新 Worker 重开成功。整页 SDK PDF 从 4/4 降至 0/0；完整可见 Canvas 从 13/64 经 2/58、2/2 和 2/0 降至 0/0，原始严格断言通过。分数路径取样和原生输出精度重放仅作诊断。九十度字形复用既有 PDF 行网格，圆形标记按原生路径起笔并保留开放接缝。虚线边框保留相位和转角，不透明标签底色沿设备边界覆盖前景。75 组矩形控制和 54 组曲线控制通过，十二条 Canvas 回归通过。25 组曲线另与独立解析轮廓核对 44,800 个位置；拆段及轮廓预算、近反向斜接与闭合后续线检查通过。主折线 Canvas/PDF 保持 0/0，前批五条共享编辑流程保留原构建证据。诊断正常 PNG 与产品逐字节一致。仅按原生平坦度拆分描边即可消除两处圆形缺失；填充、参考与容差保持。同构建复验中，两张雷达、主折线、双轴折线和 C02 的 Canvas/PDF 均为 0/0。原工作表首个剩余图表读取失败仍在 `chart3.xml` 的三维柱图，完整 C43 未授予资格。
+
+C43 第二张气泡图已接通右侧图例及系列、点的 `bubble3D` 元数据读取。显示沿原生平面圆规则，源标志不改写。27 个非零气泡、三个图例标记、零尺寸系列图例、可见系列重排、原始锚点及原样保存通过核心检查。非法布尔值、越界或重复点、未知点外观和过宽图例继续拒绝。24 项定向核心及一项全图清点通过，证据归 `nativeBubbleLegend`。
+
+新图的独立原生 SVM 来自既有固定字体输入，按自身首选尺寸绘制完整 2448×650 视口。绘图区与图例边界均和原生向量精确一致；图例空间修正后，完整视图从 11200/10811 经 7/4 降为 4/4，保存和新 Worker 重开结果一致。无图例视图现为 0/0，参考生成器仍逐字节重建其原 PNG。正常 Worker 的打印、源保存和新会话显示均执行成功；有图例视图及两张图的打印用例仍在严格视觉断言失败。新图与既有独立打印参考的 Canvas 对照为 45429/42324，整页 SDK PDF 为 45229/45458，打印边界和默认字体继续验收。固定 ONLYOFFICE 导出仍把该气泡图降为普通散点，该输出独立保留；产品保持气泡尺寸和源填充。无图例完整视图已通过；有图例视图、两图打印及完整 C43 仍未通过。
+
+前批正常 Worker 在 100% 缩放下，整幅 Canvas 的严格颜色差异由 72/4752 经 6/8 降至 3/0。原样保存和新 Worker 重开得到相同结果。气泡图使用独立绘制作用域，保留分数线宽和设备半像素原点，屏幕裁剪限制到图框。绘制批次现携带实际字体的 `upem`，屏幕字号按当前设备缩放量化到整数像素。直接设置量化后的 em 比例，避免矩阵再乘一次产生舍入偏差。字形按最近的水平四分之一像素及整数基线取样，文字差异已消除。剩余三处缺失均在图框底边；原生图保留的部分覆盖仍待核对。路径裁剪诊断未改善结果，整数外扩会引入大量额外像素；两者均已恢复并保留失败证据。
+
+前批将默认外框修正为原生 `D9D9D9`，并保留工作簿主题处理前后的颜色及输入校验。最终完整视图仍为 3/0，保存重开一致。整组软遮罩候选为 1/0；采用正确外框色后，整数裁剪候选为 0/138。两者均未通过，已撤回。原生填充、轮廓及单圆对照可分别复现底边颜色，具体裁剪组合仍待核对。绘制宿主与缩放检查已逐字节恢复到前批版本。
+
+本批 19 项 XLSX 核心检查通过，包含默认外框、主题处理及无效颜色拒绝。17 项 DOCX/PPTX/PDF 核心、5 项 PDF 提取和 80 个绘制协议断言沿用 `nativeBubbleGlyphRaster` 的通过记录。最终构建的九项共享绘制检查覆盖不同 em 单位、缩放、反射、模拟粗体、零像素字号、混合对象、状态恢复、PDF 像素与页面裁剪。四格式另有九条功能回归通过：DOCX 双栏、PDF 阿拉伯文字及两种 CFF 表单、PPTX 图表、XLSX 主折线图、面积图、填充雷达图和系列容量。其中 DOCX 双栏及 XLSX 主折线、面积、填充雷达图的独立 Canvas/PDF 对照均保持 0/0。其余回归按各自用例核对字形覆盖、像素、保存、历史或重开。四种字号的精确几何与发布优化证据仍归 `nativeBubbleCircles`；Noto 字节、许可和逻辑坐标归 `nativeBubbleLayout`。
+
+正常 Worker 目录返回 `bubble`，PDF 输出已执行。既有打印裁图与屏幕比较仍为 47896/44894，整页 PDF 为 47603/48128，两项均失败。该裁图不作为原生视图资格依据，断言与阈值保留。初始实现和 20 项跨格式回归归 `nativeWorksheetBubble`，保留原构建证据。ONLYOFFICE 丢失尺寸的散点输出另记 `nativeBubbleReferenceInvestigation`，未采用为预期。原工作表其他图表、3D 配置和整文件验收继续实施。
+
+后续打印诊断归 `nativeBubblePrintFontControl`。既有参考只替换了图表字体，工作簿默认字体仍为 `Arial Cyr`。仅将默认字体替换为同一 Noto Sans 后，原生 PDF 图框宽度由 470.395 点变为 455.921 点，仍未匹配当前 SDK 输出。原生 SVM 预览还包含图框裁剪，原生 PDF 则保留外伸气泡。因此，打印裁图尚不能证明原生视图的完整预期；后续分别核对视图裁剪和打印边界。原始严格失败及四组独立逻辑坐标检查均保留。
+
+C43 百分比面积图当前证据归私有 `nativeWorksheetArea`。原始锚点的 26 个系列、轴、标题、缓存、源保护与重开通过核心检查。独立控制保留图表定义及原框，仅沿既有纸面对齐和 Arimo 常规/粗体替代。十二个字体声明和全部非目标部件均另行校验，参考生成不调用 SDK 布局。正常 Canvas 和整页 PDF 均为 0/0，保存字节及新 Worker 重开保持。32 个系列的 Worker 创建、显式设置、精确撤销/重做和重开通过。33 个系列或超过 XML 节点预算的候选均拒绝，源字节及修订保持。16 项定向 XLSX 核心与 20 项 DOCX/PPTX 图表、图片回归通过。
+
+C43 雷达图的当前通过证据归私有 `nativeCurveStrokeOutline`，前批方形标记证据归 `nativeRadarSquareEdges`，同构建回归归 `nativeWorksheetArea`，纸面对齐控制归 `nativeRadarPixelGrid`，第一批归 `nativeWorksheetRadar`。原件两张图的原始锚点、隐藏轴、线条、标记、网格、填充、零值、源保存和重开已检查。13 项定向核心检查包含既有折线图、来源筛选、图表计算及数轴回归。两项雷达测试另按注册入口独立执行；附加校验逐字节核对纸面对齐控制的全部非目标部件。参考生成不调用 SDK 布局。
+
+原始 chart9/chart10 定义置入固定图表页框，单元格缓存沿既有控制保留。旧比较的纸面原点与视口不同，还读取了画布外的负坐标。新的控制仅调整纸面左、上边距，将原框对齐 144 dpi 的整数像素；图表、图框及其他部件全部保持。方形标记现用原生开放路径，Canvas 对齐两侧边缘并保留起点端帽。正式比较覆盖完整可见 Canvas 图框和整页 PDF，保持原像素邻域与颜色容差。三条正常 Chromium 流程全部通过：两张雷达图及主折线图 Canvas/PDF 均为 0/0。保存字节及新 Worker 重开保持。
+
+共享矩形检查扩展至 192 种描边组合及 120 种裁剪组合，覆盖开放路径、透明度、反射、旋转、非均匀变换、端帽及回退。菱形、蒙版、页边、图表、图片和打印流程另有通过记录。独立字面 PDF 的 32 个开放矩形中，30 个逐像素一致；其余两个各有一个像素相差 4 级颜色，精确比较仍记失败。当前共享曲线描边按原生线段矩形与连接轮廓一次填充，两张雷达控制均通过。曲线检查保留逐字节 RGBA 断言，预期使用独立冻结的原生子路径；另以平行偏移线交点生成解析包络，核对轮廓几何。预期生成不调用产品代码，原参考与阈值保持。此前自定义覆盖率候选保留为诊断。
+
+旧比较的 19/19、10/18 保留为历史失败。圆弧路径候选没有改变结果，已撤回。早期原生曲线分段重放曾为 1/5，当时未采用。当前实现与完整对照归 `nativeCurveStrokeOutline`，前批 `nativeCubicStroke` 的 0/1 及更早失败继续保留。原件普通工作表还被其他不支持的图表阻断，整文件未授予资格。范围归[工作表图表](formats.md#工作表图表)。
+
+自动列宽证据归私有 `nativeColumnAutoFit`。固定 ONLYOFFICE Builder 10.0.0 与 Noto Sans 11 pt 的五组控制核对源字符宽度及物理列宽。公式视图的原生结果为 201 pt，SDK 原来为 198 pt；现已修复。原断言使用段落字宽 199.6 pt 推导范围，现采用独立原生源宽度及物理宽度的双重等值断言。窄字符和一字符边界另有固定结果。原生输出的厂商水印保留，仅其单元格列宽作为参考；原始失败和转换日志保留。
+
+20 组、66 项定向核心检查全部通过，覆盖自动尺寸、公式视图、缩小字体、RAND、图表及拒绝边界。同一优化构建的九条 Chromium 流程通过，包含正常界面的 201 pt 列宽、精确历史、保存重开及 PDF 文字。C41 八次输入、缓存和历史通过；其首页面视觉沿用前批证据。C43 主图及整页 PDF、C44 十组颜色对照已在本批重新通过。首次界面校验仅因工具输出末尾换行失败，处理输出后保留原数字断言并通过。严格构建、TypeScript、lint、格式与源码上限通过；未跑全仓，也未重跑其他格式的完整集合。
+
+自动计算模式的 RAND 证据另见私有 `volatileRandom`。三个核心用例及 64 个随机格覆盖平台种子、独立 Worker、共享和跨表依赖、链接目标、元数据缓存、精确历史及新会话重开；新建和文本导入也已检查。C43 的 C2:C27 共享公式完整，手工模式缓存主图仍为 Canvas/PDF 0/0。派生自动计算副本的 26 个噪声结果和单页输出已检查，该批次尚未验收原件手工计算，当前功能流与数值结果见 `manualCalculation`；十九张图表已可读取，完整视觉资格继续按上述各图证据判断。
+
+C43 主图的栅格修复证据归私有 `nativeChartRaster`。固定缓存及 Arimo 下，正常 Worker/SpreadsheetEditor 的完整主图 Canvas 与整页 PDF 均为 0/0。切回普通工作表后再返回，主图 PNG 逐字节保持。切表、只读保护、原样保存及新 Worker 重开通过。原件、字体、冻结参考和阈值保持；该栅格批次未验收手工重算；当前数值与功能流见 `manualCalculation`，各图剩余视觉差异和重算后的完整视觉继续实施，整份 XLSX 尚未通过。
+
+图表工作表为字形选择既有四档横向子像素规则，几何绘制保持原策略。普通工作表恢复整数字形。菱形同色、不透明的填充与描边现共用一个外轮廓，消除重复边缘覆盖。210 个固定几何控制覆盖反射、非等比、剪切、透明度、连接、虚线和后续状态；策略切换另检查缓存、覆盖层、PNG 导出、无效输入与释放。完整 `fractional` 策略曾为 1284/37，未采用；文字单独重放为 2/1，外轮廓候选为 0/0。诊断源码已压缩保留。
+
+同一 Wasm 和 JS 的两组定向结果共 36 条，35 条通过。17 条 PDF 中 16 条通过，多页 Type1 的第 2 页仍有原来的一个缺失像素。C35 原件/改后六页、C37、两份 PPTX 图片裁剪、C44 十组颜色对照、工作表图表/图片/打印及八条共享 Canvas 检查通过。两项新控制首次因测试调用参数及参考图元遗漏失败，修正后原断言通过，日志保留。严格构建及私有 TypeScript/lint 通过；核心与 Wasm 未变，复用前批 41 项定向结果，139 项整批保留更早构建。全仓未跑。
+
+C35 全页证据归私有 `nativeFloatingMark`。正式流程现逐页检查全部六页，原件与修改后的 24 组 Canvas/PDF 颜色对照均为 0/0。原生输入、精确历史、37 个非目标部件及保存重开通过；重开后六页 PNG 与改后画面逐字节一致。原件、字体、独立参考和阈值保持。新覆盖的第二页曾为原件 82/78、改后 97/88，Canvas/PDF 数值相同；原失败完整保留。
+
+只含浮动对象的段落现使用段落标记字体度量，消除了正文及页眉的累计偏移。21 项布局、20 项 C0 DOCX 核心通过；其中三项在主题字体预检补齐后再次检查。三组新控制覆盖普通/一倍半/固定行距、标记字号、后续段落及缓存。最终正常包的 11 条浏览器流程全部通过，覆盖六条 C0 DOCX、浮动图片/形状剪贴板、默认页眉页脚及两条主题字体恢复。严格构建、私有 TypeScript/lint 和格式检查通过。前批 139 项整批结果保留原构建，本批未重跑全仓。
+
+早期 C43 独立重放先逐字节复现正常 Canvas 的 42/13。相同轮廓按四档横向子像素及整数行重放后为 2/1，三处余差位于图例菱形区域；未修改产品策略。纯横向小数候选为 35/27。参考、固定 Arimo、几何及阈值保持，诊断归 `chart-glyph-phases`，不能授予正常 Canvas 资格。
+
+前批图片采样证据归私有 `nativeImageSampling`。最终空值/布尔值序列化版本通过全部 139 项、35 组 C0 核心，覆盖四格式及拒绝边界。原件和修改后 C35 的第 1、3、6 页 Canvas/PDF 均为 0/0，保持同一字体、原件及容差。正常输入、精确历史、37 个非目标部件和保存重开通过。该批仅检查第 1、3、6 页；全部六页的最新结果见上。
+
+定向浏览器集合共 39 条，含一条诊断。先通过 33 条；显式布尔插值的六条流程失败。修正后仅重跑这六条、C35 及其诊断，六条通过，两条保留原视觉失败。合并为 37 条通过、两条失败，记录分别固定构建身份；这不是同一 Wasm 的 37/39 单次运行。CCITT、JBIG2、JPX 和 CMYK JPEG 的原页及旋转页恢复通过。其余已通过流程复用相同 TS 绘制和空值语义，覆盖 DOCX 裁剪、双栏、字段、链接框、页眉图片、PPTX 两份图片裁剪、XLSX 图片、字体及字段控件。
+
+共享 Canvas 的八条检查通过。图片裁剪覆盖 70 个采样/变换组合；页面边缘覆盖 24 个完整、局部、嵌套、偏移、反射、剪切及后续绘图控制。独立 4.75 pt PDF 在 144 dpi 下的 10×10 像素均为不透明黑色，支持 backing 边界规则。C35 整页重放与正常 PNG 字节一致。遮罩、重复图块、字形、矩形和后续状态保持。严格构建、根及私有 TypeScript/lint、定向格式和 69 个绘图校验断言通过。早期字段缺失、布尔数组编码及裁剪栈回归的日志保留；全仓未跑。
+
+该图片采样批次的 C40 原件为 Canvas 9/0、PDF 6/0，改后深色背景均为 0/0。当前 C40 结果见上方 `nativeMetafilePreviews`。该批原生 PDF 将图标及 Tahoma 文字表示为带 Alpha 遮罩的 321×209 JPEG；SDK 保留矢量文字。这证明表示方式不同，尚不能将全部余差归因于 JPEG。多页 Type1 PDF 的第 2 页严格颜色对照仍失败。C41 当前全部六页结果见下；C43 及其他 C0 缺口保持未完成。下述批次保留各自历史构建。
+
+C41 的依赖与行高证据归私有 `nativeDependencies`。上游八次赋值通过默认公式输入，二十个依赖结果与缓存一致；一次同值输入不新增历史，七次修改可精确撤销/重做。公式、旧计算链清理及其声明、其余源部件和新 Worker 重开通过。独立 ONLYOFFICE 重开修改后原件，深层结果 `4356618` 与 `1883328` 保持。五份中性原生文件确认短、长缓存均重测，固定默认值、固定行和隐藏行保持；未知测量保留原缓存及源字节。
+
+C41 的居中与边框核心证据归私有 `nativeCellEdges`、`nativeBorderJunctions`。六个独立 Noto 原点匹配；原生 PDF 的 73 条描边线段、八组粗细交点和横向页带边界已核对。共享边优先级保持，端点按相邻线宽伸缩，末列细线沿原生页带裁剪。2 项 C0 核心、13 项对齐/边框/表格和 20 项打印检查通过；该批 MoonBit 与 Wasm 保持同一身份，保留当时的 35 项结果。原样式池越界及度量混用的失败证据保留。
+
+C41 当前全部页面通过证据归私有 `nativePrintPageOrder`，前批栅格证据归 `nativeCellRaster`。共享分页沿 ONLYOFFICE 当前循环先向右再向下；源、参考页及页序未重排。续页切口按原优先级选择相邻可见格的边框，原生第二页的 0.75 pt 线段已独立提取并固定。该线段此前造成原件和改后 Canvas/PDF 各 63 个缺失像素。修复后，固定 Noto 替代下，两份文件全部六页的正常 Canvas、整本 SDK PDF 均为 0/0。输入、精确历史、源保留及新 Worker 的相同 PDF 通过。22 项打印核心和 13 项居中/边框/合并/表格检查通过；百万格隐藏及稀疏轴的邻格检查通过。8 条正常 Chromium 流程全部通过，包含 C41 输入、原件/改后全页、C42 原件/改后三页、C44 十组对照、重复标题及整本打印。参考字体、原件和阈值保持；全量 C0 与全仓未跑。
+
+前批三个定向批次覆盖 22 条不同 Chromium 用例，其中含两条诊断。19 条通过，包括 C41 输入、C42 原件/修改后三页 0/0、C44 十组对照、打印设置/范围/整本、图片及图表。两条 C41 六页用例和一条 C43 整图用例继续失败；C43 保持 Canvas 42/13、PDF 0/0。整本打印回归的旧夹具漏写新增工作表内容类型，补齐声明后原断言通过，首轮失败保留。严格构建、私有 TypeScript 及定向静态检查通过；139 项 C0 整批与全仓未跑。
+
+C42 的七项自定义源代码及十三个样式现可读取。B2:I6 的四十个显示值和 B8/B9/B10 匹配原生 FormatTest，包括颜色分节、会计空白及大数百分比。11 项定向核心、1 项传输检查的 84 个断言及两条 Chromium 默认控件流程通过。C4、B10、D6、C2 与 C3 的输入和格式共用九项精确历史，非目标部件、保存及新 Worker 重开通过。单格 PDF 文字、红色 RGB 和会计零值通过 qpdf 与提取检查。另通过七个 SDK 包的独立安装检查，共 3907 个断言，覆盖精确文件清单、无 DOM 导入及公开宿主编译。前批分节语义证据归私有 `nativeSectionFormats`；科学、日期及缩放批次保留各自旧构建。带间距格式的换行、旋转仍未支持；整页最新结果见下，格式范围见[数字格式合同](formats.md#显示与计算)。
+
+C42 最新证据归私有 `nativeCellGeometry`。原件和默认控件九项修改后的文件，分别由同版 ONLYOFFICE 独立重开并生成完整三页参考。控制文件只把唯一的 Arial 字体名替代为固定 Noto Sans，其余十一份部件及样式文字保持。打印明确使用 100% 缩放，横纵适配均为 0。正常 Worker 的 DPR 2 打印预览及整本 PDF，六页均通过严格颜色对照；容差保持一像素邻域及每通道 96。原件源字节、九项精确混合历史、非目标部件和新 Worker 重开通过；重开输出相同 PDF。
+
+| C42 输入   | Canvas 三页 | PDF 三页 |
+| ---------- | ----------- | -------- |
+| 原件       | 均为 0/0    | 均为 0/0 |
+| 修改后保存 | 均为 0/0    | 均为 0/0 |
+
+21 项数字、自动尺寸及条件格式核心检查通过；20 项打印和 27 项绘图回归也通过，两组包含三项相同的计算检查。它们覆盖列宽正反换算、固定默认值、11 个独立 General 数值、内置短日期、无效日期填充与文字预算、原生字形推进及普通段落缓存隔离。C44 的十组独立对照、既有数字/TEXT、CSV/TSV 和 PDF 转 XLSX 流程通过。严格 MoonBit、release、接口与包/示例构建，以及私有 TypeScript/lint 通过。139 项 C0 整批未重跑，其他文件资格保留原构建。
+
+旧列宽、日期、General 和字距差异按各自构建保留；前批三页失败归 `nativeNumberPages`，分节语义归 `nativeSectionFormats`。原打印核心日志曾被后续脚本覆盖，已明确标注缺失；本批独立保存 20/20 新日志，未重造旧证据。原件及修改后参考均在比较前冻结，字体、内容、页面和阈值未按失败位置调整。带间距格式的换行/旋转及更窄 General 列的动态精度仍未授予资格。
+
+先前科学计数批次还恢复漏登记的 15 项既有用例，对应三份文件的 19 项检查通过；PDF 定向集合仅放行未使用的共享测试导入警告，产品严格检查保持。当前登记 139 项、35 组 C0 核心，整批未重跑；原 134 项、33 组结果和十九项补登记检查保留各自构建。后续数字格式批次没有重新授予其他文件兼容资格。
+
+原生折线缓存批次归私有 `nativeLineCharts`。前批 134 项、33 组 C0 核心及 23 项既有图表回归保留原构建身份。图表打印批次的 18 项定向核心通过，覆盖原生图框、标记尺寸、62% 打印缩放、缓存和原样保存，以及自动计算、编辑后快照、区域及预算的拒绝边界。27 项既有 XLSX 图表及绘图检查再次通过。两项图片锚点用例中的旧行高常量已按独立上游规则校正，旧 25/27 失败日志保留。零位移点击保留选择且不提交修改，实际移动继续受保护。
+
+固定 Noto Sans 11 pt 的 Win 上下界为 1069/293，单位为 1000 em。[ONLYOFFICE 行高度量](https://github.com/ONLYOFFICE/sdkjs/blob/3679e0375a758d7dc59d31337a45461be3525ed8/cell/view/StringRender.js#L783-L804)在 96 dpi 分别向上取整，再加一个边框像素，得到 22 px，即 16.5 pt。三份中性 XML 现已独立转成原生 PDF；普通行、缺少中间行及工作表固定默认值三种情况，首行与第三行的文字位置均相差 33 pt。SDK 派生尺寸现逐项一致。工作表固定默认值曾错误固定普通行，已改为独立读取单行标记；现有自动行高测试保留固定行、缓存、隐藏及编辑检查。图片锚点的 13.5 pt 位移、63.5 pt 高度和原有 33 pt 锚点维持原构建资格，本次未重授 C43 视觉资格。原缓存空间失败、字体名检查失败及继承错误日志均保留。
+
+早期 Chromium Worker/SpreadsheetEditor 已显示 C43 主图的两条缓存折线、数字分类、52 个数据标记及源字体。切页、公式输入禁用、原样保存及新 Worker 重开后的相同曲线通过。边距、图例、刻度及隐式主题采用与转换器相同的 ONLYOFFICE 10.0.0.170 源码规则，绘图区四项独立坐标误差均小于 0.001 pt。数据标记按原生单位换算后，整图 Canvas 为 42/13，严格用例继续失败。比较包含完整外框及一像素纸面，保留全部原比较像素；阈值仍为一像素邻域和每通道 96。差异集中在小字栅格覆盖。原件转换即使声明手工计算也会重算 RAND，且使用系统 Arial；该原始输出完整保留。另一个控制文件仅移除公式、保留单元格缓存，并明确将主图字体替代为固定 Arimo，用于缓存对照。它不证明原文件的随机数计算或字体匹配。
+
+同一正常 Worker 流程现覆盖图表页打印预览、PDF 导出和新 Worker 重开后打印。未编辑手工计算快照的整页 PDF 在 144 dpi 下为 0/0；qpdf 校验通过，保存保持原字节。此前 0/1 的 PDF 差异位于数据标记交叠处，修正尺寸后消除，原失败保留。打印缩放采用原生标题及网格预留，并独立核对图框纸面原点。核心另检查混合工作簿输出两页；图表页不占用单元格预算，绘图的每页及整次上限分别校验。该打印批次未验收其他图表及公式编辑；当前公式功能流见 `manualCalculation`，各图与重算后的完整视觉继续逐项验收。
+
+小数横坐标栅格候选为 35/28，未采用。另一次独立重绘先逐字节复现正常 PNG，再检查全部小数坐标及浏览器 `FontFace`：分别为 23/37、整数原点 33/13、小数原点 27/30，均未通过。参考 PDF 的十六个可见字形轮廓、指令程序及 `cvt/fpgm/prep` 表与固定 Arimo 一致；源 `gasp` 表在原生子集中缺失，影响尚未验证。这些结果不能授予栅格资格。诊断代码已压缩保留并移除，正式用例、产品规则、参考和阈值保持。
+
+共享 Canvas 对矩形路径和 `strokeRect` 使用同一描边规则，整数策略的实心轴线复用已有像素描边。前批七条共享 Canvas 检查通过，包含 60 组渐变裁剪、93 组矩形描边及 34 组直线/裁剪组合，覆盖变换、透明度、状态恢复和原生回退。前批五条普通宿主流程及 C44 的十组 0/0 对照保留原构建身份，本轮未重跑。首次宿主运行因缺少 `pdffonts`/`pdftotext` 停止，补齐现有 Poppler 26.05.0 路径后五条通过。C43 本轮核对实际加载的 Wasm、`drawing.js` 和 `pdf-pixels.js` 字节。
+
+重建 C43 参考时，从根目录依次运行 `moon run test-lab/tools/c0-chart-reference.mbtx`、`moon run test-lab/tools/c0-chart-cache.mbtx`、`moon run test-lab/tools/c0-chart-reference.mbtx cache`。工具核对固定输入、转换器和字体身份，并保护已有参考目录。普通浏览器流程使用 `test-lab/` 的 `bun run test:c0-xlsx`。当前批次已通过严格 MoonBit 检查、release、接口生成、正常包/示例构建，以及公开和私有 TypeScript/lint。未执行整仓全量、固定工具链或默认 App。
+
+原生条件格式批次归私有 `nativeConditionalFormatting`。该批 131 项 C0 核心、40 项既有 XLSX 回归和三条普通输入、导入行高及缩小字体流程通过。七项定向核心覆盖原生规则、字体度量、字宽取整、缓存隔离及固定/缓存/隐藏行。正常 Chromium Worker/SpreadsheetEditor 已通过跨表输入、精确历史、源保留和 SDK 重开。原件与改后双表 PDF、首表 A1/A3 的四处 Canvas 单元格内部及独立保存重开的双页，共十组固定阈值对照均为 0/0；PDF 提取文字一致。Canvas 包含完整大写字形和填充，排除屏幕网格边缘，未覆盖整视口。旧 409/421、409/424 及取整前十个残余像素的失败图按原构建归档。其他格式的历史资格与失败保留原构建身份。未跑整仓全量、固定工具链及默认 App 界面。
+
+从 `test-lab/` 运行 `bun run prepare:c0` 核对并恢复 51 份原件及来源声明，`bun run test:c0-core` 执行当前登记的 C0 定向回归，`bun run test:c0-scan` 重编译核心并扫描候选。扫描结果在 `.temp/c0/current/scan.json`；正向失败或控制项意外接受均使命令失败。当前 51 份有界扫描均符合预期；扫描结果仍不授予完整兼容资格。XLSX 目前只检查打开，PPTX/PDF 检查首/中/末页；遇到显示不完整页即记录失败，文字完整性另记。DOCX 解码正文、表格及各节页眉页脚图片，检查完整核心布局、空诊断和未编辑源保存。旧扫描漏报的字段/对象缺口已计入失败；双栏与字段原件已修复核心读取；字段 Canvas 仍失败。旧扫描结果保留于 `docxScanPrior`。字体由宿主显式替代。PPTX 的 Arial 使用固定 Arimo 四种字体，常规 Calibri 使用 Carlito，其他族/样式使用 Noto Sans；DOCX/PDF 仍使用 Noto Sans。相比此前统一 Noto Sans 的扫描，两份表格通过且无新增失败；旧结果和字体 hash 另存。PPTX 图片由 Chromium 调用正常 SDK 解码器，并经核心尺寸/预算验证；非空布局诊断计为失败。此前仅看布局调用返回，漏报了组、主题效果、表格和文字溢出等问题，旧统计不得作为完整显示通过。
+
+该批的 `bun run test:c0-xlsx --list` 列出 25 个文件中的 58 条 Chromium 用例。入口按 `c0-xlsx` 文件名前缀纳入图表、打印及保存重开流程，并包含 `xlsx-manual.spec.ts`。此前的显式文件列表只列出 24 条。
+
+早期批次本机使用 MoonBit 0.1.20261010、Node 26.12.1/26.13.0、Bun 1.4.2。前两者不匹配项目固定环境，结果仍需在固定工具链复核。此前字体与布局批次的 124 项核心回归、`bun run check:moon`、release 编译、SDK 正常打包及私有 TypeScript/lint 检查通过。另通过十三项表格、两项字体度量、两项既有 PPTX 图片透明度和两项 P14 文本适配回归、五项既有 PDF 回归（文字矩阵、裁剪选择、ActualText、软遮罩/Matte）、七项 CMap 回归及一项依赖补丁原子准备/幂等检查。CCITT、xref 空白和五项 CFF 补丁已从固定原始源码重放并核对结果 hash；CFF 再次准备保持幂等。本机旧 CMap 缓存与已登记补丁不符，保留漂移证据后按固定上游原件恢复并应用既有补丁。共享排版的生成接口增加 `paragraph_lines` 可选 `ligatures` 参数，以及绘图帧必填的四侧 `effectExtent` 元组。该文件保留工具生成的 Int32/Int 别名变化；其他接口的纯别名差异已丢弃。
+
+JBIG2 批次新增三项核心回归，当时合计 110 项、28 组通过。原始 `c0-25` 的 12,288 个像素与独立 Poppler 解码逐点相同；另覆盖 MMR 的五种区域合成、非字节对齐裁剪、页默认合成、完整/嵌入文件头、截断、未知模式及预算释放。该批 51 份扫描剩三项正向失败；当前扫描见下述 JPX 结果。正常打包 Worker/PdfCanvas 的 JBIG2 与既有 CCITT 两条流程通过，核对实际 Wasm/Renderer 字节、精确历史、六个源记录逐项保留检查及 SDK 保存重开。JBIG2 原页及旋转页的 PNG 字节与固定 ONLYOFFICE `BasicImageScaler` 参考一致，颜色检查保持原容差。
+
+参考的解码输入仅移除独立工具不接受的 JBIG2 文件容器头尾，页面和区域的压缩数据不变；产品始终打开未修改原件。独立解码样本再交给未修改的固定 ONLYOFFICE 缩放类；PNG 编码及 90° 像素置换不调用产品 Renderer。该参考覆盖单图整页的缩放行为，不授予完整 ONLYOFFICE PDF 导入资格。原 Poppler PDF 后端在小于四倍放大时强制插值，原页和旋转仍分别为 0/570、0/569；Cairo 诊断为 0/12。全部分歧、原始失败和各自构建身份保留在私有 `jbig2Images`。本轮通过严格 MoonBit 检查/release、正常包/示例构建及私有 TypeScript/lint；未执行固定工具链或全仓验收。
+
+JPX 批次新增五项核心回归，当时 115 项、29 组通过；补充裁剪与大坐标边界后，115 项均在该批最终产品源上通过。14 组独立 OpenJPEG 2.5.4 样本覆盖 5/3、9/7、奇数尺寸、多块、瓦片、多质量层、LRCP/RLCP、RGB 变换、SOP/EPH、RESET/VSC/SEGSYM 和分段；无损差异为零，有损最大为一个 8 位等级。另检查原件四个图像的全部分量、JPX 灰度软遮罩、截断、未支持模式、几何冲突与预算释放。该批 51 份扫描剩空缓存 SmartArt 和 PDF 组混合色彩空间两项失败；当前组结果见下段。
+
+未修改的 `jpx_smaskindata.pdf` 经正常 Worker/PdfCanvas 显示，原页与旋转页 PNG 和固定 PDF.js 6.4.299（`d0991a0d5`）独立整页渲染逐字节一致。参考直接读取原件，使用官方随附 OpenJPEG；资源身份、许可及冻结图归私有 `c0-jpx-pdfjs-reference.json`。SDK 未引入 PDF.js 或其他解码运行依赖。原样保存、九个源记录保留、精确历史及 SDK 重开通过；第一图右半裁剪还保留四个原始 JPX 流，重开像素一致。裁剪的独立参考只移除透明像素对应的绘制调用，属于另行编辑结果验收。
+
+本机 Poppler 26.05.0 未按内嵌 alpha 分离四分量，原页及旋转均为 7140/7442；原始失败、栅格对、历史与构建身份保存在 `.temp/c0/baseline/jpx-poppler-rgba/`。该差异未隐藏，严格零缺失断言与原容差保持。CCITT、JBIG2 和 CMYK JPEG 在同一产品构建通过，记录归私有 `jpxImages`。本轮严格 MoonBit 检查/release、正常包/示例、私有 TypeScript/lint 和生成接口检查通过；默认示例 UI 未挂载，历史 UI 和失败项保留各自身份，固定工具链与全仓未验收。
+
+透明组批次新增原件、非中性外层、实数往返、指数渐变及 BBox 证明五项，该批 120 项、30 组 C0 核心通过。`transparency_group.pdf` 现完整显示，原页和旋转页的正常 Worker/PdfCanvas 与原 Poppler 整页颜色参考均为 0/0；沿用一像素邻域和每通道 96 的容差。43 个源记录、精确历史、SDK 保存重开、qpdf 检查和源重构保护通过。七条关联 PDF 流程在同一最终构建复跑通过；六条共享 Canvas 结果复用相同 Renderer 字节，包含路径、图片裁剪、透明度、图块、变换和恢复。遮罩用例另验证 44 个原有精确样本和四个 Difference 样本，新增样本允许一个 8 位预乘舍入等级，原有断言保持。
+
+原件还暴露了保存精度和重复裁剪问题。固定 pdflite 写入器已移除 12 位与固定六位舍入，非目标矩阵数值由独立 qpdf 严格比较；极小数按实际输出长度预检，保存超限后仍能撤销、恢复原件和重做。BBox 只在可证明内部控制点、描边余量和裁剪均不越界时省去；尖角、突出描边、细线、无界着色与不平衡作用域保留裁剪。几何与指数遍历扣预算，指数函数另检查负域、零次方、极陡曲线和分配上限。原始舍入失败与 0/5、0/4 栅格对保留在私有 `differenceGroups`，诊断移除 BBox 的结果不当作产品资格。
+
+透明组批次的 51 份扫描尚有一项失败；该记录保留原构建。严格 MoonBit 检查/release、正常包/示例、公开与私有 TypeScript、lint、生成接口、格式和文档检查通过。`DrawBlend` 替换原 multiply 布尔值，各调用方和保护检查已更新；没有配置开关或额外运行依赖。默认示例 UI 未挂载，固定工具链与全仓仍未验收。历史视觉失败和各批构建身份保持。
+
+空缓存组织图批次新增四项回归，当前 124 项、31 组 C0 核心通过。51 份有界扫描的 46 个正向与五个控制项均符合预期。未修改的 `c0-06` 保留五个文字框、两段经理文字、助手与三条连接线。尺寸和字号按原生约束计算；独立变体检查身份替换、兄弟顺序、缩放及高宽比。无效关系、算法、覆盖样式、断开或循环图与预算边界继续拒绝。
+
+正常 Worker/PresentationCanvas 的原生及缓存 SmartArt 两条流程通过。实际加载的 Wasm、Renderer 和 PDF 像素模块均核对字节。原件与背景编辑后的 Canvas、SDK PDF 对固定 ONLYOFFICE 的整页颜色比较均为 0/0；外部保存重开比较也为 0/0。源部件保留、精确历史及新 SDK 会话重开通过。144 dpi、一像素和每通道 96 的容差保持。LibreOffice 的组织图布局分歧作为补充结果保留。首轮新增断言误写无填充为字符串的失败另存，现按既有 `null` 合同检查。
+
+当前资格归私有 `smartartHierarchy`。透明组及更早的 PDF、UI 结果保留各自构建。严格 MoonBit/release、正常包/示例、私有 TypeScript/lint、生成接口、格式与文档检查通过。公开接口未变，未新增运行依赖。默认示例 UI、固定工具链和全仓验收未执行；其他历史视觉失败、48 页整稿及 XLSX 图表/公式缺口仍在。
+
+`bun run test:c0-visual` 当前登记 25 条流程，含 C50 密码打开、两条 PDF 2.0 流程、两条表单流程、C18 正文编辑、C23 图片移动、C33 批注编辑及下述 17 条历史流程（十三条单页流程、透明组、JBIG2 原生缩放、JPX 独立 PDF.js 及多页 Type1），其中十三份单页原件为：`ArabicCIDTrueType.pdf`、`ccitt_EndOfBlock_false.pdf`、`pdfkit_compressed.pdf`、`simpletype3font.pdf`、`nonembedded_type1_tounicode.pdf`、`annotation-text-widget.pdf`、`annotation-choice-widget.pdf`、`annotation-line-without-appearance.pdf`、`cid_cff.pdf`、`cmykjpeg.pdf`、`shading_extend.pdf`、`nonisolated_blend_smask.pdf` 和 `tiling_patterns_variations.pdf`。Chromium 153.0.8010.12 使用正常 SDK 包的 Worker、优化 Wasm 和 PdfCanvas，并核对实际加载字节。同独立 Poppler 26.05.0 的 144 dpi 参考比较，沿用一像素覆盖容差。九份原件及其旋转页的双向缺失笔画像素均为零。CMYK JPEG、轴向渐变、Alpha 遮罩和平铺另比较全部栅格颜色，沿用一像素邻域和每通道 96 的容差，四份原件与旋转页均为 0/0。十三条单页流程全部通过；下述多页 Type1 流程仍有颜色失败。无嵌入 Type1 在两引擎中显式使用同一份 Arimo，字体选择有断言、日志和 hash；ToUnicode 与显示编码分别核对。
+
+旋转参考由 qpdf 从原件生成，先于 SDK 执行。另核对精确撤销/重做、保存、SDK 重开及 qpdf 独立读取的内容对象与压缩流。`--decode-level=none` 保留压缩 payload 对照，并给原件的 Illustrator 私有流保留有界输出缓冲；初次缓冲不足的失败日志仍保存。旧 xref 流、trailer 容器字段和 Linearized 标记按既有保存合同重建；其他非目标字段与压缩 payload 必须相等。Type3 的未知 Unicode 仍断言 `textComplete=false`。CFF 原件覆盖裸流、OpenType 和空白只读控件；指令预算、截断、隐式编码和 CID 字符集有核心检查，`cid_cff.pdf` 的整页显示和文字已通过；sRGB ICC 的矩阵/曲线有验证，默认可见图层按源配置显示。另有三项颜色和四项可选内容核心回归，覆盖设备色定点边界、损坏配置、真实 Adobe RGB 转换、隐藏绘制/文字、保留状态、条件表达式和递归预算。Adobe RGB 页面组及 ICC LUT/参数曲线仍未支持；已支持的 RGB/Gray matrix/TRC 图像现由核心转换。DeviceCMYK 的 JPEG 在核心解码，RGBA 经正常 Worker/PdfCanvas 显示。RGB 页面组的内容在隔离图层合成，批注随后绘制。缺失 Line 外观复用现有路径，核对旧式 Border 宽度、零宽隐藏、锁定只读、非零引线/标题及复杂端点拒绝。分组页重构仍保护，源对象与缺失 AP 原样保存。CFF 源重构继续保护；有值、样式、列表内容、选择索引或非法几何的缺 AP 控件仍不完整。
+
+`bun run test:c0-pptx` 检查 `crop-to-shape.pptx` 和 `customshape-bitmapfill-srcrect.pptx` 两份单页原件。正常 SDK Worker/PresentationCanvas 完成显示、原图片裁剪、精确撤销/重做、保存和新会话重开。独立检查所有非目标 ZIP 部件及原 `useLocalDpi` 扩展保留。参考先从原件和只修改裁剪 XML 的独立派生输入生成。椭圆裁剪按仓库优先级使用 ONLYOFFICE；占位图片保留 LibreOffice 参考。原件、裁剪结果、LibreOffice 保存重开和 SDK PDF 均为 0/0，沿用 144 dpi、一像素和每通道 96 的容差。椭圆的两引擎原稿相差 2/0，SDK Canvas 对 LibreOffice 为 6/0，PDF 为 2/0，作为次要对照保留。LibreOfficeDev 26.8.0.0.alpha0（`2c87e51eeaa2b413ff4ae097b2705eea1995d8e5`）仍负责外部保存重开。页框先独立核对，再按源 EMU 裁掉栅格填充，不缩放参考。当前 9 项扫描失败沿用更强断言与后续修复。比较归 `.temp/c0/current/pptx/` 和本次补充的 `.temp/c0/current/ellipse-crop/`。
+
+从 `test-lab/` 运行 `moon run tools/prepare-c0-office.mbtx`，准备固定 ONLYOFFICE DocumentBuilder v10.0.0 的 macOS arm64 参考。x2t 实际版本为 10.0.0.170；归档与二进制 hash 在准备和浏览器检查中断言。参考位于 `references/onlyoffice-builder/10.0.0/`，输入只在本机转换，不进入公开 SDK。
+
+同一 PPTX 命令检查 `SampleShow.pptx`（`c0-11`）完整两页，证据归私有 `nativeC11CompleteSlides`。SDK 与 ONLYOFFICE 使用相同的 Carlito 常规和斜体。第 2 页项目符号与正文分别使用固定 Arial、Arial Black 字节。十组 Canvas、SDK PDF 和 LibreOffice 保存重开对照均为 0/0。首屏原有四组栅格及参考逐字节相同。首屏副标题编辑、固定外框、精确历史、新 Worker 重开、非目标 ZIP 部件及文字框以外 XML 保留通过。
+
+三份文字溢出原件的核心检查核对全部原文、完整文字几何、无修改保存及空历史。屏幕与 PDF 均接受可测量的原生溢出。另通过七项既有适配、日期与编号回归，保留编辑失败的原子保护。
+
+普通 PPTX 的自动行高使用标称字号的 120%，避免字体较高的行框累积到段落位置。上下标和行内对象保留较大行框。字偶距和可选连字默认关闭，阿拉伯文保留必需塑形，参照 [ONLYOFFICE 连字选择](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/TextShaper.js#L51-L120)。120% 行高和文字起点由固定 ONLYOFFICE 原件 PDF 独立核对，标题和副标题误差均小于 0.025 pt。四项排版回归检查连字规则交替缓存、制表位、阿拉伯文及既有宽度边界；共享接口默认行为保持。旧位置差异、探针及当前结果归私有 `textPositionPrior/textPosition`。
+
+同一 PPTX 命令还检查 `smartart-background-drawingml-fallback.pptx`（`c0-05`），当前已通过。真实缓存的背景、四个文字框、变换、只读保护、页面背景编辑、精确历史、ZIP 源保留、新 SDK 会话和 LibreOffice 保存重开通过。ONLYOFFICE 与 SDK 使用同一份 Carlito；参考在 SDK 前从原件和独立修改背景的输入生成。原件和编辑后的 Canvas、SDK PDF、外部保存重开均为 0/0。沿用一像素、每通道 96 的容差。
+
+此前 LibreOffice 参考与 ONLYOFFICE 的文字基线约差 2 pt。按仓库规则，以 ONLYOFFICE 为首要实现参考，并保留 LibreOffice 的独立差异。源码表明 Office 行框需使用 OS/2 度量；`USE_TYPO_METRICS` 生效时保留 Typo 度量，并保留较高的 hhea 行高。修正前 ONLYOFFICE 对照与初次 LibreOffice 失败均保存在 `.temp/c0/baseline/smartart/`。Carlito 来源、hash 和 OFL 归私有 `fixtures/fonts/c0-carlito/`。空缓存组织图和 EMF OLE 仍不完整。
+
+背景修改后的四个边角差异来自未声明连接时套用圆角。固定 ONLYOFFICE PDF 使用 `0 j`、`10 M`，其 [ShapeDrawer](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L2098-L2129)也保留 Renderer 的斜接默认值。隔离同一绘制批次后，圆角为 4/0，斜接为 0/0。微软文档给出圆角与比例 8 的基础缺省值；本项目按首要参考选择 ONLYOFFICE 的未声明连接行为。显式连接及同类斜接上限继承保持，两项核心和两条浏览器描边回归通过。旧差异与独立探针归私有 `strokeJoinPrior/strokeJoin`。
+
+同一 PPTX 命令还检查 `table-with-theme.pptx` 与 `table-with-no-theme.pptx` 两份 POI 原件。核心结构、布局、文字/颜色/粗斜体通过；Chromium Worker 的首格文字插入、精确历史、新 SDK 会话重开、非目标 ZIP 部件和编辑格以外 XML 保留均通过。ONLYOFFICE 与 SDK 加载同一组 macOS 系统 Arial 字节；字体选择路径与四种字体 hash 有断言和记录。轴对齐字形原点截去设备坐标小数后，两份原件和编辑后的 Canvas、保存后 LibreOffice 重开、SDK PDF 对 ONLYOFFICE 均为 0/0，容差保持。
+
+按 POI 原断言及 ONLYOFFICE 实际输出，无 `tableStyleId` 的表不继承目录 `def`，缺省边为一磅黑色格线，直接边框格式优先。漏画格线的旧结果保存在 `.temp/c0/baseline/table/`。已有预设回归显式引用同一预设，保留全部填充、文字及共享边断言；无样式行为由原件回归覆盖。未知行列扩展和越界编号仍拒绝。已登记十条 PPTX 浏览器流程，按各自产物记录为八条通过、两条视觉失败，不能授予整批兼容资格。
+
+PPTX 字形定位修复使用共享 Canvas 的整数原点路径。`canvas-glyphs.spec.ts` 检查 1.5 倍设备矩阵、正负小数原点、反射、剪切、上下文恢复及后续图形的原始精度；像素预期独立给定。它与字体回退、PPTX 文字旋转/翻转、XLSX 图表编辑共六条 Chromium 流程通过，十条 C0 PDF 也重新通过。C0 的 PDF/PPTX/XLSX 浏览器记录同时核对实际加载的 Wasm 与 `drawing.js` 字节及 hash，防止复用旧 Renderer 结果。此前已重跑当时的 C0 核心、51 份有界扫描和上述浏览器流程。此轮未重跑要求 Poppler 25.03.0 的 P14 PDF 几何案，本机 Poppler 为 26.05.0。
+
+默认 UI 另需更新 `examples/web-sdk/dist`。初次共享 UI 检查仍用了旧示例 Wasm，不能证明当前 SDK。示例生成器已移除旧脚本分隔符，现可正常执行。共享 `prepareUi` 在挂载前核对示例端点返回的 Wasm 与当前包身份。新构建暴露的 XLSX 测试夹具缺少工作表内容类型声明，已补齐合法声明，产品验证保持。PPTX 的 PDF 文字链接框现覆盖字体升降部；变换、裁剪和工作预算继续检查，两项链接核心回归通过。旋转字形的独立栅格改为 144 dpi 并归一到点值，避免 72 dpi 漏掉细笔画尖端；颜色阈值和 1.5 pt 边界容差保持。初次失败与修正归私有 `sharedUiArtifact/presentationLinks`。
+
+`group-rot.pptx`（`c0-02`）现通过核心扫描。标准 `a16:creationId` 结构和 GUID 有验证，原 XML 随组编辑保留；未知扩展和非法 GUID 继续保护。单栏宽度被边距耗尽时按 ONLYOFFICE 钳制到 0.02 mm，多栏仍检查可用宽度。正常 Worker 完成外层组 12/8 pt 拖动、精确历史、独立预期 XML、非目标 ZIP 部件、新 SDK 会话及 LibreOffice 保存重开。椭圆使用 ONLYOFFICE 的四段 90° 圆弧和左侧起点；矩形描边分别对齐内外像素边界。Canvas 原件与编辑结果由 186/139 经 1/2 降到 0/0；SDK PDF 由 47/45 降到 0/0，外部重开保持 0/0。共享描边采用原生曲线细分后，原件、改后、整页 SDK PDF 与独立保存重开均通过 0/0。原容差保持，旧失败与独立圆弧输出归私有 `groupEllipsePrior/ellipseGeometry`，当前通过证据归 `nativeCubicStroke`。
+
+嵌套组核心检查按源坐标单位换算的精度核对世界坐标，并将其上限限制到 144 dpi 的一像素。此原件在父组放大下的舍入差约 0.003 pt；旧 0.001 pt 检查的失败日志保留在 `.temp/c0/baseline/group/`。x2t 为无文字原件声明了未使用的 Helvetica 资源；参考检查保留字体清单，并独立断言提取文字为空，不再把零字体资源当作无文字的条件。
+
+DrawingML 色相偏移按有符号角度读取，饱和度倍率和偏移按 HSL 处理，并覆盖 ONLYOFFICE 的灰色偏移规则。颜色向量、透明度和拒绝边界有核心断言。`customGeo.pptx`（`c0-13`）的 48 页现可打开并保持原字节；其主题阴影等效果仍阻塞布局，没有整稿显示资格。另通过四项既有组及两项主题颜色回归。
+
+CMYK 新增三项核心回归，覆盖原件、工作预算、错误扫描/组件、Decode 与 CMYK Matte、1 位和 8 位原始样本、初始颜色及图形状态恢复。依赖的 76 项 baseline、43 项 progressive 回归通过，补丁重放和幂等检查通过。渐进式 CMYK、CMYK ICC、DCT DecodeParms 和实际调整描边仍待补齐。
+
+扫描与浏览器分别记录原始核心 Wasm 和正常打包产物身份。输入、参考、Canvas、保存 hash 及结果记入 `cases/c0-current.json`，当前图片和日志在 `.temp/c0/current/visual/`。C0 关闭含完整 Wasm 响应的 Playwright trace，保留页面图片、比较结果与紧凑失败日志，以遵守临时容量上限。
+
+PDFKit 原件的 xref 前置换行和错误 trailer Size 仍由独立工具明确告警。源保存保持原字节；修改后文件通过严格 `qpdf --check`。首次像素对照发现 `S` 误画为感叹号，旧图与 11/259 个双向差异像素保留在 `.temp/c0/baseline/pdfkit/`，没有调整容差。PDF 正文/图片编辑及其余原件的视觉和保存重开尚未验收。
+
+`bun run test:c0-xlsx` 使用正常包的 Worker/SpreadsheetEditor，核对实际 Wasm 字节、原件两类表的身份、切页、无虚构单元格、禁用公式输入、空白点击/双击、原样保存和新 Worker 重开。原件 `chart_7_full_1.xlsx` 的图表仍因数值分类缓存等结构不完整；共享公式仍触发现有 `Unsupported formula group` 保护。初次错误假定返回普通表即可编辑的失败日志保留，现按原件已有保护核对前后状态。三项核心检查另覆盖关系/类型/根不一致、非法单元格内容、14,400 pt 视口、命中和写入拒绝；已支持图表的实时缓存、精确历史和重开通过。十二项既有空白创建、表结构及图表回归通过。此打开流程不授予原件图表视觉、公式编辑或打印资格。
+
+DrawingML `tint/shade` 的线性混色与原色权重已修正。`SampleShow.pptx` 的正常 SDK 绘制批次现包含独立参考的 `898989`。固定 ONLYOFFICE `CColorModifiers` 与原取整函数在隔离参考中执行，五组颜色全部匹配；revision、两份源码 hash 与宿主适配范围归私有 `tintShade` 记录。两项旧表格颜色预期已按该参考更正，保留所有源、透明度、复制和历史断言。十三项表格和两项主题回归通过；首屏视觉结果见上文。
+
+`shading_extend.pdf` 的三项核心回归覆盖 RGB/Gray 线性函数、拼接与反向 Encode、硬颜色边界、四种 Extend、BBox、后续绘制状态及递归/数量拒绝。渐变批次的 `bun run test:c0-visual` 十一条全部通过。渐变原稿和独立旋转原稿的整页颜色均为 0/0，沿用一像素/每通道 96 的容差。正常包还通过精确历史、保存重开、文字完整性及 28 个独立源对象保留。SDK 与 Poppler 共用固定 Arimo 常规/粗体，选择路径与 hash 有断言。
+
+PDF Canvas 的矩形裁剪、实心单线及轴对齐/90° 字形采用各自的设备像素规则。三种栅格策略共 24 组独立字形像素检查通过，包含反射、负行、90°、剪切和状态恢复。另有 16 组固定直线/裁剪检查。新增 45 组矩形描边像素检查，覆盖三种策略、反射、90° 数值残差、非等比缩放、孔洞、填充、透明度、窄线、退化矩阵、斜接上限及原生回退。九条共享 Canvas/字体回退/PPTX 旋转/XLSX 图表流程均通过；既有圆环 UI、孔洞命中、历史、重开与 Canvas/PDF 流程通过。首轮四条流程因缺少 `pdftotext` 停止，补齐 PATH 后只重跑这四条和圆环，五条通过。PDF/PPTX 核对实际 Wasm、`drawing.js` 和 `pdf-pixels.js` 字节。旧失败、分项探针及放弃的字体引擎试验归私有 `pdfRaster/axialShadingPriorRaster`。
+
+`bun run test:c0-docx` 的裁剪案使用正常打包的默认 UI、Worker 和相同 Arial 四种字体，对照固定 ONLYOFFICE 10.0.0.170。`ImageCrop.docx` 的原生输入、裁剪编辑、精确撤销重做、原样保存、新会话重开与 16 个非目标部件保留通过。原件/改后 Canvas 与 SDK PDF 在 144 dpi 的四组整页颜色对照均为 0/0，沿用一像素/每通道 96。省略字号由 11 pt 修正为主参考的 10 pt；源默认与直接字号仍优先。六项 DOCX 核心、十七项布局、十九项格式/历史回归、二十四项默认字号/样式继承/片段回归、两条既有图片 Chromium 流程及 Flow 接口检查通过。共用 Canvas 新增一条检查，十五组固定像素验证源裁剪、反射/剪切、外层裁剪、透明度、空交集、动态图片回退及状态恢复。初始字号差异、旧缺省字号断言和裁剪边缘探针留在私有 `docxCrop`；只更正省略或清除字号的精确预期，显式 11 pt、源保留和历史断言保持。此裁剪案不授予浮动扩展边距或实际图片效果的兼容资格。
+
+`bun run test:c0-docx` 包含裁剪、双栏、字段、VML、链接框、内嵌预览和页眉图片，共七条已登记流程；命令清单已核对。裁剪、双栏和字段三条通过；VML 首屏和内嵌预览仍有余差，链接框只授予已列功能资格。`2col-header.docx` 使用固定 core-fonts 的 Liberation Serif 与 Carlito，在 SDK 和 ONLYOFFICE 中共用相同字节。正文保持双栏宽度，页眉页脚保持整宽，三条基线与独立参考相差小于 0.025 pt。默认 UI 输入、精确历史、18 个非目标部件、源开关、新 SDK 会话和 PDF 文字检查通过；原件/改后 Canvas 与 PDF 四组整页颜色对照为 0/0，沿用原容差。无活动网格的 `adjustRightInd` 和无尾注引用的 `noEndnote` 不改变布局；活动网格、实际抑制、错误语法和未知属性仍保护，后续插入尾注也原子拒绝。DOCX PageCanvas 保留横向子像素，填充字形采用整数设备行；图形和共享默认整数路径保持。十组独立路径像素检查覆盖两种策略、反射、剪切、状态恢复及后续图形。参考用矩形路径执行矢量覆盖；整数像素矩形预期保持。
+
+`99_Fields.docx` 的原件、独立改动首段的参考和保存后的文件，均由固定 ONLYOFFICE 与同一份 Carlito 常规/粗体读取。字体选择路径、源码身份及实际加载的优化 Wasm/示例 app 字节有核对。空文献目录、无结果区的 `BIDIOUTLINE` 和无来源引用的原缓存完整显示。默认 UI 首段输入、精确历史、新 Worker 重开、14 个非目标 ZIP 部件及首段以外 XML 保留通过。独占引用控件保留左缩进并忽略首行缩进；普通文字前缀保留首行缩进，四份独立原生派生输入和核心断言覆盖该差别。原件/改后 Canvas、PDF 与独立保存重开均为 0/0，保持 144 dpi、一像素和每通道 96 的容差。现有 DOCX 策略对轴对齐填充字形采用四档横向子像素及整数设备行；冻结原件的重放先与正常 Canvas 逐字节核对，再与独立参考比较。负坐标、反射、剪切、90°、描边字形和后续状态由既有固定像素检查覆盖。当前证据归私有 `nativeWordGlyphPhases`，原 41/39 和三策略诊断保留。
+
+字段批次通过四十九项 C0 核心及三十二项 DOCX 定向检查，其中九项重叠。新增三项覆盖原件、控件缓存显式更新、格式边界和原子失败；既有页眉页脚/正文字段、引文、书目、来源、目录控件和普通输入回归通过。宿主的一项校验检查通过 112 个断言，预览接受无标签缓存，创建命令继续拒绝空标签。初始比较表达式和保存回调遗漏的测试准备失败保留日志；超时、重试和视觉断言未放宽。该批次正常包另通过裁剪与双栏两条流程；字段流程单独运行并保留失败产物。该批次未改 PPTX、PDF、XLSX 和共享绘制，沿用各自记录的既有结果，`reusedBrowserPackages` 固定更早产物身份。前批字段核心证据归 `docxFields/docxColumns/docxCrop`，包身份归 `gradientPriorPackages`。当前仅修改 TS 绘制，正常 Worker 的字段输入、精确历史、源保留与新会话重开再次通过。18 条不同 Chromium 用例中 16 条通过，含一条诊断；两条失败为 C35 与 C40 的原有视觉缺口。图片裁剪、双栏、链接框、页眉图片、既有字段控件、字体回退及共享绘制通过。PDF 的 Alpha 遮罩和旋转轴向渐变保持 0/0。C35 的原件/改后第 3、6 页 Canvas 与所测 PDF 均为 0/0；第一页 Canvas 降至 537/300。C40 白底原件 Canvas 降至 9/0，PDF 仍为 6/0；改后深色背景保持 0/0。VML 用例现直接读取此前压缩保存的原字体清单，字体路径和视觉断言保持；首次缺少解压文件、空测试筛选及像素参考绘制方式错误的证据保留。成功后的 PNG/PDF 和字体生成表可重建，保留比较、hash、日志及紧凑失败证据。未重跑全量和要求旧 Poppler 的 P14 几何案。
+
+`minimal-gradient-fill-issue.pptx`（`c0-14`）已加入同一 PPTX 命令。原件六个对象完整读取，文字插入、精确历史、非目标 ZIP 部件、文字框以外 XML 和新 Worker 重开通过。SDK 与 ONLYOFFICE 共用固定 Carlito 字节，并核对实际字体选择路径。严格读取 `flip=none`、零面积点和有效 tileRect；保留原元数据，按首要参考绘制框中心圆形和 1 mm 内圆。原件/改后 Canvas 从 10146/9482 降到各 1/0，剩余位置为 741,435，仍使视觉检查失败。改后 SDK PDF 和 LibreOffice 保存重开均为 0/0，保持 144 dpi、一像素/每通道 96 的容差。此流程未另导出原件的 SDK PDF。ONLYOFFICE 参考 PDF 有无效软遮罩告警；SDK 透明度另由既有 UI 的独立颜色方程和每通道 4 的阈值检查，不能据此声称原生透明合成完全一致。
+
+渐变批次通过五十二项 C0 核心和十五项定向核心，其中三项新用例重叠；宿主校验通过 31 个断言。三条既有渐变默认 UI 与两条共享描边/裁剪流程通过。新增的六十组固定像素检查独立给定设备边界，覆盖线性/径向/局部变换、反射、90°、剪切、多边形、三种栅格模式、透明度及后续绘制恢复。首轮用纯色参考比较渐变时出现 Chromium 抖色差，已改用原生渐变绘制，精确像素断言保持；只复跑该失败用例并通过，先前五项 PASS 保留。矩形裁剪后的一个字形附近像素仍未消除，没有改动全局字形策略。渐变批次的正常包核对 Wasm、Renderer 和 PDF 像素 helper 响应身份；默认 UI 核对该批次 Wasm，未单独核对 app 响应 hash。其他格式与既有 C0 浏览器结果仍绑定各自产物，字段批次身份归 `gradientPriorPackages`，更早结果归 `reusedBrowserPackages`。渐变证据归 `nativeGradient`，包身份归 `maskPriorPackages`；未重跑全量或 P14 旧 Poppler 几何案。
+
+`nonisolated_blend_smask.pdf`（`c0-28`）原件与独立旋转稿通过整页颜色对照，均为 0/0。正常 Worker/PdfCanvas 使用固定 Arimo，字体路径、字节与实际加载的 SDK 身份有核对。五段原文、精确历史、新会话重开和 16 项 qpdf 内容记录通过；保存不改组字典与压缩流。沿用 144 dpi、一像素及每通道 96 的容差。透明组批次的正常包重新通过全部十二条 C0 PDF 流程；其他格式的原件结果仍绑定各自记录的产物。
+
+透明组与遮罩新增四项核心检查，覆盖设置时坐标、Matrix/BBox、None/q/Q、外层 alpha/Multiply、填充/描边分开遮罩、Type3、文字/图片编辑保护、损坏元数据、循环和图层耗尽。五十六项 C0 核心通过。宿主校验通过 28 个断言。六条 Chromium 定向流程通过；新用例用 44 组独立 RGB 预期覆盖遮罩颜色、半透明填充/描边重叠、空组、裁剪、图片、反射/旋转/剪切、状态恢复和超限恢复，既有隔离透明层、渐变、描边与淡入/推入继续通过。共享临时层最多四级，遮罩占两级，总像素上限保持。复杂非隔离合成、挖空、Luminosity 和其他转移函数仍保护。透明组证据归 `alphaMask`，该批次包身份归 `patternPriorPackages`，旧失败归 `alphaMaskPrior`。本次未重跑整仓全量或 P14 旧 Poppler 几何案。
+
+`tiling_patterns_variations.pdf`（`c0-29`）通过核心显示、源保存、页面旋转、精确历史及 SDK 重开。五个图案字典/流和十项 qpdf 内容记录通过保留检查。最终正常包的十三条 PDF 流程全部通过；平铺原件和旋转稿的整页颜色均为 0/0，保持 144 dpi、一像素及每通道 96 的容差。实际加载的 Wasm、Renderer 和 PDF 像素模块字节均已核对。其他格式继续绑定各自已记录的产物。
+
+平铺共五项核心检查，连同新增设备色检查，六十二项 C0 全部通过。覆盖小图案、TilingType 1–3、页面/Form 基准坐标、后续 cm、无着色分量、q/Q、alpha、内部文字语义隔离、重叠与间隔、错误输入、循环、不完整程序、4096 格上限及原子失败。设备 RGB/Gray 沿 ONLYOFFICE 的 16.16 转换；ICC 继续按配置处理。原生重构、图案描边、普通字形裁剪和着色图案仍保护。Tile 协议的宿主校验通过 41 个断言；七条共享 Chromium 流程通过，包含 24 组独立颜色/资源/裁剪/遮罩/变换预期和超限恢复。共享检查使用与最终包相同的 Renderer 字节，Wasm 保留检查时的中间身份；随后仅核心的小图案条件发生变化。严格 MoonBit、根与私有 TS、定向 lint 及格式检查通过。
+
+早期连续矢量结果为 88/0、112/0，局部位图试验为 11/295、11/297，设备位图试验为 84/0、115/9，均作为失败保留。按固定 Poppler 26.05 的重复区域取整规则缓存一个图块后，差异降为 1/0、2/0。剩余小图案在取整后由四格变成六格；移除取整前的格数判断后，原件与旋转稿均为 0/0。Canvas 原生重复纹理与大位图试验结果相同，产品只分配单格表面。独立矢量边缘采样试验没有解决差异，未进入产品。当前证据归 `tilingPattern/sdkPackages`，旧扫描、矢量与中间采样分别归 `tilingPatternPrior/tilingPatternVectorPrior/tilingPatternSamplingPrior`；共享绘制证据归 `sharedTileRendererChecks`。本批未跑全量或 P14 旧 Poppler 几何案。
+
+`tracemonkey.pdf`（`c0-17`）的 14 页通过核心完整显示与源保存，沿用每次操作一千万步的默认预算。六项新增检查覆盖二进制 Type1 的隐式编码、lenIV、子程序、FontMatrix、精确历史、截断/循环/未知 OtherSubr、Gray ICC 图像与颜色缓存耗尽、一维采样插值、停点压缩误差，以及小尺度矩阵与逆变换上限；共六十八项 C0 核心通过。原生轮廓复用 `glyphs` 资源并按内容 hash 标识，颜色转换缓存最多 256 项。绘制时只保留四个包围框数值，缓存轮廓不重复序列化，分配和运算继续计入预算。
+
+正常 SDK 的首屏原件与 90° 旋转颜色已为 0/0；整稿旋转、精确历史、SDK 重开及独立 qpdf 源对象保留通过。前批多页流程比较第 2、4、8、11、13、14 页，图形页仍有颜色差异，未授予整份文件视觉资格。该批 C0-17 单条时限为 180 秒，覆盖七页、十四次栅格对照；当前全部 14 页的结果见顶部 `nativeType1FullPageAudit`；全局时限和像素容差保持。原件中的 Calibri 子集含显式空 ToUnicode，继续返回 U+FFFC 与 `textComplete=false`。首次字符映射失败、超时、旧产物探针和完整颜色失败分别保留。临时构建脚本现要求生成新扫描文件，避免 release 失败后复用旧结果；新扫描已核对。
+
+本轮复用像素助手补齐复合矩形、圆角描边和圆头线。矩形重叠只应用一次透明度。普通 PDF 裁剪保留横向小数覆盖和完整设备行。渐变跨越样式、变换指令后仍沿整数裁剪。声明插值的图片使用平台 `medium` 滤波。中性图案可缓存含自身 Alpha 的图片单元。原层数、总像素、重复次数和默认操作预算保持。
+
+同一正常包重新通过十三条既有 PDF 和九条共享流程。共享检查覆盖 60 组渐变裁剪、54 组矩形、16 组线条/裁剪、28 组平铺及 24 组字形预期。另检查图片源裁剪、遮罩、透明叠加和淡入/推入。核心的既有五项图案检查新增图片 Alpha 断言，六十八项 C0 核心保持通过。
+
+第 13 页原件从 5005/3786 降至 0/1。旋转稿从 4961/3457 降至 0/0。第 2 页原件为 1/2，旋转稿为 0/2。第 4 页原件为 0/1，旋转稿为 0/0。第 11 页原件为 6/8，旋转稿为 2/0。第 1、8、14 页及其旋转稿均为 0/0。该历史批次有四页失败，144 dpi、一像素和每通道 96 的阈值保持；当前完整页结果见顶部记录。
+
+逐项撤回验证定位了两项中间回归。横向四分之一像素对齐破坏了 Alpha 遮罩原件，已撤回。渐变的裁剪识别遗漏样式指令，已修复并重新通过既有原件。第 11 页的 Poppler 整页与局部渲染顶边颜色不同。原因尚未确认，整页失败断言保持。当前比较和各次探针归私有 `embeddedType1`，此前结果及包身份归 `type1RasterPrior/rasterPriorPackages`。其他格式继续绑定各自已登记的产物。未重跑整仓全量；固定工具链仍需复核。
+
+`chart_pt_color_bg1.pptx`（`c0-10`）现通过原生环形图显示。缓存保持 April/May 与 95/5，图表自己的 `bg1` 映射产生 `d9d9d9`。系列分离量、内孔、默认边距和圆弧按固定 ONLYOFFICE 10.0.0.170 核对。原件及背景编辑后的 Canvas、SDK PDF 均为 0/0。LibreOffice 的保存重开与其独立改后输入也为 0/0。保持 144 dpi、一像素和每通道 96 的阈值。正常 Worker 检查精确历史、SDK 重开和所有非目标 ZIP 部件。原生外观的数据修改与复制继续保护。
+
+新增三项核心检查覆盖原件、独立坐标/颜色、同类别的多圈显示、类别不一致拒绝、源保留、历史和非法配置。共七十一项 C0 核心及六项既有饼图/环形图/复制检查通过。正常包另通过既有环形图默认 UI，覆盖数据、厚度、类型、历史及 Canvas/PDF。公开的内部 MoonBit 资源和布局接口已重新生成；SDK JSON 与 TS 接口保持。API 文档示例以 `--deny-warn` 通过。参考字体核对和选择目标的测试准备失败保留日志。
+
+此案的 ONLYOFFICE 原稿为黑底，LibreOffice 为白底。两参考原稿仍有 1833624/1831468 个差异像素。首要参考沿仓库顺序预先选定，次要分歧保留。新测试曾在返回数百万坐标时超时。比较器仍检查全部像素并保留完整计数；邻域已有匹配即退出，坐标证据最多 64 项，覆盖全部调用方需求。冻结原件的百万级差异计数和既有 Type1 的 1/2 差异保持。没有提高测试时限或放宽视觉断言。
+
+环形图证据归私有 `nativeCircularChart`。环形图批次的正常包只授予新原件流程及既有环形图 UI 的资格。此前包和扫描归 `nativePiePriorPackages/nativePiePriorScan`，其他格式保留各自身份。该批仍有九项扫描失败及已登记的视觉、公式缺口；未跑整仓全量，固定工具链仍需复核。
+
+`EmbeddedExcelChart.docx`（`c0-40`）现通过核心显示。EMF 按原始物理框、透明度、Unicode 字距及文字裁剪生成既有图元。位图沿原图片 API 提供派生 PNG；原 EMF 与嵌入工作簿原样保留。正常 Worker/PageCanvas 完成背景编辑、精确历史、新会话重开和独立 ONLYOFFICE 保存重开。输入、聚焦和方向键均保持对象保护，整页只读时仍可使用页面设置。
+
+三项新增核心检查覆盖原件、独立 SVG 坐标、PNG 资源、畸形记录、非法字距与图像边界、变更宿主尺寸、缓存恢复及源保留。该 EMF 批次共七十四项 C0 核心通过，51 份原件扫描剩八项失败，46 份正向原件仍均可打开，五个控制项均拒绝。既有 `ImageCrop.docx`、`2col-header.docx` 的正常输入、历史、源保存、Canvas/PDF 及独立对照在同一优化包通过。既有文档保护默认 UI 也通过。
+
+该原件白底的 Canvas 为 12/0，SDK PDF 为 6/0；修改为深色背景后均为 0/0。断言仍报视觉失败，144 dpi、一像素和每通道 96 的容差保持。独立参考使用固定的本机 Arial/Tahoma 字节，与 SDK 一致。预先保存的 ONLYOFFICE 原稿和 SVG 保留；SVG 物理框及基线已独立核对。原稿 PDF 的图像重采样是否导致残差尚未证实，不能据此排除差异。
+
+当前记录归私有 `nativeEmfPreview`。此前包、扫描及核心记录归 `olePriorPackages/olePriorScan/olePriorCore`，其他格式仍绑定各自产物。宿主图片加载及全只读聚焦的中间失败保留日志。新内部 MoonBit 资源及 DOCX Flow 的 `metafile` 类型已同步生成接口和宿主校验。公开接口示例、MoonBit 检查及两套严格 TS 检查通过。整批 C0 尚未通过，未跑整仓全量，固定工具链仍需复核。
+
+`ole-emf_min.pptx`（`c0-07`）通过正常 Worker/PresentationCanvas 的完整 OLE 预览。传统 GDI 路径包含三块扇形、图例和边框；保存的 EMF 与外链原文保持。背景编辑、对象保护、精确历史、全部非目标 ZIP 部件、新 Worker 重开、SDK PDF 及独立保存重开均通过。原件和改后 Canvas、SDK PDF、外部重开四组颜色对照均为 0/0。容差保持 144 dpi、一像素及每通道 96。
+
+预定主参考 ONLYOFFICE 10.0.0.170 漏画全部扇形。固定 core `3250a848ee4ef20c2fb8c38dc86350ec579124b8` 的 `CEmfInterpretatorSvg::HANDLE_EMFPLUS_FILLPIE` 为空，已核对源码。实现前保存了原稿的两套独立 PDF、栅格与 ONLYOFFICE SVG；完整画面由 LibreOffice 核对。引擎差异为 73498/75771，保留在比较记录。SDK 的三个标签基线另与独立 SVG 一致；没有用空白主参考授予完整画面资格。
+
+新增两项核心覆盖原件、路径、标签坐标、字体发现、源历史、对象保护、绘制预算、畸形句柄/曲线/裁剪/变换和 EMF+ Only。既有 DOCX 核心同时核对合法 `GM_ADVANCED` 文字几何，并保留未知模式拒绝。该 PPTX OLE 批次共七十六项 C0 核心通过，51 份扫描剩七项失败；46 份正向原件均可打开，五个控制项均拒绝。公开元文件布局示例、严格 MoonBit 和两套 TS 检查通过。共享 DOCX EMF 的默认 UI 在此包重跑，仍为白底 Canvas 12/0、PDF 6/0，改后背景均 0/0，视觉保持失败。
+
+该批记录归私有 `nativePptxOlePreview`，此前包、扫描与核心归 `pptxOlePriorPackages/pptxOlePriorScan/pptxOlePriorCore`。其余资格仍绑定各自产物。正常包和示例均已重建，共用 Renderer 和 PDF 像素助手字节未变。完整图片只读，不获取外链工作簿；PPTX 元文件内的位图、复杂裁剪、旋转/非等比变换和仅含 EMF+ 的文件仍诊断。未跑整仓全量及固定工具链，整批 C0 继续实施。
+
+页眉页脚的先前组件检查归私有 `nativeRunningPictures`；先前表格检查保留于 `nativeRunningTables`。`Flow` 和节配置使用 `RunningStory {paragraphs,tables}`。表格复用正文排版，字段参与页边有界重排。`Layout.running` 按页保存独立 `PageFrame`，区域文字、图片、底色与边框先于正文绘制，正文缓存保持独立。纯文字写入拒绝复杂区域；正文编辑入口在解析页面节前拒绝页边部件。
+
+图片组件批次的二十三项布局及二十九项 DOCX 定向检查通过，覆盖页码、源顺序、底色/边框、冷热缓存、脚注、连续节、图片水印、浮动图片和命中。新增真实 `c0-35` 图片检查所属关系、尺寸、页面坐标、源图片字节与只读身份；外部/伪造关系及资源键冲突拒绝并保留源。该案和既有表格案计入七十八项 C0 核心。宿主验证共 280 个断言；公开 XML 部件身份、`RunningStory` 和元文件示例通过，严格 MoonBit、两套 TS、定向 lint 与格式检查通过。
+
+新增 Chromium 正常界面使用从 `c0-35` 提取的原生图片组件，保留原绘图、图片和关系，仅排除尚不支持的 VML。图片按所属页眉装载，原生输入、精确历史、源部件保留及保存重开通过。打开及重开后的 Canvas 与独立 PNG 解码逐像素相同；PDF 通过 qpdf，并保留 19×19 RGB 图片资源。最初的夹具关系文件和 Shadow DOM 检查错误已修正，未改产品代码或放宽像素断言。这是图片组件证据，不是整份原件的 Office 版式对照。
+
+普通区域、多节区域和 `2col-header.docx` 的正常界面回归通过。双栏原件及改后 Canvas/PDF 独立颜色对照均为 0/0。前次包、扫描与核心另存 `runningPicturePriorPackages/runningPicturePriorScan/runningPicturePriorCore`；更早的资格及视觉失败保留各自产物身份。
+
+`c0-35` 当前整稿结果归私有 `nativeRunningVml`。原件通过六页核心分页，19×19 源图片由 Chromium 解码，布局诊断为空且未编辑字节不变。正常界面通过正文原生输入、精确历史、非目标部件保留及 SDK 保存重开；选中页重开后的栅格 hash 与编辑后相同。页边 VML、缓存命名字段及正文原生对象保留编辑保护。
+
+独立参考仍使用实现前保存的 ONLYOFFICE 10.0.0.170 六页 A4 原稿；改后文件另由同一工具重开。两次参考均核对四种 Arial 文件。以 144 dpi 和既有颜色容差比较原件及改后文件的第 1、3、6 页：三页 PDF 均为 0/0；Canvas 分别为 597/317、0/0 和 3/12。原件和改后结果相同，整稿视觉保持失败。表格默认兼容模式、自动宽度及 PDF 插值修复前的完整对照已校验归档；更早的分节失败保留紧凑差异和 hash。两处重开测试配置错误另留记录，像素断言与容差保持。
+
+原生 PNG 导出的采样调查另留诊断记录。它确认平滑图片与 PDF 默认采样不同，文字也有独立差异；尚未用作资格参考。现有 PDF 参考保持不变。
+
+该批八十项 C0 核心、二十四项布局及六十三项 DOCX 定向检查通过，其中三项 C0 重叠。新增采样检查覆盖 RGB/Alpha 的显式策略和共享写入器默认值。正文/表格片段、图片、数学内容和精确历史的既有核心检查通过。三个公开示例通过；前批 280 个宿主断言未重复运行。普通页边、多节页边、原生图片、双栏原件、正文混合表格粘贴及行内图片裁剪共六条 Chromium 回归通过。双栏原件及改后 Canvas/PDF 保持 0/0。严格 MoonBit、两套 TS、lint 与格式检查通过。当前验证工具报告 MoonBit 0.1.20261029；此前使用 0.1.20261010，均未授予固定工具链资格。当前批前次资格归 `docxSamplingPriorQualification`，更早结果保留各自产物身份。51 份扫描剩六项失败，46 份正向原件均打开，五个控制项均拒绝。未跑整仓全量，整批 C0 继续实施。
+
+`c0-39` 当前批次归私有 `linkedTextBoxes`。未改动原件使用正常默认界面和 Worker，显式把所有源字体/样式映射为 Noto Sans Regular。两个原生链接框均有文字像素，PAGE/NUMPAGES 按实际页号重算；正文原生输入、精确撤销/重做、非目标部件保留和 SDK 保存重开通过。PDF 通过 qpdf，并包含起始与续框文字。框、框内文字、移动及删除保持只读。完整功能产物按逐文件 hash 校验归档；布局 JSON 使用无损压缩，重复产物保留相同 hash 与实际文件路径。
+
+独立原稿参考在实现前保存。ONLYOFFICE 10.0.0.170 输出单页 Letter，使用 Avenir 替代字体，漏画续框；不能把漏画内容作为正确预期。LibreOffice 输出续文，使用 LinuxLibertineG、FrankRuhlHofshi-Bold 和 LiberationSerif。其 CLI 版本为 26.8.1.1，PDF producer 却报告 LibreOfficeDev 26.8.0.0.alpha0(AARCH64)，该差异照实保留。两套字体均与 SDK 的 Noto Sans 显式替代不同。该批只认定功能通过，同字体原件的整页对照见[当前兼容证据](#当前兼容证据入口)。
+
+链接框批次的八十五项 C0 核心、八十三项 DOCX 及二十四项布局检查通过，其中八项 DOCX 与 C0 重叠。新增五项核心检查覆盖原件、乱序和异宽接续、源映射、非法链拒绝、页边文本框字段及自动段距精确历史。三项宿主检查通过 301 个断言。七条既有 Chromium 流程通过，覆盖普通文本框、文字区域属性、普通/多节页边、原生图片、裁剪与双栏。裁剪和双栏的原件/改后 Canvas 与 PDF 均为 0/0。普通文本框的颜色检查现与 PDF 同为 144 dpi，保持原有像素数量断言，10 pt 源字号及编辑流程保持。C35 在当前产物重跑后，功能及选中页 PDF 通过，Canvas 仍为 597/317、0/0、3/12。
+
+严格 MoonBit、两套 TypeScript、lint、格式及三个公开示例通过。扫描剩五项失败，46 份正向原件均打开，五个控制项均拒绝。未跑整仓全量及固定工具链验收；其他格式资格保留各自产物身份，整批 C0 继续实施。
+
+PPTX 黑白预设色批次归 `nativePresetColors`。85 项 C0 核心通过；已有颜色检查补充黑/白、透明度、明暗变换和非法声明。48 页 `c0-13` 原件逐页读取后，十二处预设色错误已消除，原样保存保持。两条既有 Chromium 外观/线端流程通过；首态 Canvas 严格核对黑/白 RGBA，随后检查普通修改、原生输入、精确历史、保存重开和原有 PDF 轮廓。严格 MoonBit、release、三个公开示例、私有 TS/lint 和格式检查通过。当前扫描仍有五项失败，C13 的阴影、文字效果、几何、列表等尚未补齐；其他格式资格保留各自产物身份。
+
+实现前生成的固定 ONLYOFFICE 10.0.0.170 原稿包含 48 页 720×540 pt 页面。嵌入字体为 Carlito、Carlito-Italic、Arial、Arial-Bold 和 Times New Roman。首页标题在白底上不可见；该参考不授予 C13 完整显示资格。逐页缺口清单、源身份、字体映射和无损压缩产物由私有记录定位。早期 Alpha 遮罩说明误写的文件名已更正：通过的是 `c0-28/nonisolated_blend_smask.pdf`；`c0-27/transparency_group.pdf` 仍扫描失败。原始 ID、hash 和测试结果保持，历史文字误名有单独更正记录。
+
+PPTX 原生大小写批次归 `nativeTextCaps`。三项新核心案检查继承和覆盖、Unicode 字形与源位置、复制到相反设置的目标、清除格式、输入、精确历史、保存重开及拒绝保护。C13 的 48 页无 `cap` 诊断，原件仍原样保存。正常 Worker 将继承大写的 `Straße café ı` 与固定文字 `STRASE CAFÉ I` 比较，Canvas 与 144 dpi PDF 栅格 hash 一致；PDF 文字、原生输入、60 个非目标部件、精确历史及 SDK 重开通过。首轮 PDF 文字仍为小写的失败证据保留；共享 `Line.display_text` 修复后，原断言通过，字段和行内对象替代沿原路径。固定 ONLYOFFICE 原稿第 26 页也把混合大小写源输出为 `TOOLS AND RESOURCES`。
+
+本批 88 项 C0 核心、11 项 PPTX、24 项布局、83 项 DOCX、三个公开示例、严格 MoonBit/release、私有 TS/lint 和格式检查通过；检查集合存在重叠，不累加为独立用例总数。扫描仍有五项失败。新产物只授予上述大小写行为资格，黑白预设色、链接框及其他原件的既有资格保留原产物身份。未重跑全仓、固定工具链验收和此前原件的整页浏览器对照。
+
+PPTX 原生 GIF 批次归 `nativeGifImages`。三项新核心案覆盖原件十四个标志、107×26 与 74×24 独立尺寸、原始字节、普通插入、透明度、平铺、对象复制、跨文稿导入、精确历史、保存重开及非法输入拒绝。48 页清点后，原有十四处图片诊断已消除，阴影、双色调、几何和其他诊断保留。91 项 C0 核心、27 项既有 PPTX 图片/资源、三个公开示例、严格 MoonBit/release、私有 TS/lint 及格式检查通过。当前 MoonBit 为 0.1.20261029，固定工具链尚未验收。
+
+正常 Worker 将两个原始 GIF 按第 26 页的实际组变换放入独立夹具。144 dpi 对照区域为原生 PDF 的 `(965,980,300,48)` 像素条带，并验证参考非空。原件 SDK PDF 为 0/0；半透明修改后的 Canvas/PDF 均为 0/0。62 个非目标部件、精确历史、保存重开及损坏 GIF 的解码失败恢复通过。完整 C13 原件另在正常界面显示同一区域并原样保存，标题的主题阴影诊断保持。独立夹具和原件的 Canvas 均为 2/0，严格零差异断言未改，浏览器用例继续失败；不授予 C13 整页视觉资格。
+
+原生 PDF 把两个 GIF 存成平铺图案中的 JPEG，并带 Alpha 遮罩。它与 Canvas 两像素差异的因果关系尚未证明。首次组坐标与打开 API 合同的测试设置错误、遗漏插值边缘的透明度参考，以及后续颜色失败均保留紧凑证据。临时扫描与产物已按 SHA-256 核对后压缩或去重，清单记录恢复位置。其他格式与前批资格保留原构建身份；本批未重跑全仓和此前原件的整页浏览器对照。
+
+PPTX 外阴影批次归 `nativeOuterShadows`。四项新核心案覆盖固定三角权重、孔洞和曲线、原件 PNG 资源、直接与主题样式、复制、透明度、缩放预览、精确历史、保存重开及拒绝保护。95 项 C0 核心、36 项既有 PPTX 图片/资源/组合/选择回归、三个公开示例、严格 MoonBit/release、正常包与示例构建通过。私有 TS/lint 和受影响格式检查通过；未跑整仓全量及固定工具链验收。
+
+正常 Worker 的 Canvas 原始和半透明采样值与独立三角权重一致。PDF 的 144 dpi 栅格与独立编写的同权重 Alpha 遮罩 PDF 逐像素一致。首次测试把 Canvas 值套到启用图片插值的 PDF；更正为独立 PDF 参考，产品采样策略保持。另一次测试在乘透明度前提前取整；更正数学期望后通过。两次失败的比较、截图和上下文保留。60 个非目标 ZIP 部件、精确撤销/重做及保存重开通过，遮罩没有写入源包。
+
+完整 C13 第 26 页的布局诊断现为空，正常界面可显示、导出当前页 PDF 并原样保存。48 页重新清点后，主题外阴影诊断消除；被它遮盖的几何诊断现单独显露，文字效果、内阴影、双色调、列表和 3D 等仍未补齐。51 份扫描仍有五项失败。此用例只授予上述外阴影行为资格，没有完成原件整页 Office 像素对照；GIF 原件 Canvas 的两像素失败及其他格式资格保留原构建身份。范围归[外阴影合同](formats.md#pptx-外阴影)。
+
+PPTX 原生扇形批次归 `nativePieShapes`。三项新核心案覆盖九个原生扇形、非圆椭圆的射线与曲线控制点、完整圆周、跨零角区、半径描边、旋转命中、连接点、创建/类型转换、填充与阴影资源、复制、精确历史、保存重开和非法导引。原件第 4 页的标题暴露继承 `textNoShape` 误拒绝；共享读取修正后，普通声明、未知元数据与直接/继承优先级通过检查。扇形与字体批次共 100 项 C0 核心、50 项既有 PPTX、七项排版与三个公开示例通过。两项新增核心检查覆盖常规/粗体混排、真实粗体排除、源推进量、普通塑形隔离及 C13 原生文字与历史。绘制校验通过 52 条断言；两个既有 Canvas 案覆盖独立矩形墨迹、小数原点、普通字形、虚线状态恢复、图片和裁剪。严格 MoonBit/release、正常包和示例、两套 TS/lint 与受影响格式检查通过。
+
+正常默认 UI 使用同一 Carlito 常规字体，并核对实际 Wasm/app 字节。完整原件第 4 页无布局诊断，透明度编辑、精确历史、282 个非目标部件、当前页 PDF 和保存重开通过。144 dpi 对照取自改动前的固定 Office PDF，区域为 `(340,240,740,740)`，包含三个扇区及文字标签。共享模拟粗体修复后，原件 Canvas/PDF 均为 0/0；三个 Chromium 用例全部通过。原件、Office 参考、字体、区域、零缺失断言和颜色容差保持。原生内容流给三组 20 pt 标签设置 `0.57167 w` 和 `2 Tr`，字体描述仍为 Carlito、FontWeight 400。核心按相同公式填充加描边，Canvas 保留描边轮廓的小数原点。修复前的 182/144、173/126，以及描边但仍截断原点时的 Canvas 230/0，保留原产物身份。当前资格归 `nativeSyntheticBold`，此前 `nativePieShapes` 的失败记录保持。
+
+首轮文字方向失败、次轮测试漏接正常保存回调所致的下载和未保存提示超时，均保留日志和截图。接回回调后在原 60 秒上限内完成全部功能检查，记录真实颜色失败。下载临时文件曾使合计空间短暂超限；该进程结束并无损压缩四份 C0 字体表后才恢复运行。压缩、去重和源片段保留清单可恢复或定位原证据。51 份扫描剩四项正向失败；C13 的首/中/末页现通过，但 48 页清点仍有缺口，不授予整稿资格。此前阴影、GIF 和其他格式的资格及失败保留原构建身份。未跑全仓和固定工具链验收。
+
+PPTX 圆角标注批次归 `nativeRoundedCallouts`。三项新增核心覆盖原件十一处标注、四向尾部和框外命中、原生圆角与文字区域、五个连接点、旋转、创建/类型修改、渐变/图片/平铺/阴影、复制、精确历史、重开及非法导引保护。八处几何诊断消除，另三处保留文字效果诊断。完整第 36 页无布局诊断。104 项 C0 核心通过，50 项既有 PPTX 回归在该批压缩前通过；严格 MoonBit/release、正常包/示例、两套 TS/lint 和受影响格式检查通过。两个宿主单元用例共 83 个断言通过。
+
+正常默认 UI/Worker 核对实际 Wasm/app 字节，完整原件第 36 页通过框外尾部指针选择、独立半透明采样、282 个非目标部件、精确撤销/重做、当前页 PDF 和保存重开。重开前后的 Canvas/PDF 栅格完全相同。沿固定原件、实现前 Office PDF、Carlito 字节及原颜色容差比较整页，Canvas 为 1686/393，PDF 为 655/271。零缺失断言继续失败，不授予整页视觉资格。
+
+诊断副本仅将 Office PDF 的 JPEG 底图换回原 PPTX 内的 PNG，保持内容、几何、字体、图案矩阵和绘制顺序。PDF 对照降为 0/0，Canvas 为 46/125；副本和正式参考分别记录，正式断言保持。此前流程因未压缩图片流触及 60 秒上限；共享 PDF 写出沿现有依赖压缩 RGB 与 Alpha。新增核心案逐字节检查解码结果、图片复用、插值和源预算。正常界面导出前后的页面栅格 hash 相同，最终流程在原上限内完成。详细大小、计时和失败基线留在私有记录。
+
+标注批次的 51 份扫描有四项正向失败；当批 48 页清点仍有自定义折线、SmartArt 文字、效果、列表和 3D 缺口。标注尾部/圆角调节控件尚未实现。早期扇形、字体、阴影、GIF 及其他格式资格保留各自产物身份。本批未跑全仓或固定工具链验收。
+
+PPTX 自定义路径批次归 `nativeCustomPaths`。三项新增核心覆盖原件十四个路径、公式依赖与单位、原框和非等比尺寸下的曲线/圆弧/文字区域/连接点、非单调曲线与孔洞命中、描边阴影的端帽/连接/面积、预览取消、复制、17 个连接点、精确历史、保存重开及非法/超限源。独立数值由固定 ONLYOFFICE `Geometry.js/Path.js/ArcTo.js` 执行生成，记录源码 hash；普通回归读取冻结数值，不运行参考引擎。107 项 C0 核心、60 项既有形状/图片/组/连接线/笔迹回归及三个公开示例通过。
+
+完整第 6 页已无对象或布局诊断。默认 UI/Worker 核对实际 Wasm/app 字节，指针沿原生组规则选择父组，再经对象列表和对象模式编辑成员。透明度修改、282 个非目标部件、精确撤销/重做、当前页 PDF 和保存重开通过，重开栅格与编辑后完全相同。固定原件、实现前 Office PDF、Carlito 字节、整页 144 dpi 和原颜色容差保持。Canvas/PDF 仍为 36/0、1/0，零缺失断言继续失败，不授予整页视觉资格。
+
+最初的 Worker 查询暴露连接点上限 16 与原件 17 个点不符，核心与宿主现统一为最多 256 个点，越界、非整数和无目标端点继续拒绝。两次指针步骤误将正常组选择当作成员选择，保留比较与上下文；按现有组内操作完成后才记录真正视觉失败。剩余像素位于文字区域；原生 PDF 的 20→12 pt 切换保留前一粗体线宽，但它与全部残差的因果关系尚未证明。没有修改字体、参考、容差或断言来消除残差。
+
+48 页清点的十四处自定义路径几何诊断已消除，其他效果、SmartArt 文字、列表、表格和 3D 缺口保留。51 份扫描仍有四项正向失败。独立扫描、构建和功能/视觉结果分别绑定当前产物；旧圆角标注、扇形及其他格式资格保留原构建。本批未跑全仓或固定工具链验收。
+
+下文 2026-10-29 的 P14 结果是固定构建的历史记录。前次文档核对未找到 `test-lab/.temp/runs/1793305184836/` 和根 `.temp/p14/performance-measured-shape/` 所指原始报告；保留 checkpoint，不把历史结果称为本轮实测。P14 共 12 份上游原件、一份向量派生 PDF 及独立向量，测试项数量不等于真实文件覆盖量。
+
 ## P14 素材、环境与当前结果
 
 P14 首轮素材在私有 `cases/p14-xlsx.json`、`cases/p14-office.json`、`cases/p14-pdf.json`，环境依赖在 `cases/p14-environment.json`。交付范围及支持边界归 [P14](../implemented/p14-compatibility-performance.md)，详细源码、产物、测量和历史失败归私有 `cases/p14-current.json`。
+
+2026-11-08，用户确认 `font-scale.pptx` 当前统一采用 ONLYOFFICE 的 27 pt。当前验收使用原生 PDF；27.2 pt 精度参考移入 `historicalPrecision`，不参与当前判定。下文 2026-10-29 的完整运行及性能数字保留其原合同，不作为本轮全仓或性能结果。
+
+2026-11-08，从 `test-lab/` 运行未筛选的 `bun run test`，冻结运行 `1794114128722` 的 3238 项全部通过：2069 核心、155 单元、13 集成、23 安装包消费及 978 Chromium 执行。零失败、阻塞、不确定及重试；源码、产物和资格指针由实际运行器记录。旧失败、超时及中断分别保留。
+
+同一资格产物随后串行执行两轮 `bun run test:performance`，记录为 `1794121125542`、`1794121861213`。每轮完成 20 次新进程冷启动及全部 13 个 Node 负载的正确性检查。每轮统计结果为 10 项通过、4 项校准不确定，标准脚本因此阻断 13 项 Chromium 负载。两轮均未获得标准性能通过结论；保留全部原始计时、冻结预算和延迟负控，不拼接各轮通过项。
+
+冻结的 Chromium 测量入口另作独立诊断，记录为 `1794123391099`。13 个负载均为 `within-budget`，1210 个样本的正确性检查通过，原有延迟负控通过。运行前后核对 8039 份源码与产物身份。临时诊断驱动单独保存，只提供补充测量，不授予标准性能资格，也不合并两轮 Node 结果。
+
+`bun run test:native-performance full` 的运行 `1794122224230` 完成 1024、2048、4096 字符三组测量与保存校验。2048、4096 的两个按键对照均在预算内；1024 的 A/A 噪声不可靠，整套运行未通过。其 Backspace 基线约 24.6 ms，噪声约 17.4 ms，超过约 12.3 ms 的可靠性上限。执行前后的源码、产物及独立宿主身份检查通过。
+
+本轮性能通道均为相同 SDK 产物的 A/B 对照，产品性能预算仍未批准。Node RSS 仅在每次样本验证后观察；峰值内存、图片编码及其他格式的性能未测。标准脚本的 Chromium 阶段未执行，其测量另有上述独立诊断。测量输出无损归档，原始计时、校准与判定记录保留；可重建的功能通过样本按哈希清单清理，原始输入与完整失败证据保留。
 
 2026-10-29，正确性修复后重跑未筛选的 `bun run test`，冻结运行 `1793305184836` 的 2749 项全部通过：1766 核心、150 单元、13 集成、23 安装包消费及 797 浏览器执行。零失败、阻塞、不确定及重试。完整运行绑定源码 `0a797757fd49035bba356a7e6ddfa599a7fa0600500be34ad8486b5d1f78d897`；`.temp/latest-full.json` 由运行器真实生成，原始报告和源码快照保留。先前失败和中断分别保留，不合并成通过结果。
 

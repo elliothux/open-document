@@ -272,6 +272,7 @@ fn Session::set_text_hyperlink(
     index=self.source_index(original.tree.part),
     date_time=self.date_time,
     parts~,
+    media=self.media,
   )
   edits.push((original.tree.part, edit))
   self.commit_page(

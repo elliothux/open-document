@@ -34,6 +34,13 @@ fn workbook_metadata_extension(tree : Tree, node : @xml.Node) -> Bool {
         feature.text.trim().is_empty() &&
         tree.children.get(feature.id).unwrap_or([]).is_empty()
       })
+    "{7523E5D3-25F3-A5E0-1632-64F254C22452}" =>
+      child.uri == "http://schemas.microsoft.com/office/mac/excel/2008/main" &&
+      child.name == "ArchID" &&
+      child.attributes.length() == 1 &&
+      child.attribute("Flags") == Some("2") &&
+      child.text.trim().is_empty() &&
+      tree.children.get(child.id).unwrap_or([]).is_empty()
     _ => false
   }
 }

@@ -1,12 +1,16 @@
 ///|
 fn read_paragraph_style(
+  opc : @opc.Package,
   source : Ref,
   own : Ref?,
   styles : Array[Ref],
   level : Int32,
   runs : Array[TextRun],
+  run_defaults : Array[Ref],
   theme : Theme,
   previous : Array[TextParagraph],
+  parts : Map[String, @xml.Document],
+  media : Map[String, Bytes],
 ) -> (TextParagraph, String) raise @failure.Failure {
   let mut reason = ""
   let rtl = match attribute(styles, "rtl") {
@@ -44,12 +48,28 @@ fn read_paragraph_style(
       break
     }
   }
+  let first_properties = match runs[0].source {
+    Some(item) => item.child("rPr")
+    None => source.child("endParaRPr")
+  }
+  let bullet_sources = first_properties.map(item => [item]).unwrap_or([])
+  bullet_sources.append(run_defaults)
+  // Text-following bullets retain source color before hyperlink display formatting.
+  let bullet_fallback = {
+    ..runs[0].style(),
+    color: text_source_color(theme, bullet_sources),
+  }
   let paragraph : TextParagraph = {
     source,
     runs,
     align,
     rtl,
     bullet,
+    picture: if list is Picture {
+      Some(read_picture_bullet(opc, styles, parts, media))
+    } else {
+      None
+    },
     list,
     level,
     bullet_size: bullet_size(styles),
@@ -71,7 +91,7 @@ fn read_paragraph_style(
       theme,
       styles,
       bullet,
-      runs[0].style(),
+      bullet_fallback,
       numbered=list is Numbered(_, _),
     ),
     spacing: line,

@@ -12,6 +12,8 @@ import { ChartFields } from "@open-document/ui/chart-fields";
 import { messages } from "@open-document/ui/messages";
 
 function settings(value: XlsxChart): XlsxChartSettings {
+  if (value.kind === "bubble" || value.kind === "surface")
+    throw new Error("Native chart source rewriting requires support");
   return {
     kind: value.kind,
     title: value.title,
@@ -72,15 +74,16 @@ export function XlsxCharts({
     radar: t.chartRadar,
     doughnut: t.chartDoughnut,
   };
-  const appearance: ChartSettings | undefined = draft
-    ? {
-        kind: draft.kind,
-        title: draft.title,
-        data: draft.data,
-        legend: draft.legend,
-        ...(draft.holeSize === null ? {} : { holeSize: draft.holeSize }),
-      }
-    : undefined;
+  const appearance: ChartSettings | undefined =
+    draft && draft.kind !== "bubble" && draft.kind !== "surface"
+      ? {
+          kind: draft.kind,
+          title: draft.title,
+          data: draft.data,
+          legend: draft.legend,
+          ...(draft.holeSize === null ? {} : { holeSize: draft.holeSize }),
+        }
+      : undefined;
   return (
     <section aria-label={t.worksheetCharts}>
       <h3>{t.worksheetCharts}</h3>
@@ -198,93 +201,95 @@ export function XlsxCharts({
           </select>
         </label>
       )}
-      {draft && appearance && (
+      {draft && (
         <>
           {draft.bindingReason && <p>{t.chartCachedSource}</p>}
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              controller.run(async () => {
-                await editor.setChart(draft.id, settings(draft));
-                await load();
-              });
-            }}
-          >
-            <fieldset disabled={disabled || stale || !!catalog?.reason}>
-              <legend>{t.chartApply}</legend>
-              <ChartFields
-                draft={appearance}
-                t={t}
-                setDraft={(value) =>
-                  setDraft({
-                    ...draft,
-                    kind: value.kind,
-                    title: value.title,
-                    legend: value.legend ?? "bottom",
-                    holeSize: value.holeSize ?? null,
-                  })
-                }
-              >
-                <label>
-                  {t.chartAxisLabel}
-                  <input
-                    maxLength={256}
-                    value={draft.label}
-                    onChange={(event) =>
-                      setDraft({ ...draft, label: event.currentTarget.value })
-                    }
-                  />
-                </label>
-                <label>
-                  {t.chartCategorySource}
-                  <input
-                    required
-                    maxLength={1024}
-                    value={draft.categories}
-                    onChange={(event) =>
-                      setDraft({
-                        ...draft,
-                        categories: event.currentTarget.value,
-                      })
-                    }
-                  />
-                </label>
-                {(
-                  [
-                    ["names", t.chartNameSources],
-                    ["values", t.chartValueSources],
-                  ] as const
-                ).map(([key, label]) => (
-                  <label key={key}>
-                    {label}
-                    <textarea
-                      aria-label={label}
+          {appearance && (
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                controller.run(async () => {
+                  await editor.setChart(draft.id, settings(draft));
+                  await load();
+                });
+              }}
+            >
+              <fieldset disabled={disabled || stale || !!catalog?.reason}>
+                <legend>{t.chartApply}</legend>
+                <ChartFields
+                  draft={appearance}
+                  t={t}
+                  setDraft={(value) =>
+                    setDraft({
+                      ...draft,
+                      kind: value.kind,
+                      title: value.title,
+                      legend: value.legend ?? "bottom",
+                      holeSize: value.holeSize ?? null,
+                    })
+                  }
+                >
+                  <label>
+                    {t.chartAxisLabel}
+                    <input
+                      maxLength={256}
+                      value={draft.label}
+                      onChange={(event) =>
+                        setDraft({ ...draft, label: event.currentTarget.value })
+                      }
+                    />
+                  </label>
+                  <label>
+                    {t.chartCategorySource}
+                    <input
                       required
-                      rows={3}
-                      maxLength={8199}
-                      value={draft[key].join("\n")}
+                      maxLength={1024}
+                      value={draft.categories}
                       onChange={(event) =>
                         setDraft({
                           ...draft,
-                          [key]: event.currentTarget.value.split("\n"),
+                          categories: event.currentTarget.value,
                         })
                       }
                     />
                   </label>
-                ))}
-                <label>
-                  {t.chartData}
-                  <textarea
-                    aria-label={t.chartData}
-                    rows={4}
-                    readOnly
-                    value={draft.data}
-                  />
-                </label>
-              </ChartFields>
-              <button type="submit">{t.chartApply}</button>
-            </fieldset>
-          </form>
+                  {(
+                    [
+                      ["names", t.chartNameSources],
+                      ["values", t.chartValueSources],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <label key={key}>
+                      {label}
+                      <textarea
+                        aria-label={label}
+                        required
+                        rows={3}
+                        maxLength={8199}
+                        value={draft[key].join("\n")}
+                        onChange={(event) =>
+                          setDraft({
+                            ...draft,
+                            [key]: event.currentTarget.value.split("\n"),
+                          })
+                        }
+                      />
+                    </label>
+                  ))}
+                  <label>
+                    {t.chartData}
+                    <textarea
+                      aria-label={t.chartData}
+                      rows={4}
+                      readOnly
+                      value={draft.data}
+                    />
+                  </label>
+                </ChartFields>
+                <button type="submit">{t.chartApply}</button>
+              </fieldset>
+            </form>
+          )}
           <form
             onSubmit={(event) => {
               event.preventDefault();

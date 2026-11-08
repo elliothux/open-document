@@ -1,9 +1,23 @@
 import { checkDocxCitationEdit } from "./docx-sources.js";
 
+export function checkTextBoxSpan(
+  span: Record<string, unknown>,
+  container: unknown,
+): asserts span is Record<string, unknown> & { text: string } {
+  checkDocxSpanField(span);
+  if (
+    typeof span.text !== "string" ||
+    (span.field !== "" &&
+      ((container !== -1 && container !== -2) ||
+        !/^(?:PAGE|NUMPAGES)(?::|$)/u.test(String(span.field))))
+  )
+    throw new Error("Invalid text box span");
+}
+
 export function checkDocxSpanField(span: Record<string, unknown>): void {
   const citationField =
     typeof span.field === "string" && span.field.startsWith("CITATION:");
-  if (citationField)
+  if (citationField && span.field !== "CITATION:")
     checkDocxCitationEdit({
       action: "insert",
       tag: String(span.field).slice(9),

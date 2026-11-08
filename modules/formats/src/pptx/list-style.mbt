@@ -17,6 +17,10 @@ fn normalized_list_size(
 
 ///|
 fn check_bullet_property(source : Ref) -> Unit raise @failure.Failure {
+  if source.node.name == "buBlip" {
+    ignore(check_picture_bullet(source))
+    return
+  }
   if source.node.name == "buClr" {
     check_highlight(source) catch {
       _ =>

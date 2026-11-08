@@ -59,11 +59,10 @@ fn text_function(
     "TEXT" => {
       let format = values[1].display()
       work.spend(amount=text.length() + format.length())
-      let format = match format.to_lower() {
-        "general" => "General"
-        "h:mm am/pm" => "h:mm AM/PM"
-        "h:mm:ss am/pm" => "h:mm:ss AM/PM"
-        lower => lower
+      let format = if format.to_lower() == "general" {
+        "General"
+      } else {
+        format
       }
       guard format.is_empty() || supported_format(format) else {
         @failure.reject("unsupported-formula", "Unsupported TEXT number format")
@@ -80,6 +79,9 @@ fn text_function(
         ""
       } else {
         formatted(value, format, work.date1904)
+      }
+      if result.length() > 32767 {
+        return Error("#VALUE!")
       }
       work.spend(amount=result.length())
       Text(result)

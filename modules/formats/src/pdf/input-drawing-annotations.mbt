@@ -8,6 +8,34 @@ fn drawing_annotation_kind(object : @syntax.PdfObject) -> Bool {
 ///|
 fn drawing_annotation_appearance(
   tx : PdfTransaction,
+  source : @syntax.PdfObject,
+) -> @syntax.PdfObject raise {
+  let document = tx.session.document
+  let mut object = source
+  if is_name(raw(object, "Subtype"), "Line") &&
+    raw(object, "LE") != @syntax.PdfArray([tag("None"), tag("OpenArrow")]) &&
+    raw(object, "L") is PdfArray([a, b, c, d]) {
+    let (x, y, r, t) = rectangle(raw(object, "Rect"))
+    let (a, b, c, d) = (number(a), number(b), number(c), number(d))
+    let pad = drawing_annotation_border(document, object) / 2
+    // Imported line rectangles can end at the endpoints and clip the stroke.
+    object = object.with_entry(
+      pdf_name("Rect"),
+      pdf_rectangle(
+        x.min(a.min(c) - pad),
+        y.min(b.min(d) - pad),
+        r.max(a.max(c) + pad),
+        t.max(b.max(d) + pad),
+      ),
+    )
+  }
+  let appearance = tx.add(drawing_annotation_stream(document, object))
+  object.with_entry(pdf_name("AP"), dict([("N", appearance)]))
+}
+
+///|
+fn drawing_annotation_stream(
+  document : @pdflite.PdfDocument,
   object : @syntax.PdfObject,
 ) -> @syntax.PdfObject raise {
   let (x, y, r, t) = rectangle(raw(object, "Rect"))
@@ -21,8 +49,7 @@ fn drawing_annotation_appearance(
   }
   let alpha = raw(object, "CA")
   let alpha = if alpha == @syntax.PdfNull { 1.0 } else { number(alpha) }
-  let border = get(tx.session.document, raw(object, "BS"), "W")
-  let border = if border == @syntax.PdfNull { 1.0 } else { number(border) }
+  let border = drawing_annotation_border(document, object)
   guard alpha >= 0 &&
     alpha <= 1 &&
     border >= 0 &&
@@ -109,21 +136,91 @@ fn drawing_annotation_appearance(
       }
     }
   }
+  if border == 0 && is_name(raw(object, "Subtype"), "Line") {
+    return appearance_stream(b"", w, h, dict([]))
+  }
   ops.append([@content.Op_S, @content.Op_Q])
   let style : @layout.DrawStyle = {
     ..@layout.DrawStyle::default(),
     fillAlpha: alpha,
     strokeAlpha: alpha,
   }
-  let appearance = tx.add(
-    appearance_stream(
-      @pdflite.pdf_content_bytes_of_ops(ops),
-      w,
-      h,
-      appearance_style(style),
-    ),
+  appearance_stream(
+    @pdflite.pdf_content_bytes_of_ops(ops),
+    w,
+    h,
+    appearance_style(style),
   )
-  object.with_entry(pdf_name("AP"), dict([("N", appearance)]))
+}
+
+///|
+fn drawing_annotation_border(
+  document : @pdflite.PdfDocument,
+  object : @syntax.PdfObject,
+) -> Double raise @failure.Failure {
+  let style = get(document, object, "BS")
+  if style != @syntax.PdfNull {
+    guard style is PdfDictionary(_) else {
+      @failure.reject("invalid-pdf", "Invalid annotation border style")
+    }
+    let kind = get(document, style, "S")
+    guard kind == @syntax.PdfNull || is_name(kind, "S") else {
+      @failure.reject("unsupported-pdf", "Unsupported annotation border style")
+    }
+    let width = get(document, style, "W")
+    return if width == @syntax.PdfNull { 1 } else { number(width) }
+  }
+  let border = get(document, object, "Border")
+  if border == @syntax.PdfNull {
+    return 1
+  }
+  guard border is PdfArray(items) &&
+    (items.length() == 3 || items.length() == 4) &&
+    number(items[0]) == 0 &&
+    number(items[1]) == 0 &&
+    (items.length() == 3 || items[3] == @syntax.PdfArray([])) else {
+    @failure.reject("unsupported-pdf", "Unsupported annotation border")
+  }
+  number(items[2])
+}
+
+///|
+fn missing_line_appearance(
+  document : @pdflite.PdfDocument,
+  source : @syntax.PdfObject,
+) -> @syntax.PdfObject raise {
+  let mut object = source
+  let reason = annotation_reason(
+    document,
+    object.with_entry(pdf_name("F"), @syntax.PdfInteger(0)),
+  )
+  guard reason.is_empty() else { @failure.reject("unsupported-pdf", reason) }
+  guard get(document, object, "L") is PdfArray([_, _, _, _]) else {
+    @failure.reject("invalid-pdf", "Invalid line annotation coordinates")
+  }
+  let width = drawing_annotation_border(document, object)
+  guard width >= 0 && width <= 100 else {
+    @failure.reject("invalid-pdf", "Invalid annotation border width")
+  }
+  let (x, y, r, t) = rectangle(get(document, object, "Rect"))
+  // Synthesized appearances include the stroke outside the producer's tight Rect.
+  object = object.with_entry(
+    pdf_name("Rect"),
+    pdf_rectangle(x - width / 2, y - width / 2, r + width / 2, t + width / 2),
+  )
+  object.with_entry(
+    pdf_name("AP"),
+    dict([
+      (
+        "N",
+        if width == 0 {
+          appearance_stream(b"", r - x, t - y, dict([]))
+        } else {
+          drawing_annotation_stream(document, object)
+        },
+      ),
+    ]),
+  )
 }
 
 ///|

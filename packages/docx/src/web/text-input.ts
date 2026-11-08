@@ -68,7 +68,12 @@ export class TextInput extends NativeTextInput<EditState> {
         tab: (revision, backward) => client.tabDocx(revision, backward),
         selectAll: (revision) => client.selectAllDocx(revision),
       },
-      { ...host, limit: () => host.state().commandLimit },
+      {
+        ...host,
+        available: () =>
+          host.available() && (!input.readOnly || !!host.state().selection),
+        limit: () => host.state().commandLimit,
+      },
     );
     input.addEventListener(
       "keydown",

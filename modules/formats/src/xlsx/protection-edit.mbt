@@ -41,7 +41,7 @@ fn Session::protection_query(
   sheet : Sheet,
 ) -> Json raise @failure.Failure {
   let tree = Tree::new(sheet.document)
-  let node = tree.one(tree.root("worksheet").id, "sheetProtection")
+  let node = tree.one(tree.sheet_root().id, "sheetProtection")
   {
     "protected": sheet.locked,
     "passwordRequired": node

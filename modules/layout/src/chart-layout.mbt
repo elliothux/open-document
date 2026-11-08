@@ -39,6 +39,7 @@ fn chart_marker(
   [
     Transform({ a: 1, b: 0, c: 0, d: 1, e: x - 2.5, f: y - 2.5, }),
     Path(basic_shape_path("ellipse", 5, 5), color, "", 0, {
+      evenOdd: false,
       fillAlpha: 1,
       strokeAlpha: 1,
       dash: [],
@@ -98,7 +99,15 @@ fn ChartData::paint_plot(
         "",
         "d9d9d9",
         0.5,
-        { fillAlpha: 1, strokeAlpha: 1, dash: [], cap: 0, join: 0, miter: 8, },
+        {
+          evenOdd: false,
+          fillAlpha: 1,
+          strokeAlpha: 1,
+          dash: [],
+          cap: 0,
+          join: 0,
+          miter: 8,
+        },
       ),
     )
     out.append(
@@ -201,6 +210,7 @@ fn ChartData::paint_plot(
       if !path.is_empty() {
         out.push(
           Path(path, chart_paint_color(colors, series_index), "", 0, {
+            evenOdd: false,
             fillAlpha: 1,
             strokeAlpha: 1,
             dash: [],
@@ -247,6 +257,7 @@ fn ChartData::paint_plot(
       if path.any(segment => segment is Line(_, _)) {
         out.push(
           Path(path, "", chart_paint_color(colors, series_index), 1.5, {
+            evenOdd: false,
             fillAlpha: 1,
             strokeAlpha: 1,
             dash: [],

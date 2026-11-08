@@ -27,6 +27,7 @@ fn ConditionalIcon::paint(
     "ffc000"
   }
   let style : @layout.PathStyle = {
+    evenOdd: false,
     fillAlpha: 1,
     strokeAlpha: 1,
     dash: [],

@@ -123,6 +123,7 @@ fn Session::validate_created_sources(
       index=self.index(self.last_slide),
       parts~,
       date_time=self.date_time,
+      media=self.media,
     )
     guard owner.objects.length() <= 4096 else {
       @failure.reject("limit-exceeded", "Source view objects exceed 4096")

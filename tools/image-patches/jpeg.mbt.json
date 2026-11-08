@@ -1,0 +1,120 @@
+{
+  "file": "jpeg.mbt",
+  "originalSha256": "b54a72ad8e07def012d681b0a58ab0f5315c42560d072833b0e73b4ac3f6c486",
+  "patchedSha256": "344528e20ec9709f4af3187074202d50b99e35eb54358d93d210f90cf1307606",
+  "lineEdits": [
+    [423, 0, ["  cmyk~ : Bool = false,"]],
+    [
+      430,
+      1,
+      [
+        "  if (if cmyk { nc != 4 } else { nc != 1 && nc != 3 }) ||",
+        "    end - pos != 6 + nc * 3 {"
+      ]
+    ],
+    [
+      454,
+      1,
+      [
+        "  if cmyk {",
+        "    if hs.any(value => value < 1 || value > 4) ||",
+        "      vs.any(value => value < 1 || value > 4) ||",
+        "      hs",
+        "      .mapi((index, value) => value * vs[index])",
+        "      .fold(init=0, (sum, value) => sum + value) >",
+        "      10 {",
+        "      raise Failure::Failure(\"JPEG: unsupported CMYK sampling\")",
+        "    }",
+        "  } else if nc == 1 {"
+      ]
+    ],
+    [
+      578,
+      0,
+      [
+        "priv enum JpegDecoded {",
+        "  ColorImage(Image)",
+        "  CmykSamples(Int, Int, Bytes)",
+        "}",
+        "",
+        "///|"
+      ]
+    ],
+    [
+      580,
+      0,
+      [
+        "  match jpg_decode(data, cmyk=false) {",
+        "    ColorImage(image) => image",
+        "    CmykSamples(_, _, _) => raise Failure::Failure(\"JPEG: expected color image\")",
+        "  }",
+        "}",
+        "",
+        "///|",
+        "/// Decode baseline four-component samples without CMYK/YCCK conversion or inversion.",
+        "pub fn decode_cmyk_jpeg(data : Bytes) -> (Int, Int, Bytes) raise Failure {",
+        "  match jpg_decode(data, cmyk=true) {",
+        "    CmykSamples(width, height, samples) => (width, height, samples)",
+        "    ColorImage(_) =>",
+        "      raise Failure::Failure(\"JPEG: expected four-component samples\")",
+        "  }",
+        "}",
+        "",
+        "///|",
+        "fn jpg_decode(data : Bytes, cmyk~ : Bool) -> JpegDecoded raise Failure {"
+      ]
+    ],
+    [
+      631,
+      0,
+      [
+        "      if cmyk && marker != 0xC0 {",
+        "        raise Failure::Failure(\"JPEG: CMYK requires baseline coding\")",
+        "      }"
+      ]
+    ],
+    [
+      634,
+      1,
+      [
+        "      let (fw, fh, ids, hs, vs, tables) = jpg_frame(data, start, end, cmyk~)"
+      ]
+    ],
+    [
+      786,
+      2,
+      [
+        "      let max_h = comp_h.fold(init=1, (maximum, value) => maximum.max(value))",
+        "      let max_v = comp_v.fold(init=1, (maximum, value) => maximum.max(value))"
+      ]
+    ],
+    [
+      857,
+      0,
+      [
+        "      if cmyk {",
+        "        for y in 0..<h {",
+        "          for x in 0..<w {",
+        "            for channel in 0..<nc {",
+        "              out[(y * w + x) * nc + channel] = planes[channel][y *",
+        "                comp_v[channel] /",
+        "                max_v *",
+        "                widths[channel] +",
+        "                x * comp_h[channel] / max_h]",
+        "            }",
+        "          }",
+        "        }",
+        "        return CmykSamples(w, h, Bytes::from_array(out))",
+        "      }"
+      ]
+    ],
+    [
+      895,
+      1,
+      [
+        "      return ColorImage(Image::new(w, h, format, Bytes::from_array(out)))"
+      ]
+    ],
+    [908, 1, ["        return ColorImage(jpg_progress_image(state))"]]
+  ]
+}

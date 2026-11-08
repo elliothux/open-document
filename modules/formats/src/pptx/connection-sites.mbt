@@ -1,7 +1,9 @@
 ///|
-fn Object::local_connection_sites(self : Object) -> Array[(Double, Double)] {
+fn Object::local_connection_sites(
+  self : Object,
+) -> Array[(Double, Double)] raise @failure.Failure {
   guard self.geometry is Some(g) &&
-    supported_shape(self.preset) &&
+    (supported_shape(self.preset) || self.custom is Some(_)) &&
     !line_shape(self.preset) &&
     ["sp", "pic"].contains(self.source.node.name) &&
     self.diagnostic.is_empty() else {
@@ -9,11 +11,20 @@ fn Object::local_connection_sites(self : Object) -> Array[(Double, Double)] {
   }
   let w = g.width
   let h = g.height
+  if self.custom is Some(custom) {
+    return custom.resolve(w, h).sites
+  }
   let sides = [(w / 2, 0.0), (0.0, h / 2), (w / 2, h), (w, h / 2)]
   if elbow_arrow_shape(self.preset) {
     return self.elbow_connection_sites()
   }
   match self.preset {
+    "wedgeRoundRectCallout" =>
+      [
+        ..sides,
+        (w * (0.5 + self.adjustments.0), h * (0.5 + self.adjustments.1)),
+      ]
+    "pie" => [(w, h / 2), (w / 2, h), (0.0, h / 2), (w / 2, 0.0)]
     "lightningBolt" =>
       [
         (w * 8472 / 21600, 0.0),

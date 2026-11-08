@@ -11,6 +11,7 @@ preferred_target = "wasm-gc"
 import {
   "open_document/core@0.0.1",
   "moonbitlang/pdflite@0.3.8",
+  "shunge/image@0.2.1",
   "open_document/layout@0.0.1",
   "moonbit-community/flate@0.8.5",
   "moonbitlang/x@0.5.5",

@@ -90,6 +90,7 @@ pub fn Session::viewport(
   reveal~ : Bool = false,
   images~ : @layout.Images = @layout.Images::new(),
   slicer_hover~ : (String, Int32)? = None,
+  screen_scale~ : Double? = None,
 ) -> Json raise @failure.Failure {
   let index = self.sheet_index(sheet)
   if slicer_hover is Some((object, member_index)) {
@@ -117,7 +118,8 @@ pub fn Session::viewport(
   }
   let dimensions = self.resolved_dimensions(current, probe, profile)
   let mut picture_reason = ""
-  let objects = self.sheet_objects(current, dimensions) catch {
+  let preview_diagnostics : Array[String] = []
+  let objects = self.sheet_objects(current, dimensions, preview_diagnostics~) catch {
     @failure.Failure(code="limit-exceeded", ..) as error => raise error
     @failure.Failure(message~, ..) => {
       picture_reason = message
@@ -216,33 +218,42 @@ pub fn Session::viewport(
     Json(extent_height),
     Json(profile),
     Json(probe.font_info()),
+    Json(screen_scale),
   ]).stringify()
   if self.grid is Some(grid) && grid.key == key {
     self.font_context = Some((probe, profile.copy()))
     return grid.result
   }
-  let rows = dimensions.rows.bands(
-    current.frozen.rows,
-    y,
-    height - header_height,
-    extent_row,
-  )
-  let columns = dimensions.columns.bands(
-    current.frozen.columns,
-    x,
-    width - header_width,
-    extent_column,
-  )
+  let rows = if current.is_chart() {
+    [{ indices: [], scroll: y, start: 0, size: height, frozen: false, }]
+  } else {
+    dimensions.rows.bands(
+      current.frozen.rows,
+      y,
+      height - header_height,
+      extent_row,
+    )
+  }
+  let columns = if current.is_chart() {
+    [{ indices: [], scroll: x, start: 0, size: width, frozen: false, }]
+  } else {
+    dimensions.columns.bands(
+      current.frozen.columns,
+      x,
+      width - header_width,
+      extent_column,
+    )
+  }
   let (
     primitives,
     cells,
     row_headers,
     column_headers,
     visible_notes,
-    table_styles,
+    conditional,
   ) = self.paint_grid(
     index, dimensions, rows, columns, width, height, probe, profile, notes, objects,
-    slicer_hover,
+    slicer_hover, screen_scale,
   )
   let document : @layout.PositionedDocument = {
     links: [],
@@ -254,11 +265,13 @@ pub fn Session::viewport(
   }
   self.grid_id += 1
   let diagnostics = self.diagnostics.filter(diagnostic => {
-    !table_styles.renders(diagnostic, current.id) &&
+    !conditional.renders(diagnostic, current) &&
     !(picture_reason.is_empty() && drawing_diagnostic(current, diagnostic))
   })
   if !picture_reason.is_empty() {
     diagnostics.push("unrendered:" + current.id + ":" + picture_reason)
+  } else {
+    diagnostics.append(preview_diagnostics)
   }
   for object in objects {
     if object.chart_pending {
@@ -289,7 +302,12 @@ pub fn Session::viewport(
     result: Json::null(),
     rows,
     columns,
-    objects,
+    // Drawing commands still require a complete, validated drawing catalog.
+    objects: if preview_diagnostics.is_empty() {
+      objects
+    } else {
+      []
+    },
   }
   let result : Json = {
     "id": self.grid_id,
@@ -307,7 +325,7 @@ pub fn Session::viewport(
     "images": document.drawing_images(images),
     "cells": cells,
     "notes": visible_notes,
-    "objects": objects.map(picture => {
+    "objects": grid.objects.map(picture => {
       picture.grid_object(
         grid,
         self.drawing_selection == Some((sheet, picture.id)),
@@ -336,6 +354,9 @@ pub fn Session::hit(
     grid.id == id &&
     grid.revision == self.revision else {
     @failure.reject("stale-layout", "Grid geometry changed")
+  }
+  guard !self.sheets[self.sheet_index(grid.sheet)].is_chart() else {
+    @failure.reject("invalid-hit", "Chart sheets have no cells")
   }
   guard x >= (if grid.rtl { 0 } else { grid.header_width }) &&
     y >= grid.header_height &&
@@ -394,6 +415,9 @@ pub fn Session::selection_geometry(
     grid.revision == self.revision &&
     grid.sheet == self.selection.0 else {
     @failure.reject("stale-layout", "Selection requires current grid geometry")
+  }
+  if self.sheets[self.sheet_index(grid.sheet)].is_chart() {
+    return { "x": 0, "y": 0, "width": 0, "height": 0, "rects": [] }
   }
   let range = self.selection.1
   let first = self.sheets[self.sheet_index(grid.sheet)].cell_range({

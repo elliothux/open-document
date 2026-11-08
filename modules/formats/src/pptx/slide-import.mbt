@@ -395,6 +395,7 @@ pub fn Session::import_slides(
       index=at + offset + 1,
       parts~,
       date_time=self.date_time,
+      media~,
     )
     guard slide.read_only.is_empty() &&
       slide.objects.all(o => o.diagnostic.is_empty()) else {

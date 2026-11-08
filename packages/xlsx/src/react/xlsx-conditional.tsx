@@ -672,6 +672,14 @@ export function XlsxConditional({
                   }
                 >
                   <option value="">{t.keepStyleProperty}</option>
+                  {rule.format.numberFormat &&
+                    !xlsxNumberFormats.some(
+                      (code) => code === rule.format.numberFormat,
+                    ) && (
+                      <option value={rule.format.numberFormat}>
+                        {rule.format.numberFormat}
+                      </option>
+                    )}
                   {xlsxNumberFormats.map((f) => (
                     <option key={f} value={f}>
                       {f}

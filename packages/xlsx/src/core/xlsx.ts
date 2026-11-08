@@ -228,6 +228,8 @@ export interface GridViewport {
   height: number;
   profile: Record<string, string>;
   reveal?: boolean;
+  /** Device pixels per point for screen-only chart text. */
+  screenScale?: number;
   /** Ephemeral native member hover; does not edit the workbook or print output. */
   slicerHover?: { object: string; index: number };
 }
@@ -509,6 +511,7 @@ export class XlsxSession extends XlsxDrawingSession {
     return xlsxQuery(
       this.call({
         operation: "createXlsx",
+        randomSeed: encodeBytes(crypto.getRandomValues(new Uint8Array(32))),
         budget,
         date: spreadsheetDate(date),
       }),
@@ -530,6 +533,7 @@ export class XlsxSession extends XlsxDrawingSession {
     return xlsxQuery(
       this.call({
         operation: "importXlsxDelimited",
+        randomSeed: encodeBytes(crypto.getRandomValues(new Uint8Array(32))),
         bytes: encodeBytes(bytes),
         delimiter,
         budget,
@@ -553,6 +557,7 @@ export class XlsxSession extends XlsxDrawingSession {
     return xlsxQuery(
       this.call({
         operation: "openXlsx",
+        randomSeed: encodeBytes(crypto.getRandomValues(new Uint8Array(32))),
         bytes: encodeBytes(bytes),
         budget,
         date: spreadsheetDate(date),
@@ -588,6 +593,9 @@ export class XlsxSession extends XlsxDrawingSession {
         acceptWarnings,
       }),
     );
+  }
+  recalculate(revision: number): XlsxQuery {
+    return xlsxQuery(this.call({ operation: "recalculateXlsx", revision }));
   }
   undo(revision: number): XlsxQuery {
     return xlsxQuery(this.call({ operation: "undoXlsx", revision }));

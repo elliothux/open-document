@@ -255,7 +255,7 @@ export type Operation =
       literal: boolean;
       acceptWarnings: boolean;
     }
-  | { operation: "undoXlsx" | "redoXlsx"; revision: number }
+  | { operation: "recalculateXlsx" | "undoXlsx" | "redoXlsx"; revision: number }
   | { operation: "saveXlsx" }
   | ({ operation: "viewportXlsx" } & GridViewport)
   | { operation: "hitXlsx"; layoutId: number; x: number; y: number }

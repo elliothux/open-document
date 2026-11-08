@@ -234,7 +234,7 @@ export class FoundationSession extends FoundationSelectionSession {
     return shapeBatch(this.call({ operation: "shape", text, size, language }));
   }
 
-  openDocx(bytes: Uint8Array, budget: Budget): DocxQuery {
+  openDocx(bytes: Uint8Array, budget: Budget, password?: string): DocxQuery {
     if (bytes.length > budget.fileBytes || bytes.length > budget.retainedBytes)
       throw new DocumentError(
         "limit-exceeded",
@@ -243,7 +243,12 @@ export class FoundationSession extends FoundationSelectionSession {
         -1,
       );
     return docxQuery(
-      this.call({ operation: "openDocx", bytes: encodeBytes(bytes), budget }),
+      this.call({
+        operation: "openDocx",
+        bytes: encodeBytes(bytes),
+        budget,
+        password,
+      }),
     );
   }
 
@@ -663,6 +668,10 @@ export class FoundationSession extends FoundationSelectionSession {
 
   imageBytes(key: string): Uint8Array {
     return this.bytes({ operation: "imageBytes", key });
+  }
+
+  imagePixels(key: string): Uint8Array {
+    return this.bytes({ operation: "imagePixels", key });
   }
 
   addImage(

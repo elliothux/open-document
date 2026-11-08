@@ -132,6 +132,7 @@ fn Session::set_theme_color(
       index~,
       parts~,
       date_time=self.date_time,
+      media=self.media,
     )
   })
   self.commit_slides(self.main, slides, edits, self.selection, parts~)

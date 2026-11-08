@@ -7,6 +7,7 @@ fn Session::copied_table_references(
   let work : FormulaWork = {
     remaining: 1048576,
     date1904: self.date1904,
+    random: None,
     origin: self.focus,
     names: self.formula_names(),
   }
@@ -125,6 +126,7 @@ fn Session::copy_sheet_tables(
   let work : FormulaWork = {
     remaining: 1048576,
     date1904: self.date1904,
+    random: None,
     origin: self.focus,
     names: self.formula_names(),
   }

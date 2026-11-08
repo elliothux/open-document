@@ -126,16 +126,15 @@ fn Session::tile_sizes(
     if object.tile is Some(tile) &&
       object.geometry is Some(geometry) &&
       object.diagnostic.is_empty() {
-      entries.push(
-        (object.image.unwrap(), tile, geometry.width, geometry.height),
-      )
+      let bounds = object.fill_bounds(geometry)
+      entries.push((object.image.unwrap(), tile, bounds.width, bounds.height))
     }
   }
   for (key, tile, width, height) in entries {
     let pixels = sizes
       .get(key)
       .unwrap_or_else(() => {
-        let (_, _, width, height) = @image.type_info(
+        let (_, _, width, height) = raster_image_info(
           media.get(key).unwrap_or_else(() => self.opc.read(key)),
         )
         sizes[key] = (width, height)
@@ -191,7 +190,14 @@ fn ImageTile::paint(
       )
       result.push(
         Image(
-          { key, x: 0, y: 0, width: grid.width, height: grid.height, },
+          {
+            key,
+            interpolate: None,
+            x: 0,
+            y: 0,
+            width: grid.width,
+            height: grid.height,
+          },
           opacity,
         ),
       )

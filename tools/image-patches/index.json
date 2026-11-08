@@ -1,0 +1,5 @@
+{
+  "package": "shunge/image@0.2.1",
+  "upstreamRevision": "61a8c64c90231f41bfec6cad8cc7ffb7d95a7f53",
+  "patches": ["jpeg.mbt.json"]
+}

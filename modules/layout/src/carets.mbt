@@ -9,6 +9,93 @@ pub(all) struct Caret {
 pub extend Caret with ToJson::{to_json}
 
 ///|
+pub(all) struct CaretPortion {
+  start : Int32
+  end : Int32
+  y : Double
+  height : Double
+} derive(ToJson)
+
+///|
+pub extend CaretPortion with ToJson::{to_json}
+
+///|
+fn TextProbe::native_cjk_carets(
+  self : TextProbe,
+  spans : Array[MeasuredSpan],
+  bidi : @bidi.BidiParagraph,
+) -> Bool {
+  // shortcut: complex BiDi retains the captured Writer portions until native controls qualify it.
+  bidi.base_level == 0 &&
+  bidi.levels.all(level => level == 0) &&
+  spans.all(item => item.span.text.iter().all(c => !bidi_control(c.to_uint()))) &&
+  spans.any(item => {
+    if item.font >= 0 && item.span.style.fontLeading {
+      let font = self.fonts[item.font]
+      font.word_ascent != font.line_ascent ||
+      font.word_descent != font.line_descent
+    } else {
+      false
+    }
+  })
+}
+
+///|
+fn TextProbe::line_caret_portions(
+  self : TextProbe,
+  spans : Array[MeasuredSpan],
+  runs : Array[PlacedRun],
+  start : Int32,
+  end : Int32,
+  baseline : Double,
+  native~ : Bool,
+) -> Array[CaretPortion] {
+  guard native else { return [] }
+  let portions : Array[CaretPortion] = []
+  for run in runs {
+    let source = spans
+      .iter()
+      .find_first(item => item.start <= run.start && run.start < item.end)
+    if source is Some(item) && item.span.style.fontLeading {
+      for range in run.bidi {
+        let (ascent, descent) = self.line_metrics(
+          range.font,
+          run.size,
+          leading=true,
+          word=true,
+        )
+        portions.push({
+          start: run.start + range.start,
+          end: run.start + range.end,
+          y: baseline - run.rise - ascent,
+          height: ascent + descent,
+        })
+      }
+    }
+  }
+  if runs.is_empty() {
+    let source = spans
+      .iter()
+      .find_first(item => item.font >= 0 && item.end >= start)
+    if source is Some(item) && item.span.style.fontLeading {
+      let (ascent, descent) = self.line_metrics(
+        item.font,
+        item.span.style.render_size(),
+        leading=true,
+        word=true,
+      )
+      portions.push({
+        start,
+        end,
+        y: baseline - item.span.style.rise() - ascent,
+        height: ascent + descent,
+      })
+    }
+  }
+  portions
+}
+
+///|
 fn TextProbe::shape_carets(
   self : TextProbe,
   text : String,

@@ -120,7 +120,7 @@ pub fn Layout::selection_rects(
       let continues = rank < last ||
         end_hit.page > page ||
         (end_hit.page == page && end_hit.line > index)
-      if continues && !intervals.is_empty() {
+      if continues && line.caretPortions.is_empty() && !intervals.is_empty() {
         let rtl = line.baseLevel % 2 != 0
         let mut edge = if rtl {
           line.areaX + line.areaWidth

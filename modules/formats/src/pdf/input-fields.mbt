@@ -118,7 +118,7 @@ fn PdfSession::fields(
       kids
     }
     let widgets : Array[(Int32, String)] = []
-    let mut reason = base_reason
+    let mut reason = ""
     for widget in widget_refs {
       guard widget is PdfIndirect(number) else {
         @failure.reject("invalid-pdf", "PDF widget must be indirect")
@@ -261,7 +261,14 @@ fn PdfSession::fields(
     } else if kind == "list" {
       let selected = match source_value {
         PdfNull => []
-        PdfString(_) => [pdf_text_string(source_value)]
+        PdfString(_) => {
+          let text = pdf_text_string(source_value)
+          if text.is_empty() {
+            []
+          } else {
+            [text]
+          }
+        }
         PdfArray(items) => items.map(pdf_text_string)
         _ => {
           reason = "Unsupported list field value"
@@ -284,7 +291,11 @@ fn PdfSession::fields(
       value,
       widgets,
       attributes,
-      reason,
+      reason: if base_reason.is_empty() {
+        reason
+      } else {
+        base_reason
+      },
       multiline,
       maxLength: max_length.min(32767),
       onState: on_state,

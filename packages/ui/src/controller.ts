@@ -1,4 +1,5 @@
 import { downloadBytes } from "@open-document/web-core/download";
+import { documentFailure } from "@open-document/web-core/connection";
 import type { DelimitedOptions, EditorHost, Product } from "./types.js";
 import type { EditorOutput } from "@open-document/web-core/editor-state";
 import { readFile } from "./file.js";
@@ -300,7 +301,9 @@ export class EditorController<E extends EditorHost = EditorHost> {
         if (!result) throw new Error("The document has no page images");
         return result;
       }
-      const output = await file.output(kind);
+      const output = await file.output(kind).catch((error: unknown) => {
+        throw kind === "original" ? documentFailure("save", error) : error;
+      });
       if (kind === "print") {
         this.assertOpen();
         await this.printer.print(output.bytes, name);
@@ -441,7 +444,10 @@ export class EditorController<E extends EditorHost = EditorHost> {
       (source instanceof File ? source.size : (source.bytes?.length ?? 0)) >
       inputLimit
     )
-      throw new Error("Document input exceeds budget");
+      throw documentFailure(
+        "input",
+        new Error("Document input exceeds budget"),
+      );
     if (!(await this.canLeave(previous))) return false;
     this.publish({ loading: true, error: "", message: "" });
     const abort = new AbortController();

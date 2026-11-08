@@ -146,9 +146,9 @@ fn Session::timeline_date_members(
     let mut formatted = false
     for row in (range.top + 1)..<=range.bottom {
       let address : Address = { row, column: range.left + field, }
-      let calendar = [
-        "yyyy-mm-dd", "mm-dd-yy", "d-mmm-yy", "d-mmm", "mmm-yy", "m/d/yy h:mm",
-      ].contains(self.styles[source.style_at(address)].format)
+      let calendar = ["date", "datetime"].contains(
+        series_calendar_kind(self.styles[source.style_at(address)].format),
+      )
       if source.cells.get(address.name()) is Some(cell) && cell.value != Blank {
         guard calendar else {
           @failure.reject(

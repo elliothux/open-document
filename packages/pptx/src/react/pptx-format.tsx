@@ -530,6 +530,7 @@ export function PptxListFields({
     <form
       onSubmit={(event) => {
         event.preventDefault();
+        if (kind === "picture") return;
         onApply({
           list:
             kind === "number"
@@ -554,6 +555,11 @@ export function PptxListFields({
           <option value="none">{t.removeList}</option>
           <option value="bullet">{t.listFormat_bullet}</option>
           <option value="number">{t.listFormat_decimal}</option>
+          {kind === "picture" && (
+            <option value="picture" disabled>
+              {t.pictureBullet}
+            </option>
+          )}
         </select>
       </label>
       {kind === "bullet" && (
@@ -603,7 +609,7 @@ export function PptxListFields({
           </label>
         </>
       )}
-      <button type="submit" disabled={disabled}>
+      <button type="submit" disabled={disabled || kind === "picture"}>
         {t.applyList}
       </button>
       {level !== undefined && (

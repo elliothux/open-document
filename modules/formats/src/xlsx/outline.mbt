@@ -18,7 +18,7 @@ priv struct OutlineAxis {
 
 ///|
 fn outline_settings(tree : Tree) -> (Bool, Bool) raise @failure.Failure {
-  let properties = tree.one(tree.root("worksheet").id, "sheetPr")
+  let properties = tree.one(tree.sheet_root().id, "sheetPr")
   let outline = properties.bind(node => tree.one(node.id, "outlinePr"))
   if outline is Some(node) {
     guard tree.children.get(node.id).unwrap_or([]).is_empty() &&
@@ -60,7 +60,7 @@ fn Sheet::outline_axis(
     .to_array()
   } else {
     tree
-    .one(tree.root("worksheet").id, "cols")
+    .one(tree.sheet_root().id, "cols")
     .map(node => tree.all(node.id, "col"))
     .unwrap_or([])
     .map(node => {

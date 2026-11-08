@@ -45,7 +45,7 @@ pub fn Session::set_chart_frame(
     )
   }
   ignore(
-    object.chart.unwrap().1.data.paint(
+    object.chart.unwrap().1.paint(
       rect.width,
       rect.height,
       probe,

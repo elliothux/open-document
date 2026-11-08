@@ -112,6 +112,7 @@ fn DrawingTable::paint_edges(
         }
         output.push(
           Path([Move(x, y), Line(end_x, end_y)], "", color, width, {
+            evenOdd: false,
             fillAlpha: 1,
             strokeAlpha: alpha,
             dash: dash_pattern(dash).map(value => value * width),

@@ -21,6 +21,7 @@ fn pivot_extended_mode(mode : String) -> Bool {
 fn pivot_read_value_mode(
   tree : Tree,
   field : @xml.Node,
+  native~ : Bool,
 ) -> String raise @failure.Failure {
   conditional_node(
     tree,
@@ -61,12 +62,22 @@ fn pivot_read_value_mode(
   } else {
     base
   }
-  guard pivot_base_mode(mode) == (field.attribute("baseField") is Some(_)) else {
+  guard (if pivot_base_mode(mode) {
+    field.attribute("baseField") is Some(_)
+  } else {
+    field.attribute("baseField") == None ||
+    (native && mode == "normal" && field.attribute("baseField") == Some("0"))
+  }) else {
     @failure.reject(
       "protected-content", "Pivot base field disagrees with value mode",
     )
   }
-  guard pivot_compare_mode(mode) == (field.attribute("baseItem") is Some(_)) else {
+  guard (if pivot_compare_mode(mode) {
+    field.attribute("baseItem") is Some(_)
+  } else {
+    field.attribute("baseItem") == None ||
+    (native && mode == "normal" && field.attribute("baseItem") == Some("0"))
+  }) else {
     @failure.reject(
       "protected-content", "Pivot base item disagrees with value mode",
     )

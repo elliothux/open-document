@@ -1,6 +1,7 @@
 ///|
 fn gradient_shading(
   stops : Array[@layout.GradientStop],
+  inner~ : Double,
   alpha~ : Bool = false,
   radial~ : Bool = false,
 ) -> @syntax.PdfObject {
@@ -30,7 +31,7 @@ fn gradient_shading(
       "Coords",
       @syntax.PdfArray(
         (if radial {
-          [0.5, 0.5, 0.0, 0.5, 0.5, 0.5]
+          [0.5, 0.5, inner, 0.5, 0.5, 0.5]
         } else {
           [0.0, 0.0, 1.0, 0.0]
         }).map(v => @syntax.PdfReal(v)),
@@ -100,10 +101,11 @@ fn gradient_interpolation(
 fn gradient_mask(
   document : @pdflite.PdfDocument,
   stops : Array[@layout.GradientStop],
+  inner~ : Double,
   radial~ : Bool = false,
 ) -> @syntax.PdfObject {
   let shading = @syntax.PdfIndirect(
-    document.add_object(gradient_shading(stops, alpha=true, radial~)),
+    document.add_object(gradient_shading(stops, inner~, alpha=true, radial~)),
   )
   let group = document.add_object(
     stream(@utf8.encode("/M sh\n"), [

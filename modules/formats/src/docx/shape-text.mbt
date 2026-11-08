@@ -4,6 +4,7 @@ fn Session::shape_text(
   tree : WordTree,
   shape : Int32,
   text : Int32,
+  linked~ : Bool = false,
 ) -> @layout.DrawingTextBox raise @failure.Failure {
   let box = tree.nodes[text]
   guard box.text.trim().is_empty() &&
@@ -23,36 +24,14 @@ fn Session::shape_text(
       "unsupported-layout", "Text box requires ordinary Word paragraphs",
     )
   }
-  let nodes = tree.children[content]
-  guard nodes.length() > 0 && nodes.length() <= 256 else {
-    @failure.reject("limit-exceeded", "Text box paragraph count exceeds budget")
-  }
-  for paragraph in nodes {
-    let node = tree.nodes[paragraph]
-    guard node.uri == word_uri &&
-      node.name == "p" &&
-      tree.children[paragraph].all(id => {
-        let child = tree.nodes[id]
-        child.uri == word_uri && ["pPr", "r", "hyperlink"].contains(child.name)
-      }) &&
-      tree
-      .descendants(paragraph)
-      .all(id => {
-        let child = tree.nodes[id]
-        ![
-          "drawing", "pict", "object", "sectPr", "fldSimple", "fldChar", "instrText",
-        ].contains(child.name) &&
-        (
-          child.name != "br" ||
-          child.attribute("type", uri=word_uri).unwrap_or("textWrapping") ==
-          "textWrapping"
-        )
-      }) else {
-      @failure.reject(
-        "unsupported-layout", "Text box tables fields lists and embedded objects require support",
-      )
-    }
-  }
+  self.text_box_content(tree, content, tree.text_box_properties(shape), linked~)
+}
+
+///|
+fn WordTree::text_box_properties(
+  tree : WordTree,
+  shape : Int32,
+) -> @layout.DrawingTextBoxProperties raise @failure.Failure {
   let insets = [3.6, 7.2, 3.6, 7.2]
   let mut anchor = "t"
   let mut wrap = true
@@ -72,10 +51,10 @@ fn Session::shape_text(
           "numCol" => a.value == "1"
           "anchorCtr"
           | "rtlCol"
-          | "upright"
           | "fromWordArt"
           | "forceAA"
           | "spcFirstLastPara" => ["0", "false"].contains(a.value)
+          "upright" => ["0", "1", "false", "true"].contains(a.value)
           _ => false
         })
       }) &&
@@ -107,49 +86,5 @@ fn Session::shape_text(
     }
     clip = vertical == "clip"
   }
-  let diagnostics : Array[String] = []
-  let styles = self.styles(diagnostics)
-  let paragraphs = nodes.map(id => self.paragraph(tree, styles, id, diagnostics))
-  let units = paragraphs
-    .iter()
-    .flat_map(p => p.spans.iter())
-    .fold(init=0, (sum, span) => sum + span.text.length())
-  guard units <= 32767 else {
-    @failure.reject("limit-exceeded", "Text box exceeds text budget")
-  }
-  guard paragraphs.all(p => {
-    p.spans.iter().fold(init=0, (sum, span) => sum + span.text.length()) <= 4096
-  }) else {
-    @failure.reject("limit-exceeded", "Text box paragraph exceeds text budget")
-  }
-  guard diagnostics.is_empty() &&
-    paragraphs.all(p => {
-      p.readOnlyReason.is_empty() &&
-      !p.pageBreakBefore &&
-      p.marker is None &&
-      p.spans.all(s => s.drawing is None && s.field.is_empty())
-    }) else {
-    @failure.reject(
-      "unsupported-layout",
-      "Text box paragraph properties require support: " +
-      diagnostics.join("; ") +
-      paragraphs.map(p => p.readOnlyReason).join("; "),
-    )
-  }
-  let bottomBorders : Map[Int32, (Double, @layout.BorderStyle)] = Map([])
-  for paragraph in nodes {
-    if tree.child(paragraph, "pPr").bind(p => tree.child(p, "pBdr"))
-      is Some(border) &&
-      tree.text_box_bottom_border(border) is Some(value) {
-      bottomBorders[paragraph] = value
-    }
-  }
-  @layout.DrawingTextBox::new(
-    paragraphs,
-    insets,
-    anchor,
-    wrap,
-    clip,
-    bottomBorders~,
-  )
+  { insets, anchor, wrap, clip, }
 }

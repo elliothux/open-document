@@ -19,7 +19,7 @@ fn Session::read_table_fragment(
     "<od:p/></od:body></od:document>"
   let document = @xml.Document::parse(
     @utf8.encode(source),
-    "table-fragment",
+    self.main,
     self.opc.budget.xml_depth,
     self.opc.budget.entry_bytes,
   )

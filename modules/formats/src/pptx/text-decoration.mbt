@@ -1,4 +1,60 @@
 ///|
+fn check_text_effect(
+  theme : Theme,
+  source : Ref,
+) -> Unit raise @failure.Failure {
+  let tree = source.tree
+  let nodes = tree.children.get(source.node.id).unwrap_or([])
+  let xml = source_xml(source)
+  guard source.node.attributes.is_empty() &&
+    source.node.text.trim().is_empty() &&
+    !xml.contains("<!--") &&
+    !xml.contains("<?") else {
+    @failure.reject(
+      "unsupported-text",
+      "Unsupported text effect: " + source.node.name,
+    )
+  }
+  if source.node.name == "ln" {
+    // Empty and explicit no-fill outlines are invisible in ONLYOFFICE CLn.
+    guard nodes.is_empty() ||
+      (
+        nodes is [node] &&
+        node.uri == drawing_uri &&
+        node.name == "noFill" &&
+        node.attributes.is_empty() &&
+        node.text.trim().is_empty() &&
+        tree.children.get(node.id).unwrap_or([]).is_empty()
+      ) else {
+      @failure.reject("unsupported-text", "Unsupported text effect: ln")
+    }
+    return
+  }
+  guard source.node.name == "effectLst" else {
+    @failure.reject(
+      "unsupported-text",
+      "Unsupported text effect: " + source.node.name,
+    )
+  }
+  for node in nodes {
+    let colors = tree.children.get(node.id).unwrap_or([])
+    guard colors is [color] &&
+      color.uri == drawing_uri &&
+      color.text.trim().is_empty() &&
+      color.attributes.all(a => {
+        a.uri.is_empty() &&
+        (a.name == "val" || (color.name == "sysClr" && a.name == "lastClr"))
+      }) else {
+      @failure.reject(
+        "unsupported-text", "Extended text shadow color is protected",
+      )
+    }
+  }
+  // RunProperties writes effect record 2; ONLYOFFICE ReadRunProperties skips it.
+  ignore(outer_shadow(theme, source, None, "text"))
+}
+
+///|
 fn check_highlight(source : Ref) -> Unit raise @failure.Failure {
   let tree = source.tree
   let children = tree.children.get(source.node.id).unwrap_or([])
@@ -25,7 +81,9 @@ fn check_highlight(source : Ref) -> Unit raise @failure.Failure {
     n.attribute("val") is Some(_) &&
     tree.children.get(n.id).unwrap_or([]).is_empty() &&
     (
-      ["tint", "shade", "lumMod", "lumOff"].contains(n.name) ||
+      ["tint", "shade", "lumMod", "lumOff", "hueOff", "satMod", "satOff"].contains(
+        n.name,
+      ) ||
       (
         color.name == "srgbClr" &&
         modifiers.length() == 1 &&

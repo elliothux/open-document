@@ -8,6 +8,7 @@ fn empty_worksheet() -> Bytes {
 pub fn Session::create(
   budget : @archive.Budget,
   date~ : String? = None,
+  random_seed~ : Bytes? = None,
 ) -> Session raise @failure.Failure {
   let parts = Map::from_array([
     (
@@ -25,5 +26,10 @@ pub fn Session::create(
     ("xl/worksheets/sheet1.xml", empty_worksheet()),
     ("xl/styles.xml", empty_cell_styles()),
   ])
-  Session::from_package(@opc.Package::create(parts, budget), budget, date~)
+  Session::from_package(
+    @opc.Package::create(parts, budget),
+    budget,
+    date~,
+    random_seed~,
+  )
 }

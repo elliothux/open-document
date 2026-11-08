@@ -51,6 +51,7 @@ fn Session::commit_conditional(
     let work : FormulaWork = {
       remaining: 1048576,
       date1904: self.date1904,
+      random: None,
       origin: { row: 1, column: 1, },
       names: self.formula_names(),
     }
@@ -131,6 +132,7 @@ fn Session::set_conditional(
   let work : FormulaWork = {
     remaining: 1048576,
     date1904: self.date1904,
+    random: None,
     origin: { row: 1, column: 1, },
     names: self.formula_names(),
   }
@@ -263,6 +265,14 @@ fn Session::set_conditional(
   } else {
     if priority is None {
       let cut = Range::parse(source)
+      guard !conditional.rules.any(rule => {
+        tree.nodes[rule.container].uri != spreadsheet_uri &&
+        rule.ranges.any(range => range.intersects(cut))
+      }) else {
+        @failure.reject(
+          "protected-content", "Extended conditional rule markup is protected",
+        )
+      }
       for
         container in tree.all(
           tree.root("worksheet").id,
@@ -311,6 +321,7 @@ fn Session::move_conditional(
   let work : FormulaWork = {
     remaining: 1048576,
     date1904: self.date1904,
+    random: None,
     origin: { row: 1, column: 1, },
     names: self.formula_names(),
   }

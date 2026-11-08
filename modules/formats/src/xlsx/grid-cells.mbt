@@ -14,8 +14,10 @@ fn Session::paint_cells(
   mirror_width : Double,
   conditional : ConditionalRules,
   work : FormulaWork,
+  overflow_right? : Double,
 ) -> Array[Json] raise @failure.Failure {
   let indent_unit = self.indent_unit(probe, profile)
+  let digit_unit = self.digit_width(probe, profile) * 0.75
   guard rows.length().to_int64() * columns.length().to_int64() <= 4096L else {
     @failure.reject("limit-exceeded", "Visible cells exceed 4096 cells")
   }
@@ -50,6 +52,44 @@ fn Session::paint_cells(
       paint_columns[range.top].push(range.left)
     }
   }
+  let overflow_sources : Map[(Int32, Int32), Bool] = Map([])
+  if !printing &&
+    !sheet.view.rtl &&
+    !sheet.view.formulas &&
+    columns is [first, ..] &&
+    first > sheet.frozen.columns + 1 {
+    work.spend(amount=sheet.cells.length())
+    let preceding : Map[Int32, Cell] = Map([])
+    for cell in sheet.cells.values() {
+      let row = cell.address.row
+      let column = cell.address.column
+      if column > sheet.frozen.columns &&
+        column < first &&
+        paint_columns.contains(row) &&
+        cell.blocks_text_overflow() &&
+        preceding
+        .get(row)
+        .map(other => other.address.column < column)
+        .unwrap_or(true) {
+        preceding[row] = cell
+      }
+    }
+    for row, cell in preceding {
+      let column = cell.address.column
+      if (cell.value is Text(_) || cell.formula is Some(_)) &&
+        dimensions.columns.size(column) > 0 &&
+        !paint_columns[row].contains(column) {
+        count += 1
+        guard count <= 4096 else {
+          @failure.reject(
+            "limit-exceeded", "Visible cells including overflowing text exceed 4096 cells",
+          )
+        }
+        paint_columns[row].push(column)
+        overflow_sources[(row, column)] = true
+      }
+    }
+  }
   let segment = if rows is [first_row, ..] && columns is [first_col, ..] {
     grid_rect(
       {
@@ -82,12 +122,15 @@ fn Session::paint_cells(
   let cells : Array[Json] = []
   let seen : Map[String, Bool] = Map([])
   let mut units = 0
+  let first_stroke = page.strokes.length()
+  let mut right_border = 0.0
   for row in rows {
     for column in paint_columns[row] {
       let foreign = !requested.contains(column)
       let range = sheet.cell_range({ row, column, })
       let address : Address = { row: range.top, column: range.left, }
       let key = address.name()
+      let overflow_source = overflow_sources.contains((row, column))
       if seen.contains(key) {
         continue
       }
@@ -122,6 +165,14 @@ fn Session::paint_cells(
       let value = calculated.unwrap_or(
         cell.map(cell => cell.value).unwrap_or(Blank),
       )
+      let number = if !sheet.view.formulas {
+        section_display(value, style.format)
+      } else {
+        None
+      }
+      if number.bind(section => section.color) is Some(color) {
+        style = { ..style, color, }
+      }
       let missing = cell.bind(cell => cell.formula) is Some(_) && value == Blank
       let mut text = if missing && !sheet.view.formulas {
         "Not calculated"
@@ -147,7 +198,8 @@ fn Session::paint_cells(
           },
         )
       }
-      units += text.length()
+      units += text.length() +
+        number.map(section => section.spacing_units()).unwrap_or(0)
       guard units <= 262144 else {
         @failure.reject("limit-exceeded", "Visible text exceeds budget")
       }
@@ -170,8 +222,8 @@ fn Session::paint_cells(
         page.fills.push({
           x: rect.x,
           y: rect.y,
-          width: rect.width,
-          height: rect.height,
+          width: rect.width + 0.75,
+          height: rect.height + 0.75,
           color: style.fill,
         })
       }
@@ -197,20 +249,36 @@ fn Session::paint_cells(
         page.bars.push(Stroke(rect, "d9dce1", 0.5))
       }
       for side, edge in style.borders {
-        if foreign ||
-          edge.style == "none" ||
-          !self.border_wins(
-            style, address, range, side, rows, columns, conditional, index, work,
-          ) {
+        if foreign || (edge.style == "none" && !printing) {
           continue
         }
-        let edge_rect : @layout.Border = match side {
-          0 => { ..rect, width: 0, }
-          1 => { ..rect, x: rect.x + rect.width, width: 0, }
-          2 => { ..rect, height: 0, }
-          _ => { ..rect, y: rect.y + rect.height, height: 0, }
+        for
+          (piece, edge_rect) in sheet.border_pieces(
+            range, rect, side, rows, columns, dimensions, printing, work,
+          ) {
+          if self.border_line(
+              style,
+              { row: piece.top, column: piece.left, },
+              piece,
+              edge_rect,
+              side,
+              rows,
+              columns,
+              conditional,
+              index,
+              work,
+              dimensions,
+              printing,
+            )
+            is Some((edge, edge_rect)) {
+            edge.paint(edge_rect, page.strokes)
+            if printing &&
+              side == 1 &&
+              (rect.x + rect.width - segment.x - segment.width).abs() < 0.001 {
+              right_border = right_border.max(edge.width())
+            }
+          }
         }
-        edge.paint(edge_rect, page.strokes)
       }
       let horizontal = style.text_alignment(value, sheet.view.formulas)
       let text_rect = if ["centerContinuous", "fill"].contains(horizontal) &&
@@ -240,7 +308,7 @@ fn Session::paint_cells(
       }
       let indent = style.indent.to_double() * indent_unit
       let available = text_rect.width -
-        4.5 -
+        3.75 -
         (if horizontal == "distributed" {
           2 * indent
         } else if (
@@ -268,8 +336,43 @@ fn Session::paint_cells(
           justify=horizontal == "justify",
           distributed=horizontal == "distributed",
           fill=horizontal == "fill",
+          number~,
         )
-        if horizontal == "fill" {
+        if !sheet.view.formulas &&
+          style.format == "General" &&
+          style.rotation == 0 &&
+          !style.shrink &&
+          !style.wrap &&
+          !["fill", "distributed"].contains(horizontal) &&
+          value is Number(value) {
+          let limit = ((text_rect.width - 3.75) / digit_unit)
+            .ceil()
+            .max(1)
+            .min(11)
+            .to_int()
+          for digits = limit; digits >= 1; digits = digits - 1 {
+            let candidate = general_display(value, limit=digits)
+            if candidate != text {
+              text = candidate
+              block = style.cell_text_block(
+                probe,
+                profile,
+                text,
+                spans,
+                available.min(14400),
+                justify=horizontal == "justify",
+                distributed=horizontal == "distributed",
+                fill=horizontal == "fill",
+                number~,
+              )
+            }
+            if block.widths.all(width => width <= available) {
+              break
+            }
+          }
+        }
+        if horizontal == "fill" ||
+          (!sheet.view.formulas && section_format(style.format) is Some(_)) {
           units += (filled_text_units(block) - text.length()).max(0)
           guard units <= 262144 else {
             @failure.reject(
@@ -279,18 +382,25 @@ fn Session::paint_cells(
         }
         if !sheet.view.formulas &&
           value is Number(_) &&
-          !style.wrap &&
-          horizontal != "distributed" &&
-          horizontal != "fill" &&
-          !style.shrink &&
           style.rotation == 0 &&
-          block.widths.any(width => width > available) {
+          (
+            number_overflow(value, style.format, self.date1904) ||
+            (
+              !style.wrap &&
+              horizontal != "distributed" &&
+              horizontal != "fill" &&
+              !style.shrink &&
+              block.widths.any(width => width > available)
+            )
+          ) {
+          let previous_units = filled_text_units(block)
           let hash = probe.text_block(
             "#",
             style.text_style(),
             profile,
             14400,
             false,
+            cell=true,
           )
           text = "#".repeat(
             (available / hash.widths[0].max(0.1))
@@ -305,7 +415,41 @@ fn Session::paint_cells(
             profile,
             available.min(14400),
             false,
+            cell=true,
           )
+          units += (text.length() - previous_units).max(0)
+          guard units <= 262144 else {
+            @failure.reject(
+              "limit-exceeded", "Visible overflow text exceeds budget",
+            )
+          }
+        }
+        // shortcut: left-aligned LTR text; extend other alignments with native controls.
+        let text_rect = if horizontal == "left" &&
+          !sheet.view.rtl &&
+          !sheet.view.formulas &&
+          !style.wrap &&
+          !style.shrink &&
+          style.rotation == 0 &&
+          range.left == range.right &&
+          range.top == range.bottom &&
+          value is Text(_) &&
+          block.widths.any(width => width > available) {
+          sheet.extend_text_rect(
+            address,
+            dimensions.columns,
+            text_rect,
+            block.widths.fold(init=0.0, Double::max) + 3.75 + indent,
+            overflow_right.unwrap_or(
+              (segment.x + segment.width).min(page.width),
+            ),
+            work,
+          )
+        } else {
+          text_rect
+        }
+        if overflow_source && text_rect.x + text_rect.width <= segment.x {
+          continue
         }
         let bounds = place_block(
           page,
@@ -319,6 +463,8 @@ fn Session::paint_cells(
           style.vertical,
           indent,
           rotation=style.rotation,
+          cell=true,
+          mirror=if sheet.view.rtl { Some(mirror_width) } else { None },
         )
         if printing {
           for bound in bounds {
@@ -358,6 +504,9 @@ fn Session::paint_cells(
           }
         }
       }
+      if overflow_source {
+        continue
+      }
       let item : Json = {
         "cell": sheet.cell_json(
           address,
@@ -377,5 +526,54 @@ fn Session::paint_cells(
       cells.push(item)
     }
   }
+  if printing && page.strokes.length() > first_stroke {
+    // Native column bands retain half of an outer border, rounded down in 96dpi pixels.
+    let extra = (right_border / 1.5).floor() * 0.75
+    page.strokes.insert(
+      first_stroke,
+      Clip({
+        x: segment.x - 1.5,
+        y: 0,
+        width: segment.width + 1.5 + extra,
+        height: page.height,
+      }),
+    )
+    page.strokes.push(Restore)
+  }
   cells
+}
+
+///|
+fn Cell::blocks_text_overflow(self : Cell) -> Bool {
+  self.formula is Some(_) || (self.value != Blank && self.value != Text(""))
+}
+
+///|
+fn Sheet::extend_text_rect(
+  self : Sheet,
+  address : Address,
+  columns : Axis,
+  rect : @layout.Border,
+  needed : Double,
+  limit : Double,
+  work : FormulaWork,
+) -> @layout.Border raise @failure.Failure {
+  let maximum = (limit - rect.x).max(rect.width)
+  let mut width = rect.width
+  for next in (address.column + 1)..<=columns.limit {
+    if width >= needed || width >= maximum {
+      break
+    }
+    work.spend(amount=self.merges.length() + columns.spans.length() + 1)
+    let neighbor : Address = { row: address.row, column: next, }
+    if self.cells
+      .get(neighbor.name())
+      .map(Cell::blocks_text_overflow)
+      .unwrap_or(false) ||
+      self.merges.any(range => range.contains(neighbor)) {
+      break
+    }
+    width = (width + columns.size(next)).min(maximum)
+  }
+  { ..rect, width, }
 }

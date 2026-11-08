@@ -5,6 +5,7 @@ fn line_decorations(
   spans : Array[MeasuredSpan],
   start : Int32,
   width : Double,
+  end~ : Int32,
 ) -> Array[TextDecoration] {
   let result : Array[TextDecoration] = []
   let mut span = 0
@@ -18,7 +19,9 @@ fn line_decorations(
       break
     }
     let style = spans[span].span.style
-    if !style.underline && !style.strike && style.highlight.is_empty() {
+    let underline = style.underline && start + a.offset < end
+    let strike = style.strike && start + a.offset < end
+    if !underline && !strike && style.highlight.is_empty() {
       continue
     }
     let x = a.after.min(b.before).max(0).min(width)
@@ -27,8 +30,8 @@ fn line_decorations(
       continue
     }
     if result.last() is Some(previous) &&
-      previous.underline == style.underline &&
-      previous.strike == style.strike &&
+      previous.underline == underline &&
+      previous.strike == strike &&
       previous.highlight == style.highlight &&
       (
         (previous.x + previous.width - x).abs() < 0.000001 ||
@@ -43,8 +46,8 @@ fn line_decorations(
       result.push({
         x,
         width: end - x,
-        underline: style.underline,
-        strike: style.strike,
+        underline,
+        strike,
         highlight: style.highlight,
       })
     }

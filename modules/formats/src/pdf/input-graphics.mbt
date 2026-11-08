@@ -8,12 +8,22 @@ priv struct GraphicsState {
   text : @pdflite.PdfContentTextState
   font : SourceFont?
   clips : Int32
-  fillSpace : String
-  strokeSpace : String
+  fillSpace : InputColorSpace
+  strokeSpace : InputColorSpace
+  softMask : SoftMask?
+  fillPattern : TilingPattern?
+}
+
+///|
+priv struct SoftMask {
+  group : @syntax.PdfObject
+  resources : @syntax.PdfObject
+  state : GraphicsState
 }
 
 ///|
 priv struct MarkedText {
+  visible : Bool
   glyph : Int32
   replacement : String?
   span : Int32
@@ -40,6 +50,10 @@ priv struct ContentContext {
   mut textComplete : Bool
   mut displayComplete : Bool
   fonts : Map[String, SourceFont]
+  nativeOutlines : Map[String, @layout.Outline]
+  nativeOutlineBytes : Ref[Int32]
+  colors : Map[Int32, InputColorSpace]
+  mut optional : Map[Int32, Bool]?
   imageKeys : Array[String]
   jpeg : Map[String, JpegImage]
   forms : Map[String, Bool]
@@ -201,10 +215,20 @@ fn ext_state(
         }
         guard is_name(value, "Normal") ||
           is_name(value, "Compatible") ||
-          is_name(value, "Multiply") else {
+          is_name(value, "Multiply") ||
+          is_name(value, "Difference") else {
           @failure.reject("unsupported-pdf", "Unsupported PDF blend mode")
         }
-        style = { ..style, multiply: is_name(value, "Multiply"), }
+        style = {
+          ..style,
+          blend: if is_name(value, "Multiply") {
+            Multiply
+          } else if is_name(value, "Difference") {
+            Difference
+          } else {
+            Normal
+          },
+        }
       }
       "/LW" => width = number(value)
       "/LC" => style = { ..style, cap: integer(value), }
@@ -220,17 +244,29 @@ fn ext_state(
           dashOffset: number(offset),
         }
       }
-      "/SMask" if is_name(value, "None") => ()
+      "/SMask" if is_name(value, "None") || value is PdfDictionary(_) => ()
       "/AIS" | "/OP" | "/op" if value == @syntax.PdfBoolean(false) => ()
-      "/OPM" if value == @syntax.PdfInteger(0) => ()
+      "/SA" if value is PdfBoolean(_) => ()
+      "/OPM" if value == @syntax.PdfInteger(0) || value == @syntax.PdfInteger(1) =>
+        ()
+      "/BG2" | "/UCR2" | "/TR2" | "/HT" if is_name(value, "Default") => ()
+      // Smoothness is a rasterizer quality hint; vector commands retain their geometry.
+      "/SM" if number(value) >= 0 && number(value) <= 1 => ()
       "/TK" if value == @syntax.PdfBoolean(true) => ()
+      "/AAPL:AA" if value is PdfBoolean(_) => ()
       _ =>
         @failure.reject(
           "unsupported-pdf", "Unsupported PDF graphics state property",
         )
     }
   }
-  { ..state, style, width, }
+  let result = { ..state, style, width, }
+  let mask = get(document, object, "SMask")
+  if mask == @syntax.PdfNull {
+    result
+  } else {
+    { ..result, softMask: read_soft_mask(document, mask, resources, result), }
+  }
 }
 
 ///|

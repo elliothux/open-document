@@ -55,6 +55,7 @@ fn ChartData::paint_scatter(
     let x = left + width * ((value - low) / (high - low))
     out.push(
       Path([Move(x, top), Line(x, top + height)], "", "d9d9d9", 0.5, {
+        evenOdd: false,
         fillAlpha: 1,
         strokeAlpha: 1,
         dash: [],

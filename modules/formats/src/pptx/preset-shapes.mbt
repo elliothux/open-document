@@ -1,4 +1,57 @@
 ///|
+fn read_preset_guides(
+  geometry : Ref?,
+  defaults : Array[(String, Double)],
+) -> Map[String, Double] raise @failure.Failure {
+  let values = Map::from_array(defaults)
+  if geometry is Some(geometry) {
+    let children = geometry.tree.children.get(geometry.node.id).unwrap_or([])
+    guard geometry.node.attributes.all(a => a.uri.is_empty() && a.name == "prst") &&
+      geometry.node.text.trim().is_empty() &&
+      children.length() <= 1 &&
+      children.all(n => n.uri == drawing_uri && n.name == "avLst") else {
+      @failure.reject(
+        "unsupported-geometry", "Unsupported preset geometry metadata",
+      )
+    }
+    if geometry.child("avLst") is Some(list) {
+      guard list.node.attributes.is_empty() && list.node.text.trim().is_empty() else {
+        @failure.reject(
+          "unsupported-geometry", "Unsupported preset adjustment metadata",
+        )
+      }
+      let seen : Set[String] = Set([])
+      for node in list.tree.children.get(list.node.id).unwrap_or([]) {
+        let name = node.attribute("name").unwrap_or("")
+        let formula = node.attribute("fmla").unwrap_or("")
+        guard node.uri == drawing_uri &&
+          node.name == "gd" &&
+          values.contains(name) &&
+          !seen.contains(name) &&
+          formula.has_prefix("val ") &&
+          node.text.trim().is_empty() &&
+          node.attributes.all(a => {
+            a.uri.is_empty() && ["name", "fmla"].contains(a.name)
+          }) &&
+          list.tree.children.get(node.id).unwrap_or([]).is_empty() else {
+          @failure.reject(
+            "unsupported-geometry", "Unsupported preset adjustment",
+          )
+        }
+        seen.add(name)
+        let value = number(
+          formula[4:].trim().to_owned(),
+          -2147483648,
+          2147483647,
+        )
+        values[name] = value
+      }
+    }
+  }
+  values
+}
+
+///|
 fn arrow_shape(preset : String) -> Bool {
   ["rightArrow", "leftArrow", "upArrow", "downArrow", "notchedRightArrow"].contains(
     preset,
@@ -33,7 +86,9 @@ fn line_shape(preset : String) -> Bool {
 
 ///|
 fn supported_shape(preset : String) -> Bool {
-  ["rect", "ellipse", "donut", "heart"].contains(preset) ||
+  ["rect", "ellipse", "donut", "heart", "pie", "wedgeRoundRectCallout"].contains(
+    preset,
+  ) ||
   rounded_shape(preset) ||
   line_shape(preset) ||
   arrow_shape(preset) ||
@@ -52,6 +107,25 @@ fn read_shape_adjustments(
   geometry : Ref?,
   preset : String,
 ) -> (Double, Double, Double) raise @failure.Failure {
+  if preset == "pie" {
+    let values = read_preset_guides(geometry, [
+      ("adj1", 0.0),
+      ("adj2", 16200000.0),
+    ])
+    return (values["adj1"], values["adj2"], 0)
+  }
+  if preset == "wedgeRoundRectCallout" {
+    let values = read_preset_guides(geometry, [
+      ("adj1", -20833.0),
+      ("adj2", 62500.0),
+      ("adj3", 16667.0),
+    ])
+    return (
+      values["adj1"] / 100000,
+      values["adj2"] / 100000,
+      values["adj3"] / 100000,
+    )
+  }
   let single = [
     "roundRect", "donut", "triangle", "parallelogram", "trapezoid", "hexagon", "octagon",
     "plus", "star4", "star5", "star6", "star7", "star8", "star10", "star12", "star16",
@@ -350,15 +424,26 @@ fn arrow_points(
 }
 
 ///|
-fn Object::shape_body(self : Object, geometry : Geometry) -> Body {
+fn Object::shape_body(
+  self : Object,
+  geometry : Geometry,
+) -> Body raise @failure.Failure {
   let w = geometry.width
   let h = geometry.height
   // ONLYOFFICE CreateGeometry text rectangles precede DrawingML body insets.
-  let (left, top, right, bottom) = if rounded_shape(self.preset) {
+  let (left, top, right, bottom) = if self.text_rect is Some(rect) {
+    (w * rect.0, h * rect.1, w * (1 - rect.2), h * (1 - rect.3))
+  } else if self.custom is Some(custom) {
+    let rect = custom.resolve(w, h).rect
+    (rect.0, rect.1, w - rect.2, h - rect.3)
+  } else if self.preset == "wedgeRoundRectCallout" {
+    let inset = w.min(h) * self.adjustments.2 * 0.29289
+    (inset, inset, inset, inset)
+  } else if rounded_shape(self.preset) {
     rounded_insets(self.preset, w, h, self.adjustments)
   } else if self.preset == "heart" {
     (w / 6, h / 4, w / 6, h / 3)
-  } else if self.preset == "donut" {
+  } else if ["ellipse", "donut", "pie"].contains(self.preset) {
     let inset = (1.0 - @math.cos(@math.PI / 4)) / 2
     (w * inset, h * inset, w * inset, h * inset)
   } else if elbow_arrow_shape(self.preset) {

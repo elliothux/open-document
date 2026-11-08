@@ -7,6 +7,37 @@ struct MeasuredLine {
 }
 
 ///|
+fn LineSpacing::metrics(
+  self : LineSpacing,
+  ascent : Double,
+  descent : Double,
+  native~ : Bool = false,
+) -> (Double, Double, Bool) {
+  let height = ascent + descent
+  match self {
+    Auto(_) => (height, ascent, false)
+    AtLeast(value) => {
+      let target = height.max(value / 20)
+      (target, if native { ascent + target - height } else { ascent }, false)
+    }
+    Exact(value) if native => {
+      let target = (value / 20).max(1)
+      (
+        target,
+        if target < height {
+          ascent * target / height
+        } else {
+          target - descent
+        },
+        true,
+      )
+    }
+    // The secondary Writer profile retains its captured 4/5 exact-line baseline.
+    Exact(value) => (value / 20, value / 25, true)
+  }
+}
+
+///|
 fn LineSpacing::percent(self : LineSpacing) -> Double {
   match self {
     Auto(value) => {
@@ -72,7 +103,10 @@ fn MeasuredLine::spaced(
     let ascent = match line.runs.get(0) {
       Some(run) => run.baseline + run.rise
       None =>
-        line.drawings.get(0).map(image => image.y + image.height).unwrap_or(0)
+        line.drawings
+        .get(0)
+        .map(image => image.y + image.height + image.effectExtent.3)
+        .unwrap_or(0)
     }
     (height * 20 * 4 / 5).floor() / 20 - ascent
   } else {
@@ -82,7 +116,12 @@ fn MeasuredLine::spaced(
     ..line,
     height,
     runs: line.runs.map(run => { ..run, baseline: run.baseline + delta, }),
+    caretPortions: line.caretPortions.map(portion => {
+      ..portion,
+      y: portion.y + delta,
+    }),
     marker: line.marker.map(run => { ..run, baseline: run.baseline + delta, }),
+    markerImage: line.markerImage.map(image => { ..image, y: image.y + delta, }),
     drawings: line.drawings.map(image => { ..image, y: image.y + delta, }),
   }
 }

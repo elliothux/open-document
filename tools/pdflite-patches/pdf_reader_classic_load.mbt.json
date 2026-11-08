@@ -1,0 +1,51 @@
+{
+  "file": "pdf_reader_classic_load.mbt",
+  "originalSha256": "2856220954d95c45a38ad7b72b873656379bb0f06d25357952d5c0afd7c068e7",
+  "patchedSha256": "57bf4b32bdbe237edc5db85827be5c6476f402233a5b140470cc81b435d279e8",
+  "lineEdits": [
+    [
+      74,
+      0,
+      [
+        "  if @core.sdk_active() && self.is_encrypted() {",
+        "    let values = self.encryption_values()",
+        "    let encrypt = self.lookup_direct(pdf_crypt_encrypt_name, self.trailer_dict()).unwrap()",
+        "    let std = @syntax.PdfNameObject(pdf_crypt_std_cf_name)",
+        "    let embedded = self.lookup_direct(@core.pdf_name_of_bytes(b\"/EFF\"), encrypt)",
+        "    let supported_cipher = match values.crypt_type {",
+        "      PdfCryptARC4(128, 4) => true",
+        "      PdfCryptAESV2 => {",
+        "        let filter = self.lookup_direct(pdf_crypt_cf_name, encrypt).bind(cf => {",
+        "          self.lookup_direct(pdf_crypt_std_cf_name, cf)",
+        "        })",
+        "        filter is Some(filter) &&",
+        "        pdf_crypt_lookup_int(self, pdf_crypt_v_name, encrypt) == Some(4) &&",
+        "        pdf_crypt_lookup_int(self, pdf_crypt_r_name, encrypt) == Some(4) &&",
+        "        self.lookup_direct(pdf_crypt_length_name, encrypt) is (None | Some(PdfInteger(128))) &&",
+        "        self.lookup_direct(pdf_crypt_length_name, filter) is (None | Some(PdfInteger(16))) &&",
+        "        [None, Some(@syntax.PdfNameObject(pdf_crypt_doc_open_name))].contains(",
+        "          self.lookup_direct(pdf_crypt_auth_event_name, filter),",
+        "        )",
+        "      }",
+        "      _ => false",
+        "    }",
+        "    guard supported_cipher &&",
+        "      self.lookup_direct(@core.pdf_name_of_bytes(b\"/StmF\"), encrypt) == Some(std) &&",
+        "      self.lookup_direct(@core.pdf_name_of_bytes(b\"/StrF\"), encrypt) == Some(std) &&",
+        "      (embedded is None || embedded == Some(std)) && values.file_id.length() <= 64 else {",
+        "      raise EncryptionMethodExpected",
+        "    }",
+        "    let denied = @crypt_core.pdf_permissions_of_p(values.permissions)",
+        "    guard !denied.any(permission => permission is (PdfNoPrint | PdfNoHqPrint | PdfNoCopy | PdfNoExtract)) else {",
+        "      @core.pdf_error(\"Encrypted PDF permissions restrict copying or printing\")",
+        "    }",
+        "    // Budget byte crypt and the repeated authentication of encrypted object streams.",
+        "    @core.sdk_check(cursor.length() + xrefs.length() * 1024)",
+        "    guard values.file_key_for_available_password(user_password, owner_password, false) is Some(_) else {",
+        "      raise CryptoKeyExpected",
+        "    }",
+        "  }"
+      ]
+    ]
+  ]
+}

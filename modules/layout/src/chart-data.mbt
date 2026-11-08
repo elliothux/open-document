@@ -65,6 +65,11 @@ fn chart_text(text : String) -> Unit raise @failure.Failure {
 ///|
 pub fn ChartData::validate(self : ChartData) -> Unit raise @failure.Failure {
   self.validate_sources()
+  guard self.kind != "surface" else {
+    @failure.reject(
+      "unsupported-chart", "Surface charts require native worksheet layout",
+    )
+  }
   guard !self.categories.is_empty() &&
     self.series.all(series => series.values.length() == self.categories.length()) else {
     @failure.reject(
@@ -84,13 +89,13 @@ pub fn ChartData::validate_sources(
   guard [
       "column", "bar", "stackedColumn", "stackedBar", "line", "pie", "area", "scatter",
       "doughnut", "percentStackedColumn", "percentStackedBar", "radar", "stackedArea",
-      "percentStackedArea", "stackedLine", "percentStackedLine",
+      "percentStackedArea", "stackedLine", "percentStackedLine", "surface",
     ].contains(self.kind) &&
     self.categories.length() <= 256 &&
     self.series.length() >= 1 &&
-    self.series.length() <= 8 else {
+    self.series.length() <= 32 else {
     @failure.reject(
-      "limit-exceeded", "Chart sources require at most 256 points and 1-8 series",
+      "limit-exceeded", "Chart sources require at most 256 points and 1-32 series",
     )
   }
   guard (if self.kind == "doughnut" {

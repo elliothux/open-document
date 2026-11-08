@@ -35,7 +35,7 @@ fn Session::running_part(
 }
 
 ///|
-fn Session::running_paragraphs(
+fn Session::running_story(
   self : Session,
   part : String,
   kind : String,
@@ -43,7 +43,7 @@ fn Session::running_paragraphs(
   diagnostics : Array[String],
   background : String,
   variant : String,
-) -> Array[@layout.Paragraph] raise @failure.Failure {
+) -> @layout.RunningStory raise @failure.Failure {
   let tree = WordTree::new(self.part_xml(part))
   guard tree.nodes[0].uri == word_uri &&
     tree.nodes[0].name == (if kind == "header" { "hdr" } else { "ftr" }) &&
@@ -52,49 +52,52 @@ fn Session::running_paragraphs(
   }
   let paragraphs : Map[Int32, @layout.Paragraph] = Map([])
   let backgrounds : Map[Int32, String] = Map([])
+  let direct : Array[@layout.Paragraph] = []
+  let tables : Array[@layout.Table] = []
   let ids = tree.running_nodes()
   for id in ids {
+    if tree.nodes[id].uri == word_uri && tree.nodes[id].name == "tbl" {
+      // Running pictures need their owning part's relationships, not the body's.
+      for
+        paragraph in tree
+        .descendants(id)
+        .filter(p => tree.nodes[p].uri == word_uri && tree.nodes[p].name == "p") {
+        self.check_running_paragraph(tree, paragraph)
+      }
+      tables.push(
+        self.table(
+          tree,
+          styles,
+          id,
+          direct.length(),
+          diagnostics,
+          background~,
+          running=true,
+        ),
+      )
+      continue
+    }
     guard tree.nodes[id].uri == word_uri && tree.nodes[id].name == "p" else {
       @failure.reject(
         "unsupported-layout", "Header or footer objects are unsupported",
       )
     }
-    tree.check_structure_paragraph(id, running=true)
-    for item in tree.descendants(id) {
-      let node = tree.nodes[item]
-      guard node.uri == word_uri &&
-        ![
-          "drawing", "bookmarkStart", "bookmarkEnd", "commentReference", "commentRangeStart",
-          "commentRangeEnd", "sectPr",
-        ].contains(node.name) else {
-        @failure.reject(
-          "unsupported-layout", "Extended header or footer content is protected",
-        )
-      }
-      if ["br", "cr"].contains(node.name) &&
-        node.attribute("type", uri=word_uri).unwrap_or("textWrapping") !=
-        "textWrapping" {
-        @failure.reject(
-          "unsupported-layout", "Page breaks in headers or footers are unsupported",
-        )
-      }
-    }
-    paragraphs[id] = self.paragraph(
-      tree,
-      styles,
-      id,
-      diagnostics,
-      background~,
-      running=true,
+    self.check_running_paragraph(tree, id)
+    direct.push(
+      self.paragraph(tree, styles, id, diagnostics, background~, running=true),
     )
-    backgrounds[id] = background
+  }
+  let story : @layout.RunningStory = { paragraphs: direct, tables, }
+  for paragraph in story.all_paragraphs() {
+    paragraphs[paragraph.id] = paragraph
+    backgrounds[paragraph.id] = background
   }
   self.apply_numbering(tree, styles, paragraphs, backgrounds)
   styles.apply_contextual_spacing(tree, paragraphs)
-  ids.map(id => {
-    ..paragraphs[id],
+  story.map_paragraphs(paragraph => {
+    ..paragraphs[paragraph.id],
     id: -1 -
-    id * 6 -
+    paragraph.id * 6 -
     (if kind == "footer" { 1 } else { 0 }) -
     (if variant == "first" { 2 } else if variant == "even" { 4 } else { 0 }),
     container: if kind == "header" {
@@ -104,6 +107,61 @@ fn Session::running_paragraphs(
     },
     readOnlyReason: "protected-content:running-area",
   })
+}
+
+///|
+fn Session::check_running_paragraph(
+  self : Session,
+  tree : WordTree,
+  id : Int32,
+) -> Unit raise @failure.Failure {
+  tree.check_structure_paragraph(id, running=true)
+  let drawings : Set[Int32] = Set([])
+  for item in tree.descendants(id) {
+    let node = tree.nodes[item]
+    if node.uri == word_uri &&
+      ["drawing", "pict"].contains(node.name) &&
+      !drawings.contains(item) {
+      let frame = if node.name == "pict" {
+        self.vml_frame(tree, item)
+      } else {
+        self.drawing_frame(tree, item)
+      }
+      guard node.name == "pict" ||
+        frame.content
+        is (@layout.Picture(_, _) | @layout.Shape(_) | @layout.TextBox(_, _)) else {
+        @failure.reject(
+          "unsupported-layout", "Running chart drawings require support",
+        )
+      }
+      drawings.add(item)
+      for child in tree.descendants(item) {
+        drawings.add(child)
+      }
+    }
+  }
+  for item in tree.descendants(id) {
+    if drawings.contains(item) {
+      continue
+    }
+    let node = tree.nodes[item]
+    guard node.uri == word_uri &&
+      ![
+        "drawing", "pict", "object", "bookmarkStart", "bookmarkEnd", "commentReference",
+        "commentRangeStart", "commentRangeEnd", "sectPr",
+      ].contains(node.name) else {
+      @failure.reject(
+        "unsupported-layout", "Extended header or footer content is protected",
+      )
+    }
+    if ["br", "cr"].contains(node.name) &&
+      node.attribute("type", uri=word_uri).unwrap_or("textWrapping") !=
+      "textWrapping" {
+      @failure.reject(
+        "unsupported-layout", "Page breaks in headers or footers are unsupported",
+      )
+    }
+  }
 }
 
 ///|
@@ -145,10 +203,7 @@ fn Session::running_content(
   diagnostics : Array[String],
   background : String,
   allVariants~ : Bool = false,
-) -> (
-  Map[String, Array[@layout.Paragraph]],
-  Map[String, Array[@layout.Paragraph]],
-) raise @failure.Failure {
+) -> (Map[String, @layout.RunningStory], Map[String, @layout.RunningStory]) raise @failure.Failure {
   let headers = Map([])
   let footers = Map([])
   let seen : Map[String, Bool] = Map([])
@@ -172,11 +227,11 @@ fn Session::running_content(
       ((variant == "first" && !first) || (variant == "even" && !even)) {
       continue
     }
-    let paragraphs = self.running_paragraphs(
+    let story = self.running_story(
       part, kind, styles, diagnostics, background, variant,
     )
-    if allVariants || !paragraphs.is_empty() {
-      (if kind == "header" { headers } else { footers })[variant] = paragraphs
+    if allVariants || !story.paragraphs.is_empty() || !story.tables.is_empty() {
+      (if kind == "header" { headers } else { footers })[variant] = story
     }
   }
   (headers, footers)

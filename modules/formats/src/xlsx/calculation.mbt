@@ -6,6 +6,7 @@ priv struct Dependency {
 
 ///|
 priv struct FormulaWork {
+  random : @random.Rand?
   mut remaining : Int32
   date1904 : Bool
   mut origin : Address
@@ -27,6 +28,7 @@ fn FormulaWork::spend(
 
 ///|
 priv struct Calculation {
+  manual : Bool
   names : NamedDefinitions
   sources : Map[(Int32, String), String]
   expressions : Map[(Int32, String), Expression]
@@ -143,7 +145,7 @@ fn Expression::dependencies(
           "ACOSH", "ASINH", "ATANH", "SIGN", "CEILING.MATH", "FLOOR.MATH", "CEILING.PRECISE",
           "FLOOR.PRECISE", "CEILING", "FLOOR", "TRUNC", "GCD", "LCM", "FACT", "FACTDOUBLE",
           "COMBIN", "COMBINA", "MROUND", "QUOTIENT", "MULTINOMIAL", "SERIESSUM",
-          "SUMX2MY2", "SUMX2PY2", "SUMXMY2", "MDETERM",
+          "SUMX2MY2", "SUMX2PY2", "SUMXMY2", "MDETERM", "RAND",
         ].contains(name) {
         guard uncomputed is Some(reason) && isolated_math_function(name) else {
           @failure.reject(
@@ -232,7 +234,15 @@ fn Calculation::build(
   date1904 : Bool,
   workbook : @xml.Document,
   tables~ : Array[StructuredTable],
+  random~ : @random.Rand?,
+  restored_random~ : Map[(Int32, String), (Value, String?)] = Map([]),
+  force~ : Bool = false,
 ) -> Calculation raise @failure.Failure {
+  let tree = Tree::new(workbook)
+  let manual = tree
+    .one(tree.root("workbook").id, "calcPr")
+    .bind(node => node.attribute("calcMode")) ==
+    Some("manual")
   let definitions = read_named_definitions(workbook, sheets.length())
   for table in tables {
     guard !table.filtering || table.filter is Some(_) else {
@@ -253,6 +263,7 @@ fn Calculation::build(
     None
   }
   let calculation : Calculation = {
+    manual,
     names,
     sources: Map([]),
     expressions: Map([]),
@@ -265,6 +276,7 @@ fn Calculation::build(
     protected_visibility: false,
   }
   let work = FormulaWork::{
+    random,
     remaining: 1048576,
     date1904,
     names,
@@ -337,7 +349,10 @@ fn Calculation::build(
   let mut link_units = 0
   for key in calculation.order {
     work.origin = Address::parse(key.1)
-    let affected = calculation.dependencies[key].any(dependency => {
+    let affected = (
+        (!manual || force) && calculation.expressions[key].contains_rand()
+      ) ||
+      calculation.dependencies[key].any(dependency => {
         invalid.any(item => {
           work.spend()
           item.0 == dependency.sheet && item.1.intersects(dependency.range)
@@ -349,7 +364,8 @@ fn Calculation::build(
       })
     let hyperlink : Ref[String?] = Ref(None)
     if calculation.uncomputed.get(key) is Some(reason) {
-      guard !affected &&
+      guard !force &&
+        !affected &&
         (
           previous is None ||
           previous.bind(p => p.sources.get(key)) == calculation.sources.get(key)
@@ -358,7 +374,35 @@ fn Calculation::build(
       }
       continue
     }
-    let value = if previous is Some(previous) &&
+    let value = if restored_random.get(key) is Some((value, target)) &&
+      (manual || calculation.expressions[key].contains_rand()) {
+      hyperlink.val = target
+      value
+    } else if manual &&
+      !force &&
+      !previous
+      .map(p => p.sources.get(key) != calculation.sources.get(key))
+      .unwrap_or(false) {
+      // Manual workbooks retain cached results until calculation or formula entry.
+      if calculation.hyperlinks.contains(key) &&
+        !calculation.expressions[key].contains_rand() {
+        ignore(
+          calculation.expressions[key].evaluate(
+            sheets,
+            key.0,
+            calculation.values,
+            work,
+            0,
+            hyperlink=Some(hyperlink),
+          ),
+        )
+      } else {
+        hyperlink.val = previous.bind(p => {
+          p.hyperlinks.get(key).bind(target => target)
+        })
+      }
+      sheets[key.0].cells[key.1].value
+    } else if previous is Some(previous) &&
       !affected &&
       previous.sources.get(key) == calculation.sources.get(key) &&
       previous.values.get(key) is Some(value) {

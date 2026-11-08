@@ -3,8 +3,10 @@ import {
   "moonbitlang/core/string",
   "moonbitlang/core/math",
   "moonbitlang/core/encoding/utf16",
+  "moonbitlang/core/encoding/utf8",
   "open_document/core/failure",
   "moonbitlang/x/unicode" @ucd,
+  "moonbit-community/ucd" @casing,
   "moonbit-community/harfbuzz/font",
   "moonbit-community/harfbuzz/face",
   "moonbit-community/harfbuzz/sfnt",
@@ -16,6 +18,9 @@ import {
   "moonbit-community/harfbuzz/draw",
   "moonbit-community/bidi",
   "Milky2018/moon_cosmic/unicode_linebreak" @linebreak,
+  "Milky2018/moon_skrifa",
+  "Milky2018/moon_skrifa/outline",
+  "Milky2018/moon_zeno" @zeno,
   "moonbitlang/x/crypto",
 }
 

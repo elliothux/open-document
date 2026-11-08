@@ -44,7 +44,7 @@ fn Session::write_image(
   if placement is Some(_) {
     validate_object_box(x, y, width, height, false)
   }
-  let (extension, content_type, pixel_width, pixel_height) = @image.type_info(
+  let (extension, content_type, pixel_width, pixel_height) = raster_image_info(
     bytes,
   )
   if target is Some(object) &&
@@ -371,6 +371,7 @@ fn Session::write_image(
     index=self.source_index(original.tree.part),
     date_time=self.date_time,
     parts~,
+    media=self.media,
   )
   edits.push((original.tree.part, edit))
   let id = original.tree.part + "#" + identity

@@ -522,7 +522,8 @@ export function pptxQuery(value: unknown): PptxQuery {
       throw new Error("Invalid PPTX object");
     ids.add(object.id);
     parents.set(object.id, String(object.parent));
-    if (object.kind === "group") groups.add(object.id);
+    if (object.kind === "group" || object.kind === "diagram")
+      groups.add(object.id);
     units += object.text.length;
     if (object.geometry !== null) geometry(object.geometry);
   }

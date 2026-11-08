@@ -1,4 +1,4 @@
-----
+///|
 import {
   "moonbitlang/async@0.22.4",
   "moonbitlang/async@0.22.4/fs",
@@ -6,7 +6,6 @@ import {
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/x@0.5.5/crypto",
 }
-----
 
 ///|
 fn hash(bytes : Bytes) -> String {
@@ -97,6 +96,12 @@ async fn main {
   )
   apply_patches(
     "tools/pdflite-patches/", "moonbitlang/pdflite@0.3.8", ".mooncakes/moonbitlang/pdflite/",
+  )
+  apply_patches(
+    "tools/image-patches/", "shunge/image@0.2.1", ".mooncakes/shunge/image/",
+  )
+  apply_patches(
+    "tools/skrifa-patches/", "Milky2018/moon_skrifa@0.1.11", ".mooncakes/Milky2018/moon_skrifa/src/",
   )
   @shell.Cmd("moon", ["check", "--target", "wasm-gc", "--dry-run"])
   .output()

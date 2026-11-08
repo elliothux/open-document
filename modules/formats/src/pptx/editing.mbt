@@ -13,6 +13,7 @@ fn Session::prepare(
     index=self.source_index(slide.tree.part),
     date_time=self.date_time,
     parts=self.parts,
+    media=self.media,
   )
   self.validate(candidate)
   (
@@ -47,6 +48,7 @@ fn Session::validate(
         index~,
         parts~,
         date_time=self.date_time,
+        media=self.media,
       )
     })
     updated.push(candidate)
@@ -141,6 +143,7 @@ fn Session::commit_slides(
         index~,
         parts~,
         date_time=self.date_time,
+        media~,
       )
     })
   } else {
@@ -329,6 +332,7 @@ pub fn Session::undo(
           index~,
           date_time=self.date_time,
           parts~,
+          media~,
         )
       }
     }
@@ -416,6 +420,7 @@ pub fn Session::undo(
           index~,
           parts~,
           date_time=self.date_time,
+          media~,
         )
       })
     } else {

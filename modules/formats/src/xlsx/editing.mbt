@@ -134,6 +134,9 @@ fn Sheet::prepare(
   preserve_values~ : Bool = false,
   fragments~ : Map[String, String] = Map([]),
 ) -> (@xml.Document, @xml.Edit) raise @failure.Failure {
+  guard !self.is_chart() else {
+    @failure.reject("protected-content", "Chart sheets have no cells")
+  }
   let tree = Tree::new(self.document)
   fn markup(
     address : Address,
@@ -520,6 +523,7 @@ pub fn Session::undo(
     workbook,
     parts~,
     removed=removed_parts,
+    restored_random=if redo { entry.after_random } else { entry.before_random },
   )
   // Retain XML identity allocation from later undone edits for their next redo.
   if removed is Some(_) {
@@ -565,7 +569,7 @@ pub fn Session::save(self : Session) -> Bytes raise @failure.Failure {
   for sheet in self.sheets {
     if !self.opc.names.contains(sheet.id.to_lower()) {
       modified = modified || !sheet.cells.is_empty()
-    } else if !sheet.document.is_original() {
+    } else if !sheet.is_chart() && !sheet.document.is_original() {
       let original = Tree::new(self.opc.xml(sheet.id))
       let data = original
         .one(original.root("worksheet").id, "sheetData")

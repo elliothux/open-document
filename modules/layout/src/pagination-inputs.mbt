@@ -112,6 +112,7 @@ fn BodyBlock::key(self : BodyBlock) -> String? {
         ),
         Json(table.widths),
         Json(table.align),
+        Json(table.legacyCellAlignment),
         Json(table.borders),
         Json(table.headerRows),
         if table.headerRows == 0 {

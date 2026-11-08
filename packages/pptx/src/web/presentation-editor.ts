@@ -36,6 +36,7 @@ import {
   type EditorSnapshot,
 } from "@open-document/web-core/editor-state";
 import type { PptxClient } from "./pptx.js";
+import { documentFailure } from "@open-document/web-core/connection";
 import type {
   PptxQuery,
   PptxLayout,
@@ -367,7 +368,9 @@ export class PresentationEditor extends PresentationOutput {
     }
   }
   private async present(): Promise<void> {
-    await this.surface.prepare(this.client);
+    await this.surface.prepare(this.client).catch((error: unknown) => {
+      throw documentFailure("image", error);
+    });
     const layout = await this.client.execute({
       operation: "layoutPptx",
       profile: this.profile,

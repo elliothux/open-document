@@ -21,6 +21,8 @@ struct MeasuredShape {
   context_start : Int32
   tracking : Double
   kerning : String
+  ligatures : Bool
+  caps : Bool
   buffer : @buffer.Buffer
 }
 
@@ -78,8 +80,14 @@ fn TextProbe::shape_paragraph(
   context? : (Array[Char], Int32),
   tracking~ : Double = 0,
   kerning~ : String = "all",
+  ligatures~ : Bool = true,
+  caps~ : Bool = false,
+  cell~ : Bool = false,
 ) -> ShapeBatch raise @failure.Failure {
   self.check()
+  // Spreadsheet fragments omit optional typography while retaining required script shaping.
+  let kerning = if cell { "none" } else { kerning }
+  let ligatures = ligatures && !cell
   let measured = self.measured_shape
   self.measured_shape = None
   let inserted : Array[String] = []
@@ -107,7 +115,12 @@ fn TextProbe::shape_paragraph(
     @failure.reject("limit-exceeded", "Text probe input exceeds budget")
   }
   let chars = paragraph.chars
-  let (context_chars, context_start) = context.unwrap_or((chars, 0))
+  let (source_context, context_start) = context.unwrap_or((chars, 0))
+  let context_chars = if caps {
+    source_context.map(capital_char)
+  } else {
+    source_context
+  }
   guard context_start >= 0 &&
     context_start <= context_chars.length() &&
     chars.length() <= context_chars.length() - context_start &&
@@ -142,6 +155,7 @@ fn TextProbe::shape_paragraph(
   let diagnostics : Array[GlyphDiagnostic] = []
   let mut inherited = @common.Script::from_string("Latn")
   for i, ch in chars {
+    let painted = if caps { capital_char(ch) } else { ch }
     let script = @unicode.script(ch.to_uint())
     let tag = script.to_iso15924_tag().to_string()
     let script = if tag == "Zyyy" || tag == "Zinh" {
@@ -162,7 +176,14 @@ fn TextProbe::shape_paragraph(
           step
         }
         let face = self.fonts[index]
-        match face.font.glyph_for_codepoint(ch.to_uint()) {
+        let mapped = face.font.glyph_for_codepoint(painted.to_uint())
+        // HarfBuzz uses the selected face's space when its NBSP glyph is absent.
+        let mapped = if painted == '\u00a0' && mapped is Ok(None | Some(0U)) {
+          face.font.glyph_for_codepoint(32U)
+        } else {
+          mapped
+        }
+        match mapped {
           Ok(Some(glyph)) if glyph != 0U => break index
           Err(_) =>
             @failure.reject("malformed-font", "Font character mapping failed")
@@ -237,6 +258,8 @@ fn TextProbe::shape_paragraph(
       measured.context_start == context_start &&
       measured.tracking == tracking &&
       measured.kerning == kerning &&
+      measured.ligatures == ligatures &&
+      measured.caps == caps &&
       measured.context == context_chars {
       measured.buffer
     } else {
@@ -250,7 +273,14 @@ fn TextProbe::shape_paragraph(
       }
       for i in run.start..<run.end {
         buffer.add_char(
-          @bidi.get_mirrored(chars[i], run.level),
+          @bidi.get_mirrored(
+            if caps {
+              capital_char(chars[i])
+            } else {
+              chars[i]
+            },
+            run.level,
+          ),
           cluster=clusters[offsets[i]].max(offsets[run.start]),
         )
       }
@@ -271,7 +301,7 @@ fn TextProbe::shape_paragraph(
           !["frac", "numr", "dnom"].contains(tag.to_string()) &&
           (kerning != "none" || tag.to_string() != "kern") &&
           (
-            tracking == 0 ||
+            (ligatures && tracking == 0) ||
             run.script.to_iso15924_tag().to_string() == "Arab" ||
             !["liga", "clig"].contains(tag.to_string())
           )
@@ -306,6 +336,8 @@ fn TextProbe::shape_paragraph(
           context_start,
           tracking,
           kerning,
+          ligatures,
+          caps,
           buffer,
         })
       }
@@ -339,7 +371,7 @@ fn TextProbe::shape_paragraph(
     }
     // The MoonBit shaper returns logical order; emit horizontal RTL in visual order.
     let cluster_widths : Map[Int32, Double] = Map([])
-    if tracking != 0 {
+    if tracking != 0 || cell {
       for i in 0..<buffer.len() {
         let cluster = buffer.infos()[i].cluster
         cluster_widths[cluster] = cluster_widths.get(cluster).unwrap_or(0) +
@@ -365,7 +397,7 @@ fn TextProbe::shape_paragraph(
         position.x_advance.to_double() * ratio
       }
       let next = if run.level % 2 == 1 { i - 1 } else { i + 1 }
-      let extra = if tracking != 0 &&
+      let extra = if (tracking != 0 || cell) &&
         !control &&
         (
           next < 0 ||
@@ -373,7 +405,9 @@ fn TextProbe::shape_paragraph(
           buffer.infos()[next].cluster != info.cluster
         ) {
         let width = cluster_widths.get(info.cluster).unwrap_or(0)
-        let extra = (width + tracking).max(0) - width
+        // Spreadsheet shaping rounds each complete cluster's advance at 96 dpi.
+        let rounded = if cell { (width / 0.75).round() * 0.75 } else { width }
+        let extra = (rounded + tracking).max(0) - width
         tracked[info.cluster] = extra
         extra
       } else {
@@ -400,6 +434,7 @@ fn TextProbe::shape_paragraph(
           cluster: info.cluster,
           font: run.font,
           outline: key,
+          strokeWidth: 0,
           x: x + position.x_offset.to_double() * ratio,
           y: -position.y_offset.to_double() * ratio,
           scale: ratio,

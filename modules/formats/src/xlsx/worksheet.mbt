@@ -32,6 +32,35 @@ priv struct Sheet {
 }
 
 ///|
+fn phonetic_defaults(tree : Tree, node : @xml.Node, font_count : Int32) -> Bool {
+  // Worksheet defaults alone do not create phonetic text or affect printed cell geometry.
+  guard node.uri == tree.spreadsheet &&
+    node.name == "phoneticPr" &&
+    tree.all(tree.document.nodes()[0].id, "phoneticPr").length() == 1 &&
+    tree.children.get(node.id).unwrap_or([]).is_empty() &&
+    node.text.trim().is_empty() &&
+    node.attributes.all(a => {
+      a.uri.is_empty() && ["fontId", "type", "alignment"].contains(a.name)
+    }) &&
+    ["noConversion", "halfwidthKatakana", "fullwidthKatakana", "hiragana"].contains(
+      node.attribute("type").unwrap_or("fullwidthKatakana"),
+    ) &&
+    ["noControl", "left", "center", "distributed"].contains(
+      node.attribute("alignment").unwrap_or("left"),
+    ) &&
+    font_count > 0 &&
+    node.attribute("fontId") is Some(font) else {
+    return false
+  }
+  try {
+    ignore(natural(font, font_count - 1))
+    true
+  } catch {
+    _ => false
+  }
+}
+
+///|
 fn Sheet::read(
   id : String,
   name : String,
@@ -41,6 +70,9 @@ fn Sheet::read(
   style_count : Int32,
 ) -> Sheet raise @failure.Failure {
   let tree = Tree::new(document)
+  if tree.sheet_root().name == "chartsheet" {
+    return read_chart_sheet(id, name, state, tree)
+  }
   let root = tree.root("worksheet")
   let data = tree
     .one(root.id, "sheetData")
@@ -196,7 +228,7 @@ fn Sheet::read(
         .get(node.id)
         .unwrap_or([])
         .any(child => {
-          child.uri != spreadsheet_uri ||
+          child.uri != tree.spreadsheet ||
           !["f", "v", "is", "extLst"].contains(child.name)
         }) ||
         node.attributes

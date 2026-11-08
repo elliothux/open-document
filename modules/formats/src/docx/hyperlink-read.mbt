@@ -3,6 +3,16 @@ fn WordTree::run_paragraph(self : WordTree, run : Int32) -> Int32 {
   let parent = self.nodes[run].parent
   if parent >= 0 &&
     self.nodes[parent].uri == word_uri &&
+    self.nodes[parent].name == "sdtContent" {
+    let control = self.nodes[parent].parent
+    if (try self.citation_content(control) == parent catch {
+        _ => false
+      }) {
+      return self.nodes[control].parent
+    }
+  }
+  if parent >= 0 &&
+    self.nodes[parent].uri == word_uri &&
     ["hyperlink", "fldSimple"].contains(self.nodes[parent].name) {
     self.nodes[parent].parent
   } else {
@@ -27,6 +37,11 @@ fn WordTree::paragraph_runs(
       runs.push(child)
     } else if node.uri == word_uri && node.name == "r" {
       runs.push(child)
+    } else if node.uri == word_uri && node.name == "sdt" {
+      let content = Some(self.citation_content(child)) catch { _ => None }
+      if content is Some(content) {
+        runs.append(self.children[content])
+      }
     } else if review &&
       node.uri == word_uri &&
       ["ins", "del"].contains(node.name) {

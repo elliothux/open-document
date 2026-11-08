@@ -172,7 +172,7 @@ pub fn Session::create_content(
           ColumnWidth(
             column + 1,
             column + 1,
-            ((width / 0.75 - 5) / digit).max(1).min(255),
+            (width / 0.75 / digit).max(1).min(255),
           ),
         ),
       )

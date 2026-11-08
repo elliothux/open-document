@@ -75,7 +75,8 @@ fn SheetObject::axis_marker_changes(
   let name = if change.rows { "row" } else { "col" }
   let offset_name = name + "Off"
   let from = self.tree.picture_node(self.frame.id, "from")
-  let to = if self.anchor == "size" {
+  let has_to = self.frame.name == "twoCellAnchor"
+  let to = if has_to {
     self.tree.picture_node(self.frame.id, "to")
   } else {
     from
@@ -125,7 +126,7 @@ fn SheetObject::axis_marker_changes(
         ),
       )
     }
-    if self.anchor != "size" {
+    if !has_to {
       break
     }
   }

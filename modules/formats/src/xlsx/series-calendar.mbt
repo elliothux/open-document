@@ -12,10 +12,17 @@ priv struct SeriesCalendar {
 
 ///|
 fn series_calendar_kind(format : String) -> String {
-  match format {
-    "yyyy-mm-dd" | "mm-dd-yy" | "d-mmm-yy" | "d-mmm" | "mmm-yy" => "date"
-    "h:mm AM/PM" | "h:mm:ss AM/PM" | "h:mm" | "hh:mm:ss" => "time"
-    "m/d/yy h:mm" => "datetime"
+  guard date_format(format) is Some(tokens) else { return "" }
+  let calendar = tokens.any(token => {
+    token is Field(name, _) && ["y", "m", "d"].contains(name)
+  })
+  let clock = tokens.any(token => {
+    token is Field(name, _) && ["h", "n", "s", "a", "f"].contains(name)
+  })
+  match (calendar, clock) {
+    (true, true) => "datetime"
+    (true, false) => "date"
+    (false, true) => "time"
     _ => ""
   }
 }

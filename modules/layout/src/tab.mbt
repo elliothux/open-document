@@ -181,7 +181,7 @@ fn LineGroup::tab_run(
     size: self.style.render_size(),
     nominalSize: self.style.size,
     text: "\t",
-    glyphs,
+    glyphs: probe.bold_glyphs(glyphs, self.style.font),
     bidi: [
       {
         start: 0,
@@ -195,6 +195,6 @@ fn LineGroup::tab_run(
     x,
     baseline: 0,
     rise: self.style.rise(),
-    decorations: line_decorations(carets, spans, start, width),
+    decorations: line_decorations(carets, spans, start, width, end=start + 1),
   }
 }

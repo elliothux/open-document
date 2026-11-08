@@ -1,12 +1,21 @@
 ///|
-fn Paragraph::content_widths(
+/// Returns the required grapheme, unbreakable segment and line widths in points, including indents.
+pub fn Paragraph::content_widths(
   self : Paragraph,
   probe : TextProbe,
   profile : Map[String, String],
+  ligatures~ : Bool = true,
 ) -> (Double, Double, Double) raise @failure.Failure {
   let cache = ParagraphCache::new(probe, profile)
   let lines = cache
-    .lines(probe, { ..self, align: "left", }, profile, 1000000000, inTable=true)
+    .lines(
+      probe,
+      { ..self, align: "left", },
+      profile,
+      1000000000,
+      inTable=true,
+      ligatures~,
+    )
     .map(item => item.line)
   let mut hard = 0.0
   let mut minimum = 0.0
@@ -99,6 +108,18 @@ fn width_distribution(
 }
 
 ///|
+fn Table::grid_limit(self : Table, available : Double) -> Double {
+  // Legacy Word measures available content width between the outer cell margins.
+  available +
+  (if self.legacyCellAlignment {
+    self.cell_insets(0, 0).left +
+    self.cell_insets(0, self.rows[0].length() - 1).right
+  } else {
+    0.0
+  })
+}
+
+///|
 pub fn Table::fit_widths(
   self : Table,
   probe : TextProbe,
@@ -120,6 +141,7 @@ pub fn Table::fit_widths(
       "invalid-table", "Invalid automatic table width preferences",
     )
   }
+  let available = self.grid_limit(available).min(14400)
   let count = self.widths.length()
   let preferred_width = self.preferredWidth.resolve(available)
   let hard = Array::make(count, 0.05)

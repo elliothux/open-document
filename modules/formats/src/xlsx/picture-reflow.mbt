@@ -97,6 +97,7 @@ fn SheetObject::transform_matches(self : SheetObject) -> Bool {
 ///|
 fn Session::reflow_pictures(
   self : Session,
+  original : Session,
   sheets : Array[Sheet],
   parts : Map[String, @xml.Document],
   edits : Array[(String, @xml.Edit)],
@@ -122,23 +123,48 @@ fn Session::reflow_pictures(
         "missing-font", "Measure worksheet picture anchors with an explicit font profile before editing dimensions",
       )
     }
-    let after = self.resolved_dimensions(sheet, probe, profile)
     let view = { ..self, sheets, parts, }
+    let after = view.resolved_dimensions(sheet, probe, profile)
     let next_pictures = view.sheet_objects(sheet, after) catch {
       @failure.Failure(code="unsupported-drawing", ..) => []
       error => raise error
     }
+    let stale = next_pictures.filter(picture => {
+      picture.anchor != "fixed" && !picture.transform_matches()
+    })
+    guard stale.get(0) is Some(first) else { continue }
+    // An imported transform can already differ from the resolved anchor.
+    let previous = if edits.any(edit => edit.0 == first.part) {
+      Map([])
+    } else {
+      let before = original.resolved_dimensions(old, probe, profile)
+      let pictures = original.sheet_objects(old, before) catch {
+        @failure.Failure(code="unsupported-drawing", ..) => []
+        error => raise error
+      }
+      Map(pictures.map(picture => (picture.id, picture.rect)))
+    }
     let changes : Array[@xml.SourceChange] = []
-    for picture in next_pictures {
-      if picture.anchor != "fixed" && !picture.transform_matches() {
+    for picture in stale {
+      let rect = picture.rect
+      let moved = previous
+        .get(picture.id)
+        .map(old => {
+          old.x != rect.x ||
+          old.y != rect.y ||
+          old.width != rect.width ||
+          old.height != rect.height
+        })
+        .unwrap_or(true)
+      if moved {
         changes.push(
           picture.transform_change(picture.rect, analysis_frame=true),
         )
       }
     }
     if !changes.is_empty() {
-      let part = next_pictures[0].part
-      let (document, edit) = next_pictures[0].tree.document.edit_source(changes)
+      let part = first.part
+      let (document, edit) = first.tree.document.edit_source(changes)
       parts[part] = document
       edits.push((part, edit))
     }

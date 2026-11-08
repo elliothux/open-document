@@ -16,6 +16,7 @@ priv struct Axis {
 priv struct Dimensions {
   rows : Axis
   columns : Axis
+  base_column_width : Double?
   automatic_rows : Map[Int32, Bool]
   automatic_columns : Array[(Int32, Int32)]
 }
@@ -40,19 +41,26 @@ fn read_dimensions(
     .bind(node => node.attribute("defaultRowHeight"))
     .map(value => dimension(value, 409.5))
     .unwrap_or(15)
-  let column_default = format
-    .bind(node => node.attribute("defaultColWidth"))
+  let declared_column = format.bind(node => node.attribute("defaultColWidth"))
+  let base_column_width = if declared_column is None {
+    Some(
+      format
+      .bind(node => node.attribute("baseColWidth"))
+      .map(value => dimension(value, 255))
+      .unwrap_or(8),
+    )
+  } else {
+    None
+  }
+  let column_default = declared_column
     .map(value => dimension(value, 255))
-    .unwrap_or(8.43)
+    .unwrap_or(base_column_width.unwrap_or(8))
   guard row_default > 0 && column_default > 0 else {
     @failure.reject("malformed-xlsx", "Default dimensions must be positive")
   }
   let rows : Array[AxisSpan] = []
   let automatic_rows : Map[Int32, Bool] = Map([])
   let automatic_columns : Array[(Int32, Int32)] = []
-  let custom_height = format
-    .map(node => flag(node, "customHeight"))
-    .unwrap_or(false)
   let mut previous_row = 0
   for row in tree.all(data.id, "row") {
     let index = natural(
@@ -60,7 +68,7 @@ fn read_dimensions(
       1048576,
     )
     previous_row = index
-    if !flag(row, "customHeight", fallback=custom_height) {
+    if !flag(row, "customHeight") {
       automatic_rows[index] = row.attribute("ht") is Some(_)
     }
     let height = if flag(row, "hidden") {
@@ -78,12 +86,15 @@ fn read_dimensions(
     } else {
       row_default
     }
-    if height != default_height {
+    if height != default_height ||
+      row.attribute("ht") is Some(_) ||
+      flag(row, "customHeight") {
       rows.push({ first: index, last: index, size: height, })
     }
   }
   rows.sort_by((a, b) => a.first.compare(b.first))
   let columns : Array[AxisSpan] = []
+  let inherited_columns : Map[Int32, Bool] = Map([])
   if tree.one(root.id, "cols") is Some(container) {
     for col in tree.all(container.id, "col") {
       let first = natural(col.attribute("min").unwrap_or(""), 16384)
@@ -100,6 +111,9 @@ fn read_dimensions(
         .unwrap_or(column_default)
       }
       columns.push({ first, last, size, })
+      if !flag(col, "hidden") && col.attribute("width") is None {
+        inherited_columns[first] = true
+      }
       if flag(col, "bestFit") && !flag(col, "hidden") {
         automatic_columns.push((first, last))
       }
@@ -116,6 +130,7 @@ fn read_dimensions(
   {
     automatic_rows,
     automatic_columns,
+    base_column_width,
     rows: {
       default_size: if format
         .map(node => flag(node, "zeroHeight"))
@@ -127,7 +142,11 @@ fn read_dimensions(
       spans: rows,
       limit: 1048576,
     },
-    columns: { default_size: column_default, spans: columns, limit: 16384, },
+    columns: {
+      default_size: column_default,
+      spans: columns.filter(span => !inherited_columns.contains(span.first)),
+      limit: 16384,
+    },
   }
 }
 
@@ -213,6 +232,49 @@ fn Axis::locate(self : Axis, point : Double) -> Int32 {
 }
 
 ///|
+fn Axis::last_before(self : Axis, point : Double) -> Int32 {
+  let index = self.locate(point)
+  if self.position(index) == point {
+    self.neighbor(index, false).unwrap_or(1)
+  } else {
+    index
+  }
+}
+
+///|
+fn Axis::neighbor(self : Axis, index : Int32, after : Bool) -> Int32? {
+  let mut next = index + (if after { 1 } else { -1 })
+  while next >= 1 && next <= self.limit && self.size(next) == 0 {
+    if self.spans
+      .iter()
+      .find_first(span => span.first <= next && next <= span.last)
+      is Some(span) {
+      next = if after { span.last + 1 } else { span.first - 1 }
+    } else {
+      next = self.spans
+        .iter()
+        .filter(span => {
+          span.size > 0 &&
+          (if after { span.first > next } else { span.last < next })
+        })
+        .map(span => if after { span.first } else { span.last })
+        .fold(init=if after { self.limit + 1 } else { 0 }, (a, b) => {
+          if after {
+            a.min(b)
+          } else {
+            a.max(b)
+          }
+        })
+    }
+  }
+  if next >= 1 && next <= self.limit {
+    Some(next)
+  } else {
+    None
+  }
+}
+
+///|
 fn Axis::visible(
   self : Axis,
   first : Int32,
@@ -258,20 +320,25 @@ fn Dimensions::resolved(
     if width == 0 {
       0.0
     } else {
-      (
-        ((256.0 * width + (128.0 / digit_width).floor()) / 256 * digit_width).floor() +
-        5
-      ) *
+      ((256.0 * width + (128.0 / digit_width).floor()) / 256 * digit_width).floor() *
       0.75 *
       (if formulas { 2 } else { 1 })
     }
+  }
+  let default_size = match self.base_column_width {
+    Some(base) => {
+      let model = ((base * digit_width + 5) / digit_width * 256).floor() / 256
+      let pixels = convert(model) / (0.75 * (if formulas { 2 } else { 1 }))
+      (pixels / 8).ceil() * 8 * 0.75 * (if formulas { 2 } else { 1 })
+    }
+    None => convert(self.columns.default_size)
   }
   {
     ..self,
     rows: self.rows,
     columns: {
       ..self.columns,
-      default_size: convert(self.columns.default_size),
+      default_size,
       spans: self.columns.spans.map(span => {
         ..span,
         size: convert(span.size),

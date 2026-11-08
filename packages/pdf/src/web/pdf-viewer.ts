@@ -370,7 +370,7 @@ export class PdfViewer {
       this.stopped = true;
       if (!this.closed && !this.closing) {
         this.surface.canvas.width = 0;
-        this.surface.clearOverlay(this.scale);
+        this.surface.overlay.width = 0;
         this.semantics.textContent = "";
         this.errorMessage =
           "Page presentation stopped. Refresh the page or undo; committed changes remain available for saving.";

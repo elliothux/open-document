@@ -216,7 +216,7 @@ fn source_identity(value : String) -> String raise @failure.Failure {
   guard !value.is_empty() && value.iter().all(ch => ch >= '0' && ch <= '9') else {
     @failure.reject("malformed-pptx", "Invalid numeric identity")
   }
-  number(value, 1, 4294967295).to_int64().to_string()
+  number(value, 0, 4294967295).to_int64().to_string()
 }
 
 ///|

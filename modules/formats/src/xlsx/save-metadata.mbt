@@ -77,11 +77,15 @@ fn Session::save_metadata(
   let tree = Tree::new(self.workbook)
   let root = tree.root("workbook")
   let workbook = if tree.one(root.id, "calcPr") is Some(node) {
-    metadata_attributes(self.workbook, node, [
-      ("fullCalcOnLoad", "1"),
-      ("forceFullCalc", "1"),
-      ("calcMode", "auto"),
-    ])
+    if node.attribute("calcMode") == Some("manual") {
+      self.workbook
+    } else {
+      metadata_attributes(self.workbook, node, [
+        ("fullCalcOnLoad", "1"),
+        ("forceFullCalc", "1"),
+        ("calcMode", "auto"),
+      ])
+    }
   } else {
     let prefix = root.qualified[:root.qualified.length() - 8].to_owned()
     let content = "<\{prefix}calcPr fullCalcOnLoad=\"1\" forceFullCalc=\"1\" calcMode=\"auto\"/>"

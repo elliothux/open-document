@@ -12,6 +12,7 @@ fn note_shift(line : Line, offset : Double) -> Line {
       ..run.copy_geometry(),
       baseline: run.baseline + offset,
     }),
+    markerImage: line.markerImage.map(image => { ..image, y: image.y + offset, }),
     readOnlyReason: "protected-content:note-area",
   }
 }

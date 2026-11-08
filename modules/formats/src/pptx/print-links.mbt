@@ -76,6 +76,7 @@ fn Session::print_links(
   self : Session,
   slide : Slide,
   texts : Array[TextGeometry],
+  fonts : Array[@layout.FontInfo],
   page : Int32,
   destinations : Map[String, Int32],
   relationships : ReadOnlyArray[@opc.Relationship],
@@ -122,8 +123,29 @@ fn Session::print_links(
           )
         }
         let original_line = line
+        let mut top = line.y
+        let mut bottom = line.y + line.height
+        // Nominal presentation leading can be shorter than the font's text extents.
+        for run in line.runs {
+          work += run.glyphs.length()
+          guard work <= remaining else {
+            @failure.reject(
+              "limit-exceeded", "Presentation PDF link geometry exceeds budget",
+            )
+          }
+          for glyph in run.glyphs {
+            let font = fonts[glyph.font]
+            let baseline = run.baseline + glyph.y
+            top = top.min(baseline - font.ascent.to_double() * glyph.scale)
+            bottom = bottom.max(
+              baseline + font.descent.to_double() * glyph.scale,
+            )
+          }
+        }
         let line = {
           ..line,
+          y: top,
+          height: bottom - top,
           cellClip: None,
           carets: line.carets.map(caret => {
             ..caret,

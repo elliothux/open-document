@@ -190,17 +190,32 @@ fn Flow::validate_floating_images(self : Flow) -> Unit raise @failure.Failure {
       }
     }
   }
-  guard count <= 256 else {
-    @failure.reject("limit-exceeded", "Floating image count exceeds256")
-  }
   let other : Array[Paragraph] = []
   for table in self.tables {
     other.append(table.paragraphs())
   }
   for stories in [self.headers, self.footers] {
     for story in stories.values() {
-      other.append(story)
+      for paragraph in story.paragraphs {
+        for span in paragraph.spans {
+          if span.drawing is Some(image) && image.anchor is Some(anchor) {
+            anchor.validate()
+            guard anchor.wrapping == "none" else {
+              @failure.reject(
+                "unsupported-layout", "Running drawing wrapping requires support",
+              )
+            }
+            count += 1
+          }
+        }
+      }
+      for table in story.tables {
+        other.append(table.paragraphs())
+      }
     }
+  }
+  guard count <= 256 else {
+    @failure.reject("limit-exceeded", "Floating image count exceeds256")
   }
   guard !other.any(paragraph => {
     paragraph.spans.any(span => {
@@ -208,7 +223,7 @@ fn Flow::validate_floating_images(self : Flow) -> Unit raise @failure.Failure {
     })
   }) else {
     @failure.reject(
-      "unsupported-layout", "Floating images in tables headers or footers require layout support",
+      "unsupported-layout", "Floating images in tables require layout support",
     )
   }
 }
@@ -251,6 +266,10 @@ fn PlacedDrawingFrame::paint(
   primitives : Array[PositionedPrimitive],
   fonts : Array[FontInfo],
 ) -> Unit {
+  if self.content is Metafile(file) {
+    file.paint(self, primitives)
+    return
+  }
   let math = match self.content {
     Math(formula) => Some(formula.primitives)
     Chart(chart) => Some(chart.primitives)
@@ -275,6 +294,7 @@ fn PlacedDrawingFrame::paint(
         shape.stroke,
         shape.lineWidth,
         {
+          evenOdd: false,
           fillAlpha: 1,
           strokeAlpha: shape.strokeAlpha,
           dash: [],
@@ -299,7 +319,9 @@ fn PlacedDrawingFrame::paint(
         )
       }
       for line in text.lines {
-        primitives.append(line.positioned(fonts, self.width))
+        primitives.append(
+          line.positioned(fonts, self.width, align_text_rules=true),
+        )
       }
       for border in text.borders {
         primitives.push(Stroke(border.rect, border.color, border.width))
@@ -321,6 +343,7 @@ fn PlacedDrawingFrame::paint(
     Image(
       {
         key,
+        interpolate: None,
         x: self.x - crop[0] * width,
         y: self.y - crop[1] * height,
         width,
@@ -384,21 +407,30 @@ fn Layout::floating_image_hit(
   x : Double,
   y : Double,
 ) -> Hit? raise @failure.Failure {
-  let frame = self.pages[page]
-  let text = (frame.lines + self.running.get(page).unwrap_or([])).any(line => {
-    !line.text.is_empty() &&
-    y >= line.y &&
-    y <= line.y + line.height &&
-    (for index in 1..<line.carets.length() {
-      let a = line.carets[index - 1].after
-      let b = line.carets[index].before
-      if x >= a.min(b) && x <= a.max(b) {
-        break true
-      }
-    } nobreak {
-      false
+  let running = self.running.get(page)
+  let running_lines = running.map(frame => frame.lines).unwrap_or([])
+  let frame = {
+    ..self.pages[page],
+    lines: self.pages[page].lines +
+    running_lines.filter(line => line.container == -3),
+  }
+  let over_text = fn(lines : Array[Line]) {
+    lines.any(line => {
+      !line.text.is_empty() &&
+      y >= line.y &&
+      y <= line.y + line.height &&
+      (for index in 1..<line.carets.length() {
+        let a = line.carets[index - 1].after
+        let b = line.carets[index].before
+        if x >= a.min(b) && x <= a.max(b) {
+          break true
+        }
+      } nobreak {
+        false
+      })
     })
-  })
+  }
+  let text = over_text(frame.lines)
   for (index, image) in frame.floating_images().rev() {
     let (left, top, width, height) = image.interaction_bounds()
     if !(image.anchor.unwrap().behind && text) &&
@@ -414,6 +446,27 @@ fn Layout::floating_image_hit(
           self.image_hit(frame.lines[index], image, page, index, x)
         }),
       )
+    }
+  }
+  if text {
+    return None
+  }
+  let region_text = over_text(
+    running_lines.filter(line => line.container != -3),
+  )
+  for
+    (index, image) in running
+    .map(frame => frame.floating_images())
+    .unwrap_or([])
+    .rev() {
+    let (left, top, width, height) = image.interaction_bounds()
+    if !(image.anchor.unwrap().behind && region_text) &&
+      x >= left &&
+      x <= left + width &&
+      y >= top &&
+      y <= top + height &&
+      image.ink_hit(x, y) {
+      return Some(self.image_hit(running_lines[index], image, page, index, x))
     }
   }
   None

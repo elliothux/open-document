@@ -4,29 +4,38 @@
 
 下文保留按具体能力选读的补充入口。研究来源不等于构建依赖或已验证能力，当前采用的依赖见[依赖记录](dependencies.md)。
 
+上游测试入口、原件数量和复用边界统一见[文件兼容性矩阵](compatibility.md#上游矩阵与可用语料)。本轮候选与固定 revision 登记在私有 `cases/c0-upstream-candidates.json`。
+
 参考关系不是整体 fork，也不是逐行翻译。优先参考功能语义、数据结构、格式兼容规则、测试样本和真实行为，再按照本项目边界实现。
 
 ## 本地源码目录
 
-2026-10-28 将下列 15 个仓库检出到根 `references/`，供本地源码对比。采用深度为 1 的浅克隆；已有研究快照使用本文记录的 revision，Collabora 使用本次读取的上游 HEAD。各目录保留 Git 元数据与原许可证，准确来源和完整 commit 见本地 `references/SOURCES.json`，入口索引见 `references/README.md`。
+`references/` 是各环境独立准备的研究副本，目录名称与检出状态可能不同。2026-10-30 本机用于测试语料调查的实际目录见下表；部分只有 Git 元数据和按需取得的 blob，可按固定 revision 用 `git show` 读取。该环境未找到此前记录的 `references/SOURCES.json` 和 `references/README.md`，不能将它们作为必需入口。固定上游链接仍可独立使用。
 
 | 项目 | 本地目录 | 参考范围 |
 | --- | --- | --- |
 | GenOffice | `references/genoffice/` | 四类编辑器的功能、UI 与操作 |
-| ONLYOFFICE core | `references/onlyoffice-core/` | 首选格式、布局、字体与算法 |
-| ONLYOFFICE sdkjs | `references/onlyoffice-sdkjs/` | 首选编辑模型、交互与兼容行为 |
-| LibreOffice core | `references/libreoffice/` | 次选格式、布局与独立回归依据 |
+| ONLYOFFICE core | `references/onlyoffice/DocumentServer/core/` | 首选格式、布局、字体与算法 |
+| ONLYOFFICE sdkjs | `references/onlyoffice/DocumentServer/sdkjs/` | 首选编辑模型、交互与兼容行为 |
+| LibreOffice core | `references/libreoffice-core/` | 次选格式、布局与独立回归依据；另有 `references/core/`，revision 不同，不混用 |
 | [Collabora Online](https://github.com/CollaboraOnline/online.mirror) | `references/collabora-online/` | 浏览器集成与补充交互案例 |
-| BetterOffice | `references/betteroffice/` | SDK 架构与核心/宿主边界 |
+| BetterOffice | 本机未找到此前记录的 `references/betteroffice/` | SDK 架构与核心/宿主边界，使用下文固定来源 |
 | Univer | `references/univer/` | API、公式与能力组织 |
-| Open XML SDK | `references/open-xml-sdk/` | OPC、OOXML 与未知内容保留 |
+| Open XML SDK | `references/Open-XML-SDK/` | OPC、OOXML 与未知内容保留 |
 | Typst | `references/typst/` | 布局与核心/宿主边界 |
 | Parley | `references/parley/` | 文本布局与编辑几何 |
-| IronCalc | `references/ironcalc/` | 公式与表格事务 |
+| IronCalc | `references/IronCalc/` | 公式与表格事务 |
 | Excelize | `references/excelize/` | XLSX 读写与格式规则 |
 | Krilla | `references/krilla/` | PDF 输出与字体子集 |
 | PDF.js | `references/pdfjs/` | PDF 浏览器行为 |
 | PDFium | `references/pdfium/` | PDF 独立读取与渲染 |
+| [Poppler 26.05.0](https://poppler.freedesktop.org/poppler-26.05.0.tar.xz) | `references/poppler-26.05.0/` | 独立 PDF 栅格参考；按需提取 Splash 平铺采样源码及许可证 |
+| Apache POI | `references/apache-poi/` | Office 原件、结构和往返断言 |
+| ONLYOFFICE-QA x2t-testing | `references/onlyoffice-x2t-testing/` | 历史转换测试组织与公开小样本 |
+| Calamine | `references/calamine/` | 真实世界怪异 XLSX/XLS 容器、命名空间、共享字符串与共享公式边缘案例（MIT） |
+| Office Oxide | `references/office_oxide/` | OOXML 往返保真、内存分配预算与畸形包鲁棒性测试（MIT / Apache-2.0） |
+| Anydoc | `references/anydoc/` | 多格式文档提取、快照对比与鲁棒性边界样本（MIT） |
+| Apache Tika | `references/apache-tika/` | 多生产工具生成的真实文档语料（仅 `.git` 对象库，按 `git show` 读取，Apache-2.0） |
 
 这些副本只用于源码对比；子模块与 Git LFS 大文件按实际构建需求另行获取。`references/` 由根 `.gitignore` 管理，公开 SDK 构建继续使用固定生产依赖。
 

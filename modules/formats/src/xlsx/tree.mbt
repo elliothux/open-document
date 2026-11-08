@@ -2,11 +2,18 @@
 let spreadsheet_uri = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 
 ///|
+let strict_spreadsheet_uri = "http://purl.oclc.org/ooxml/spreadsheetml/main"
+
+///|
 let relationship_uri = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/"
+
+///|
+let strict_relationship_uri = "http://purl.oclc.org/ooxml/officeDocument/relationships/"
 
 ///|
 priv struct Tree {
   document : @xml.Document
+  spreadsheet : String
   nodes : Map[Int32, @xml.Node]
   children : Map[Int32, Array[@xml.Node]]
 }
@@ -23,7 +30,12 @@ fn Tree::new(document : @xml.Document) -> Tree {
       children[node.parent] = [node]
     }
   }
-  { document, nodes, children, }
+  let spreadsheet = if document.nodes()[0].uri == strict_spreadsheet_uri {
+    strict_spreadsheet_uri
+  } else {
+    spreadsheet_uri
+  }
+  { document, spreadsheet, nodes, children, }
 }
 
 ///|
@@ -31,7 +43,7 @@ fn Tree::all(self : Tree, parent : Int32, name : String) -> Array[@xml.Node] {
   self.children
   .get(parent)
   .unwrap_or([])
-  .filter(node => node.uri == spreadsheet_uri && node.name == name)
+  .filter(node => node.uri == self.spreadsheet && node.name == name)
 }
 
 ///|
@@ -50,8 +62,20 @@ fn Tree::one(
 ///|
 fn Tree::root(self : Tree, name : String) -> @xml.Node raise @failure.Failure {
   let root = self.document.nodes()[0]
-  guard root.name == name && root.uri == spreadsheet_uri else {
-    @failure.reject("unsupported-xlsx", "Expected Transitional " + name)
+  guard root.name == name && root.uri == self.spreadsheet else {
+    @failure.reject("unsupported-xlsx", "Expected SpreadsheetML " + name)
+  }
+  root
+}
+
+///|
+fn Tree::sheet_root(self : Tree) -> @xml.Node raise @failure.Failure {
+  let root = self.document.nodes()[0]
+  guard root.uri == self.spreadsheet &&
+    ["worksheet", "chartsheet"].contains(root.name) else {
+    @failure.reject(
+      "unsupported-xlsx", "Expected SpreadsheetML worksheet or chartsheet",
+    )
   }
   root
 }

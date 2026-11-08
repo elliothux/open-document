@@ -87,7 +87,7 @@ fn WordTree::read_basic_shape(
   }
   self.shape_children(
     shape,
-    ["cNvPr", "cNvSpPr", "spPr", "bodyPr", "txbx"],
+    ["cNvPr", "cNvSpPr", "spPr", "bodyPr", "txbx", "linkedTxbx"],
     uri=word_shape_uri,
   )
   let frame = self.drawing_data(drawing).0
@@ -144,12 +144,17 @@ fn WordTree::read_basic_shape(
   }
   guard self.drawing_child(shape, "spPr", uri=word_shape_uri)
     is Some(properties) &&
-    self.nodes[properties].attributes.is_empty() else {
+    self.nodes[properties].attributes.all(a => {
+      a.uri.is_empty() && a.name == "bwMode" && a.value == "auto"
+    }) else {
     @failure.reject("unsupported-layout", "Shape properties are required")
   }
   self.shape_children(properties, [
-    "xfrm", "prstGeom", "custGeom", "solidFill", "noFill", "ln",
+    "xfrm", "prstGeom", "custGeom", "solidFill", "noFill", "ln", "extLst",
   ])
+  if self.drawing_child(properties, "extLst") is Some(extensions) {
+    self.hidden_shape_paint(extensions)
+  }
   let custom = self.drawing_child(properties, "custGeom")
   let ordinary = self.drawing_child(properties, "prstGeom")
   let selected = if ordinary is Some(_) { ordinary } else { custom }
@@ -282,6 +287,7 @@ fn WordTree::read_basic_shape(
   {
     width,
     height,
+    effectExtent: self.drawing_effect_extent(drawing),
     anchor,
     content: @layout.Shape({
       preset,

@@ -17,11 +17,26 @@ fn Session::chart_from_settings(
   settings : SheetChartSettings,
   cached? : @chart.WorksheetChart,
 ) -> @chart.WorksheetChart raise @failure.Failure {
+  guard cached
+    .map(chart => {
+      chart.native_line is None &&
+      chart.native_radar is None &&
+      chart.native_area is None &&
+      chart.native_bubble is None &&
+      chart.native_circular is None &&
+      chart.native_bar is None &&
+      chart.native_surface is None
+    })
+    .unwrap_or(true) else {
+    @failure.reject(
+      "protected-content", "Native chart source rewriting requires support",
+    )
+  }
   guard settings.names.length() >= 1 &&
-    settings.names.length() <= 8 &&
+    settings.names.length() <= 32 &&
     settings.names.length() == settings.values.length() else {
     @failure.reject(
-      "invalid-chart", "Chart references require 1-8 matching series",
+      "invalid-chart", "Chart references require 1-32 matching series",
     )
   }
   guard cached is Some(_) ||
@@ -44,6 +59,13 @@ fn Session::chart_from_settings(
       series: [],
     })
   let chart : @chart.WorksheetChart = {
+    native_line: None,
+    native_radar: None,
+    native_area: None,
+    native_bubble: None,
+    native_circular: None,
+    native_bar: None,
+    native_surface: None,
     categories: settings.categories,
     names: settings.names,
     values: settings.values,
@@ -74,6 +96,7 @@ fn Session::chart_from_settings(
   self.resolved_chart(owner, chart, {
     remaining: 1048576,
     date1904: self.date1904,
+    random: None,
     origin: { row: 1, column: 1, },
     names: self.formula_names(),
   })
@@ -133,7 +156,7 @@ pub fn Session::insert_chart(
   check_picture_rect("move", rect, dimensions)
   let chart = self.chart_from_settings(sheet, settings)
   ignore(
-    chart.data.paint(
+    chart.paint(
       width,
       height,
       probe,
@@ -245,7 +268,7 @@ pub fn Session::set_chart(
     return self.query()
   }
   ignore(
-    next.data.paint(
+    next.paint(
       object.rect.width,
       object.rect.height,
       probe,

@@ -158,6 +158,7 @@ pub fn markup(
   let frame : @layout.DrawingFrame = {
     width: 0,
     height: 0,
+    effectExtent: (0, 0, 0, 0),
     anchor: None,
     content: Math(formula),
   }

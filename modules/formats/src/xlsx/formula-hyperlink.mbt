@@ -55,6 +55,7 @@ fn Session::with_formula_hyperlinks(
   let work = work.unwrap_or_else(() => {
     remaining: 1048576,
     date1904: self.date1904,
+    random: None,
     origin: { row: 1, column: 1, },
     names: self.formula_names(),
   })

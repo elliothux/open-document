@@ -106,7 +106,7 @@ fn SheetObject::transfer_changes(
         ("from", rect.x, rect.y),
         ("to", rect.x + rect.width, rect.y + rect.height),
       ] {
-      if name == "to" && object.anchor != "size" {
+      if name == "to" && object.frame.name != "twoCellAnchor" {
         continue
       }
       let marker = tree.picture_node(object.frame.id, name)

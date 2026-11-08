@@ -75,7 +75,7 @@ fn Session::slide_import_parts(
       let bytes = self.image_content(part)
       let content_type = self.opc.content_type(part).unwrap_or("")
       if kind == "image" {
-        let (_, _, width, height) = @image.type_info(bytes)
+        let (_, _, width, height) = raster_image_info(bytes)
         pixels += width.to_int64() * height.to_int64() * 4
         guard bytes.length() <= 2097152 else {
           @failure.reject(

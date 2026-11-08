@@ -104,7 +104,7 @@ fn background_color_markup(reference : Ref) -> Unit raise @failure.Failure {
   let children = reference.tree.children.get(reference.node.id).unwrap_or([])
   guard children is [color] &&
     color.uri == drawing_uri &&
-    ["srgbClr", "schemeClr", "sysClr"].contains(color.name) &&
+    ["srgbClr", "schemeClr", "sysClr", "prstClr"].contains(color.name) &&
     color.text.trim().is_empty() &&
     color.attribute("val") is Some(_) &&
     color.attributes.all(a => {
@@ -118,9 +118,10 @@ fn background_color_markup(reference : Ref) -> Unit raise @failure.Failure {
     .unwrap_or([])
     .all(node => {
       node.uri == drawing_uri &&
-      ["tint", "shade", "lumMod", "lumOff", "alpha", "alphaMod", "alphaOff"].contains(
-        node.name,
-      ) &&
+      [
+        "tint", "shade", "lumMod", "lumOff", "hueOff", "satMod", "satOff", "alpha",
+        "alphaMod", "alphaOff",
+      ].contains(node.name) &&
       node.text.trim().is_empty() &&
       node.attributes.length() == 1 &&
       node.attribute("val") is Some(_) &&
@@ -137,12 +138,19 @@ fn gradient_source(
   guard fill.node.text.trim().is_empty() &&
     fill.node.attributes.all(a => {
       a.uri.is_empty() &&
-      a.name == "rotWithShape" &&
-      ["0", "1", "true", "false"].contains(a.value)
+      (
+        (
+          a.name == "rotWithShape" &&
+          ["0", "1", "true", "false"].contains(a.value)
+        ) ||
+        (a.name == "flip" && a.value == "none")
+      )
     }) &&
     !source_xml(fill).contains("<!--") &&
     !source_xml(fill).contains("<?") else {
-    @failure.reject("unsupported-style", "Unsupported linear background markup")
+    @failure.reject(
+      "unsupported-style", "Unsupported gradient background markup",
+    )
   }
   let children = fill.tree.children.get(fill.node.id).unwrap_or([])
   guard children.length() >= 2 &&
@@ -195,23 +203,17 @@ fn gradient_source(
       )
     }
     let targets = fill.tree.children.get(line.id).unwrap_or([])
-    guard targets.is_empty() ||
-      (
-        targets is [target] &&
-        target.uri == drawing_uri &&
-        target.name == "fillToRect" &&
-        target.text.trim().is_empty() &&
-        target.attributes.length() == 4 &&
-        target.attributes.all(a => {
-          a.uri.is_empty() &&
-          ["l", "t", "r", "b"].contains(a.name) &&
-          a.value == "50000"
-        }) &&
-        fill.tree.children.get(target.id).unwrap_or([]).is_empty()
-      ) else {
-      @failure.reject(
-        "unsupported-style", "Radial gradients require a centered point",
-      )
+    // ONLYOFFICE retains point/tile metadata but paints the circle in shape bounds.
+    if targets is [target] && target.name == "fillToRect" {
+      guard gradient_rectangle(fill.tree, target, 0, 100000)
+        is [left, top, right, bottom] else {
+        abort("Gradient rectangle has four sides")
+      }
+      guard left + right == 100000 && top + bottom == 100000 else {
+        @failure.reject("unsupported-style", "Radial gradients require a point")
+      }
+    } else if !targets.is_empty() {
+      @failure.reject("unsupported-style", "Unsupported radial gradient target")
     }
   } else {
     guard fill.tree.children.get(line.id).unwrap_or([]).is_empty() &&
@@ -225,13 +227,17 @@ fn gradient_source(
     }
   }
   if children.get(2) is Some(tile) {
-    guard tile.name == "tileRect" &&
-      fill.tree.children.get(tile.id).unwrap_or([]).is_empty() &&
-      tile.attributes.all(a => {
-        a.uri.is_empty() &&
-        ["l", "t", "r", "b"].contains(a.name) &&
-        a.value == "0"
-      }) else {
+    guard tile.name == "tileRect" else {
+      @failure.reject(
+        "unsupported-style", "Unsupported gradient tile rectangle",
+      )
+    }
+    let sides = gradient_rectangle(fill.tree, tile, -2147483648, 2147483647)
+    guard (if radial {
+      sides[0] + sides[2] < 100000 && sides[1] + sides[3] < 100000
+    } else {
+      sides.all(side => side == 0)
+    }) else {
       @failure.reject(
         "unsupported-style", "Unsupported gradient tile rectangle",
       )
@@ -243,6 +249,28 @@ fn gradient_source(
     flag(line, "scaled", default=true),
     radial,
   )
+}
+
+///|
+fn gradient_rectangle(
+  tree : Tree,
+  node : @xml.Node,
+  low : Double,
+  high : Double,
+) -> Array[Double] raise @failure.Failure {
+  guard node.uri == drawing_uri &&
+    node.text.trim().is_empty() &&
+    tree.children.get(node.id).unwrap_or([]).is_empty() &&
+    node.attributes.all(a => {
+      a.uri.is_empty() && ["l", "t", "r", "b"].contains(a.name)
+    }) else {
+    @failure.reject(
+      "unsupported-style", "Unsupported gradient rectangle markup",
+    )
+  }
+  ["l", "t", "r", "b"].map(side => {
+    number(node.attribute(side).unwrap_or("0"), low, high)
+  })
 }
 
 ///|

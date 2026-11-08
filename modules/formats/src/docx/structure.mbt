@@ -249,6 +249,7 @@ fn WordTree::check_structure_properties(
           "pageBreakBefore",
           "autoSpaceDE",
           "autoSpaceDN",
+          "adjustRightInd",
           "tabs",
           "bidi",
           "numPr",
@@ -274,6 +275,7 @@ fn WordTree::check_structure_properties(
         [
           "rStyle", "rFonts", "sz", "color", "b", "i", "lang", "bCs", "iCs", "szCs",
           "u", "strike", "highlight", "vertAlign", "cs", "rtl", "spacing", "kern",
+          "noProof", "caps",
         ]
       _ => []
     }
@@ -308,6 +310,7 @@ fn WordTree::check_structure_properties(
       | "bidi"
       | "autoSpaceDE"
       | "autoSpaceDN"
+      | "adjustRightInd"
       | "outlineLvl"
       | "sz"
       | "szCs"
@@ -316,14 +319,16 @@ fn WordTree::check_structure_properties(
       | "i"
       | "bCs"
       | "iCs" => ["val"]
-      "cs" | "rtl" => ["val"]
+      "cs" | "rtl" | "noProof" | "caps" => ["val"]
       "color" => ["val", "themeColor", "themeTint", "themeShade"]
       "u" | "strike" | "highlight" | "vertAlign" => ["val"]
       "spacing" =>
         if self.nodes[node.parent].name == "rPr" {
           ["val"]
         } else {
-          ["before", "after", "line", "lineRule"]
+          [
+            "before", "after", "line", "lineRule", "beforeAutospacing", "afterAutospacing",
+          ]
         }
       "ind" => ["left", "right", "firstLine", "hanging"]
       "rFonts" =>
@@ -349,13 +354,19 @@ fn WordTree::check_structure_properties(
         "Unknown structural attribute: " + node.qualified,
       )
     }
-    if ["autoSpaceDE", "autoSpaceDN", "bidi", "cs", "rtl"].contains(node.name) {
+    if ["autoSpaceDE", "autoSpaceDN", "adjustRightInd", "bidi", "cs", "rtl"].contains(
+        node.name,
+      ) {
       guard self.valid_on_off_property(id) else {
         @failure.reject(
           "protected-content",
           "Invalid script spacing property: " + node.qualified,
         )
       }
+    }
+    if node.name == "spacing" && self.nodes[node.parent].name == "pPr" {
+      ignore(spacing_auto_flag(node, "beforeAutospacing", false))
+      ignore(spacing_auto_flag(node, "afterAutospacing", false))
     }
     if node.name == "tabs" && !self.valid_tabs(id) {
       @failure.reject("protected-content", "Unsupported tab stop properties")
@@ -529,6 +540,10 @@ fn WordTree::check_editable_paragraph(
     }
     if self.is_comment_marker(child) {
       self.check_comment_marker(child)
+      continue
+    }
+    if node.uri == word_uri && node.name == "proofErr" {
+      self.check_proofing_marker(child)
       continue
     }
     if node.uri == word_uri && node.name == "hyperlink" {

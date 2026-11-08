@@ -1,6 +1,10 @@
 {
   "package": "moonbitlang/pdflite@0.3.8",
   "patches": [
+    "pdf_reader_section.mbt.json",
+    "pdf_ccitt_decode.mbt.json",
+    "pdf_ccitt_lines.mbt.json",
+    "pdf_ccitt_codes.mbt.json",
     "pdf_content.mbt.json",
     "core-sdk-budget.mbt.json",
     "flate-pdf_flate.mbt.json",
@@ -13,6 +17,7 @@
     "reader-pdf_reader_xref_stream_entries.mbt.json",
     "sdk-font.mbt.json",
     "pdf_reader_document_classic.mbt.json",
+    "pdf_reader_classic_load.mbt.json",
     "core-byte_cursor.mbt.json",
     "syntax-pdf_object_stream_data.mbt.json",
     "pdf_codec_predictor_decode_png.mbt.json",
@@ -20,7 +25,18 @@
     "sdk-document.mbt.json",
     "pdf_text_cid_font_read.mbt.json",
     "pdf_content_text_width.mbt.json",
+    "pdf_content_text_layout.mbt.json",
     "pdf_codec_predictor_tiff.mbt.json",
-    "pdf_text_cmap_sections.mbt.json"
+    "pdf_text_cmap_sections.mbt.json",
+    "cff-root-moon.pkg.json",
+    "cff-ps-moon.pkg.json",
+    "cff-charstrings.mbt.json",
+    "sdk-cff.mbt.json",
+    "cff-charset.mbt.json",
+    "sdk-type1.mbt.json",
+    "pdf_fun_eval.mbt.json",
+    "glyph-symbols.mbt.json",
+    "pdf_writer_real.mbt.json",
+    "pdf_content_parse_entry.mbt.json"
   ]
 }

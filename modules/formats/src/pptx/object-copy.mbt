@@ -237,6 +237,7 @@ fn Session::duplicate_objects(
     index=self.source_index(original.tree.part),
     date_time=self.date_time,
     parts~,
+    media=self.media,
   )
   let candidate = candidate
     .group_bounds(candidate.changed_group_members(original))

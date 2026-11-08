@@ -40,7 +40,7 @@ fn presentation_shapes(
       !supported ||
       path.style.fillAlpha != 1 ||
       path.style.strokeAlpha != 1 ||
-      path.style.multiply ||
+      path.style.blend != Normal ||
       !path.style.dash.is_empty() {
       @pdf.read_warning(
         warnings,

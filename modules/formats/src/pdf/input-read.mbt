@@ -242,10 +242,11 @@ fn read_pages(
 }
 
 ///|
-/// Open the newest strict revision, keeping source objects separate from derived data.
+/// Open the newest revision, keeping source objects separate from derived data.
 pub fn PdfSession::open(
   bytes : Bytes,
   budget : PdfBudget,
+  password~ : String? = None,
 ) -> PdfSession raise @failure.Failure {
   let defaults = PdfBudget::default().to_json()
   guard budget.to_json() is Object(values) && defaults is Object(maxima) else {
@@ -266,18 +267,74 @@ pub fn PdfSession::open(
     @failure.reject("limit-exceeded", "PDF input exceeds budget")
   }
   pdf_bound(budget, () => {
-    let document = @pdflite.pdf_read_classic_document_from_view(bytes)
+    let user_password = password.map(password => {
+      guard password.length() <= 127 else {
+        @failure.reject("limit-exceeded", "PDF password exceeds budget")
+      }
+      let encoded = @pdflite.pdf_pdfdocstring_of_utf8(@utf8.encode(password))
+      guard !encoded.has_prefix(b"\xfe\xff") else {
+        @failure.reject(
+          "pdf-password-required", "PDF password must use PDFDocEncoding",
+        )
+      }
+      encoded
+    })
+    let user_password = user_password.map(bytes => bytes[:])
+    let (document, recovered) = (
+      @pdflite.pdf_read_classic_document_from_view(bytes, user_password~),
+      false,
+    ) catch {
+      @pdfcore.PdfError::CryptoKeyExpected =>
+        @failure.reject(
+          "pdf-password-required", "PDF password is required or incorrect",
+        )
+      @pdfcore.PdfError::EncryptionMethodExpected =>
+        @failure.reject("unsupported-pdf", "Unsupported PDF encryption method")
+      @pdfcore.PdfError::XRefExpected
+      | @pdfcore.PdfError::InvalidCursorPosition(_)
+      | @pdfcore.PdfError::ParseIndirectObjectExpected as error => {
+        guard recover_classic_xref(bytes[:]) is Some(document) else {
+          raise error
+        }
+        (document, true)
+      }
+      error => raise error
+    }
+    let encrypted = document.is_encrypted()
+    let document = if encrypted {
+      guard document.decrypt_with_passwords(user_password~) is Some(decrypted) else {
+        @failure.reject(
+          "pdf-password-required", "PDF password is required or incorrect",
+        )
+      }
+      decrypted.document
+    } else {
+      document
+    }
     let (major, minor) = document.version()
-    guard major == 1 && minor >= 0 && minor <= 7 else {
-      @failure.reject(
-        "unsupported-pdf", "Only PDF 1.0 through 1.7 are supported",
-      )
+    let header_v2 = major == 2 && minor == 0
+    guard header_v2 || (major == 1 && minor >= 0 && minor <= 7) else {
+      @failure.reject("unsupported-pdf", "Unsupported PDF header version")
+    }
+    if header_v2 {
+      // The pinned reader also returns 2.0 when it finds no header.
+      let header = @pdfcore.byte_cursor_of_view(bytes)
+      ignore(@pdfreader.pdf_read_header_from_cursor(header))
+      guard header.absolute_position() > 0 else {
+        @failure.reject("invalid-pdf", "Missing PDF header")
+      }
     }
     guard document.object_count() <= budget.objects else {
       @failure.reject("limit-exceeded", "PDF object budget exceeded")
     }
     let generations : Map[Int32, Int32] = Map([])
-    let mut reason = ""
+    let mut reason = if recovered {
+      "Recovered PDF cross-reference offset; editing is protected"
+    } else if encrypted {
+      "Encrypted PDF is read-only"
+    } else {
+      ""
+    }
     let mut maximum = 0
     for (id, generation, value) in document.parsed_object_entries() {
       guard id > 0 && id <= budget.objectNumber else {
@@ -298,8 +355,17 @@ pub fn PdfSession::open(
       validate_value(generations, value, 0)
     }
     let catalog = resolve(document, @syntax.PdfIndirect(document.root()))
-    guard !is_name(raw(catalog, "Version"), "2.0") else {
-      @failure.reject("unsupported-pdf", "PDF 2.0 is unsupported")
+    let catalog_version = get(document, catalog, "Version")
+    let catalog_v2 = is_name(catalog_version, "2.0")
+    guard catalog_version == @syntax.PdfNull ||
+      catalog_v2 ||
+      ["1.0", "1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "1.7"].any(version => {
+        is_name(catalog_version, version)
+      }) else {
+      @failure.reject("unsupported-pdf", "Unsupported PDF catalog version")
+    }
+    if reason.is_empty() && (header_v2 || catalog_v2) {
+      reason = "PDF 2.0 is read-only"
     }
     if raw(catalog, "Perms") != @syntax.PdfNull {
       reason = "Certified PDF is protected; signatures have not been verified"

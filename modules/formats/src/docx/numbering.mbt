@@ -61,7 +61,10 @@ fn WordTree::numbering_shape(
       children.contains(node.name) &&
       (node.name == repeated || !names.contains(node.name)) else {
       @failure.reject(
-        "unsupported-numbering", "Unknown or duplicate numbering child",
+        "unsupported-numbering",
+        "Unknown or duplicate numbering child: " + node.qualified,
+        part=self.part,
+        offset=node.start,
       )
     }
     names[node.name] = true
@@ -320,6 +323,7 @@ fn Session::apply_numbering(
     paragraphs[id] = {
       ..paragraph,
       marker: Some({
+        image: None,
         text,
         numbering: Some({
           instance,
@@ -357,6 +361,7 @@ fn Session::apply_numbering(
           color: character.text_color(backgrounds[id]),
           underline: character.underline,
           strike: character.strike,
+          caps: character.caps,
           highlight: highlight_color(character.highlight),
           script: character.vertAlign,
           spacing: character.spacing,

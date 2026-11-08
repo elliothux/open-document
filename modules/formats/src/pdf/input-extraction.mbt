@@ -140,7 +140,7 @@ fn extraction_style_reason(
   style : @layout.DrawStyle,
   text~ : Bool = false,
 ) -> String {
-  if style.multiply {
+  if style.blend != Normal {
     "Source blend mode is not represented by the native clean writer"
   } else if style.dashOffset != 0 || style.evenOdd {
     "Source path fill or dash state requires explicit reconstruction"

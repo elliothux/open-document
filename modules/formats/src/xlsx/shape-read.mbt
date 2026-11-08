@@ -80,16 +80,31 @@ fn Session::shape_text_style(
   tree : Tree,
   properties : @xml.Node?,
   base : (String, Bool, Bool, Double, String),
+  blank~ : Bool = false,
 ) -> (String, Bool, Bool, Double, String) raise @failure.Failure {
   guard properties is Some(node) else { return base }
   guard node.attributes.all(a => {
-    a.uri.is_empty() && ["sz", "b", "i", "lang", "dirty"].contains(a.name)
+    a.uri.is_empty() &&
+    (
+      ["sz", "b", "i", "lang", "dirty"].contains(a.name) ||
+      (a.name == "cap" && a.value == "none") ||
+      (a.name == "spc" && a.value == "0")
+    )
   }) else {
     @failure.reject(
       "unsupported-drawing", "Shape character formatting requires support",
     )
   }
-  ignore(tree.shape_children(node, ["latin", "solidFill"]))
+  ignore(
+    tree.shape_children(
+      node,
+      if blank {
+        ["latin", "solidFill", "ln", "effectLst"]
+      } else {
+        ["latin", "solidFill"]
+      },
+    ),
+  )
   let font = tree
     .picture_child(node.id, "latin", uri=picture_drawing_uri)
     .bind(latin => latin.attribute("typeface"))
@@ -124,7 +139,11 @@ fn Session::read_sheet_shape(
   source : @xml.Node,
   dimensions : Dimensions,
 ) -> SheetObject raise @failure.Failure {
-  guard source.attributes.is_empty() else {
+  guard source.attributes.all(a => {
+    a.uri.is_empty() &&
+    ["macro", "textlink"].contains(a.name) &&
+    a.value.is_empty()
+  }) else {
     @failure.reject(
       "unsupported-drawing", "Shape bindings and macros require support",
     )
@@ -152,11 +171,16 @@ fn Session::read_sheet_shape(
   let properties = tree.picture_node(source.id, "spPr")
   ignore(
     tree.shape_children(properties, [
-      "xfrm", "prstGeom", "solidFill", "noFill", "ln",
+      "xfrm", "prstGeom", "solidFill", "noFill", "ln", "extLst",
     ]),
   )
-  if tree.picture_child(properties.id, "xfrm", uri=picture_drawing_uri)
-    is Some(transform) {
+  tree.check_hidden_drawing_paint(properties)
+  let transform = tree.picture_child(
+    properties.id,
+    "xfrm",
+    uri=picture_drawing_uri,
+  )
+  if transform is Some(transform) {
     guard transform.attributes.is_empty() else {
       @failure.reject(
         "unsupported-drawing", "Shape rotation and flips require support",
@@ -193,6 +217,8 @@ fn Session::read_sheet_shape(
     .bind(node => node.attribute("w"))
     .map(value => picture_integer(value, maximum=12700000) / 12700)
     .unwrap_or(1)
+  let fill = self.shape_color(tree, Some(properties), "")
+  let stroke = self.shape_color(tree, line, "")
   let mut style = (self.normal_font, false, false, 12.0, "000000")
   let mut align = "left"
   let mut vertical = "top"
@@ -202,6 +228,15 @@ fn Session::read_sheet_shape(
   let mut shared_style = None
   let mut shared_align = None
   if tree.picture_child(source.id, "txBody") is Some(body) {
+    let blank = tree.document
+      .nodes()
+      .all(node => {
+        node.start < body.start ||
+        node.end > body.end ||
+        node.uri != picture_drawing_uri ||
+        node.name != "t" ||
+        node.text.iter().all(c => [' ', '\t', '\r', '\n'].contains(c))
+      })
     ignore(tree.shape_children(body, ["bodyPr", "lstStyle", "p"]))
     let body_pr = tree.picture_node(body.id, "bodyPr", uri=picture_drawing_uri)
     guard body_pr.attributes.all(a => {
@@ -214,11 +249,22 @@ fn Session::read_sheet_shape(
         "unsupported-drawing", "Shape text frame settings require support",
       )
     }
-    for fit in tree.shape_children(body_pr, ["noAutofit"]) {
+    for
+      fit in tree.shape_children(
+        body_pr,
+        if blank && fill.is_empty() && stroke.is_empty() {
+          ["noAutofit", "spAutoFit"]
+        } else {
+          ["noAutofit"]
+        },
+      ) {
       guard fit.attributes.is_empty() &&
         tree.children.get(fit.id).unwrap_or([]).is_empty() else {
         @failure.reject("unsupported-drawing", "Unknown shape text fit")
       }
+    }
+    guard tree.children.get(body_pr.id).unwrap_or([]).length() <= 1 else {
+      @failure.reject("unsupported-drawing", "Conflicting shape text fit")
     }
     guard !flag(body_pr, "rtlCol") else {
       @failure.reject(
@@ -310,6 +356,7 @@ fn Session::read_sheet_shape(
             tree,
             tree.picture_child(run.id, "rPr", uri=picture_drawing_uri),
             base,
+            blank~,
           )
         } else if run.name == "br" {
           ignore(tree.shape_children(run, ["rPr"]))
@@ -347,7 +394,7 @@ fn Session::read_sheet_shape(
   guard text.length() <= 32767 else {
     @failure.reject("limit-exceeded", "Worksheet shape text exceeds budget")
   }
-  let (anchor, rect) = tree.drawing_rect(frame, dimensions)
+  let (anchor, rect) = tree.drawing_rect(frame, dimensions, transform?)
   let client = tree.picture_child(frame.id, "clientData")
   if client is Some(client) {
     guard tree.children.get(client.id).unwrap_or([]).is_empty() &&
@@ -379,8 +426,8 @@ fn Session::read_sheet_shape(
     shape: Some({
       preset,
       text_box: flag(nonvisual, "txBox"),
-      fill: self.shape_color(tree, Some(properties), ""),
-      stroke: self.shape_color(tree, line, ""),
+      fill,
+      stroke,
       line_width: pen,
       text,
       font: style.0,

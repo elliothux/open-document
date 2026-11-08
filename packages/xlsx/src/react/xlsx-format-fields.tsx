@@ -23,6 +23,7 @@ export function XlsxFormatFields({
   prefix?: string;
 }) {
   const t = messages(state.locale);
+  const numberFormat = format.numberFormat ?? current?.numberFormat;
   function set<K extends keyof XlsxCellFormat>(
     key: K,
     value: XlsxCellFormat[K],
@@ -306,6 +307,10 @@ export function XlsxFormatFields({
             set("numberFormat", event.currentTarget.value || undefined)
           }
         >
+          {numberFormat &&
+            !xlsxNumberFormats.some((code) => code === numberFormat) && (
+              <option value={numberFormat}>{numberFormat}</option>
+            )}
           {options(xlsxNumberFormats)}
         </select>
       </label>

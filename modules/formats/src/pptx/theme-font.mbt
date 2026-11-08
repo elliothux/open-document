@@ -188,6 +188,7 @@ fn Session::set_theme_font(
       index~,
       parts~,
       date_time=self.date_time,
+      media=self.media,
     )
   })
   ignore(slide_font_keys(candidates))
@@ -243,6 +244,7 @@ fn Session::set_theme_font(
       index~,
       parts~,
       date_time=self.date_time,
+      media=self.media,
     )
   })
   self.commit_slides(self.main, slides, edits, self.selection, parts~)

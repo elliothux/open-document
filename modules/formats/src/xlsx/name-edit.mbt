@@ -122,6 +122,7 @@ fn Session::select_name(
   let work : FormulaWork = {
     remaining: 1048576,
     date1904: self.date1904,
+    random: None,
     origin: self.focus,
     names,
   }
@@ -283,6 +284,7 @@ fn Session::edit_name(
   let rename_work : FormulaWork = {
     remaining: 1048576,
     date1904: self.date1904,
+    random: None,
     origin: self.focus,
     names,
   }
@@ -368,6 +370,7 @@ fn Session::edit_name(
     let work : FormulaWork = {
       remaining: 1048576,
       date1904: self.date1904,
+      random: None,
       origin: { row: 1, column: 1, },
       names: candidate_names,
     }
@@ -386,6 +389,7 @@ fn Session::edit_name(
     let after : FormulaWork = {
       remaining: 1048576,
       date1904: self.date1904,
+      random: None,
       origin: self.focus,
       names: candidate_names,
     }

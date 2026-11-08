@@ -27,9 +27,10 @@ fn Session::import_table_styles(
   for table in tables {
     let props = tree.one(table.id, "tblPr")
     let field = props.bind(p => tree.one(p.id, "tableStyleId"))
-    let id = field
-      .map(n => n.text.trim().to_owned().to_upper())
-      .unwrap_or(source_book.default_id)
+    let id = field.map(n => n.text.trim().to_owned().to_upper()).unwrap_or("")
+    if id.is_empty() {
+      continue
+    }
     let target = match remap.get(id) {
       Some(id) => id
       None => {
@@ -45,19 +46,15 @@ fn Session::import_table_styles(
         }
         let target = document_guid(next)
         next += 1L
-        let markup = if id.is_empty() {
-          "<a:tblStyle xmlns:a='\{drawing_uri}' styleId='\{target}' styleName='Imported default'><a:wholeTbl/></a:tblStyle>"
-        } else {
-          guard source_book.styles.get(id) is Some(style) else {
-            @failure.reject(
-              "protected-content", "Imported table style is unresolved",
-            )
-          }
-          let (updated, _) = style.tree.document.edit_source([
-            attribute_change(style, "styleId", target),
-          ])
-          style.tree.standalone_markup(updated, style.node.id)
+        guard source_book.styles.get(id) is Some(style) else {
+          @failure.reject(
+            "protected-content", "Imported table style is unresolved",
+          )
         }
+        let (updated, _) = style.tree.document.edit_source([
+          attribute_change(style, "styleId", target),
+        ])
+        let markup = style.tree.standalone_markup(updated, style.node.id)
         let definition = @xml.Document::parse(
           @utf8.encode(markup),
           "imported-table-style",

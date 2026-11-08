@@ -40,6 +40,7 @@ fn ChartData::paint_radar_colors(
   let y = (height - 20) / 2
   let radius = (width - 120).min(height - 130) / 2
   let pen : PathStyle = {
+    evenOdd: false,
     fillAlpha: 1,
     strokeAlpha: 1,
     dash: [],

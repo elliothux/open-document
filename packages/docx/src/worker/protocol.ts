@@ -266,7 +266,12 @@ export type Operation =
     }
   | { operation: "font"; bytes: Uint8Array; identity: string }
   | { operation: "shape"; text: string; size: number; language: string }
-  | { operation: "openDocx"; bytes: Uint8Array; budget: Budget }
+  | {
+      operation: "openDocx";
+      bytes: Uint8Array;
+      budget: Budget;
+      password?: string | undefined;
+    }
   | { operation: "createDocx"; budget: Budget }
   | { operation: "tabDocx"; revision: number; backward: boolean }
   | { operation: "enterDocx"; revision: number }
@@ -438,7 +443,7 @@ export type Operation =
       outputBytes: number;
       layoutId?: number | undefined;
     }
-  | { operation: "imageBytes"; key: string }
+  | { operation: "imageBytes" | "imagePixels"; key: string }
   | {
       operation: "image";
       key: string;

@@ -34,11 +34,11 @@ fn read_text_fragment(
     "r": [],
     "rPr": [
       "sz", "spc", "b", "i", "u", "strike", "baseline", "lang", "altLang", "dirty",
-      "smtClean", "smtId", "noProof",
+      "smtClean", "smtId", "noProof", "cap",
     ],
     "endParaRPr": [
       "sz", "spc", "b", "i", "u", "strike", "baseline", "lang", "altLang", "dirty",
-      "smtClean", "smtId", "noProof",
+      "smtClean", "smtId", "noProof", "cap",
     ],
     "t": ["space"],
     "br": [],
@@ -126,6 +126,11 @@ fn read_text_fragment(
     }
     if node.name == "br" {
       length += 1
+    }
+    if node.attribute("cap") is Some(value) && !["none", "all"].contains(value) {
+      @failure.reject(
+        "protected-content", "Unsupported portable text capitalization",
+      )
     }
     let nested = tree.children.get(node.id).unwrap_or([])
     guard nested.all(child => {

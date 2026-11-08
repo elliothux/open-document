@@ -89,7 +89,53 @@ fn rgb_hex(rgb : Array[Double]) -> String {
 }
 
 ///|
+fn rotate_hue(rgb : Array[Double], degrees : Double) -> Array[Double] {
+  let low = rgb[0].min(rgb[1]).min(rgb[2])
+  let high = rgb[0].max(rgb[1]).max(rgb[2])
+  let chroma = high - low
+  if chroma == 0 {
+    return rgb
+  }
+  let hue = (if high == rgb[0] {
+      (rgb[1] - rgb[2]) / chroma
+    } else if high == rgb[1] {
+      (rgb[2] - rgb[0]) / chroma + 2
+    } else {
+      (rgb[0] - rgb[1]) / chroma + 4
+    }) +
+    degrees / 60
+  let hue = hue - (hue / 6).floor() * 6
+  let middle = chroma * (1 - (hue - (hue / 2).floor() * 2 - 1).abs())
+  let channels : Array[Double] = match hue.floor().to_int() {
+    0 => [chroma, middle, 0]
+    1 => [middle, chroma, 0]
+    2 => [0, chroma, middle]
+    3 => [0, middle, chroma]
+    4 => [middle, 0, chroma]
+    _ => [chroma, 0, middle]
+  }
+  channels.map(value => value + low)
+}
+
+///|
 fn color_rgba(
+  theme : Theme,
+  container : Ref,
+  placeholder~ : Ref? = None,
+  depth~ : Int32 = 0,
+) -> (String, Double) raise @failure.Failure {
+  let candidates = container.tree.children
+    .get(container.node.id)
+    .unwrap_or([])
+    .filter(node => node.uri == drawing_uri)
+  guard candidates is [node] else {
+    @failure.reject("unsupported-style", "Unsupported color declaration")
+  }
+  color_value_rgba(theme, { tree: container.tree, node, }, placeholder~, depth~)
+}
+
+///|
+fn color_value_rgba(
   theme : Theme,
   container : Ref,
   placeholder~ : Ref? = None,
@@ -98,17 +144,22 @@ fn color_rgba(
   guard depth < 8 else {
     @failure.reject("malformed-pptx", "Cyclic theme color")
   }
-  let candidates = container.tree.children
-    .get(container.node.id)
-    .unwrap_or([])
-    .filter(node => node.uri == drawing_uri)
-  guard candidates is [node] else {
-    @failure.reject("unsupported-style", "Unsupported color declaration")
-  }
+  let node = container.node
   let value = node.attribute("val").unwrap_or("")
   let base = match node.name {
     "srgbClr" => (value, 1.0)
     "sysClr" => (node.attribute("lastClr").unwrap_or(""), 1.0)
+    "prstClr" => {
+      guard ["black", "white"].contains(value) &&
+        node.text.trim().is_empty() &&
+        node.attributes.all(a => a.uri.is_empty() && a.name == "val") else {
+        @failure.reject(
+          "unsupported-style",
+          "Unsupported preset color: " + value,
+        )
+      }
+      (if value == "black" { "000000" } else { "ffffff" }, 1.0)
+    }
     "schemeClr" =>
       if value == "phClr" && placeholder is Some(reference) {
         color_rgba(theme, reference, depth=depth + 1)
@@ -132,10 +183,18 @@ fn color_rgba(
     }
     let amount = number(
         modifier.attribute("val").unwrap_or("0"),
-        -100000,
-        1000000,
+        if modifier.name == "hueOff" {
+          -2147483648
+        } else {
+          -100000
+        },
+        if modifier.name == "hueOff" {
+          2147483647
+        } else {
+          1000000
+        },
       ) /
-      100000
+      (if modifier.name == "hueOff" { 60000 } else { 100000 })
     match modifier.name {
       "alpha" => {
         guard amount >= 0 && amount <= 1 else {
@@ -150,16 +209,45 @@ fn color_rgba(
         alpha *= amount
       }
       "alphaOff" => alpha += amount
-      "tint" => rgb = rgb.map(value => value + (1 - value) * amount)
-      "shade" => rgb = rgb.map(value => value * amount)
-      "lumMod" | "lumOff" => {
+      "hueOff" => rgb = rotate_hue(rgb, amount)
+      "tint" | "shade" => {
+        guard amount >= 0 && amount <= 1 else {
+          @failure.reject(
+            "unsupported-style", "Invalid tint or shade percentage",
+          )
+        }
+        // DrawingML tint/shade mix linear light; tint retains the specified base fraction.
+        rgb = rgb.map(value => {
+          let linear = if value <= 0.04045 {
+            value / 12.92
+          } else {
+            @math.pow((value + 0.055) / 1.055, 2.4)
+          }
+          let mixed = if modifier.name == "tint" {
+            1.0 - (1.0 - linear) * amount
+          } else {
+            linear * amount
+          }
+          if mixed <= 0.0031308 {
+            mixed * 12.92
+          } else {
+            1.055 * @math.pow(mixed, 1.0 / 2.4) - 0.055
+          }
+        })
+      }
+      "lumMod" | "lumOff" | "satMod" | "satOff" => {
+        guard modifier.name != "satMod" || amount >= 0 else {
+          @failure.reject("unsupported-style", "Invalid saturation multiplier")
+        }
         let low = rgb[0].min(rgb[1]).min(rgb[2])
         let high = rgb[0].max(rgb[1]).max(rgb[2])
         let luminance = (high + low) / 2
         let next = (if modifier.name == "lumMod" {
             luminance * amount
-          } else {
+          } else if modifier.name == "lumOff" {
             luminance + amount
+          } else {
+            luminance
           })
           .max(0)
           .min(1)
@@ -169,7 +257,27 @@ fn color_rgba(
         } else {
           chroma / (1.0 - (2.0 * luminance - 1).abs()).max(0.000001)
         }
+        let saturation = (if modifier.name == "satMod" {
+            saturation * amount
+          } else if modifier.name == "satOff" {
+            saturation + amount
+          } else {
+            saturation
+          })
+          .max(0)
+          .min(1)
         let next_chroma = (1.0 - (2.0 * next - 1).abs()) * saturation
+        if chroma == 0 && modifier.name == "satOff" {
+          // ONLYOFFICE CColorModifiers.graySaturation defines the achromatic offset.
+          let offset = (if luminance < 128.0 / 255 {
+              luminance
+            } else {
+              1 - luminance
+            }) *
+            amount
+          rgb = [luminance + offset, luminance - offset, luminance - 5 * offset]
+          continue
+        }
         rgb = rgb.map(value => {
           if chroma == 0 {
             next

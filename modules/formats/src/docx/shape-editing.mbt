@@ -52,6 +52,9 @@ fn Session::editable_shape(
     }
   }
   let shape = tree.children[data.id][0]
+  guard tree.linked_text_boxes(shape) is None else {
+    @failure.reject("protected-content", "Linked text boxes are read-only")
+  }
   let properties = tree
     .drawing_child(shape, "spPr", uri=word_shape_uri)
     .unwrap()

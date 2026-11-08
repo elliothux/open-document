@@ -6,6 +6,10 @@ import type { XlsxClient } from "./xlsx.js";
 export class SpreadsheetCanvas extends CanvasSurface {
   private readonly keys = new Map<string, string>();
 
+  constructor(private readonly mode: "integer" | "pdf" = "integer") {
+    super(mode);
+  }
+
   private async add(
     client: XlsxClient,
     revision: number,
@@ -24,7 +28,10 @@ export class SpreadsheetCanvas extends CanvasSurface {
       );
       signal?.throwIfAborted();
       if (this.images.has(identity)) bitmap.close();
-      else this.images.set(identity, bitmap);
+      else {
+        this.images.set(identity, bitmap);
+        if (this.mode === "pdf") this.imagePixels.set(identity, rgba);
+      }
       this.keys.set(key, identity);
     } catch (error) {
       bitmap.close();
@@ -62,6 +69,7 @@ export class SpreadsheetCanvas extends CanvasSurface {
       if (!retained.has(identity)) {
         bitmap.close();
         this.images.delete(identity);
+        this.imagePixels.delete(identity);
       }
     }
     for (const key of keys) {

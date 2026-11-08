@@ -72,6 +72,7 @@ export interface XlsxQuery {
     id: string;
     name: string;
     state: "visible" | "hidden" | "veryHidden";
+    kind: "worksheet" | "chartsheet";
     protected: boolean;
   }[];
   sheet: string;

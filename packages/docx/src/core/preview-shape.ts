@@ -1,5 +1,28 @@
 import { record } from "@open-document/wasm/abi/validation";
 
+export function checkTextBoxFlowFrames(text: Record<string, unknown>): void {
+  const frames = text.flowFrames;
+  if (
+    !Array.isArray(frames) ||
+    frames.length > 64 ||
+    (frames.length > 0 &&
+      (text.wrap !== true || text.clip !== true || text.anchor !== "t")) ||
+    !frames.every(
+      (frame: unknown) =>
+        Array.isArray(frame) &&
+        frame.length === 2 &&
+        frame.every(
+          (value: unknown) =>
+            typeof value === "number" &&
+            Number.isFinite(value) &&
+            value > 0 &&
+            value <= 14400,
+        ),
+    )
+  )
+    throw new Error("Invalid linked text box areas");
+}
+
 export interface BasicDrawingShape {
   preset: "rect" | "ellipse" | "line" | "polyline";
   fill: string;
@@ -7,6 +30,24 @@ export interface BasicDrawingShape {
   lineWidth: number;
   points: [number, number][];
   strokeAlpha: number;
+}
+
+export function checkDrawingEffectExtent(image: Record<string, unknown>): void {
+  const extent = image.effectExtent;
+  if (
+    !Array.isArray(extent) ||
+    extent.length !== 4 ||
+    !extent.every(
+      (value: unknown) =>
+        typeof value === "number" && Number.isFinite(value) && value >= 0,
+    ) ||
+    Number(image.width) + extent[0] + extent[2] > 14400 ||
+    Number(image.height) + extent[1] + extent[3] > 14400 ||
+    (((image.anchor !== null && record(image.anchor).wrapping !== "none") ||
+      record(image.content).kind === "math") &&
+      extent.some((value: unknown) => value !== 0))
+  )
+    throw new Error("Invalid drawing effect extents");
 }
 
 export function checkShapePath(value: unknown): void {
@@ -38,4 +79,23 @@ export function checkShapePath(value: unknown): void {
     )
   )
     throw new Error("Invalid drawing shape path");
+}
+
+export function checkMetafile(value: unknown, positive: boolean): void {
+  const file = record(value);
+  if (
+    !positive ||
+    typeof file.identity !== "string" ||
+    !file.identity.length ||
+    file.identity.length > 256 ||
+    typeof file.text !== "string" ||
+    file.text.length > 32767 ||
+    !Array.isArray(file.images) ||
+    file.images.length > 256 ||
+    !file.images.every(
+      (key: unknown) =>
+        typeof key === "string" && key.length > 0 && key.length <= 256,
+    )
+  )
+    throw new Error("Invalid metafile preview");
 }

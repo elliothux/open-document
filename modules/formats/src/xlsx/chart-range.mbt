@@ -43,9 +43,9 @@ pub fn Session::insert_chart_range(
   guard range.bottom > range.top &&
     range.bottom - range.top <= 256 &&
     range.right > range.left &&
-    range.right - range.left <= 8 else {
+    range.right - range.left <= 32 else {
     @failure.reject(
-      "invalid-chart", "Chart range requires a header row, 1-256 data rows and 1-8 series",
+      "invalid-chart", "Chart range requires a header row, 1-256 data rows and 1-32 series",
     )
   }
   let settings : SheetChartSettings = {

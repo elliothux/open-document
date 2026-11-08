@@ -81,8 +81,8 @@ fn flow_font_keys(flow : @layout.Flow) -> Map[String, Array[String]] {
     groups.push((note.kind + note.key, note.content))
   }
   for (kind, stories) in [("header", flow.headers), ("footer", flow.footers)] {
-    for variant, paragraphs in stories {
-      groups.push((kind + variant, paragraphs))
+    for variant, story in stories {
+      groups.push((kind + variant, story.all_paragraphs()))
     }
   }
   for (scope, paragraphs) in groups {
@@ -98,7 +98,11 @@ fn flow_font_keys(flow : @layout.Flow) -> Map[String, Array[String]] {
       })
       .collect()
     for p in paragraphs + nested {
-      let fonts = p.spans.filter(s => s.drawing is None).map(s => s.style.font)
+      let fonts = p.spans
+        .filter(s => {
+          s.drawing is None || s.drawing is Some({ anchor: Some(_), .. })
+        })
+        .map(s => s.style.font)
       if p.marker is Some(marker) {
         fonts.push(marker.style.font)
       }

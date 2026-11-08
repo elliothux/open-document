@@ -111,7 +111,7 @@ fn Session::picture_drawing(
   sheet : Sheet,
 ) -> (String, Tree)? raise @failure.Failure {
   let tree = Tree::new(sheet.document)
-  guard tree.one(tree.root("worksheet").id, "drawing") is Some(node) else {
+  guard tree.one(tree.sheet_root().id, "drawing") is Some(node) else {
     return None
   }
   let id = node
@@ -159,6 +159,7 @@ fn Session::sheet_objects(
   self : Session,
   sheet : Sheet,
   dimensions : Dimensions,
+  preview_diagnostics? : Array[String],
 ) -> Array[SheetObject] raise @failure.Failure {
   guard self.picture_drawing(sheet) is Some((part, tree)) else { return [] }
   let root = tree.document.nodes()[0]
@@ -230,18 +231,36 @@ fn Session::sheet_objects(
           "unsupported-drawing", "Drawing anchor has multiple objects",
         )
       }
-      let (_, data) = tree.sheet_graphic(source)
+      let (identity, data) = tree.sheet_graphic(source)
+      let id = identity.attribute("id").unwrap()
+      guard !ids.contains(id) else {
+        @failure.reject("unsupported-drawing", "Duplicate drawing identity")
+      }
+      ids[id] = ()
       let object = if data.attribute("uri") == Some(slicer_drawing_uri) {
         self.read_slicer_drawing(sheet, part, tree, frame, source, dimensions)
       } else if data.attribute("uri") == Some(timeline_drawing_uri) {
         self.read_timeline_drawing(sheet, part, tree, frame, source, dimensions)
       } else {
-        self.read_sheet_chart(sheet, part, tree, frame, source, dimensions)
+        self.read_sheet_chart(sheet, part, tree, frame, source, dimensions) catch {
+          @failure.Failure(
+            code="unsupported-chart",
+            part=chart_part,
+            message~,
+            ..
+          ) as error =>
+            if preview_diagnostics is Some(diagnostics) &&
+              !chart_part.is_empty() {
+              diagnostics.push(
+                "unrendered:" + sheet.id + ":" + chart_part + ":" + message,
+              )
+              continue
+            } else {
+              raise error
+            }
+          error => raise error
+        }
       }
-      guard !ids.contains(object.id) else {
-        @failure.reject("unsupported-drawing", "Duplicate drawing identity")
-      }
-      ids[object.id] = ()
       if object.slicer is Some(slicer) &&
         result.any(item => {
           item.slicer
@@ -331,10 +350,17 @@ fn Session::sheet_objects(
       )
       .unwrap_or("")
     guard blip.attributes.all(a => {
-        a.uri == relationship_uri[:relationship_uri.length() - 1].to_owned() &&
-        a.name == "embed"
+        (
+          a.uri == relationship_uri[:relationship_uri.length() - 1].to_owned() &&
+          a.name == "embed"
+        ) ||
+        (
+          a.uri.is_empty() &&
+          a.name == "cstate" &&
+          ["none", "email", "screen", "print", "hqprint"].contains(a.value)
+        )
       }) &&
-      tree.children.get(blip.id).unwrap_or([]).is_empty() else {
+      tree.picture_compression_metadata(blip) else {
       @failure.reject(
         "unsupported-drawing", "Linked or transformed image resources are protected",
       )
@@ -365,11 +391,33 @@ fn Session::sheet_objects(
       .unwrap_or([])
       .all(node => {
         node.uri == picture_drawing_uri &&
-        ["xfrm", "prstGeom"].contains(node.name)
+        ["xfrm", "prstGeom", "noFill", "ln", "extLst"].contains(node.name)
       }) else {
       @failure.reject(
         "unsupported-drawing", "Rotated or styled worksheet pictures require drawing support",
       )
+    }
+    tree.check_hidden_drawing_paint(props)
+    if tree.picture_child(props.id, "noFill", uri=picture_drawing_uri)
+      is Some(fill) {
+      guard fill.attributes.is_empty() &&
+        tree.children.get(fill.id).unwrap_or([]).is_empty() else {
+        @failure.reject(
+          "unsupported-drawing", "Invalid worksheet picture no-fill",
+        )
+      }
+    }
+    if tree.picture_child(props.id, "ln", uri=picture_drawing_uri) is Some(line) {
+      guard line.attributes.is_empty() &&
+        tree.children.get(line.id).unwrap_or([]) is [fill] &&
+        fill.uri == picture_drawing_uri &&
+        fill.name == "noFill" &&
+        fill.attributes.is_empty() &&
+        tree.children.get(fill.id).unwrap_or([]).is_empty() else {
+        @failure.reject(
+          "unsupported-drawing", "Styled worksheet picture lines require support",
+        )
+      }
     }
     if transform is Some(node) {
       guard tree.children
@@ -427,7 +475,7 @@ fn Session::sheet_objects(
       crop[1] + crop[3] < 1 else {
       @failure.reject("unsupported-drawing", "Invalid worksheet image crop")
     }
-    let (anchor, rect) = tree.drawing_rect(frame, dimensions)
+    let (anchor, rect) = tree.drawing_rect(frame, dimensions, transform?)
     guard rect.width / (1 - crop[0] - crop[2]) <= 1000000000 &&
       rect.height / (1 - crop[1] - crop[3]) <= 1000000000 else {
       @failure.reject(

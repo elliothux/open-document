@@ -89,5 +89,6 @@ fn Session::legacy_table_alignment(
       }
     }
   }
-  false
+  // ONLYOFFICE document_compatibility_mode_Current defaults to Word12.
+  true
 }

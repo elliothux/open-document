@@ -78,6 +78,15 @@ pub fn Images::get(
 }
 
 ///|
+/// Resolve a rendered resource using the identity exposed in a drawing batch.
+pub fn Images::get_by_identity(
+  self : Images,
+  identity : String,
+) -> ImageResource? {
+  self.entries.values().find_first(image => image.identity == identity)
+}
+
+///|
 pub fn Images::clear(self : Images) -> Unit {
   self.entries.clear()
   self.retained = 0
@@ -86,7 +95,7 @@ pub fn Images::clear(self : Images) -> Unit {
 ///|
 pub fn Images::retain(self : Images, keys : Array[String]) -> Unit {
   for key in self.entries.keys().collect() {
-    if !keys.contains(key) {
+    if !keys.contains(key) && !keys.contains(self.entries[key].identity) {
       self.retained -= self.entries[key].rgba.length()
       self.entries.remove(key)
     }

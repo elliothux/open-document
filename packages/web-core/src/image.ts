@@ -89,3 +89,30 @@ export async function decodeImage(
     canvas.width = canvas.height = 0;
   }
 }
+
+/** Office PDF colors use white at zero alpha and an independently sampled mask. */
+export async function imageColorPlane(
+  width: number,
+  height: number,
+  rgba: Uint8Array,
+): Promise<ImageBitmap | undefined> {
+  if (
+    !Number.isSafeInteger(width) ||
+    !Number.isSafeInteger(height) ||
+    width < 1 ||
+    height < 1 ||
+    width > 4096 ||
+    height > 4096 ||
+    width * height > 4194304 ||
+    rgba.length !== width * height * 4
+  )
+    throw new Error("Invalid image color plane dimensions or pixels");
+  if (rgba.every((byte, at) => at % 4 !== 3 || byte === 255)) return;
+  const colors = new Uint8ClampedArray(rgba);
+  for (let at = 0; at < colors.length; at += 4) {
+    if (colors[at + 3] === 0)
+      colors[at] = colors[at + 1] = colors[at + 2] = 255;
+    colors[at + 3] = 255;
+  }
+  return createImageBitmap(new ImageData(colors, width, height));
+}

@@ -3,10 +3,15 @@ package "open_document/formats/internal/image"
 
 import {
   "open_document/core/failure",
+  "open_document/layout",
 }
 
 // Values
 pub fn encode_png(Int32, Int32, Bytes) -> Bytes raise @failure.Failure
+
+pub fn read_emf(Bytes) -> @layout.Metafile raise @failure.Failure
+
+pub fn read_wmf(Bytes) -> @layout.Metafile raise @failure.Failure
 
 pub fn type_info(Bytes) -> (String, String, Int32, Int32) raise @failure.Failure
 

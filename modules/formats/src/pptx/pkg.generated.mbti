@@ -167,6 +167,7 @@ pub fn LineEnd::to_json(Self) -> Json
 pub(all) enum ListFormat {
   NoList
   Bullet(String)
+  Picture
   Numbered(String, Int32)
 } derive(Eq)
 pub fn ListFormat::equal(Self, Self) -> Bool

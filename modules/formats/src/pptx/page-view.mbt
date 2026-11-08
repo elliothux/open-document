@@ -120,6 +120,7 @@ fn Session::source_slide(
     index=self.source_index(part),
     parts=self.parts,
     date_time=self.date_time,
+    media=self.media,
   )
   self.source_view = Some(slide)
   slide
@@ -257,6 +258,7 @@ fn Session::commit_page(
       index=self.source_index(slide.tree.part),
       parts~,
       date_time=self.date_time,
+      media=self.media,
     )
     let visible = slides.copy()
     guard owner.objects.length() <= 4096 else {

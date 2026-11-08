@@ -7,12 +7,25 @@ fn interpret(
   initial : GraphicsState,
   depth : Int32,
   origin~ : PdfSourceOrigin? = None,
+  type3~ : Bool = false,
+  uncolored~ : Bool = false,
 ) -> Unit raise {
   guard depth < 32 else {
     @failure.reject("limit-exceeded", "PDF Form depth exceeds budget")
   }
   let document = context.session.document
   let ops = @pdflite.pdf_parse_content_ops_from_view(bytes)
+  let glyph_uncolored = if type3 {
+    guard ops.get(0) is Some(Op_d0(_, _) | Op_d1(_, _, _, _, _, _)) else {
+      @failure.reject(
+        "invalid-pdf", "Type 3 glyph requires an initial width operator",
+      )
+    }
+    ops.get(0) is Some(Op_d1(_, _, _, _, _, _))
+  } else {
+    false
+  }
+  let uncolored = uncolored || glyph_uncolored
   let ranges = if context.collectSource {
     Some(pdf_operator_ranges(bytes, ops.length())) catch {
       _ => None
@@ -38,11 +51,47 @@ fn interpret(
       textDepth -= 1
     }
     @pdfcore.sdk_check(1)
+    if uncolored &&
+      op
+      is (Op_g(_)
+      | Op_G(_)
+      | Op_rg(_, _, _)
+      | Op_RG(_, _, _)
+      | Op_k(_, _, _, _)
+      | Op_K(_, _, _, _)
+      | Op_cs(_)
+      | Op_CS(_)
+      | Op_sc(_)
+      | Op_SC(_)
+      | Op_scn(_)
+      | Op_SCN(_)
+      | Op_scnName(_, _)
+      | Op_SCNName(_, _)) {
+      @failure.reject("invalid-pdf", "Uncolored PDF program cannot set a color")
+    }
     guard context.commands.length() + context.spans.length() + path.length() <=
       1048576 else {
       @failure.reject("limit-exceeded", "PDF drawing payload exceeds budget")
     }
     match op {
+      Op_d0(wx, wy) | Op_d1(wx, wy, _, _, _, _) => {
+        guard type3 && op_index == 0 && wy == 0 else {
+          @failure.reject("invalid-pdf", "Invalid Type 3 width operator")
+        }
+        ignore(number(@syntax.PdfReal(wx)))
+        if op is Op_d1(_, _, x, y, r, t) {
+          ignore(
+            rectangle(
+              @syntax.PdfArray([
+                @syntax.PdfReal(x),
+                @syntax.PdfReal(y),
+                @syntax.PdfReal(r),
+                @syntax.PdfReal(t),
+              ]),
+            ),
+          )
+        }
+      }
       Op_q => {
         stack.push(state)
         context.scope(@layout.Transform(@layout.Matrix::identity()))
@@ -87,7 +136,9 @@ fn interpret(
         path.push(@layout.Cubic(p1.0, p1.1, point.0, point.1, point.0, point.1))
       }
       Op_h => {
-        path.push(@layout.Close)
+        if !path.is_empty() && !(path.last() is Some(@layout.Close)) {
+          path.push(@layout.Close)
+        }
         point = start
       }
       Op_re(x, y, w, h) => {
@@ -114,51 +165,13 @@ fn interpret(
       | Op_Bstar
       | Op_b
       | Op_bstar => {
-        if op is (Op_s | Op_b | Op_bstar) {
+        if op is (Op_s | Op_b | Op_bstar) &&
+          !path.is_empty() &&
+          !(path.last() is Some(@layout.Close)) {
           path.push(@layout.Close)
         }
-        if !path.is_empty() && op != @content.Op_n {
-          check_style(state.style, state.width)
-          context.commands.push(
-            @layout.Style({
-              ..state.style,
-              evenOdd: op is (Op_fstar | Op_Bstar | Op_bstar),
-            }),
-          )
-          context.scope(@layout.Transform(state.matrix))
-          context.extracted_path(
-            path,
-            state,
-            if op is (Op_S | Op_s) {
-              ""
-            } else {
-              state.fill
-            },
-            if op is (Op_f | Op_F | Op_fstar) {
-              ""
-            } else {
-              state.stroke
-            },
-            { ..state.style, evenOdd: op is (Op_fstar | Op_Bstar | Op_bstar), },
-            depth,
-          )
-          context.commands.push(
-            @layout.Path(
-              path_in(path, state.matrix.inverse()),
-              if op is (Op_S | Op_s) {
-                ""
-              } else {
-                state.fill
-              },
-              if op is (Op_f | Op_F | Op_fstar) {
-                ""
-              } else {
-                state.stroke
-              },
-              state.width,
-            ),
-          )
-          context.restore()
+        if context.visible() && !path.is_empty() && op != @content.Op_n {
+          context.paint_path(path, state, op, initial.matrix, depth)
         }
         if clip is Some(even_odd) {
           context.scope(@layout.ClipPath(path.copy(), even_odd))
@@ -176,42 +189,83 @@ fn interpret(
           ..state,
           style: { ..state.style, dash, dashOffset: offset, },
         }
-      Op_g(v) => state = { ..state, fill: rgb([v]), fillSpace: "DeviceGray", }
-      Op_G(v) =>
-        state = { ..state, stroke: rgb([v]), strokeSpace: "DeviceGray", }
-      Op_rg(r, g, b) =>
-        state = { ..state, fill: rgb([r, g, b]), fillSpace: "DeviceRGB", }
-      Op_RG(r, g, b) =>
-        state = { ..state, stroke: rgb([r, g, b]), strokeSpace: "DeviceRGB", }
-      Op_cs(name) => {
-        let space = @utf8.decode_lossy(name.bytes())[1:].to_owned()
-        guard ["DeviceGray", "DeviceRGB"].contains(space) else {
-          @failure.reject("unsupported-pdf", "Unsupported PDF fill color space")
+      Op_g(v) => {
+        let space = context.color_space(resources, tag("DeviceGray"))
+        state = {
+          ..state,
+          fill: space.color([v]),
+          fillSpace: space,
+          fillPattern: None,
         }
-        state = { ..state, fillSpace: space, fill: "000000", }
+      }
+      Op_G(v) => {
+        let space = context.color_space(resources, tag("DeviceGray"))
+        state = { ..state, stroke: space.color([v]), strokeSpace: space, }
+      }
+      Op_rg(r, g, b) => {
+        let space = context.color_space(resources, tag("DeviceRGB"))
+        state = {
+          ..state,
+          fill: space.color([r, g, b]),
+          fillSpace: space,
+          fillPattern: None,
+        }
+      }
+      Op_RG(r, g, b) => {
+        let space = context.color_space(resources, tag("DeviceRGB"))
+        state = { ..state, stroke: space.color([r, g, b]), strokeSpace: space, }
+      }
+      Op_k(c, m, y, k) => {
+        let space = context.color_space(resources, tag("DeviceCMYK"))
+        state = {
+          ..state,
+          fill: space.color([c, m, y, k]),
+          fillSpace: space,
+          fillPattern: None,
+        }
+      }
+      Op_K(c, m, y, k) => {
+        let space = context.color_space(resources, tag("DeviceCMYK"))
+        state = {
+          ..state,
+          stroke: space.color([c, m, y, k]),
+          strokeSpace: space,
+        }
+      }
+      Op_cs(name) => {
+        let space = context.color_space(resources, @syntax.PdfNameObject(name))
+        state = {
+          ..state,
+          fillSpace: space,
+          fill: space.initial_color(),
+          fillPattern: None,
+        }
       }
       Op_CS(name) => {
-        let space = @utf8.decode_lossy(name.bytes())[1:].to_owned()
-        guard ["DeviceGray", "DeviceRGB"].contains(space) else {
-          @failure.reject(
-            "unsupported-pdf", "Unsupported PDF stroke color space",
-          )
-        }
-        state = { ..state, strokeSpace: space, stroke: "000000", }
+        let space = context.color_space(resources, @syntax.PdfNameObject(name))
+        state = { ..state, strokeSpace: space, stroke: space.initial_color(), }
       }
-      Op_sc(values) | Op_scn(values) => {
-        guard values.length() ==
-          (if state.fillSpace == "DeviceGray" { 1 } else { 3 }) else {
-          @failure.reject("invalid-pdf", "Invalid PDF fill color")
-        }
-        state = { ..state, fill: rgb(values), }
+      Op_sc(values) | Op_scn(values) =>
+        state = { ..state, fill: state.fillSpace.color(values), }
+      Op_SC(values) | Op_SCN(values) =>
+        state = { ..state, stroke: state.strokeSpace.color(values), }
+      Op_scnName(name, values) => {
+        let (pattern, color) = context.pattern_color(
+          resources,
+          name,
+          state.fillSpace,
+          values,
+        )
+        state = { ..state, fill: color, fillPattern: Some(pattern), }
       }
-      Op_SC(values) | Op_SCN(values) => {
-        guard values.length() ==
-          (if state.strokeSpace == "DeviceGray" { 1 } else { 3 }) else {
-          @failure.reject("invalid-pdf", "Invalid PDF stroke color")
-        }
-        state = { ..state, stroke: rgb(values), }
+      Op_SCNName(name, values) => {
+        let (_, color) = context.pattern_color(
+          resources,
+          name,
+          state.strokeSpace,
+          values,
+        )
+        state = { ..state, stroke: color, }
       }
       Op_gs(name) => state = ext_state(document, resources, name, state)
       Op_Tf(name, _) => {
@@ -245,8 +299,22 @@ fn interpret(
       }
       Op_Tj(_) | Op_TJ(_) | Op_quote(_) | Op_double_quote(_, _, _) => {
         let start = context.spans.length()
+        let command_start = context.commands.length()
         let previous = state
-        state = show_text(context, state, op, "\{identity}:\{op_index}", depth)
+        state = show_text(
+          context,
+          state,
+          op,
+          "\{identity}:\{op_index}",
+          depth,
+          resources,
+          uncolored,
+        )
+        // Type 3 programs inherit the mask and apply it to their own painting operators.
+        if !(previous.font
+          is Some({ font: PdfFontSimple({ fonttype: PdfType3(_), .. }), .. })) {
+          context.apply_mask(previous, command_start, depth)
+        }
         if context.collectSource &&
           context.spans.length() > start &&
           !(origin is Some({ owned: true, .. })) &&
@@ -283,10 +351,16 @@ fn interpret(
               "Text object boundaries are protected"
             } else if !context.marked.is_empty() {
               "Marked text requires synchronized replacement data"
+            } else if previous.softMask is Some(_) {
+              "Soft-masked source text requires explicit reconstruction"
             } else if previous.clips > 0 {
               "Clipped text requires explicit reconstruction"
             } else if previous.text.rendering_mode != 0 {
               "Invisible or non-fill PDF text is protected"
+            } else if previous.font
+              .map(font => font.font.is_identity_v())
+              .unwrap_or(false) {
+              "Vertical source text requires explicit reconstruction"
             } else if fontIndex is None {
               "An embeddable source font is required"
             } else {
@@ -309,6 +383,18 @@ fn interpret(
       | Op_Tm(_)
       | Op_Tstar =>
         state = { ..state, text: state.text.content_apply_text_state_op(op), }
+      Op_sh(name) => {
+        guard !uncolored else {
+          @failure.reject(
+            "invalid-pdf", "Uncolored Type 3 glyph cannot use shading",
+          )
+        }
+        if context.visible() {
+          let command_start = context.commands.length()
+          context.axial_shading(resources, name, state)
+          context.apply_mask(state, command_start, depth)
+        }
+      }
       Op_Do(name) => {
         let xobjects = get(document, resources, "XObject")
         let reference = raw(
@@ -320,9 +406,19 @@ fn interpret(
           _ => identity + @utf8.decode_lossy(name.bytes())
         }
         let object = resolve(document, reference)
+        if !context.visible() || !context.optional_visible(raw(object, "OC")) {
+          continue
+        }
+        let command_start = context.commands.length()
         if is_name(raw(object, "Subtype"), "Image") {
+          guard !uncolored ||
+            raw(object, "ImageMask") == @syntax.PdfBoolean(true) else {
+            @failure.reject(
+              "invalid-pdf", "Uncolored PDF program requires an image mask",
+            )
+          }
           let available = try {
-            add_image(context, object, key)
+            add_image(context, object, key, resources)
             true
           } catch {
             @failure.Failure(
@@ -347,13 +443,7 @@ fn interpret(
               "invalid-pdf", "Invalid PDF image interpolation flag",
             )
           }
-          context.commands.push(
-            @layout.Style({
-              ..state.style,
-              imageSmoothing: raw(object, "Interpolate") ==
-              @syntax.PdfBoolean(true),
-            }),
-          )
+          context.commands.push(@layout.Style(state.style))
           context.scope(
             @layout.Transform(
               state.matrix.then({ a: 1, b: 0, c: 0, d: -1, e: 0, f: 1, }),
@@ -361,7 +451,16 @@ fn interpret(
           )
           context.extracted_image(reference, key, state, depth)
           context.commands.push(
-            @layout.Image({ key, x: 0, y: 0, width: 1, height: 1, }),
+            @layout.Image({
+              key,
+              interpolate: Some(
+                raw(object, "Interpolate") == @syntax.PdfBoolean(true),
+              ),
+              x: 0,
+              y: 0,
+              width: 1,
+              height: 1,
+            }),
           )
           context.restore()
           if context.collectSource &&
@@ -390,7 +489,9 @@ fn interpret(
               font: "",
               fontIndex: None,
               color: "",
-              reason: if state.clips > 0 {
+              reason: if state.softMask is Some(_) {
+                "Soft-masked source images require explicit reconstruction"
+              } else if state.clips > 0 {
                 "Clipped source images require explicit reconstruction"
               } else {
                 ""
@@ -398,20 +499,51 @@ fn interpret(
               op,
             })
           }
+          context.apply_mask(state, command_start, depth)
         } else {
           guard is_name(raw(object, "Subtype"), "Form") &&
-            !context.forms.contains(key) &&
-            raw(object, "OC") == @syntax.PdfNull &&
-            raw(object, "Group") == @syntax.PdfNull else {
+            !context.forms.contains(key) else {
             @failure.reject(
               "unsupported-pdf", "Unsupported or cyclic PDF XObject",
             )
           }
+          let own_resources = get(document, object, "Resources")
+          let form_resources = if own_resources == @syntax.PdfNull {
+            resources
+          } else {
+            own_resources
+          }
+          let formBytes = stream_bytes(document, object)
+          if formBytes.is_empty() &&
+            is_name(
+              get(document, get(document, object, "Group"), "S"),
+              "Transparency",
+            ) {
+            continue
+          }
+          let group = transparency_group(context, object, form_resources)
+          let nonneutral = group == Some(false) &&
+            (
+              state.style.fillAlpha != 1 ||
+              state.style.strokeAlpha != 1 ||
+              state.style.blend != Normal ||
+              state.softMask is Some(_)
+            )
           let form_matrix = pdf_object_matrix(get(document, object, "Matrix"))
           let form_state = {
             ..state,
             matrix: state.matrix.then(form_matrix),
             clips: 0,
+            style: if group is Some(_) {
+              { ..state.style, fillAlpha: 1, strokeAlpha: 1, blend: Normal, }
+            } else {
+              state.style
+            },
+            softMask: if group is Some(_) {
+              None
+            } else {
+              state.softMask
+            },
           }
           let (x, y, r, t) = rectangle(get(document, object, "BBox"))
           let bbox : Array[@layout.PathSegment] = [
@@ -425,7 +557,7 @@ fn interpret(
             @layout.ClipPath(path_in(bbox, form_state.matrix), false),
           )
           context.forms[key] = true
-          let own_resources = get(document, object, "Resources")
+          defer context.forms.remove(key)
           let taggedText = is_name(raw(object, "ODKind"), "Text")
           let taggedImage = is_name(raw(object, "ODKind"), "Image")
           let owned = origin is Some({ owned: true, .. }) ||
@@ -463,7 +595,11 @@ fn interpret(
               }
           }
           let spanStart = context.spans.length()
-          let formBytes = stream_bytes(document, object)
+          let collect = context.collectSource
+          context.collectSource = collect && group is None
+          errdefer {
+            context.collectSource = collect
+          }
           if context.extraction is Some(data) {
             data.formScopes.push(simple_image_form(formBytes))
           }
@@ -473,19 +609,32 @@ fn interpret(
           interpret(
             context,
             formBytes,
-            if own_resources == @syntax.PdfNull {
-              resources
-            } else {
-              own_resources
-            },
+            form_resources,
             "\{identity}/do\{op_index}:\{key}",
             form_state,
             depth + 1,
             origin=Some(sourceOrigin),
+            uncolored~,
           )
+          context.collectSource = collect
           context.forms.remove(key)
           context.restore()
-          if context.collectSource && !owned && (taggedText || taggedImage) {
+          if group == Some(true) || nonneutral {
+            context.isolate_form(
+              command_start,
+              state,
+              normal=nonneutral,
+              box={ x, y, width: r - x, height: t - y, },
+              matrix=form_state.matrix,
+            )
+          }
+          if group is Some(_) {
+            context.apply_mask(state, command_start, depth)
+          }
+          if context.collectSource &&
+            group is None &&
+            !owned &&
+            (taggedText || taggedImage) {
             guard context.sources.length() < 4096 else {
               @failure.reject(
                 "limit-exceeded", "PDF source objects exceed budget",
@@ -551,53 +700,39 @@ fn interpret(
       Op_BMC(tag) => {
         guard tag != pdf_name("OC") else {
           @failure.reject(
-            "unsupported-pdf", "Optional PDF content is unsupported",
+            "invalid-pdf", "Optional content requires a property dictionary",
           )
         }
-        context.marked.push({
-          glyph: context.extraction
-          .map(data => data.glyphs.length())
-          .unwrap_or(0),
-          replacement: None,
-          span: context.spans.length(),
-          chunk: context.chunks.length(),
-          offset: context.units,
-        })
+        context.begin_marked(true, None)
       }
       Op_BDC(tag, properties) => {
-        guard tag != pdf_name("OC") else {
-          @failure.reject(
-            "unsupported-pdf", "Optional PDF content is unsupported",
-          )
-        }
         let properties = if properties is PdfNameObject(name) {
-          get(
-            document,
+          raw(
             get(document, resources, "Properties"),
             @utf8.decode_lossy(name.bytes())[1:].to_owned(),
           )
         } else {
-          resolve(document, properties)
+          properties
         }
-        guard raw(properties, "OC") == @syntax.PdfNull else {
-          @failure.reject(
-            "unsupported-pdf", "Optional PDF content is unsupported",
-          )
+        guard tag != pdf_name("OC") || properties != @syntax.PdfNull else {
+          @failure.reject("invalid-pdf", "Missing optional content property")
         }
+        let visible = context.optional_visible(
+          if tag == pdf_name("OC") {
+            properties
+          } else {
+            raw(resolve(document, properties), "OC")
+          },
+        )
         let actual = get(document, properties, "ActualText")
-        context.marked.push({
-          glyph: context.extraction
-          .map(data => data.glyphs.length())
-          .unwrap_or(0),
-          replacement: if actual == @syntax.PdfNull {
+        context.begin_marked(
+          visible,
+          if actual == @syntax.PdfNull {
             None
           } else {
             Some(pdf_text_string(actual))
           },
-          span: context.spans.length(),
-          chunk: context.chunks.length(),
-          offset: context.units,
-        })
+        )
       }
       Op_EMC => finish_marked(context)
       Op_MP(_) | Op_DP(_, _) | Op_ri(_) | Op_i(_) => ()

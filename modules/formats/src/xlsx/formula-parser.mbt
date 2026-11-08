@@ -459,7 +459,7 @@ fn FormulaParser::atom(
           | "LOG10"
           | "RADIANS"
           | "DEGREES" => args.length() == 1
-          "PI" => args.is_empty()
+          "PI" | "RAND" => args.is_empty()
           "LEN" | "LOWER" | "UPPER" | "TRIM" => args.length() == 1
           "YEAR"
           | "MONTH"

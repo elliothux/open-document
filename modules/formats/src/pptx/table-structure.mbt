@@ -134,6 +134,7 @@ fn Session::table_structure_source(
     index=self.source_index(part),
     parts=self.parts,
     date_time=self.date_time,
+    media=self.media,
   )
   (normalized, [(part, edit)])
 }

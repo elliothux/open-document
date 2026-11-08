@@ -24,7 +24,11 @@ async function dispatch(request: Operation): Promise<unknown> {
     case "shape":
       return foundation.shape(request.text, request.size, request.language);
     case "openDocx":
-      return foundation.openDocx(request.bytes, request.budget);
+      return foundation.openDocx(
+        request.bytes,
+        request.budget,
+        request.password,
+      );
     case "createDocx":
       return foundation.createDocx(request.budget);
     case "queryFormatting":
@@ -476,6 +480,8 @@ async function dispatch(request: Operation): Promise<unknown> {
       return foundation.exportPdf(request.outputBytes, request.layoutId);
     case "imageBytes":
       return foundation.imageBytes(request.key);
+    case "imagePixels":
+      return foundation.imagePixels(request.key);
     case "image":
       return foundation.addImage(
         request.key,

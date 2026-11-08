@@ -1,14 +1,59 @@
 ///|
 pub(all) struct DrawGlyph {
   outline : String
+  upem : Int32
+  // Native vector outlines can lack an SFNT font's global bounds.
+  fontBounds : (Int32, Int32, Int32, Int32)?
+  strokeWidth : Double
   x : Double
   y : Double
   scaleX : Double
   scaleY : Double
-} derive(ToJson)
+}
+
+///|
+pub impl ToJson for DrawGlyph with fn to_json(self) {
+  {
+    "outline": self.outline,
+    "upem": self.upem,
+    "fontBounds": match self.fontBounds {
+      Some(bounds) => ToJson::to_json(bounds)
+      None => Json::null()
+    },
+    "strokeWidth": self.strokeWidth,
+    "x": self.x,
+    "y": self.y,
+    "scaleX": self.scaleX,
+    "scaleY": self.scaleY,
+  }
+}
 
 ///|
 pub extend DrawGlyph with ToJson::{to_json}
+
+///|
+pub(all) enum DrawBlend {
+  Normal
+  Multiply
+  Difference
+} derive(Eq)
+
+///|
+pub extend DrawBlend with Eq::{equal, not_equal}
+
+///|
+pub impl ToJson for DrawBlend with fn to_json(self) {
+  Json(
+    match self {
+      Normal => "normal"
+      Multiply => "multiply"
+      Difference => "difference"
+    },
+  )
+}
+
+///|
+pub extend DrawBlend with ToJson::{to_json}
 
 ///|
 pub(all) struct DrawStyle {
@@ -20,8 +65,7 @@ pub(all) struct DrawStyle {
   miter : Double
   dash : Array[Double]
   dashOffset : Double
-  multiply : Bool
-  imageSmoothing : Bool
+  blend : DrawBlend
 } derive(ToJson)
 
 ///|
@@ -38,8 +82,7 @@ pub fn DrawStyle::default() -> DrawStyle {
     miter: 10,
     dash: [],
     dashOffset: 0,
-    multiply: false,
-    imageSmoothing: true,
+    blend: Normal,
   }
 }
 
@@ -48,16 +91,22 @@ pub(all) enum DrawCommand {
   FillRect(Fill)
   GradientRect(Border, Array[GradientStop])
   RadialGradientRect(Border, Array[GradientStop])
-  StrokeRect(Border, String, Double)
+  PatternRect(Border, Double, Bytes, String, String, screen_device~ : Bool)
+  StrokeRect(Border, String, Double, screen_fractional~ : Bool)
   Glyphs(Double, Double, String, Array[DrawGlyph])
   Image(PlacedImage)
   Path(Array[PathSegment], String, String, Double)
+  TextRule(Array[PathSegment], String, Double)
   Transform(Matrix)
   ClipRect(Border)
   Style(DrawStyle)
+  PixelCenters
+  IntegerScreenGlyphs
   ClipPath(Array[PathSegment], Bool)
   Restore
   Layer(Double, Array[DrawCommand])
+  Mask(Array[DrawCommand], Array[DrawCommand])
+  Tile(Double, Double, Int32, Int32, Matrix, Double, Double, Array[DrawCommand])
 }
 
 ///|
@@ -68,8 +117,28 @@ pub impl ToJson for DrawCommand with fn to_json(self) {
       { "op": "gradientRect", "rect": rect, "stops": stops }
     RadialGradientRect(rect, stops) =>
       { "op": "radialGradientRect", "rect": rect, "stops": stops }
-    StrokeRect(rect, color, width) =>
-      { "op": "strokeRect", "rect": rect, "color": color, "lineWidth": width }
+    PatternRect(rect, period, mask, zero, one, screen_device~) =>
+      {
+        "op": "patternRect",
+        "rect": rect,
+        "period": period,
+        "mask": mask.iter().map(byte => byte.to_int()).collect(),
+        "zero": zero,
+        "one": one,
+        "screenDevice": screen_device,
+      }
+    StrokeRect(rect, color, width, screen_fractional~) => {
+      let command = {
+        "op": Json("strokeRect"),
+        "rect": rect.to_json(),
+        "color": Json(color),
+        "lineWidth": Json(width),
+      }
+      if screen_fractional {
+        command["screenFractional"] = Json(true)
+      }
+      Json::object(command)
+    }
     Glyphs(x, y, color, glyphs) =>
       { "op": "glyphs", "x": x, "y": y, "color": color, "glyphs": glyphs }
     Image(image) => { "op": "image", "image": image }
@@ -81,14 +150,37 @@ pub impl ToJson for DrawCommand with fn to_json(self) {
         "stroke": stroke,
         "lineWidth": width,
       }
+    TextRule(path, color, width) =>
+      {
+        "op": "path",
+        "path": path,
+        "fill": "",
+        "stroke": color,
+        "lineWidth": width,
+        "textRule": true,
+      }
     Transform(matrix) => { "op": "transform", "matrix": matrix }
     ClipRect(rect) => { "op": "clipRect", "rect": rect }
     Style(style) => { "op": "style", "style": style }
+    PixelCenters => { "op": "pixelCenters" }
+    IntegerScreenGlyphs => { "op": "integerScreenGlyphs" }
     ClipPath(path, even_odd) =>
       { "op": "clipPath", "path": path, "evenOdd": even_odd }
     Restore => { "op": "restore" }
     Layer(opacity, commands) =>
       { "op": "layer", "opacity": opacity, "commands": commands }
+    Mask(mask, commands) => { "op": "mask", "mask": mask, "commands": commands }
+    Tile(width, height, columns, rows, matrix, x, y, commands) =>
+      {
+        "op": "tile",
+        "width": width,
+        "height": height,
+        "columns": columns,
+        "rows": rows,
+        "matrix": matrix,
+        "resolution": { "x": x, "y": y },
+        "commands": commands,
+      }
   }
 }
 
@@ -157,11 +249,17 @@ pub fn Layout::semantics(self : Layout) -> Array[SemanticPage] {
   }
   self.pages.mapi((index, page) => {
     let lines : Array[SemanticLine] = []
-    for
-      line in self.running[index].filter(line => line.container == -1) +
+    let source_lines = self.running[index].lines.filter(line => {
+        line.container == -1
+      }) +
       page.lines +
-      self.running[index].filter(line => line.container == -3) +
-      self.running[index].filter(line => line.container == -2) {
+      self.running[index].lines.filter(line => line.container == -3) +
+      self.running[index].lines.filter(line => line.container == -2)
+    let text_drawings = text_box_reading_order(
+      source_lines.map(line => line.drawings).flatten(),
+    )
+    let mut drawing_index = 0
+    for line in source_lines {
       if !line.caretOnly {
         // Wrapping detaches drawings for painting; keep their text at the source marker.
         let drawings = detached
@@ -170,12 +268,29 @@ pub fn Layout::semantics(self : Layout) -> Array[SemanticPage] {
           .filter(image => image.start >= line.start && image.start < line.end)
         lines.push({ ..line, drawings: line.drawings + drawings, }.semantic())
       }
-      for image in line.drawings {
+      for _ in line.drawings {
+        let image = text_drawings[drawing_index]
+        drawing_index += 1
         if image.content is TextBox(_, text) {
           for nested in text.lines {
             let semantic = nested.semantic()
             lines.push({
               ..semantic,
+              paragraph: if [-1, -2].contains(line.container) {
+                line.paragraph
+              } else {
+                semantic.paragraph
+              },
+              container: if [-1, -2].contains(line.container) {
+                line.container
+              } else {
+                semantic.container
+              },
+              readOnlyReason: if [-1, -2].contains(line.container) {
+                line.readOnlyReason
+              } else {
+                semantic.readOnlyReason
+              },
               x: semantic.x + image.x,
               areaX: semantic.areaX + image.x,
               y: semantic.y + image.y,

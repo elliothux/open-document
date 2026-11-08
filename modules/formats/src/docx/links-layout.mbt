@@ -45,16 +45,16 @@ pub fn Session::page_links(
     }
     let values = self.running_links(
       Some(self.running_part(tree, id, kind)),
-      story,
+      story.all_paragraphs(),
     )
-    for paragraph in story {
+    for paragraph in story.all_paragraphs() {
       for span in paragraph.spans {
         if values.get(span.node) is Some(target) {
           running[(paragraph.id, span.node)] = target
         }
       }
     }
-    paragraphs.append(story)
+    paragraphs.append(story.all_paragraphs())
   }
   let targets : Map[(Int32, Int32), @layout.LinkTarget] = Map([])
   let drawing_nodes : Map[(Int32, Int32), Int32] = Map([])
@@ -83,7 +83,7 @@ pub fn Session::page_links(
     }) +
     layout.running
     .iter()
-    .flat_map(lines => lines.iter())
+    .flat_map(frame => frame.lines.iter())
     .fold(init=0, (sum, line) => sum + line.carets.length() + 1)
   let mut work = 0
   for paragraph in paragraphs {
@@ -240,7 +240,7 @@ pub fn Session::page_links(
     }
   }
   for page, frame in layout.pages {
-    for index, line in layout.running[page] {
+    for index, line in layout.running[page].lines {
       collect(page, index, line, None)
     }
     for index, line in frame.lines {

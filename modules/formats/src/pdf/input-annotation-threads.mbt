@@ -72,7 +72,7 @@ fn PdfSession::check_annotation_chain(
       )
     }
     visited[current] = true
-    let reason = annotation_reason(object)
+    let reason = annotation_reason(self.document, object)
     guard reason.is_empty() else {
       @failure.reject("protected-content", reason)
     }

@@ -45,6 +45,7 @@ fn Styles::apply_contextual_spacing(
   tree : WordTree,
   paragraphs : Map[Int32, @layout.Paragraph],
 ) -> Unit raise @failure.Failure {
+  self.apply_automatic_spacing(tree, paragraphs)
   let keys : Map[Int32, String?] = Map([])
   let enabled : Map[Int32, Bool] = Map([])
   for id, _ in paragraphs {

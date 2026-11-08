@@ -142,6 +142,7 @@ fn Session::capture_cell_rules(
   let work : FormulaWork = {
     remaining: 1048576,
     date1904: self.date1904,
+    random: None,
     origin: { row: 1, column: 1, },
     names: self.formula_names(),
   }

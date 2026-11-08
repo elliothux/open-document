@@ -70,7 +70,7 @@ export class DocumentPreview {
   ): Promise<DocumentPreview> {
     const surface = await PageCanvas.create(client, signal);
     try {
-      const layout = await client.layout(profile);
+      const layout = await surface.layout(profile);
       signal?.throwIfAborted();
       return new DocumentPreview(root, client, layout, surface);
     } catch (error) {

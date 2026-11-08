@@ -11,6 +11,7 @@ priv struct TextNode {
 ///|
 pub struct Session {
   priv opc : @opc.Package
+  priv mut encrypted_source : Bytes?
   priv main : String
   priv mut document : @xml.Document?
   priv mut parts : Map[String, @xml.Document]
@@ -39,7 +40,19 @@ pub struct Session {
 pub fn Session::open(
   bytes : Bytes,
   budget : @archive.Budget,
+  password? : String,
 ) -> Session raise @failure.Failure {
+  if @archive.encrypted_office_streams(bytes, budget) is Some((info, payload)) {
+    let maximum = budget.retained_bytes - bytes.length()
+    let plain = if info.length() >= 4 && encryption_u32(info, 0) == 0x00040004U {
+      decrypt_agile_office(info, payload, password, maximum, budget)
+    } else {
+      decrypt_standard_office(info, payload, password, maximum)
+    }
+    let session = Session::from_package(@opc.Package::open(plain, budget))
+    session.encrypted_source = Some(bytes)
+    return session
+  }
   Session::from_package(@opc.Package::open(bytes, budget))
 }
 
@@ -112,6 +125,7 @@ fn Session::from_package(opc : @opc.Package) -> Session raise @failure.Failure {
   }
   {
     opc,
+    encrypted_source: None,
     main,
     document: Some(document),
     parts: Map([]),
@@ -281,6 +295,15 @@ pub fn Session::replace(
 pub fn Session::save(self : Session) -> Bytes raise @failure.Failure {
   self.check_idle()
   let document = self.document()
+  if self.encrypted_source is Some(bytes) {
+    guard bytes.length() <= self.opc.budget.output_bytes else {
+      @failure.reject("limit-exceeded", "Encrypted DOCX output exceeds budget")
+    }
+    for _, name in self.opc.names {
+      ignore(self.opc.read(name))
+    }
+    return bytes
+  }
   self.opc.save(self.replacements(document, self.parts))
 }
 
@@ -291,6 +314,7 @@ pub fn Session::close(self : Session) -> Unit {
   self.composition = None
   self.drawing_gesture = None
   self.opc.close()
+  self.encrypted_source = None
   self.document = None
   self.parts.clear()
   self.media.clear()

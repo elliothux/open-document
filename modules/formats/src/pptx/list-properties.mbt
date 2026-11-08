@@ -2,6 +2,7 @@
 pub(all) enum ListFormat {
   NoList
   Bullet(String)
+  Picture
   Numbered(String, Int32)
 } derive(Eq)
 
@@ -24,9 +25,16 @@ fn number_format(value : String) -> String {
 }
 
 ///|
-fn ListFormat::check(self : ListFormat) -> Unit raise @failure.Failure {
+fn ListFormat::check(
+  self : ListFormat,
+  single_grapheme~ : Bool = true,
+) -> Unit raise @failure.Failure {
   match self {
     NoList => ()
+    Picture =>
+      @failure.reject(
+        "invalid-operation", "Picture bullets are imported from document images",
+      )
     Bullet(value) => {
       guard !value.is_empty() &&
         value.length() <= 16 &&
@@ -34,7 +42,7 @@ fn ListFormat::check(self : ListFormat) -> Unit raise @failure.Failure {
         !value
         .iter()
         .any(c => c <= ' ' || c == '\u007f' || c == '\u2028' || c == '\u2029') &&
-        @layout.grapheme_boundaries(value).length() == 2 else {
+        (!single_grapheme || @layout.grapheme_boundaries(value).length() == 2) else {
         @failure.reject(
           "invalid-operation", "Bullet must be one visible grapheme",
         )
@@ -54,6 +62,7 @@ fn ListFormat::check(self : ListFormat) -> Unit raise @failure.Failure {
 fn ListFormat::query(self : ListFormat) -> Json {
   match self {
     NoList => { "kind": "none" }
+    Picture => { "kind": "picture" }
     Bullet(value) => { "kind": "bullet", "value": value }
     Numbered(value, start) =>
       { "kind": "number", "value": value, "start": start }
@@ -75,6 +84,10 @@ fn check_list_properties(properties : Ref) -> Unit raise @failure.Failure {
     )
   }
   for node in kinds {
+    if node.name == "buBlip" {
+      ignore(check_picture_bullet({ tree: properties.tree, node, }))
+      continue
+    }
     let markup = source_xml({ tree: properties.tree, node, })
     guard node.name != "buBlip" &&
       node.text.trim().is_empty() &&
@@ -103,9 +116,18 @@ fn read_list(styles : Array[Ref]) -> ListFormat raise @failure.Failure {
     if source.child("buNone") is Some(_) {
       return NoList
     }
+    if source.child("buBlip") is Some(_) {
+      return Picture
+    }
     if source.child("buChar") is Some(node) {
-      let value = Bullet(node.node.attribute("char").unwrap_or(""))
-      value.check() catch {
+      let raw = node.node.attribute("char").unwrap_or("")
+      let value = try {
+        Bullet(raw).check(single_grapheme=false)
+        // ONLYOFFICE CPresentationBullet uses the first UTF-16 unit; keep the source intact.
+        let value = Bullet(raw[:1].to_owned())
+        value.check()
+        value
+      } catch {
         _ => @failure.reject("unsupported-text", "Unsupported character bullet")
       }
       return value
@@ -131,7 +153,7 @@ fn list_label(
   previous : Array[TextParagraph],
 ) -> String raise @failure.Failure {
   match list {
-    NoList => ""
+    NoList | Picture => ""
     Bullet(value) => value
     Numbered(kind, start) => {
       let mut value = start
@@ -166,6 +188,10 @@ fn list_label(
 ///|
 fn list_markup(list : ListFormat) -> (String, String) raise @failure.Failure {
   match list {
+    Picture =>
+      @failure.reject(
+        "protected-content", "Picture bullet clipboard transfer requires image relationship support",
+      )
     NoList => ("buNone", "<a:buNone xmlns:a=\"\{drawing_uri}\"/>")
     Bullet(value) =>
       (

@@ -16,6 +16,7 @@ fn Line::copy_geometry(self : Line) -> Line {
     runs: self.runs.map(run => run.copy_geometry()),
     marker: self.marker.map(run => run.copy_geometry()),
     carets: self.carets.copy(),
+    caretPortions: self.caretPortions.copy(),
     bars: self.bars.copy(),
     drawings: self.drawings.map(image => {
       ..image,
@@ -46,9 +47,15 @@ fn PageFrame::validate_images(
   images : Images,
 ) -> Unit raise @failure.Failure {
   for line in self.lines {
+    if line.markerImage is Some(image) {
+      ignore(images.get(image.key))
+    }
     for image in line.drawings {
       if image.content is Picture(key, _) {
         ignore(images.get(key))
+      }
+      if image.content is Metafile(file) {
+        file.supply_images(images)
       }
     }
   }

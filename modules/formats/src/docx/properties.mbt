@@ -1,5 +1,6 @@
 ///|
 priv struct WordTree {
+  part : String
   source : String
   nodes : Map[Int32, @xml.Node]
   order : Array[Int32]
@@ -8,6 +9,7 @@ priv struct WordTree {
   field_spans : Set[Int32]
   index_entries : Map[Int32, IndexEntry]
   index_markers : Set[Int32]
+  has_endnotes : Bool
 }
 
 ///|
@@ -15,10 +17,13 @@ fn WordTree::new(document : @xml.Document) -> WordTree {
   let nodes : Map[Int32, @xml.Node] = Map([])
   let order : Array[Int32] = []
   let children : Map[Int32, Array[Int32]] = Map([])
+  let mut has_endnotes = false
   for node in document.nodes() {
     nodes[node.id] = node
     order.push(node.id)
     children[node.id] = []
+    has_endnotes = has_endnotes ||
+      (node.uri == word_uri && node.name == "endnoteReference")
   }
   for id in order {
     let node = nodes[id]
@@ -27,6 +32,7 @@ fn WordTree::new(document : @xml.Document) -> WordTree {
     }
   }
   let tree = {
+    part: document.part(),
     source: document.source(),
     nodes,
     order,
@@ -35,6 +41,7 @@ fn WordTree::new(document : @xml.Document) -> WordTree {
     field_spans: Set([]),
     index_entries: Map([]),
     index_markers: Set([]),
+    has_endnotes,
   }
   tree.select_alternate_content()
   let (contents, field_spans) = tree.read_contents()
@@ -110,6 +117,7 @@ priv struct RunStyle {
   italic : Bool
   underline : Bool
   strike : Bool
+  caps : Bool
   highlight : String
   vertAlign : String
 } derive(Eq)
@@ -207,6 +215,7 @@ fn run_properties(
       Some(_) => false
     },
     strike: tree.character_toggle(id, "strike", base.strike, inherited),
+    caps: tree.character_toggle(id, "caps", base.caps, inherited),
     highlight: match tree.value(id, "highlight") {
       None => base.highlight
       Some(value) => {
@@ -386,15 +395,16 @@ fn Session::styles(
       rtl: false,
       bold: false,
       italic: false,
-      size: 11,
+      size: 10,
     },
-    size: 11,
+    size: 10,
     kerning: None,
     color: "auto",
     bold: false,
     italic: false,
     underline: false,
     strike: false,
+    caps: false,
     highlight: "none",
     vertAlign: "baseline",
     spacing: 0,

@@ -281,6 +281,7 @@ fn Session::edit_modern_comments(
         index~,
         parts~,
         date_time=self.date_time,
+        media=self.media,
       )
     } else {
       page

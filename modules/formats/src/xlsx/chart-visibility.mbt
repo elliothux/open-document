@@ -40,17 +40,29 @@ fn Session::chart_visibility(
   let work : FormulaWork = {
     remaining: 1048576,
     date1904: self.date1904,
+    random: None,
     origin: { row: 1, column: 1, },
     names: self.formula_names(),
   }
   {
-    categories: self.chart_visible_indices(
-      owner,
-      chart.categories,
-      chart.data.categories.length(),
-      work,
-      cached_only~,
-    ),
+    categories: if chart.categories.is_empty() &&
+      (chart.native_circular is Some(_) || chart.native_surface is Some(_)) {
+      self.chart_visible_indices(
+        owner,
+        chart.values[0],
+        chart.data.categories.length(),
+        work,
+        cached_only~,
+      )
+    } else {
+      self.chart_visible_indices(
+        owner,
+        chart.categories,
+        chart.data.categories.length(),
+        work,
+        cached_only~,
+      )
+    },
     values: chart.values.mapi((index, formula) => {
       self.chart_visible_indices(
         owner,

@@ -44,6 +44,7 @@ fn Object::paint_table(
         "",
         0,
         {
+          evenOdd: false,
           fillAlpha: table.alpha,
           strokeAlpha: 1,
           dash: [],
@@ -76,6 +77,7 @@ fn Object::paint_table(
         output.push(Transform({ ..@layout.Matrix::identity(), e: x, f: y, }))
         output.push(
           Path(shape_path("rect", width, height, (0, 0, 0)), cell.fill, "", 0, {
+            evenOdd: false,
             fillAlpha: cell.alpha,
             strokeAlpha: 1,
             dash: [],
@@ -100,7 +102,7 @@ fn Object::paint_table(
         .then(rotation)
         .then({ ..@layout.Matrix::identity(), e: -x, f: -y, })
       output.push(Transform(matrix))
-      for line in measured {
+      for line in presentation_bold_pens(measured) {
         if cell.body.direction != "horz" {
           transforms[line.paragraph + paragraph] = matrix
         }
@@ -115,13 +117,20 @@ fn Object::paint_table(
           cellClip: Some({ x, y, width, height, }),
           runs: line.runs.map(run => {
             ..run,
+            start: run.start + offset,
             x: run.x + x,
             baseline: run.baseline + y,
           }),
           marker: line.marker.map(run => {
             ..run,
+            start: run.start + offset,
             x: run.x + x,
             baseline: run.baseline + y,
+          }),
+          markerImage: line.markerImage.map(image => {
+            ..image,
+            x: image.x + x,
+            y: image.y + y,
           }),
           drawings: line.drawings.map(drawing => {
             ..drawing,
@@ -134,9 +143,11 @@ fn Object::paint_table(
             offset: caret.offset + offset,
           }),
         }
-        let commands = { ..placed, clip: false, cellClip: None, }.positioned(
+        let commands = presentation_line_primitives(
+          { ..placed, clip: false, cellClip: None, },
           fonts,
           self.geometry.unwrap().width,
+          probe,
         )
         for command in commands {
           if command is @layout.Text(text) {

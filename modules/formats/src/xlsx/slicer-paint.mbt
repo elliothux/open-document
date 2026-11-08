@@ -316,6 +316,7 @@ fn SlicerDrawing::paint(
           "",
           0,
           {
+            evenOdd: false,
             fillAlpha: 1,
             strokeAlpha: 1,
             dash: [],
@@ -346,7 +347,15 @@ fn SlicerDrawing::paint(
         "444444",
         "",
         0,
-        { fillAlpha: 1, strokeAlpha: 1, dash: [], cap: 0, join: 0, miter: 10, },
+        {
+          evenOdd: false,
+          fillAlpha: 1,
+          strokeAlpha: 1,
+          dash: [],
+          cap: 0,
+          join: 0,
+          miter: 10,
+        },
       ),
     )
     primitives.push(Restore)

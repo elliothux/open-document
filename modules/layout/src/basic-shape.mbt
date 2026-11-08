@@ -29,15 +29,16 @@ pub fn basic_shape_path(
     return [Move(0, 0), Line(width, height)]
   }
   if preset == "ellipse" {
-    let k = 0.5522847498307936
+    // DrawingML uses quarter arcs and starts at the left edge, including dashed strokes.
+    let k = (7.0.sqrt() - 1) / 3
     let x = width / 2
     let y = height / 2
     return [
-      Move(width, y),
-      Cubic(width, y + k * y, x + k * x, height, x, height),
-      Cubic(x - k * x, height, 0, y + k * y, 0, y),
+      Move(0, y),
       Cubic(0, y - k * y, x - k * x, 0, x, 0),
       Cubic(x + k * x, 0, width, y - k * y, width, y),
+      Cubic(width, y + k * y, x + k * x, height, x, height),
+      Cubic(x - k * x, height, 0, y + k * y, 0, y),
       Close,
     ]
   }

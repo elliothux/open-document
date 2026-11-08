@@ -50,8 +50,8 @@ fn Session::flow_sections(
     @failure.reject("limit-exceeded", "Section count exceeds page budget")
   }
   let profiles : Array[@layout.SectionBreak] = []
-  let headers : Map[String, Array[@layout.Paragraph]] = Map([])
-  let footers : Map[String, Array[@layout.Paragraph]] = Map([])
+  let headers : Map[String, @layout.RunningStory] = Map([])
+  let footers : Map[String, @layout.RunningStory] = Map([])
   let identities : Map[(String, Int32), Int32] = Map([])
   let has_footnotes = tree.order.any(id => {
     tree.nodes[id].uri == word_uri && tree.nodes[id].name == "footnoteReference"
@@ -183,7 +183,7 @@ fn Session::flow_sections(
           inherited[variant] = if ends.length() == 1 {
             story
           } else {
-            story.map(p => {
+            story.map_paragraphs(p => {
               let key = (part, p.id)
               guard identities.contains(key) || identities.length() < 32768 else {
                 @failure.reject(

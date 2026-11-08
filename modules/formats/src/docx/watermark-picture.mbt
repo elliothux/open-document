@@ -82,7 +82,12 @@ fn Session::watermark_value(
           "protected-content", "Picture watermarks require an internal header image",
         )
       }
-      Picture(Resource("watermark:" + link.target), width, height, opacity)
+      Picture(
+        Resource(self.image_resource_key(link.target)),
+        width,
+        height,
+        opacity,
+      )
     }
     _ =>
       @failure.reject("invalid-operation", "Expected a stored watermark image")

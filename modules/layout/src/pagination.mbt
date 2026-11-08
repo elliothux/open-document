@@ -87,7 +87,24 @@ fn Pagination::new(
   result.page = result.page_at(0)
   result.y = result.page.top
   if continuation is Some(state) {
-    result.pages[0] = state.frame.copy_geometry()
+    let frame = state.frame.copy_geometry()
+    result.pages[0] = if state.empty {
+      {
+        ..frame,
+        lines: frame.lines.map(line => {
+          ..line,
+          x: result.page.left,
+          y: result.page.top,
+          caretOnly: true,
+        }),
+      }
+    } else {
+      frame
+    }
+    if state.empty {
+      result.after = 0
+      result.gap = 0
+    }
   }
   if !pendingNotes.is_empty() {
     result.noteContinuations.add(0)
@@ -195,7 +212,7 @@ fn Pagination::sheet_setup(self : Pagination, physical : Int32) -> PageSetup {
       2
     }]
   }
-  if physical == 0 && self.continuation is Some(state) {
+  if physical == 0 && self.continuation is Some(state) && !state.empty {
     { ..page, top: state.y, bottom: state.page.bottom, }
   } else {
     page
@@ -219,6 +236,9 @@ fn Pagination::place(
     if image.content is Picture(key, _) {
       ignore(images.get(key))
     }
+    if image.content is Metafile(file) {
+      file.supply_images(images)
+    }
   }
   let x = left + line.x
   let y = top
@@ -230,7 +250,8 @@ fn Pagination::place(
     .map(prior => prior.y)
     .unwrap_or(top)
   let physical = if target / self.columns.count == 0 &&
-    self.continuation is Some(state) {
+    self.continuation is Some(state) &&
+    !state.empty {
     { ..self.anchorPage, top: state.page.top, bottom: state.page.bottom, }
   } else {
     self.anchorPage
@@ -246,6 +267,11 @@ fn Pagination::place(
       ..run.copy_geometry(),
       x: x + run.x,
       baseline: top + run.baseline,
+    }),
+    markerImage: line.markerImage.map(image => {
+      ..image,
+      x: x + image.x,
+      y: top + image.y,
     }),
     carets: line.carets.map(caret => {
       ..caret,
@@ -520,8 +546,11 @@ fn Table::left(
     .iter()
     .fold(init=0.0, (total, width) => total + width)
   let available = page.width - page.left - page.right
-  guard width > 0 && width <= available else {
-    @failure.reject("layout-overflow", "Table exceeds page width")
+  guard width > 0 && width <= table.grid_limit(available) + 0.000001 else {
+    @failure.reject(
+      "layout-overflow",
+      "Table \{table.id} width \{width} exceeds available width \{available}",
+    )
   }
   page.left +
   (match table.align {
@@ -603,7 +632,9 @@ pub fn paginate(
   let (pagination, running, reflowed, reused, next, diagnostics) = paginate_running(
     probe, flow, cache, profile, images,
   )
-  guard running.iter().fold(init=0, (total, lines) => total + lines.length()) <=
+  guard running
+    .iter()
+    .fold(init=0, (total, frame) => total + frame.lines.length()) <=
     32768 - pagination.count else {
     @failure.reject(
       "limit-exceeded", "Repeated header and footer line budget exceeded",

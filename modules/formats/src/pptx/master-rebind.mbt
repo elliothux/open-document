@@ -120,6 +120,7 @@ fn Session::rebind_master_slides(
       index~,
       parts~,
       date_time=self.date_time,
+      media=self.media,
     )
     let previous = slide_font_keys([slide])
     for key in slide_font_keys([candidate]) {

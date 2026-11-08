@@ -1,5 +1,7 @@
 ///|
 priv struct History {
+  before_random : Map[(Int32, String), (Value, String?)]
+  after_random : Map[(Int32, String), (Value, String?)]
   edits : Array[(String, @xml.Edit)]
   mut created : Sheet?
   created_parts : Map[String, @xml.Document]
@@ -31,6 +33,7 @@ pub struct Session {
   priv normal_size : Double
   priv mut font_context : (@layout.TextProbe, Map[String, String])?
   priv date1904 : Bool
+  priv random : @random.Rand?
   priv mut calendar_date : (Int32, Int32, Int32)?
   priv mut sheets : Array[Sheet]
   priv mut selection : (String, Range)
@@ -55,8 +58,14 @@ pub fn Session::open(
   bytes : Bytes,
   budget : @archive.Budget,
   date~ : String? = None,
+  random_seed~ : Bytes? = None,
 ) -> Session raise @failure.Failure {
-  Session::from_package(@opc.Package::open(bytes, budget), budget, date~)
+  Session::from_package(
+    @opc.Package::open(bytes, budget),
+    budget,
+    date~,
+    random_seed~,
+  )
 }
 
 ///|
@@ -64,21 +73,50 @@ fn Session::from_package(
   opc : @opc.Package,
   budget : @archive.Budget,
   date~ : String? = None,
+  random_seed~ : Bytes? = None,
 ) -> Session raise @failure.Failure {
   errdefer opc.close()
+  let random = formula_random(random_seed)
   guard !opc.signed else {
     @failure.reject("unsupported-xlsx", "Signed workbooks are unsupported")
   }
-  let mains = opc
-    .relationships()
+  let relationships = opc.relationships()
+  let mains = relationships
     .iter()
     .filter(rel => {
-      rel.owner == "" && rel.kind == relationship_uri + "officeDocument"
+      rel.owner == "" &&
+      (
+        rel.kind == relationship_uri + "officeDocument" ||
+        rel.kind == strict_relationship_uri + "officeDocument"
+      )
     })
     .collect()
   guard mains is [main] && !main.external else {
     @failure.reject(
       "malformed-xlsx", "Expected one internal workbook relationship",
+    )
+  }
+  let strict = main.kind == strict_relationship_uri + "officeDocument"
+  let relationship = if strict {
+    strict_relationship_uri
+  } else {
+    relationship_uri
+  }
+  let spreadsheet = if strict {
+    strict_spreadsheet_uri
+  } else {
+    spreadsheet_uri
+  }
+  let other_relationship = if strict {
+    relationship_uri
+  } else {
+    "http://purl.oclc.org/ooxml/"
+  }
+  guard !relationships
+    .iter()
+    .any(rel => rel.kind.has_prefix(other_relationship)) else {
+    @failure.reject(
+      "unsupported-xlsx", "Mixed SpreadsheetML relationship dialects",
     )
   }
   let main = main.target
@@ -88,35 +126,47 @@ fn Session::from_package(
     ) else {
     @failure.reject(
       "unsupported-xlsx",
-      "Only Transitional XLSX workbooks are supported",
+      "Expected XLSX workbook content type",
       part=main,
     )
   }
   let workbook = opc.xml(main)
   let tree = Tree::new(workbook)
   let root = tree.root("workbook")
+  guard root.uri == spreadsheet else {
+    @failure.reject(
+      "malformed-xlsx",
+      "Workbook namespace and relationship disagree",
+      part=main,
+    )
+  }
   let relations : Map[String, @opc.Relationship] = Map([])
   let strings : Array[(String, Bool)] = []
   let mut strings_part : String? = None
   let mut has_styles = false
-  let theme = read_theme(opc, main)
+  let mut font_count = 0
+  let theme = read_theme(opc, main, relationship)
   let mut cell_styles = [default_style()]
   let mut base_font = (default_style().font, default_style().size)
-  for rel in opc.relationships() {
-    guard !rel.kind.has_prefix("http://purl.oclc.org/ooxml/") else {
-      @failure.reject("unsupported-xlsx", "Strict OOXML is unsupported")
-    }
+  for rel in relationships {
     if rel.owner != main {
       continue
     }
     relations[rel.id] = rel
-    if rel.kind == relationship_uri + "sharedStrings" {
+    if rel.kind == relationship + "sharedStrings" {
       guard !rel.external && strings_part is None else {
         @failure.reject("malformed-xlsx", "Invalid shared strings relationship")
       }
       strings_part = Some(rel.target)
       let shared = Tree::new(opc.xml(rel.target))
       let root = shared.root("sst")
+      guard root.uri == spreadsheet else {
+        @failure.reject(
+          "malformed-xlsx",
+          "Shared strings namespace and relationship disagree",
+          part=rel.target,
+        )
+      }
       let mut units = 0
       for item in shared.all(root.id, "si") {
         let value = shared.text(item.id)
@@ -127,13 +177,27 @@ fn Session::from_package(
         strings.push(value)
       }
     }
-    if rel.kind == relationship_uri + "styles" {
+    if rel.kind == relationship + "styles" {
       guard !rel.external && !has_styles else {
         @failure.reject("malformed-xlsx", "Invalid styles relationship")
       }
       has_styles = true
-      cell_styles = read_styles(opc.xml(rel.target), theme)
-      base_font = normal_font(opc.xml(rel.target))
+      let document = opc.xml(rel.target)
+      let styles = Tree::new(document)
+      let style_root = styles.root("styleSheet")
+      guard style_root.uri == spreadsheet else {
+        @failure.reject(
+          "malformed-xlsx",
+          "Styles namespace and relationship disagree",
+          part=rel.target,
+        )
+      }
+      cell_styles = read_styles(document, theme)
+      base_font = normal_font(document)
+      font_count = styles
+        .one(style_root.id, "fonts")
+        .map(node => styles.all(node.id, "font").length())
+        .unwrap_or(0)
     }
   }
   let container = tree
@@ -152,15 +216,12 @@ fn Session::from_package(
   let paths : Map[String, Bool] = Map([])
   let diagnostics : Array[String] = []
   let mut cell_count = 0
-  let read_only = ""
+  let read_only = if strict { "Strict XLSX is read-only" } else { "" }
   for node in tree.all(container.id, "sheet") {
     let name = node.attribute("name").unwrap_or("")
     let id = node.attribute("sheetId").unwrap_or("")
     let relation = node
-      .attribute(
-        "id",
-        uri=relationship_uri[:relationship_uri.length() - 1].to_owned(),
-      )
+      .attribute("id", uri=relationship[:relationship.length() - 1].to_owned())
       .unwrap_or("")
     guard !name.is_empty() &&
       name.length() <= 31 &&
@@ -169,7 +230,7 @@ fn Session::from_package(
       natural(id, 2147483647) > 0 &&
       relations.get(relation) is Some(rel) &&
       !rel.external &&
-      rel.kind == relationship_uri + "worksheet" &&
+      ["worksheet", "chartsheet"].any(kind => rel.kind == relationship + kind) &&
       !paths.contains(rel.target) else {
       @failure.reject(
         "malformed-xlsx",
@@ -184,11 +245,32 @@ fn Session::from_package(
     guard sheets.length() < 256 else {
       @failure.reject("limit-exceeded", "Worksheet count exceeds budget")
     }
+    let document = opc.xml(rel.target)
+    let kind = if rel.kind == relationship + "chartsheet" {
+      "chartsheet"
+    } else {
+      "worksheet"
+    }
+    let sheet_root = Tree::new(document).sheet_root()
+    guard opc.content_type(rel.target) ==
+      Some(
+        "application/vnd.openxmlformats-officedocument.spreadsheetml." +
+        kind +
+        "+xml",
+      ) &&
+      sheet_root.name == kind &&
+      sheet_root.uri == spreadsheet else {
+      @failure.reject(
+        "malformed-xlsx",
+        "Sheet relationship, content type and root disagree",
+        part=rel.target,
+      )
+    }
     let sheet = Sheet::read(
       rel.target,
       name,
       state,
-      opc.xml(rel.target),
+      document,
       strings,
       cell_styles.length(),
     )
@@ -197,7 +279,14 @@ fn Session::from_package(
       @failure.reject("limit-exceeded", "Workbook cell count exceeds budget")
     }
     let source = Tree::new(sheet.document)
-    for child in source.children.get(source.root("worksheet").id).unwrap_or([]) {
+    for child in source.children.get(source.sheet_root().id).unwrap_or([]) {
+      if !sheet.is_chart() &&
+        (
+          phonetic_defaults(source, child, font_count) ||
+          neutral_mac_page_layout(source, child)
+        ) {
+        continue
+      }
       if sheet.sparklines.reason.is_empty() &&
         sparkline_extension(source, child) {
         continue
@@ -208,7 +297,7 @@ fn Session::from_package(
           "headerFooter", "autoFilter", "sortState", "dataValidations", "conditionalFormatting",
           "hyperlinks", "legacyDrawing",
         ].contains(child.name) ||
-        child.uri != spreadsheet_uri {
+        child.uri != spreadsheet {
         diagnostics.push("unrendered:" + sheet.id + ":" + child.qualified)
       }
     }
@@ -271,11 +360,13 @@ fn Session::from_package(
     closed: false,
     diagnostics,
     calculation: None,
+    random,
   }
   session.validate(session.sheets)
   for sheet in session.sheets {
     let source = Tree::new(sheet.document)
-    if source.one(source.root("worksheet").id, "legacyDrawing") is Some(legacy) {
+    if !sheet.is_chart() &&
+      source.one(source.root("worksheet").id, "legacyDrawing") is Some(legacy) {
       ignore(session.read_sheet_notes(sheet, allow_threads=true)) catch {
         @failure.Failure(..) =>
           session.diagnostics.push(
@@ -291,7 +382,9 @@ fn Session::from_package(
       code == "formula-syntax" ||
       code == "invalid-address" ||
       code == "circular-reference" => {
-      session.read_only = message
+      if session.read_only.is_empty() {
+        session.read_only = message
+      }
       None
     }
     error => raise error
@@ -364,6 +457,7 @@ pub fn Session::query(
   let work : FormulaWork = {
     remaining: 1048576,
     date1904: self.date1904,
+    random: None,
     origin: { row: 1, column: 1, },
     names: self.formula_names(),
   }
@@ -385,7 +479,7 @@ pub fn Session::query(
     error => raise error
   }
   let diagnostics = self.diagnostics.filter(diagnostic => {
-    !conditional.table_styles.renders(diagnostic, current.id)
+    !conditional.renders(diagnostic, current)
   })
   if !conditional.reason.is_empty() {
     diagnostics.push(
@@ -444,7 +538,8 @@ pub fn Session::query(
     }
     cells.push(json)
   }
-  if range is Some(range) &&
+  if !current.is_chart() &&
+    range is Some(range) &&
     range.top == range.bottom &&
     range.left == range.right &&
     cells.is_empty() {
@@ -486,6 +581,11 @@ pub fn Session::query(
         "id": sheet.id,
         "name": sheet.name,
         "state": sheet.state,
+        "kind": if sheet.is_chart() {
+          "chartsheet"
+        } else {
+          "worksheet"
+        },
         "protected": sheet.locked,
       }
       value

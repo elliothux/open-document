@@ -18,10 +18,20 @@ fn simple_text_field(source : Ref) -> Bool {
   node.text.trim().is_empty() &&
   node.attributes.all(a => a.uri.is_empty() && ["id", "type"].contains(a.name)) &&
   children.all(child => {
-    child.uri == drawing_uri && ["rPr", "t"].contains(child.name)
+    child.uri == drawing_uri && ["rPr", "pPr", "t"].contains(child.name)
   }) &&
-  ["rPr", "t"].all(name => {
+  ["rPr", "pPr", "t"].all(name => {
     children.filter(child => child.name == name).length() <= 1
+  }) &&
+  children
+  .filter(child => child.name == "pPr")
+  .all(child => {
+    let xml = source_xml({ tree: source.tree, node: child, })
+    child.attributes.is_empty() &&
+    child.text.trim().is_empty() &&
+    source.tree.children.get(child.id).unwrap_or([]).is_empty() &&
+    !xml.contains("<!--") &&
+    !xml.contains("<?")
   }) &&
   children
   .filter(child => child.name == "t")

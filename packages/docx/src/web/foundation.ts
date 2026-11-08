@@ -125,9 +125,18 @@ export class FoundationClient extends FoundationClipboardClient {
       }),
     );
   }
-  async openDocx(bytes: Uint8Array, budget: Budget): Promise<DocxQuery> {
+  async openDocx(
+    bytes: Uint8Array,
+    budget: Budget,
+    password?: string,
+  ): Promise<DocxQuery> {
     return docxQuery(
-      await this.connection.request({ operation: "openDocx", bytes, budget }),
+      await this.connection.request({
+        operation: "openDocx",
+        bytes,
+        budget,
+        password,
+      }),
     );
   }
   async query(): Promise<DocxQuery> {
@@ -704,6 +713,15 @@ export class FoundationClient extends FoundationClipboardClient {
       key,
     });
     if (!(result instanceof Uint8Array)) throw new Error("Invalid image bytes");
+    return result;
+  }
+  async imagePixels(key: string): Promise<Uint8Array> {
+    const result = await this.connection.request({
+      operation: "imagePixels",
+      key,
+    });
+    if (!(result instanceof Uint8Array) || result.length > 16777216)
+      throw new Error("Invalid prepared image pixels");
     return result;
   }
   async addImage(

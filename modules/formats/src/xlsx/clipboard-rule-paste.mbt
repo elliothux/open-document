@@ -63,6 +63,7 @@ fn Session::prepare_copied_rules(
   let work : FormulaWork = {
     remaining: 1048576,
     date1904: self.date1904,
+    random: None,
     origin: { row: target.top, column: target.left, },
     names: plan.calculation.names,
   }

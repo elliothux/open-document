@@ -17,10 +17,24 @@ pub(all) struct PositionedText {
 pub(all) struct PathStyle {
   fillAlpha : Double
   strokeAlpha : Double
+  evenOdd : Bool
   dash : Array[Double]
   cap : Int32
   join : Int32
   miter : Double
+}
+
+///|
+pub fn PathStyle::solid() -> PathStyle {
+  {
+    evenOdd: false,
+    fillAlpha: 1,
+    strokeAlpha: 1,
+    dash: [],
+    cap: 0,
+    join: 0,
+    miter: 10,
+  }
 }
 
 ///|
@@ -47,13 +61,18 @@ pub(all) enum PositionedPrimitive {
   Rectangle(Fill)
   GradientRectangle(Border, Array[GradientStop])
   RadialGradientRectangle(Border, Array[GradientStop])
+  PatternRectangle(Border, Double, Bytes, String, String, screen_device~ : Bool)
   Stroke(Border, String, Double)
+  FractionalScreenStroke(Border, String, Double)
   Text(PositionedText)
+  TextRule(Array[PathSegment], String, Double)
   Image(PlacedImage, Double)
   Path(Array[PathSegment], String, String, Double, PathStyle)
   Transform(Matrix)
   Clip(Border)
   ClipPath(Array[PathSegment], Bool)
+  PixelCenters
+  IntegerScreenGlyphs
   Restore
 }
 
@@ -105,37 +124,57 @@ pub fn Layout::positioned(self : Layout) -> PositionedDocument {
           }),
         )
       }
-      let floating = page.floating_images()
-      for (_, image) in floating {
-        if image.anchor.unwrap().behind {
-          image.paint(primitives, self.fonts)
-        }
-      }
-      for fill in page.fills {
-        primitives.push(Rectangle(fill))
-      }
-      for border in page.borders {
-        primitives.push(Stroke(border.rect, border.color, border.width))
-      }
-      for line in page.lines + self.running[index] {
-        if line.cellClip is Some(rect) {
-          primitives.push(Clip(rect))
-        }
-        primitives.append(line.positioned(self.fonts, page.width))
-        if line.cellClip is Some(_) {
-          primitives.push(Restore)
-        }
-      }
-      for (_, image) in floating {
-        if !image.anchor.unwrap().behind {
-          image.paint(primitives, self.fonts)
-        }
-      }
-      for border in page.pageBorders {
-        primitives.push(Rectangle(border))
+      if self.running.get(index) is Some(running) {
+        {
+          ..running,
+          lines: running.lines.filter(line => line.container != -3),
+        }.paint(primitives, self.fonts)
+        {
+          ..page,
+          lines: page.lines + running.lines.filter(line => line.container == -3),
+        }.paint(primitives, self.fonts)
+      } else {
+        page.paint(primitives, self.fonts)
       }
       { width: page.width, height: page.height, primitives, }
     }),
+  }
+}
+
+///|
+fn PageFrame::paint(
+  self : PageFrame,
+  out : Array[PositionedPrimitive],
+  fonts : Array[FontInfo],
+) -> Unit {
+  let floating = self.floating_images()
+  for (_, image) in floating {
+    if image.anchor.unwrap().behind {
+      image.paint(out, fonts)
+    }
+  }
+  for fill in self.fills {
+    out.push(Rectangle(fill))
+  }
+  for border in self.borders {
+    out.push(Stroke(border.rect, border.color, border.width))
+  }
+  for line in self.lines {
+    if line.cellClip is Some(rect) {
+      out.push(Clip(rect))
+    }
+    out.append(line.positioned(fonts, self.width, align_text_rules=true))
+    if line.cellClip is Some(_) {
+      out.push(Restore)
+    }
+  }
+  for (_, image) in floating {
+    if !image.anchor.unwrap().behind {
+      image.paint(out, fonts)
+    }
+  }
+  for border in self.pageBorders {
+    out.push(Rectangle(border))
   }
 }
 
@@ -171,8 +210,16 @@ pub fn PositionedDocument::drawing(
           validate_gradient(rect, stops)
           commands.push(RadialGradientRect(rect, stops))
         }
+        PatternRectangle(rect, period, mask, zero, one, screen_device~) => {
+          validate_pattern(rect, period, mask, zero, one)
+          commands.push(
+            PatternRect(rect, period, mask, zero, one, screen_device~),
+          )
+        }
         Stroke(rect, color, width) =>
-          commands.push(StrokeRect(rect, color, width))
+          commands.push(StrokeRect(rect, color, width, screen_fractional=false))
+        FractionalScreenStroke(rect, color, width) =>
+          commands.push(StrokeRect(rect, color, width, screen_fractional=true))
         Image(image, opacity) => {
           guard !opacity.is_nan() &&
             !opacity.is_inf() &&
@@ -201,6 +248,7 @@ pub fn PositionedDocument::drawing(
               ..DrawStyle::default(),
               fillAlpha: pen.fillAlpha,
               strokeAlpha: pen.strokeAlpha,
+              evenOdd: pen.evenOdd,
               dash: pen.dash,
               cap: pen.cap,
               join: pen.join,
@@ -210,9 +258,13 @@ pub fn PositionedDocument::drawing(
           commands.push(Path(path, fill, stroke, width))
           commands.push(Style(DrawStyle::default()))
         }
+        TextRule(path, color, width) =>
+          commands.push(TextRule(path, color, width))
         Transform(matrix) => commands.push(Transform(matrix))
         Clip(rect) => commands.push(ClipRect(rect))
         ClipPath(path, even_odd) => commands.push(ClipPath(path, even_odd))
+        PixelCenters => commands.push(PixelCenters)
+        IntegerScreenGlyphs => commands.push(IntegerScreenGlyphs)
         Restore => commands.push(Restore)
         Text(text) =>
           for run in text.runs {
@@ -222,11 +274,36 @@ pub fn PositionedDocument::drawing(
                 run.baseline,
                 run.color,
                 run.glyphs.map(glyph => {
-                  outline: glyph.outline,
-                  x: glyph.x,
-                  y: glyph.y,
-                  scaleX: glyph.scale,
-                  scaleY: -glyph.scale,
+                  let font = self.fonts
+                    .get(glyph.font)
+                    .unwrap_or_else(() => {
+                      @failure.reject(
+                        "missing-font", "Unknown positioned glyph font",
+                      )
+                    })
+                  guard font.bbox.length() == 4 &&
+                    font.bbox[0] >= -65536 &&
+                    font.bbox[1] >= -65536 &&
+                    font.bbox[2] <= 65536 &&
+                    font.bbox[3] <= 65536 &&
+                    font.bbox[0] <= font.bbox[2] &&
+                    font.bbox[1] <= font.bbox[3] else {
+                    @failure.reject(
+                      "malformed-font", "Invalid positioned font bounds",
+                    )
+                  }
+                  {
+                    outline: glyph.outline,
+                    upem: font.upem,
+                    fontBounds: Some(
+                      (font.bbox[0], font.bbox[1], font.bbox[2], font.bbox[3]),
+                    ),
+                    strokeWidth: glyph.strokeWidth,
+                    x: glyph.x,
+                    y: glyph.y,
+                    scaleX: glyph.scale,
+                    scaleY: -glyph.scale,
+                  }
                 }),
               ),
             )
@@ -254,6 +331,7 @@ pub fn TextProbe::text_block(
   profile : Map[String, String],
   width : Double,
   wrap : Bool,
+  cell~ : Bool = false,
 ) -> TextBlock raise @failure.Failure {
   self.span_block(
     [{ node: 0, text, style, drawing: None, field: "", }],
@@ -261,6 +339,7 @@ pub fn TextProbe::text_block(
     profile,
     width,
     wrap,
+    cell~,
   )
 }
 
@@ -268,6 +347,7 @@ pub fn TextProbe::text_block(
 /// Shape mixed text styles with the same bounded paragraph layout as plain blocks.
 /// `justify` expands word gaps on nonfinal lines; line breaking and source text stay intact.
 /// `distributed` also expands final lines and centers lines containing a single word.
+/// `cell` uses native spreadsheet font metrics; other text keeps paragraph metrics.
 pub fn TextProbe::span_block(
   self : TextProbe,
   spans : Array[Span],
@@ -277,6 +357,7 @@ pub fn TextProbe::span_block(
   wrap : Bool,
   justify~ : Bool = false,
   distributed~ : Bool = false,
+  cell~ : Bool = false,
 ) -> TextBlock raise @failure.Failure {
   self.check()
   guard spans.all(span => span.drawing is None && span.field.is_empty()) else {
@@ -321,9 +402,9 @@ pub fn TextProbe::span_block(
   }
   let cache = ParagraphCache::new(self, profile)
   let available = if wrap { width } else { 1000000000.0 }
-  let measured = cache.lines(self, paragraph, profile, available) catch {
+  let measured = cache.lines(self, paragraph, profile, available, cell~) catch {
     Failure(code="layout-overflow", ..) =>
-      cache.lines(self, paragraph, profile, 1000000000.0)
+      cache.lines(self, paragraph, profile, 1000000000.0, cell~)
     error => raise error
   }
   // Retain only the existing bounded text cache; old viewport entries may be evicted.
@@ -376,11 +457,16 @@ pub fn Line::positioned(
   self : Line,
   fonts : Array[FontInfo],
   width : Double,
+  underline_descent? : Double,
+  align_text_rules~ : Bool = false,
 ) -> Array[PositionedPrimitive] {
   let line = self
   let primitives : Array[PositionedPrimitive] = []
   if line.clip {
     primitives.push(Clip({ x: 0, y: line.y, width, height: line.height, }))
+  }
+  if line.markerImage is Some(image) {
+    primitives.push(Image(image, 1))
   }
   for image in line.drawings {
     if image.anchor is None {
@@ -427,20 +513,18 @@ pub fn Line::positioned(
       }),
     }),
   )
-  let mut descent = 0.0
-  for run in line.paint_runs() {
-    for range in run.bidi {
-      let font = fonts[range.font]
-      descent = descent.max(
-        scaled_line_metrics(
-          font.ascent,
-          font.descent,
-          font.upem,
-          run.nominalSize,
-        ).1,
-      )
+  let descent = underline_descent.unwrap_or_else(() => {
+    let mut descent = 0.0
+    for run in line.paint_runs() {
+      for range in run.bidi {
+        let font = fonts[range.font]
+        descent = descent.max(
+          font.descent.to_double() * run.nominalSize / font.upem.to_double(),
+        )
+      }
     }
-  }
+    descent
+  })
   for run in line.paint_runs() {
     let thickness = run.nominalSize / 18
     let baseline = run.baseline + run.rise
@@ -451,14 +535,16 @@ pub fn Line::positioned(
           (decoration.strike, run.baseline - run.size * 0.27),
         ] {
         if enabled {
+          let path = [
+            Move(run.x + decoration.x, y + thickness / 2),
+            Line(run.x + decoration.x + decoration.width, y + thickness / 2),
+          ]
           primitives.push(
-            Rectangle({
-              x: run.x + decoration.x,
-              y: y - thickness / 2,
-              width: decoration.width,
-              height: thickness,
-              color: run.color,
-            }),
+            if align_text_rules {
+              TextRule(path, run.color, thickness)
+            } else {
+              Path(path, "", run.color, thickness, PathStyle::solid())
+            },
           )
         }
       }

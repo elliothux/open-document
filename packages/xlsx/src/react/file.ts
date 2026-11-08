@@ -3,6 +3,8 @@ import { XlsxClient, SpreadsheetEditor } from "../web/index.js";
 import type { EditorOptions } from "./types.js";
 import type { OwnedFile } from "./context.js";
 import type { OfficeDocument } from "@open-document/ui/types";
+import { documentFailure } from "@open-document/web-core/connection";
+import type { DocumentStage } from "@open-document/wasm/abi/session";
 export async function prepareFile(
   options: EditorOptions,
   document: OfficeDocument,
@@ -25,6 +27,7 @@ export async function prepareFile(
   let client: XlsxClient | undefined;
   let file: { format: "xlsx"; editor: SpreadsheetEditor } | undefined;
   let inputLimit = 0;
+  let stage: DocumentStage = "worker";
   const abort = () => client?.dispose();
   signal.addEventListener("abort", abort, { once: true });
   const profile = { ...options.resources.profile };
@@ -41,9 +44,11 @@ export async function prepareFile(
       signal,
     ));
     const budget = options.budget ?? (await connection.defaultBudget());
+    stage = "input";
     inputLimit = Math.min(budget.fileBytes, budget.retainedBytes);
     if ((document.bytes?.length ?? 0) > inputLimit)
       throw new Error("Document input exceeds budget");
+    stage = "open";
     if (document.blank) await connection.create(budget);
     else if (/\.(csv|tsv)$/i.test(document.name))
       await connection.importDelimited(
@@ -53,7 +58,9 @@ export async function prepareFile(
         document.delimited,
       );
     else await connection.openXlsx(document.bytes, budget);
+    stage = "font";
     await fonts(connection);
+    stage = "layout";
     file = {
       format: "xlsx",
       editor: await SpreadsheetEditor.mount(surface, connection, profile),
@@ -96,7 +103,7 @@ export async function prepareFile(
       surface.remove();
     }
     signal.throwIfAborted();
-    throw error;
+    throw documentFailure(stage, error);
   } finally {
     signal.removeEventListener("abort", abort);
   }

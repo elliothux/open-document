@@ -13,7 +13,7 @@ fn paginate_running(
   continuation~ : SectionContinuation? = None,
 ) -> (
   Pagination,
-  Array[Array[Line]],
+  Array[PageFrame],
   Int32,
   Int32,
   PaginationCache?,
@@ -41,10 +41,14 @@ fn paginate_running(
   let dynamic = [flow.headers, flow.footers].any(stories => {
     stories
     .values()
-    .any(story => story.any(p => p.spans.any(span => !span.field.is_empty())))
+    .any(story => {
+      story
+      .all_paragraphs()
+      .any(p => p.spans.any(span => !span.field.is_empty()))
+    })
   })
   let mut page_setups : Array[PageSetup] = []
-  let mut prepared : Array[Array[Line]] = []
+  let mut prepared : Array[PageFrame] = []
   for attempt in 0..<8 {
     let (pagination, frames, reflowed, reused, next) = column_body(
       probe,
@@ -73,20 +77,23 @@ fn paginate_running(
     } else {
       pagination.pages.length() - reused
     }
-    let previous = pagination.pages.mapi((index, _) => {
+    let previous_frames = pagination.pages.mapi((index, _) => {
       prepared
       .get(index)
       .unwrap_or(
         patterns[if index == 0 { 0 } else if index % 2 == 1 { 1 } else { 2 }],
-      ) +
-      notes[index]
+      )
+    })
+    let previous = previous_frames.mapi((index, frame) => {
+      ..frame,
+      lines: frame.lines + notes[index],
     })
     let total = pagination.pages.length()
     let (values, diagnostics) = pagination.body_field_values(
       fields,
       flow,
       fixed_values,
-      noteRunning=previous,
+      noteRunning=previous.map(frame => frame.lines),
     )
     let (updated, body_stable) = if fields.is_empty() {
       (body, true)
@@ -105,7 +112,7 @@ fn paginate_running(
       body = updated
       continue
     }
-    let running : Array[Array[Line]] = []
+    let running : Array[PageFrame] = []
     let actual : Array[PageSetup] = []
     let mut lines = pagination.count
     let mut stable = body_stable
@@ -119,7 +126,7 @@ fn paginate_running(
         page~,
         total=documentTotal.unwrap_or(total),
       )
-      lines += pattern[0].length()
+      lines += pattern[0].lines.length()
       guard lines <= 32768 else {
         @failure.reject(
           "limit-exceeded", "Repeated header and footer line budget exceeded",
@@ -127,7 +134,9 @@ fn paginate_running(
       }
       running.push(pattern[0])
       actual.push(setup[0])
-      let actual_setup = if page == 0 && continuation is Some(state) {
+      let actual_setup = if page == 0 &&
+        continuation is Some(state) &&
+        !state.empty {
         { ..setup[0], top: state.y, bottom: state.page.bottom, }
       } else {
         setup[0]
@@ -139,7 +148,10 @@ fn paginate_running(
     if stable {
       return (
         pagination,
-        running.mapi((index, lines) => lines + notes[index]),
+        running.mapi((index, frame) => {
+          ..frame,
+          lines: frame.lines + notes[index],
+        }),
         reflowed,
         reused,
         next,

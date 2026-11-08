@@ -1,8 +1,8 @@
 # P14 兼容与性能
 
-状态：`implemented`。已完成选定的七个兼容批次及一个性能优化，覆盖 13 份原件和独立 CMap、RGBA 向量。
+状态：`implemented`。已完成选定的七个兼容批次及一个性能优化，覆盖 12 份上游原件、一份从 PDF.js 向量派生的 `smask-matte.pdf`，以及独立 CMap、RGBA 向量。
 
-用户能在指定真实 DOCX、XLSX、PPTX、PDF 文件中完成打开、编辑、精确撤销/重做、保存重开和相应输出。Office 行为优先对齐 ONLYOFFICE。更广文件变体继续按具体缺口扩展。
+用户能在指定 DOCX、XLSX、PPTX、PDF 输入中完成打开、编辑、精确撤销/重做、保存重开和相应输出。Office 行为优先对齐 ONLYOFFICE。此处保留已交付范围；更广真实文件的证据与缺口归[兼容性矩阵](../references/compatibility.md)，[C0](c0-real-file-compatibility.md) 已完成首批登记范围，更广语料继续按 [C1](../c1-corpus-and-producer-compatibility.md)补齐。
 
 ## 兼容交付
 
@@ -20,7 +20,7 @@
 
 五份 DOCX/PPTX 原件及编辑状态使用 ONLYOFFICE 10.0.0-169、冻结 Arimo 四种字形和 Poppler 144 dpi 参考。PDF 文字使用冻结 PDFium Tinos/Arimo、Poppler 25.03.0 和隔离 Fontconfig。几何、文字、像素及源结构分别核对，沿用冻结容差。
 
-`font-scale.pptx` 的 32 pt × 85% 保留 **27.2 pt**。ONLYOFFICE 10 的原生参考取整为 27 pt，原 PDF 继续保留；另用十倍原生单位的独立参考核对 27.2 pt 精度，记录引擎差异。
+`font-scale.pptx` 的 32 pt × 85% 按 ONLYOFFICE 10 的规则取整为 **27 pt**。2026-11-08，用户确认统一采用该规则。原生 27 pt PDF 用于当前验收；27.2 pt 的十倍单位精度参考作为历史证据保留。
 
 共同修复还覆盖 Word 段落标记字体、字偶距阈值和行隙；PPTX 视频首帧就绪；XLSX 范围草稿归属，以及后台 Worker 回复期间的原生滚动保留。
 

@@ -94,6 +94,7 @@ fn read_object(
   parts : Map[String, @xml.Document],
   page_number : String,
   date_time : DateTime?,
+  media : Map[String, Bytes],
 ) -> Object raise @failure.Failure {
   let source = chain[0]
   let nv_name = match source.node.name {
@@ -194,7 +195,7 @@ fn read_object(
     "rect",
   )
   let preset = if custom is Some(_) {
-    "polyline"
+    "custom"
   } else if source.node.name == "cxnSp" && native_preset == "straightConnector1" {
     "line"
   } else {
@@ -232,15 +233,26 @@ fn read_object(
       (1.0, 1.0),
     ]
   } else {
-    custom.map(read_polyline).unwrap_or([]) catch {
-      @failure.Failure(message~, ..) => {
-        diagnostic = message
-        []
-      }
+    []
+  }
+  let custom_geometry = custom.map(source => {
+    let value = read_custom_geometry(source)
+    ignore(
+      value.resolve(
+        geometry.map(g => g.width).unwrap_or(0),
+        geometry.map(g => g.height).unwrap_or(0),
+      ),
+    )
+    value
+  }) catch {
+    @failure.Failure(code="unsupported-geometry", message~, ..) => {
+      diagnostic = message
+      None
     }
+    error => raise error
   }
   if kind == "unsupported" ||
-    (!supported_shape(preset) && polyline.is_empty()) ||
+    (!supported_shape(preset) && polyline.is_empty() && custom_geometry is None) ||
     (
       custom is Some(_) &&
       (source.node.name != "sp" || !children(properties, "prstGeom").is_empty())
@@ -250,28 +262,12 @@ fn read_object(
       "/" +
       preset
   }
-  for item in properties {
-    for child in item.tree.children.get(item.node.id).unwrap_or([]) {
-      if ["effectDag", "effectLst", "scene3d", "sp3d"].contains(child.name) &&
-        !item.tree.children.get(child.id).unwrap_or([]).is_empty() {
-        diagnostic = "Unsupported object effect: " + child.name
-      }
-    }
-  }
-  let effects = style_reference(theme, chain, "effect") catch {
+  let shadow = read_outer_shadow(theme, source, chain, properties) catch {
     @failure.Failure(code="unsupported-style", message~, ..) => {
       diagnostic = message
       None
     }
     error => raise error
-  }
-  if effects is Some((effect, _)) {
-    for child in effect.tree.children.get(effect.node.id).unwrap_or([]) {
-      if child.name != "effectLst" ||
-        !effect.tree.children.get(child.id).unwrap_or([]).is_empty() {
-        diagnostic = "Unsupported theme effect: " + child.name
-      }
-    }
   }
   let paint = (fn() raise @failure.Failure {
     let has_fill = properties.any(item => {
@@ -343,6 +339,9 @@ fn read_object(
       )
     }
     let lines = children(properties, "ln")
+      .get(0)
+      .map(line => [line])
+      .unwrap_or([])
     let placeholder = if style_reference(theme, chain, "ln") is Some((item, ph)) {
       lines.push(item)
       Some(ph)
@@ -393,7 +392,7 @@ fn read_object(
     error => raise error
   }
   let (plain_paragraphs, body, limitation) = read_text(
-    theme, chain, master, defaults, page_number, date_time,
+    opc, theme, chain, master, defaults, page_number, date_time, parts, media,
   ) catch {
     @failure.Failure(code~, message~, ..) if code == "unsupported-text" ||
       code == "unsupported-style" ||
@@ -428,7 +427,8 @@ fn read_object(
   }
   let table = if kind == "table" && geometry is Some(geometry) {
     read_drawing_table(
-      source, theme, master, defaults, geometry, page_number, date_time,
+      opc, source, theme, master, defaults, geometry, page_number, date_time, parts,
+      media,
     ) catch {
       @failure.Failure(code~, message~, ..) if [
           "unsupported-table", "unsupported-text", "unsupported-style", "unsupported-math",
@@ -442,7 +442,7 @@ fn read_object(
     None
   }
   let chart = if kind == "chart" {
-    Some(read_chart(opc, source, parts)) catch {
+    Some(read_chart(opc, source, parts, theme)) catch {
       @failure.Failure(message~, ..) => {
         diagnostic = message
         None
@@ -450,6 +450,9 @@ fn read_object(
     }
   } else {
     None
+  }
+  if chart.map(c => c.native_pie is Some(_)).unwrap_or(false) {
+    read_only = "Native circular chart appearance is read-only"
   }
   let paragraphs = table
     .map(table => {
@@ -492,9 +495,15 @@ fn read_object(
       let embed = blip.node
         .attribute("embed", uri=relationship_uri)
         .unwrap_or("")
-      let target = image_target(opc, source.tree.part, embed, parts)
+      let target = relationship_target(
+        opc,
+        source.tree.part,
+        embed,
+        relationship_uri + "/image",
+        parts,
+      )
       if target is Some(target) &&
-        [Some("image/png"), Some("image/jpeg")].contains(
+        [Some("image/png"), Some("image/jpeg"), Some("image/gif")].contains(
           image_content_type(opc, target, parts),
         ) {
         image = Some(target)
@@ -567,15 +576,18 @@ fn read_object(
   if read_only.is_empty() && !source.parent_group().is_empty() {
     read_only = "Group members are read-only"
   }
-  {
+  let object : Object = {
     id: source.tree.part + "#" + id,
     parent: source.parent_group(),
     name,
     kind,
     source,
     geometry,
+    text_rect: None,
     preset,
+    custom: custom_geometry,
     polyline,
+    diagram_font: None,
     adjustments,
     fill: paint.0,
     gradient: paint.11,
@@ -599,16 +611,31 @@ fn read_object(
     paragraphs,
     table,
     chart,
+    metafile: None,
+    shadow,
     body,
     read_only,
     text_reason,
     diagnostic,
+  }
+  read_picture_metafile(opc, object, theme, parts).with_shadow_image() catch {
+    @failure.Failure(code~, message~, ..) if [
+        "unsupported-style", "unsupported-image", "invalid-image",
+      ].contains(code) =>
+      {
+        ..object,
+        diagnostic: message,
+        read_only: message,
+        text_reason: message,
+      }
+    error => raise error
   }
 }
 
 ///|
 fn read_objects(
   opc : @opc.Package,
+  cache : Map[String, Tree],
   tree : Tree,
   parent_node : Int32,
   theme : Theme,
@@ -623,6 +650,7 @@ fn read_objects(
   parts : Map[String, @xml.Document],
   page_number : String,
   date_time : DateTime?,
+  media : Map[String, Bytes],
 ) -> Unit raise @failure.Failure {
   guard depth <= 16 else {
     @failure.reject("limit-exceeded", "Group depth exceeds 16")
@@ -650,7 +678,20 @@ fn read_objects(
     }
     let object = read_object(
       opc, theme, chain, master, defaults, parent, reason, parts, page_number, date_time,
+      media,
     )
+    let object = read_ole_preview(opc, object, parts) catch {
+      @failure.Failure(code~, message~, ..) if [
+          "unsupported-image", "unsupported-style",
+        ].contains(code) =>
+        {
+          ..object,
+          diagnostic: message,
+          read_only: message,
+          text_reason: message,
+        }
+      error => raise error
+    }
     guard !ids.contains(object.id) else {
       @failure.reject(
         "malformed-pptx",
@@ -659,10 +700,38 @@ fn read_objects(
       )
     }
     ids[object.id] = true
-    if object.kind == "group" && object.geometry is Some(geometry) {
+    let preview = read_diagram_preview(
+      opc, cache, object, theme, master, defaults, parts, page_number, date_time,
+      media,
+    ) catch {
+      @failure.Failure(code="unsupported-style", message~, ..) =>
+        Some([
+          {
+            ..object,
+            diagnostic: message,
+            read_only: message,
+            text_reason: message,
+          },
+        ])
+      error => raise error
+    }
+    if preview is Some(objects) {
+      for item in objects {
+        if item.id != object.id {
+          guard ids.length() < 4096 && !ids.contains(item.id) else {
+            @failure.reject(
+              "limit-exceeded", "SmartArt preview objects exceed budget",
+            )
+          }
+          ids[item.id] = true
+        }
+        output.push(item)
+      }
+    } else if object.kind == "group" && object.geometry is Some(geometry) {
       let first = output.length()
       read_objects(
         opc,
+        cache,
         tree,
         node.id,
         theme,
@@ -677,6 +746,7 @@ fn read_objects(
         parts,
         page_number,
         date_time,
+        media,
       )
       let problem = source.group_problem()
       let text_problem = if !problem.is_empty() {

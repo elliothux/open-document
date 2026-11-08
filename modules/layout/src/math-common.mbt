@@ -76,6 +76,6 @@ fn TextProbe::math_glyph_height(
 fn PlacedDrawingFrame::baseline(self : PlacedDrawingFrame) -> Double {
   match self.content {
     Math(formula) => formula.ascent
-    _ => self.height
+    _ => self.height + self.effectExtent.1 + self.effectExtent.3
   }
 }

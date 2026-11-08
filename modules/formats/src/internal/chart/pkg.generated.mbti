@@ -17,15 +17,178 @@ pub fn read(@opc.Package, String, Map[String, @xml.Document]) -> Resource raise 
 
 pub fn read_data(String, @xml.Document) -> (@layout.ChartData, String) raise @failure.Failure
 
+pub fn read_native_pie(@opc.Package, String, Map[String, @xml.Document], (Int32) -> (String, Double) raise @failure.Failure) -> Resource raise @failure.Failure
+
 pub fn read_worksheet(String, @xml.Document) -> WorksheetChart raise @failure.Failure
 
 // Errors
 
 // Types and methods
+type CircularFill
+
+type CircularSeries
+
+pub struct NativeArea {
+  frame_fill : String
+  frame_pen : (String, Double)
+  frame_default_fill : Bool
+  frame_default_pen : Bool
+  series : Array[NativeAreaSeries]
+  category_text : @layout.TextStyle
+  value_text : @layout.TextStyle
+  category_title : (String, @layout.TextStyle)
+  value_title : (String, @layout.TextStyle)
+  category_pen : (String, Double)
+  value_pen : (String, Double)
+  grid_pen : (String, Double)
+  plot_fill : String
+  plot_pen : (String, Double)
+  flat_plot : @layout.Border?
+  category_grid : (String, Double)
+  floor_pen : (String, Double)
+  category_tick : String
+  category_minor_tick : String
+  value_tick : String
+  value_minor_tick : String
+}
+
+type NativeAreaSeries
+
+pub struct NativeBar3d {
+  horizontal : Bool
+  rotation : (Double, Double)
+  perspective : Double
+  depth : Double
+  frame : (String, (String, Double))
+  default_fill : Bool
+  default_pen : Bool
+  series : Array[(String, (String, Double))]
+  category : NativeLineAxis
+  value : NativeLineAxis
+  series_axis : NativeLineAxis?
+  floor : (String, (String, Double))
+  side : (String, (String, Double))
+  back : (String, (String, Double))
+  legend : NativeLegend?
+}
+
+pub struct NativeBubble {
+  frame_fill : String
+  frame_pen : (String, Double)
+  frame_default_fill : Bool
+  frame_default_pen : Bool
+  series : Array[NativeBubbleSeries]
+  sizes : Array[Array[Double?]]
+  size_sources : Array[String?]
+  x_text : @layout.TextStyle
+  y_text : @layout.TextStyle
+  x_pen : (String, Double)
+  y_pen : (String, Double)
+  grid_pen : (String, Double)
+  x_ticks : (String?, String?)
+  y_ticks : (String?, String?)
+  plot_fill : String
+  plot_pen : (String, Double)
+  legend : NativeLegend?
+}
+
+type NativeBubbleSeries
+
+pub struct NativeCircular {
+  frame_fill : CircularFill
+  frame_pen : (String, Double)
+  frame_join : Int32
+  frame_default_fill : Bool
+  frame_default_pen : Bool
+  plot_fill : CircularFill
+  plot_pen : (String, Double)
+  plot_join : Int32
+  title : (String, @layout.TextStyle)?
+  legend : NativeLegend?
+  first_angle : Double
+  series : Array[CircularSeries]
+}
+
+type NativeLegend
+
+pub struct NativeLine {
+  frame_fill : String
+  frame_pen : (String, Double)
+  frame_default : Bool
+  frame_dash : Array[Double]
+  series : Array[NativeLineCurve]
+  category : NativeLineAxis
+  secondary_x : NativeLineAxis?
+  axes : Array[NativeLineAxis]
+  plot : @layout.Border?
+  title : NativeLineTitle?
+  plot_fill : String
+  plot_pen : (String, Double)
+  legend_text : @layout.TextStyle
+  legend_fill : String
+  legend_pen : (String, Double)
+  legend_position : (Double, Double)?
+  legend_bottom : Bool
+  point_legend : Bool
+  numeric_categories : Bool
+}
+
+type NativeLineAxis
+
+type NativeLineCurve
+
+type NativeLineTitle
+
+pub struct NativePie {
+  colors : Array[Array[(String, Double)]]
+  explosions : Array[(Double, Array[Double])]
+  first_angle : Double
+}
+
+pub struct NativeRadar {
+  frame_fill : String
+  frame_pen : (String, Double)
+  frame_join : Int32
+  frame_default_fill : Bool
+  frame_default_pen : Bool
+  series : Array[NativeRadarSeries]
+  filled : Bool
+  plot : @layout.Border?
+  grid_pen : (String, Double)
+  grid_join : Int32
+  reversed : Bool
+}
+
+type NativeRadarSeries
+
+pub struct NativeSurface {
+  rotation : (Double, Double)
+  perspective : Double
+  height_percent : Double?
+  depth : Double
+  wireframe : Bool
+  frame : (String, (String, Double))
+  default_fill : Bool
+  default_pen : Bool
+  category : NativeLineAxis
+  value : NativeLineAxis
+  series_axis : NativeLineAxis
+  value_hidden : Bool
+  value_labels : Bool
+  category_between : Bool
+  plot : @layout.Border?
+  floor : (String, (String, Double))
+  side : (String, (String, Double))
+  back : (String, (String, Double))
+  legend : NativeLegend?
+  palette : Array[String]
+}
+
 pub(all) struct Resource {
   part : String
   workbook : String
   data : @layout.ChartData
+  native_pie : NativePie?
 }
 pub fn Resource::paint(Self, Double, Double, @layout.TextProbe, Map[String, String]) -> Array[@layout.PositionedPrimitive] raise @failure.Failure
 
@@ -35,8 +198,19 @@ pub(all) struct WorksheetChart {
   names : Array[String]
   values : Array[String]
   colors : Array[String]
+  native_line : NativeLine?
+  native_radar : NativeRadar?
+  native_area : NativeArea?
+  native_bubble : NativeBubble?
+  native_circular : NativeCircular?
+  native_bar : NativeBar3d?
+  native_surface : NativeSurface?
 }
 pub fn WorksheetChart::markup(Self) -> String raise @failure.Failure
+pub fn WorksheetChart::paint(Self, Double, Double, @layout.TextProbe, Map[String, String], visible? : @layout.ChartVisibility?, after_bar3d? : Bool, print? : Bool) -> Array[@layout.PositionedPrimitive] raise @failure.Failure
+pub fn WorksheetChart::update_caches(Self, String, @xml.Document) -> (@xml.Document, @xml.Edit) raise @failure.Failure
+pub fn WorksheetChart::with_bubble_sizes(Self, Array[Array[Double?]]) -> Self raise @failure.Failure
+pub fn WorksheetChart::with_native_theme(Self, Array[String], Double) -> Self raise @failure.Failure
 
 // Type aliases
 

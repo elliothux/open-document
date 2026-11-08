@@ -44,7 +44,7 @@ fn hyperlink_nodes(tree : Tree) -> Array[@xml.Node] raise @failure.Failure {
       )
     }
   }
-  guard tree.one(tree.root("worksheet").id, "hyperlinks") is Some(container) else {
+  guard tree.one(tree.sheet_root().id, "hyperlinks") is Some(container) else {
     return []
   }
   let nodes = tree.children.get(container.id).unwrap_or([])
@@ -206,6 +206,7 @@ fn Session::hyperlink_destination(
     )
   }
   let work = work.unwrap_or_else(() => {
+    random: None,
     remaining: 1048576,
     date1904: self.date1904,
     origin,

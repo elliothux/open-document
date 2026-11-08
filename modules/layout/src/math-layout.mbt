@@ -189,6 +189,7 @@ fn MathFormula::prepare(
   {
     width: box.width,
     height: box.height,
+    effectExtent: (0, 0, 0, 0),
     anchor: None,
     content: Math({ ..self, ascent: box.ascent, primitives: box.primitives, }),
   }

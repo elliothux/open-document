@@ -95,6 +95,7 @@ fn Session::filtered_rows(
   let work : FormulaWork = {
     remaining: 1048576,
     date1904: self.date1904,
+    random: None,
     origin: { row: range.top, column: range.left, },
     names: self.formula_names(),
   }
@@ -212,6 +213,7 @@ fn Session::filter_query(
     let work : FormulaWork = work.unwrap_or_else(() => {
       remaining: 1048576,
       date1904: self.date1904,
+      random: None,
       origin: { row: state.bounds.top, column: state.bounds.left, },
       names: self.formula_names(),
     })

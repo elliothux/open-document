@@ -6,16 +6,19 @@ fn positioned_cache_units(
   let mut units = texts.fold(init=0, (sum, text) => sum + text.length())
   for primitive in primitives {
     units += 16
-    if primitive is Text(text) {
-      units += text.text.length()
-      for run in text.runs {
-        units += run.text.length() +
-          run.glyphs.fold(init=0, (sum, glyph) => {
-            sum + 10 + glyph.outline.length()
-          })
+    match primitive {
+      Text(text) => {
+        units += text.text.length()
+        for run in text.runs {
+          units += run.text.length() +
+            run.glyphs.fold(init=0, (sum, glyph) => {
+              sum + 10 + glyph.outline.length()
+            })
+        }
       }
-    } else if primitive is Path(path, _, _, _, _) {
-      units += path.length() * 7
+      Path(path, _, _, _, _) | TextRule(path, _, _) =>
+        units += path.length() * 7
+      _ => ()
     }
   }
   units

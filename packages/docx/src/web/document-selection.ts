@@ -96,7 +96,7 @@ export async function selectFirstDocxPosition(
       line = semantics.lines.find((line) => !line.readOnlyReason);
       if (line) break;
     }
-  if (!line) throw new Error("This page has no editable text position");
+  if (!line) return state;
   const position = {
     paragraph: line.paragraph,
     offset: line.start,
@@ -106,6 +106,19 @@ export async function selectFirstDocxPosition(
     anchor: position,
     focus: position,
   });
+}
+
+export function docxInputReadOnly(
+  state: EditState,
+  layout: PageLayout,
+): boolean {
+  return (
+    !!state.readOnlyReason ||
+    !!state.formatting?.inputReason ||
+    !layout.semantics.some((page) =>
+      page.lines.some((line) => !line.readOnlyReason),
+    )
+  );
 }
 
 export interface DocumentSearchResult extends DocxSearchResult {

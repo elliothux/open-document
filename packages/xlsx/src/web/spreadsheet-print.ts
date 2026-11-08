@@ -5,7 +5,7 @@ import type { PrintOptions, XlsxPrintLayout } from "../core/xlsx.js";
 /** A bounded page surface for the core's independent print layout. */
 export class SpreadsheetPrint {
   readonly element = document.createElement("div");
-  private readonly surface = new SpreadsheetCanvas();
+  private readonly surface = new SpreadsheetCanvas("pdf");
   private readonly listeners = new AbortController();
   private layout: XlsxPrintLayout | undefined;
   private prepared: XlsxPrintLayout | undefined;

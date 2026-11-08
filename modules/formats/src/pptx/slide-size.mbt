@@ -272,6 +272,7 @@ fn Session::set_slide_size(
       parts~,
       index~,
       date_time=self.date_time,
+      media=self.media,
     )
   })
   self.commit_slides(main, slides, edits, self.selection, parts~)

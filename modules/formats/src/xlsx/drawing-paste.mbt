@@ -85,7 +85,7 @@ pub fn Session::paste_drawing(
   }
   if object.chart is Some((_, chart)) {
     ignore(
-      chart.data.paint(
+      chart.paint(
         rect.width,
         rect.height,
         probe,

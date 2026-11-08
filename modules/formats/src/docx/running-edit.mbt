@@ -71,7 +71,19 @@ fn Session::editable_running(
   let styles = self.styles(diagnostics)
   let paragraphs = part
     .map(part => {
-      self.running_paragraphs(
+      let source = WordTree::new(self.part_xml(part))
+      for id in source.running_nodes() {
+        if source.nodes[id].name == "p" &&
+          source
+          .running_fields(id)
+          .values()
+          .any(code => code == "STYLEREF:stored") {
+          @failure.reject(
+            "protected-content", "Cached named style references are read-only",
+          )
+        }
+      }
+      let story = self.running_story(
         part,
         kind,
         styles,
@@ -79,6 +91,13 @@ fn Session::editable_running(
         tree.page_background().unwrap_or("ffffff"),
         variant,
       )
+      guard story.tables.is_empty() &&
+        story.paragraphs.all(p => p.spans.all(s => s.drawing is None)) else {
+        @failure.reject(
+          "protected-content", "Header or footer objects are read-only",
+        )
+      }
+      story.paragraphs
     })
     .unwrap_or([])
   let mut units = (paragraphs.length() - 1).max(0)

@@ -308,6 +308,20 @@ pub fn Session::drawing_gesture(
   let rect = object.pointer_rect(grid, handle, dx, dy)
   let scroll_x = viewport.map(v => v.scroll_x).unwrap_or(grid.scroll_x)
   let scroll_y = viewport.map(v => v.scroll_y).unwrap_or(grid.scroll_y)
+  if (rect.x, rect.y, rect.width, rect.height) ==
+    (object.rect.x, object.rect.y, object.rect.width, object.rect.height) &&
+    scroll_x == grid.scroll_x &&
+    scroll_y == grid.scroll_y {
+    return {
+      "query": if commit {
+        self.query()
+      } else {
+        Json::null()
+      },
+      "drawing": Json::null(),
+      "selection": self.drawing_pointer_state(grid, Some(object)),
+    }
+  }
   let view = if commit {
     self
   } else {

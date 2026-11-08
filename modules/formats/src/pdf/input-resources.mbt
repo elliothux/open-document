@@ -132,11 +132,14 @@ fn content_bytes(
 priv struct SourceFont {
   family : String
   font : @pdflite.PdfFont
+  cff : @pdflite.SdkCffFont?
+  type1 : @pdflite.SdkType1Font?
   index : Int32?
   gidMap : Bytes?
   cid : Bool
   substituted : Bool
   symbolic : Bool
+  explicitUnicode : Bool
   unicodeMap : Map[Int32, String?]
   glyphs : Map[Int32, (String, Int32, UInt32)?]
 }
@@ -160,11 +163,21 @@ fn font_resource(
   guard object != @syntax.PdfNull else {
     @failure.reject("invalid-pdf", "Missing PDF font resource")
   }
-  if is_name(get(document, object, "Subtype"), "Type0") &&
-    !is_name(get(document, object, "Encoding"), "Identity-H") {
-    @failure.reject(
-      "unsupported-pdf", "Only Identity-H composite font encoding is supported",
-    )
+  if is_name(get(document, object, "Subtype"), "Type0") {
+    let encoding = get(document, object, "Encoding")
+    guard is_name(encoding, "Identity-H") || is_name(encoding, "Identity-V") else {
+      @failure.reject(
+        "unsupported-pdf", "Only Identity-H and Identity-V composite font encodings are supported",
+      )
+    }
+    if is_name(encoding, "Identity-V") {
+      guard get(document, object, "DescendantFonts") is PdfArray([descendant]) &&
+        is_name(get(document, descendant, "Subtype"), "CIDFontType2") else {
+        @failure.reject(
+          "unsupported-pdf", "Identity-V requires a TrueType descendant font",
+        )
+      }
+    }
   }
   // Validate font streams before the dependency's font parser consumes them.
   for
@@ -189,12 +202,44 @@ fn font_resource(
   if unicode != @syntax.PdfNull {
     ignore(stream_bytes(document, unicode))
   }
+  let unicode_map : Map[Int32, String?] = Map([])
+  if unicode != @syntax.PdfNull {
+    let entries = document.parse_cmap(unicode).map catch { _ => [] }
+    for (code, bytes) in entries {
+      @pdfcore.sdk_check(1)
+      // CMap definitions override earlier entries; ToUnicode also applies to standard 14 fonts.
+      unicode_map[code] = try @utf16.decode(bytes, endianness=Big) catch {
+        _ => None
+      } noraise {
+        text => if text.is_empty() { None } else { Some(text) }
+      }
+    }
+  }
   let font = document.read_font(object)
   let cid = font is PdfFontCIDKeyed(_)
+  let cff = embedded_cff(document, object, cid)
+  let type1 = embedded_type1(document, object)
+  let encoding = match cff {
+    Some(value) => Some(value.encoding())
+    None => type1.map(pair => pair.1)
+  }
+  let font = if encoding is Some(encoding) &&
+    raw(object, "Encoding") == @syntax.PdfNull &&
+    font is PdfFontSimple(simple) {
+    @pdflite.PdfFontSimple({
+      ..simple,
+      encoding: @pdflite.PdfCustomEncoding(
+        @pdflite.PdfImplicitInFontFile,
+        encoding.map(pair => { code: pair.0, name: pair.1, }),
+      ),
+    })
+  } else {
+    font
+  }
   let mut supported = is_name(get(document, object, "Subtype"), "TrueType")
   let mut gid_map : Bytes? = None
   if cid {
-    supported = font.is_identity_h()
+    supported = font.is_identity_h() || font.is_identity_v()
     guard get(document, object, "DescendantFonts") is PdfArray([descendant]) else {
       @failure.reject("unsupported-pdf", "PDF requires one descendant font")
     }
@@ -221,7 +266,19 @@ fn font_resource(
     raw(object, "Encoding") == @syntax.PdfNull &&
     flags != @syntax.PdfNull &&
     (integer(flags) & 4) != 0
-  let index = if supported && font.embedded_fontfile_number() is Some(id) {
+  let index = if font is PdfFontSimple({ fonttype: PdfType3(data), .. }) {
+    let transform = matrix(data.fontmatrix)
+    ignore(transform.inverse())
+    // shortcut: Type 3 uses horizontal metrics; extend placement for rotated font matrices.
+    guard transform.b == 0 && transform.e == 0 else {
+      @failure.reject(
+        "unsupported-pdf", "Type 3 font advance requires a horizontal font matrix",
+      )
+    }
+    None
+  } else if cff is Some(_) || type1 is Some(_) {
+    None
+  } else if supported && font.embedded_fontfile_number() is Some(id) {
     let identity = "pdf-font-\{id}"
     Some(
       if probe.font_info().any(font => font.identity == identity) {
@@ -236,7 +293,7 @@ fn font_resource(
   } else if @layout.font_profile_identity(profile, base) is Some(identity) {
     substituted = true
     diagnostics.push("Explicit font substitution: " + base)
-    let key = "pdf-substitute-" + base
+    let key = "pdf-substitute-" + identity
     Some(
       if probe.font_info().any(font => font.identity == key) {
         probe.font_index(key)
@@ -254,12 +311,15 @@ fn font_resource(
   {
     family: base,
     font,
+    cff,
+    type1: type1.map(pair => pair.0),
     index,
     gidMap: gid_map,
     cid,
     substituted,
     symbolic,
-    unicodeMap: Map([]),
+    explicitUnicode: unicode != @syntax.PdfNull,
+    unicodeMap: unicode_map,
     glyphs: Map([]),
   }
 }
@@ -269,7 +329,11 @@ fn SourceFont::unicode(self : SourceFont, code : Int32) -> String? {
   match self.unicodeMap.get(code) {
     Some(value) => value
     None => {
-      let value = source_unicode(self.font, code)
+      let value = if self.explicitUnicode {
+        None
+      } else {
+        source_unicode(self.font, code)
+      }
       self.unicodeMap[code] = value
       value
     }

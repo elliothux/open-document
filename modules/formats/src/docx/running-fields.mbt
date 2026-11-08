@@ -10,9 +10,16 @@ fn running_field_code(instruction : String) -> String raise @failure.Failure {
     .map(token => token.to_owned())
     .collect()
   if tokens.length() >= 1 && tokens[0].to_upper() == "CITATION" {
+    // Imported unbound citations retain their cached error; citation commands stay strict.
+    if tokens.length() == 1 {
+      return "CITATION:"
+    }
     return citation_code(instruction)
   }
   if tokens.length() >= 2 && tokens[0].to_upper() == "STYLEREF" {
+    if cached_style_reference(instruction) {
+      return "STYLEREF:stored"
+    }
     return chapter_reference_code(instruction)
   }
   if tokens.length() >= 2 && tokens[0].to_upper() == "NOTEREF" {
@@ -201,7 +208,7 @@ fn keep_running_field(
     @failure.reject("protected-content", "Running field has no result text")
   }
   for index, id in results {
-    fields[id] = if index == 0 { code } else { "" }
+    fields[id] = if index == 0 || code == "STYLEREF:stored" { code } else { "" }
     if code.has_prefix("CITATION:") {
       cache[id] = if index == 0 {
         results.map(id => nodes[id].text).join("")
@@ -217,6 +224,7 @@ fn WordTree::running_fields(
   self : WordTree,
   paragraph : Int32,
   cache~ : Map[Int32, String] = Map([]),
+  allowOrphanEnd~ : Bool = false,
 ) -> Map[Int32, String] raise @failure.Failure {
   let contents = self.contents
     .get(paragraph)
@@ -224,6 +232,42 @@ fn WordTree::running_fields(
   let ignored = contents
     .map(toc => Set::from_array(toc.markers))
     .unwrap_or(Set([]))
+  let fields : Map[Int32, String] = Map([])
+  let citations : Set[Int32] = Set([])
+  // Drawing text belongs to its own paragraph and field scope.
+  for id in self.descendants(paragraph) {
+    if self.nodes[id].uri == word_uri &&
+      ["drawing", "pict"].contains(self.nodes[id].name) {
+      for nested in self.descendants(id) {
+        ignored.add(nested)
+      }
+    }
+  }
+  for child in self.children[paragraph] {
+    if self.nodes[child].uri != word_uri || self.nodes[child].name != "sdt" {
+      continue
+    }
+    guard citations.length() < 64 else {
+      @failure.reject(
+        "limit-exceeded", "Too many running fields in one paragraph",
+      )
+    }
+    let content = self.citation_content(child)
+    let nested = self.running_fields(content, cache~)
+    guard nested.values().filter(code => !code.is_empty()).to_array() is [code] &&
+      code.has_prefix("CITATION:") else {
+      @failure.reject(
+        "protected-content", "Citation control requires one citation field",
+      )
+    }
+    for id, code in nested {
+      fields[id] = code
+    }
+    for id in self.descendants(child) {
+      ignored.add(id)
+    }
+    citations.add(child)
+  }
   for id in self.descendants(paragraph) {
     if ignored.contains(id) || self.index_markers.contains(id) {
       continue
@@ -253,7 +297,6 @@ fn WordTree::running_fields(
       }
     }
   }
-  let fields : Map[Int32, String] = Map([])
   for id in self.descendants(paragraph) {
     if self.index_markers.contains(id) && self.nodes[id].name == "t" {
       fields[id] = ""
@@ -263,7 +306,7 @@ fn WordTree::running_fields(
   let mut instruction = ""
   let mut code = ""
   let mut results : Array[Int32] = []
-  let mut count = 0
+  let mut count = citations.length()
   let children : Array[Int32] = []
   for child in self.children[paragraph] {
     let node = self.nodes[child]
@@ -275,6 +318,14 @@ fn WordTree::running_fields(
     }
   }
   for child in children {
+    if citations.contains(child) {
+      guard state == 0 else {
+        @failure.reject(
+          "protected-content", "Running field crosses a citation boundary",
+        )
+      }
+      continue
+    }
     if self.index_markers.contains(child) {
       continue
     }
@@ -344,6 +395,15 @@ fn WordTree::running_fields(
                 count += 1
                 state = 0
               }
+              (0, Some("end")) if allowOrphanEnd => {
+                // ONLYOFFICE complex-field-stack ignores an end when its stack is empty.
+                fields[content] = ""
+                count += 1
+              }
+              (1, Some("end")) if empty_bidi_outline(instruction) => {
+                count += 1
+                state = 0
+              }
               _ =>
                 @failure.reject(
                   "protected-content", "Unbalanced or nested running field",
@@ -391,4 +451,16 @@ fn WordTree::running_fields(
     @failure.reject("protected-content", "Incomplete running field")
   }
   fields
+}
+
+///|
+fn empty_bidi_outline(instruction : String) -> Bool {
+  let tokens = instruction
+    .to_upper()
+    .replace_all(old="\t", new=" ")
+    .split(" ")
+    .filter(token => !token.is_empty())
+    .map(token => token.to_owned())
+    .to_array()
+  tokens == ["BIDIOUTLINE"] || tokens == ["BIDIOUTLINE", "\\*", "MERGEFORMAT"]
 }

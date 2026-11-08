@@ -65,7 +65,12 @@ fn line_join(lines : Array[Ref]) -> (String, Double) raise @failure.Failure {
       }
     }
   }
-  (if kind.is_empty() { "round" } else { kind }, 8)
+  // ONLYOFFICE leaves unspecified joins at the renderer's miter/10 defaults.
+  if kind.is_empty() {
+    ("miter", 10)
+  } else {
+    (kind, 8)
+  }
 }
 
 ///|

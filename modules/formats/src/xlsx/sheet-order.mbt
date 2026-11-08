@@ -14,7 +14,10 @@ fn Session::ordered_sheets(
       replacements=self.replacements(available, workbook, parts),
       removed~,
     ) {
-    if rel.owner == self.main && rel.kind == relationship_uri + "worksheet" {
+    if rel.owner == self.main &&
+      ["worksheet", "chartsheet"].any(kind => {
+        rel.kind == relationship_uri + kind
+      }) {
       paths[rel.id] = rel.target
     }
   }
@@ -42,7 +45,7 @@ fn Session::ordered_sheets(
       ..sheet,
       state,
       name,
-      sparklines: if name == sheet.name {
+      sparklines: if name == sheet.name || sheet.is_chart() {
         sheet.sparklines
       } else {
         read_sparklines(Tree::new(sheet.document), name, sheet.merges)

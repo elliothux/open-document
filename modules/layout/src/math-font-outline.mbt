@@ -85,6 +85,7 @@ fn TextProbe::math_delimiter(
   let primitives : Array[PositionedPrimitive] = [
     Transform({ a: 1, b: 0, c: 0, d: 1, e: -left, f: top, }),
     Path(path, style.color, "", 0, {
+      evenOdd: false,
       fillAlpha: 1,
       strokeAlpha: 1,
       dash: [],

@@ -58,13 +58,21 @@ fn Context::dispatch(
       let session = if operation == "createDocx" {
         @model.Session::create(budget)
       } else {
+        let password = if request is { "password": _, .. } {
+          Some(field_string(request, "password"))
+        } else {
+          None
+        }
         @model.Session::open(
           input_bytes(request, budget.file_bytes.min(budget.retained_bytes)),
           budget,
+          password?,
         )
       }
+      errdefer session.close()
+      let result = session.query()
       self.docx = Some(session)
-      session.query()
+      result
     }
     "query"
     | "editState"
@@ -163,6 +171,7 @@ fn Context::dispatch(
     | "navigateDocx"
     | "exportPdf"
     | "imageBytes"
+    | "imagePixels"
     | "image" => {
       guard self.docx is Some(session) else {
         @failure.reject("invalid-operation", "Open a DOCX session first")
@@ -500,12 +509,21 @@ fn Context::dispatch(
             "rects": session.selection_rects(layout, selection),
           }
         }
-        "imageBytes" =>
-          {
-            "bytes": @base64.encode(
-              session.image_bytes(field_string(request, "key")),
-            ),
+        "imagePixels" => {
+          guard self.images.get_by_identity(field_string(request, "key"))
+            is Some(image) else {
+            @failure.reject("missing-image", "Unknown prepared image identity")
           }
+          { "bytes": @base64.encode(image.rgba) }
+        }
+        "imageBytes" => {
+          let key = field_string(request, "key")
+          let bytes = match self.images.get_by_identity(key) {
+            Some(image) => @model.image_resource_bytes(image)
+            None => session.image_bytes(key)
+          }
+          { "bytes": @base64.encode(bytes) }
+        }
         "image" => {
           self.images.add(
             field_string(request, "key"),
@@ -583,6 +601,7 @@ fn Context::dispatch(
                 self.probe,
                 self.images,
                 field_int(request, "outputBytes"),
+                image_smoothing=false,
               ),
             ),
           }

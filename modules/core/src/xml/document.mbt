@@ -208,6 +208,22 @@ pub fn Document::parse(
 }
 
 ///|
+/// The input part identity is retained when XML text changes.
+/// ```mbt check
+/// test "XML text edits retain the input part identity" {
+///   let source = @xml.Document::parse(
+///     b"<r>Before</r>", "word/header1.xml", 8, 1024,
+///   )
+///   let (edited, _) = source.edit_text({ 0: "After" })
+///   assert_eq(edited.part(), "word/header1.xml")
+///   assert_eq(edited.source(), "<r xml:space=\"preserve\">After</r>")
+/// }
+/// ```
+pub fn Document::part(self : Document) -> String {
+  self.part
+}
+
+///|
 pub fn Document::nodes(self : Document) -> ReadOnlyArray[Node] {
   ReadOnlyArray::from_array(self.nodes)
 }

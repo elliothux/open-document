@@ -88,6 +88,7 @@ fn measure_math_root(
   ]
   let primitives : Array[PositionedPrimitive] = [
     Path(path, "", style.color, stroke, {
+      evenOdd: false,
       fillAlpha: 1,
       strokeAlpha: 1,
       dash: [],

@@ -98,10 +98,14 @@ fn merged_fragments(
   let images = []
   let marker = []
   let carets : Array[Caret] = []
+  let caret_portions : Array[CaretPortion] = []
   let bars = []
   for item in fragments {
     let line = item.line
     let dy = baseline - item.baseline
+    caret_portions.append(
+      line.caretPortions.map(portion => { ..portion, y: portion.y + dy, }),
+    )
     runs.append(
       line.runs.map(run => {
         ..run,
@@ -161,6 +165,7 @@ fn merged_fragments(
       marker,
       drawings: images,
       carets,
+      caretPortions: caret_portions,
       bars,
     },
   }

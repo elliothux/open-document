@@ -10,9 +10,9 @@ pub(all) struct SectionBreak {
   pageBorders : PageBorders
   pageNumbering : PageNumbering
   columns : Columns
-  headers : Map[String, Array[Paragraph]]
+  headers : Map[String, RunningStory]
   headerDistance : Double
-  footers : Map[String, Array[Paragraph]]
+  footers : Map[String, RunningStory]
   footerDistance : Double
   differentFirst : Bool
   differentEven : Bool
@@ -120,7 +120,7 @@ fn paginate_sections(
   images : Images,
 ) -> (
   Array[PageFrame],
-  Array[Array[Line]],
+  Array[PageFrame],
   Array[String],
   Array[PageNumbering],
   Array[(Int32, Int32)?],
@@ -132,7 +132,7 @@ fn paginate_sections(
   for attempt in 0..<8 {
     let combined = Pagination::new(flow.page)
     combined.pages.clear()
-    let running : Array[Array[Line]] = []
+    let running : Array[PageFrame] = []
     let contexts : Array[(PageNumbering, Int32)] = []
     let diagnostics : Array[String] = []
     let section_numbering : Array[PageNumbering] = []
@@ -161,7 +161,8 @@ fn paginate_sections(
           "evenPage" => 0L
           _ => -1L
         }
-        let start = if section.restartNumbering {
+        let restart = section.restartNumbering && section.kind != "continuous"
+        let start = if restart {
           section.pageNumbering.start
         } else {
           numbering.start
@@ -176,14 +177,21 @@ fn paginate_sections(
             pageBorders: [],
             cellAreas: [],
           })
-          running.push([])
+          running.push({
+            ..combined.pages.last().unwrap(),
+            lines: [],
+            borders: [],
+            fills: [],
+            pageBorders: [],
+            cellAreas: [],
+          })
           page_sections.push(None)
           contexts.push((numbering, 0))
           numbering = { ..numbering, start: numbering.start + 1L, }
         }
         numbering = {
           ..section.pageNumbering,
-          start: if section.restartNumbering {
+          start: if restart {
             start + (if parity >= 0 && start % 2L != parity { 1L } else { 0L })
           } else {
             numbering.start - (if shared is Some(_) { 1L } else { 0L })
@@ -227,7 +235,7 @@ fn paginate_sections(
         .map(state => {
           first.pages[0].lines.length() > state.frame.lines.length() ||
           first.pages[0].cellAreas.length() > state.frame.cellAreas.length() ||
-          first_stories[0].any(line => line.container == -3) ||
+          first_stories[0].lines.any(line => line.container == -3) ||
           (part.paragraphs.is_empty() && part.tables.is_empty())
         })
         .unwrap_or(false)
@@ -235,7 +243,7 @@ fn paginate_sections(
         let section = flow.sectionBreaks[index - 1]
         numbering = {
           ..numbering,
-          start: if section.restartNumbering {
+          start: if section.restartNumbering && section.kind != "continuous" {
             section.pageNumbering.start
           } else {
             next_number.start
@@ -264,7 +272,17 @@ fn paginate_sections(
         .get(index)
         .map(section => section.kind == "continuous") ==
         Some(true) {
-        pagination.section_continuation()
+        let empty_end = part.paragraphs
+          .last()
+          .filter(p => {
+            p.marker is None &&
+            p.frame is None &&
+            p.spans.all(s => {
+              s.text.is_empty() && s.drawing is None && s.field.is_empty()
+            })
+          })
+          .map(p => p.id)
+        pagination.section_continuation(emptyEndParagraph=empty_end)
       } else {
         None
       }
@@ -272,10 +290,32 @@ fn paginate_sections(
         if page == 0 && joined {
           let prior = combined.pages.last().unwrap()
           lines += frame.lines.length() - prior.lines.length()
-          combined.pages[combined.pages.length() - 1] = frame
-          let notes = stories[page].filter(line => line.container == -3)
-          running[running.length() - 1].append(notes)
-          lines += notes.length()
+          if shared.map(state => state.empty).unwrap_or(false) {
+            let borders = part.pageBorders.fills(part.page, page)
+            combined.pages[combined.pages.length() - 1] = {
+              ..frame,
+              pageBorders: if part.pageBorders.zOrder == "front" {
+                borders
+              } else {
+                []
+              },
+              fills: if part.pageBorders.zOrder == "back" {
+                borders + frame.fills
+              } else {
+                frame.fills
+              },
+            }
+            lines += stories[page].lines.length() -
+              running[running.length() - 1].lines.length()
+            running[running.length() - 1] = stories[page]
+            page_sections[page_sections.length() - 1] = Some((index, page))
+            contexts[contexts.length() - 1] = (numbering, page)
+          } else {
+            combined.pages[combined.pages.length() - 1] = frame
+            let notes = stories[page].lines.filter(line => line.container == -3)
+            running[running.length() - 1].lines.append(notes)
+            lines += notes.length()
+          }
           guard lines <= 32768 else {
             @failure.reject(
               "limit-exceeded", "Section layout exceeds line budget",
@@ -283,7 +323,7 @@ fn paginate_sections(
           }
           continue
         }
-        lines += frame.lines.length() + stories[page].length()
+        lines += frame.lines.length() + stories[page].lines.length()
         guard combined.pages.length() < 1024 && lines <= 32768 else {
           @failure.reject(
             "limit-exceeded", "Section layout exceeds page or line budget",
@@ -318,7 +358,7 @@ fn paginate_sections(
       flow,
       fixed,
       contexts~,
-      noteRunning=running,
+      noteRunning=running.map(frame => frame.lines),
     )
     diagnostics.append(problems)
     let (updated, stable) = body.resolve_body_fields(

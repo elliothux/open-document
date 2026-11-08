@@ -338,6 +338,7 @@ fn Session::normalize_connectors(
       index~,
       parts~,
       date_time=self.date_time,
+      media=self.media,
     ),
     Some(edit),
   )

@@ -110,6 +110,7 @@ fn Session::from_package(
       load_tree(opc, cache, rel.target),
       index=slides.length(),
       date_time~,
+      media=Map([]),
     )
     count += slide.objects.length()
     guard count <= 16384 else {

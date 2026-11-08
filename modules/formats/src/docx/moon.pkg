@@ -16,7 +16,9 @@ import {
   "moonbitlang/core/string",
   "moonbitlang/core/math",
   "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/encoding/utf16",
   "moonbitlang/core/encoding/base64",
+  "moonbitlang/x/crypto",
 }
 
 import {
@@ -24,5 +26,4 @@ import {
   "moonbitlang/x/fs",
   "moonbitlang/core/env",
   "moonbit-community/flate/zip",
-  "moonbitlang/core/encoding/utf16",
 } for "wbtest"

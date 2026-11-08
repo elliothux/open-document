@@ -15,7 +15,7 @@ fn Session::clipboard_object_resource(
   let id = "odClip" + resources.length().to_string()
   let value = if kind == "image" {
     let bytes = self.image_bytes(target)
-    ignore(@image.type_info(bytes))
+    ignore(raster_image_info(bytes))
     guard bytes.length() <= 2097152 else {
       @failure.reject("limit-exceeded", "Object clipboard image exceeds 2MiB")
     }
@@ -188,6 +188,7 @@ fn Session::copy_object_fragment(
     index=self.source_index(original.tree.part),
     parts=self.parts,
     date_time=self.date_time,
+    media=self.media,
   )
   let resources : Map[String, Json] = Map([])
   let changes = []

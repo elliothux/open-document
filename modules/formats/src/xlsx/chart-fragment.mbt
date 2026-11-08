@@ -19,6 +19,14 @@ fn read_chart_fragment(
     budget.entry_bytes.min(1048576),
   )
   let chart = @chart.read_worksheet("chart.xml", document)
+  guard chart.native_bubble is None &&
+    chart.native_circular is None &&
+    chart.native_bar is None &&
+    chart.native_surface is None else {
+    @failure.reject(
+      "protected-content", "Native chart copying requires source and style preservation",
+    )
+  }
   guard groups.length() == chart.data.series.length() + 1 else {
     @failure.reject(
       "invalid-operation", "Chart visibility requires every source",

@@ -89,6 +89,7 @@ fn Session::subtotal_plan(
   let work : FormulaWork = {
     remaining: 1048576,
     date1904: self.date1904,
+    random: None,
     origin: { row: source.top, column: source.left, },
     names: self.formula_names(),
   }
