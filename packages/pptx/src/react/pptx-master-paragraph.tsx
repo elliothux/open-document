@@ -10,6 +10,7 @@ import {
   PptxListFields,
   TextField,
 } from "./pptx-format.js";
+import { Icon } from "@open-document/ui/icons";
 
 export function PptxMasterParagraph({
   state,
@@ -26,7 +27,10 @@ export function PptxMasterParagraph({
     blocked = disabled || !!paragraph.reason;
   return (
     <fieldset disabled={blocked}>
-      <legend>{t.pptxMasterParagraph}</legend>
+      <legend>
+        <Icon name="paragraph-spacing" />
+        {t.pptxMasterParagraph}
+      </legend>
       {(
         [
           ["left", t.alignLeft],
@@ -122,9 +126,11 @@ export function PptxMasterParagraph({
           apply({ listFont: null, listColor: null, listSize: null })
         }
       >
+        <Icon name="format-painter" />
         {t.listTextStyle}
       </button>
       <button type="button" onClick={() => apply(null)}>
+        <Icon name="undo" />
         {t.pptxResetMasterParagraph}
       </button>
       {paragraph.reason && <p>{paragraph.reason}</p>}

@@ -5,6 +5,7 @@ import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { TextField } from "./pptx-format.js";
 import { PptxMasterParagraph } from "./pptx-master-paragraph.js";
+import { Icon } from "@open-document/ui/icons";
 
 export function PptxMasterText({
   controller,
@@ -31,7 +32,10 @@ export function PptxMasterText({
     );
   return (
     <fieldset disabled={disabled || !!styles.reason}>
-      <legend>{t.pptxMasterText}</legend>
+      <legend>
+        <Icon name="presentation" />
+        {t.pptxMasterText}
+      </legend>
       <label>
         {t.pptxMasterTextKind}
         <select
@@ -125,6 +129,7 @@ export function PptxMasterText({
             disabled={!!selected.reason || !selected.format.highlight}
             onClick={() => apply({ highlight: "" })}
           >
+            <Icon name="eraser" />
             {t.highlight_none}
           </button>
         </>
@@ -134,6 +139,7 @@ export function PptxMasterText({
         disabled={!selected || !!selected.reason}
         onClick={() => apply(null)}
       >
+        <Icon name="undo" />
         {t.pptxResetMasterText}
       </button>
       {(styles.reason || selected?.reason) && (

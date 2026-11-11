@@ -1,4 +1,5 @@
 ///|
+#derive(ToJson)
 pub struct PdfRedactionAffected {
   page : String
   kind : String
@@ -6,7 +7,7 @@ pub struct PdfRedactionAffected {
   y : Double
   width : Double
   height : Double
-} derive(ToJson)
+}
 
 ///|
 pub extend PdfRedactionAffected with ToJson::{to_json}

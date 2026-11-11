@@ -1,35 +1,41 @@
 ///|
+#derive(@json.FromJson)
 priv struct DuplicateRequest {
   dx : @common.RequestNumber
   dy : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct RotationRequest {
   angle : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct FlipRequest {
   axis : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct LayerRequest {
   order : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct AlignObjectsRequest {
   alignment : String
   relativeTo : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct DistributeObjectsRequest {
   axis : String
   relativeTo : String
-} derive(@json.FromJson)
+}
 
 ///|
 fn pptx_arrange(

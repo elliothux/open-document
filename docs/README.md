@@ -2,7 +2,7 @@
 
 项目未发布，当前有 0 个用户。目标是复刻 GenOffice 的文档、表格、PPT、PDF 全功能 SDK。GenOffice 提供功能与 UI 参考；Office 实现、布局和算法仍优先参考 ONLYOFFICE，其次 LibreOffice。
 
-阶段 P0–P14 已完成各自声明范围，四类格式共用 [R0](implemented/r0-renderer-foundation.md) 与 [R1](implemented/r1-domain-packages-shared-wasm.md)。C0 已完成首批登记范围。[R2 架构精简、核心下沉与性能重构](implemented/r2-architecture-and-performance.md)已完成。功能优先级 P0/P1/P2 与历史阶段编号分开。浏览器支持范围为 Chrome/Chromium。文档完整性、恢复、资源安全和无障碍随功能保留。按风险选择[最小检查](references/testing.md)。
+阶段 P0–P14 已完成各自声明范围，四类格式共用 [R0](implemented/r0-renderer-foundation.md) 与 [R1](implemented/r1-domain-packages-shared-wasm.md)。C0 已完成首批登记范围。[R2](implemented/r2-architecture-and-performance.md)与 [G4](implemented/g4-office-sdk-productization.md)已完成。功能优先级 P0/P1/P2 与历史阶段编号分开。浏览器支持范围为 Chrome/Chromium。文档完整性、恢复、资源安全和无障碍随功能保留。按风险选择[最小检查](references/testing.md)。
 
 | 内容 | 权威入口 |
 | --- | --- |
@@ -11,6 +11,7 @@
 | 固定依赖、许可与本地缺口 | [依赖记录](references/dependencies.md) |
 | 产品阶段与依赖关系 | [Roadmap](references/roadmap.md) |
 | GenOffice 四类功能、当前缺口与优先级 | [G3 功能对照](g3-genoffice-sdk-gap.md) |
+| 无 UI SDK、组件集成与交互交付 | [G4 SDK 产品化](implemented/g4-office-sdk-productization.md) |
 | 实际模块、工具链与开发命令 | [开发说明](references/development.md) |
 | 文档组织、编号与维护资料 | [文档与参考规范](references/README.md) |
 | 上游源码阅读入口 | [上游参考项目](references/upstream-projects.md) |
@@ -56,7 +57,7 @@
 | 编号 | 文档 | 当前状态 |
 | --- | --- | --- |
 | C0 | [真实文件可用性与兼容补齐](implemented/c0-real-file-compatibility.md) | `implemented`：51 份候选的登记范围完成，128 条浏览器流程通过 |
-| C1 | [兼容矩阵整合、开源语料引入与多生产工具覆盖](c1-corpus-and-producer-compatibility.md) | `planned`：历史清单去重归并、分级降级基线、IronCalc/Calamine/Open-XML-SDK 等语料与多生产工具/CJK 覆盖 |
+| C1 | [兼容矩阵整合、开源语料引入与多生产工具覆盖](c1-corpus-and-producer-compatibility.md) | `planned`：账本已合并 11 份历史清单；C1.2 探针已记录部分公式与数字格式差异。分级降级、开源语料配额与多生产工具/CJK 覆盖仍待完成 |
 
 ## 活动研究
 

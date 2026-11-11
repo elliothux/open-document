@@ -1,50 +1,56 @@
 ///|
+#derive(ToJson(fields(locked(rename="protected"))))
 priv struct QuerySheet {
   id : String
   name : String
   state : String
   kind : String
   locked : Bool
-} derive(ToJson(fields(locked(rename="protected"))))
+}
 
 ///|
+#derive(ToJson)
 priv struct QueryTableStyle {
   name : String
   readOnlyReason : String
   elements : Array[TableStyleElement]
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QueryView {
   gridLines : Bool
   headings : Bool
   rtl : Bool
   formulas : Bool
   readOnlyReason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QuerySelection {
   sheet : String
   range : Range
   address : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QueryFrozen {
   rows : Int32
   columns : Int32
   readOnlyReason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QueryNote {
   address : String
   text : String
   author : String
   exists : Bool
   reason : String
-} derive(ToJson)
+}
 
 ///|
 // Keep nullable fields present in worksheet and viewport responses.
@@ -58,6 +64,7 @@ impl[T : ToJson] ToJson for QueryNullable[T] with fn to_json(self) {
 }
 
 ///|
+#derive(ToJson)
 priv struct QueryCell {
   address : String
   row : Int32
@@ -72,21 +79,23 @@ priv struct QueryCell {
   calculationReason : String
   mut display : String
   readOnlyReason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QueryDimensions {
   rowHeight : QueryNullable[Double]
   columnWidth : QueryNullable[Double]
   readOnlyReason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson(fields(locked(rename="protected"))))
 priv struct QueryProtection {
   locked : Bool
   passwordRequired : Bool
   reason : String
-} derive(ToJson(fields(locked(rename="protected"))))
+}
 
 ///|
 priv struct QueryPrintSettings[T] {
@@ -105,14 +114,16 @@ impl[T : ToJson] ToJson for QueryPrintSettings[T] with fn to_json(self) {
 }
 
 ///|
+#derive(ToJson)
 priv struct QueryHyperlink {
   target : QueryNullable[String]
   mixed : Bool
   readOnlyReason : String
   navigationReason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QueryMerging {
   range : String
   merged : Bool
@@ -120,9 +131,10 @@ priv struct QueryMerging {
   discardedNotes : Int32
   mergeReason : String
   unmergeReason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QueryStatistics {
   range : String
   count : Int32
@@ -132,9 +144,10 @@ priv struct QueryStatistics {
   min : QueryNullable[Double]
   max : QueryNullable[Double]
   reason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QueryValidation {
   rule : QueryNullable[DataValidation]
   mixed : Bool
@@ -142,88 +155,100 @@ priv struct QueryValidation {
   options : Array[String]
   optionsReason : String
   promptVisible : Bool
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QueryConditionalRule {
   priority : Int32
   ranges : String
   rule : ConditionalFormat
   readOnlyReason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QueryConditionalFormats {
   rules : Array[QueryConditionalRule]
   readOnlyReason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QueryName {
   name : String
   scope : QueryNullable[String]
   formula : String
   hidden : Bool
   readOnlyReason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QueryNames {
   entries : Array[QueryName]
   readOnlyReason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QueryOutlineAxis {
   summaryAfter : Bool
   groups : Array[OutlineGroup]
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QueryOutline {
   rows : QueryOutlineAxis
   columns : QueryOutlineAxis
   reason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QuerySparkline {
   cell : String
   source : String
   kind : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QuerySparklines {
   items : Array[QuerySparkline]
   readOnlyReason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QueryFilterValue {
   value : String
   count : Int32
   selected : Bool
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QueryFilterColumn {
   column : Int32
   title : String
   blank : Int32
   blankSelected : Bool
   values : Array[QueryFilterValue]
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QueryFilter {
   range : String
   columns : Array[Json]
   catalog : Array[QueryFilterColumn]
   reason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QueryTable {
   id : Int32
   name : String
@@ -238,7 +263,7 @@ priv struct QueryTable {
   columnStripes : Bool
   filter : QueryFilter
   readOnlyReason : String
-} derive(ToJson)
+}
 
 ///|
 priv struct QueryFormatting {
@@ -248,6 +273,7 @@ priv struct QueryFormatting {
 }
 
 ///|
+#derive(ToJson)
 priv struct QueryState {
   revision : Int32
   sheets : Array[QuerySheet]
@@ -288,4 +314,4 @@ priv struct QueryState {
   merging : QueryMerging
   diagnostics : Array[String]
   date1904 : Bool
-} derive(ToJson)
+}

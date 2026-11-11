@@ -35,7 +35,7 @@ fn PrintWork::add_graphics(
         mask,
         zero,
         one,
-        screen_device=true
+        screen_device=true,
       ) {
       primitives[i] = @layout.PatternRectangle(
         rect,

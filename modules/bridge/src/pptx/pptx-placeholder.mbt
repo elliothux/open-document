@@ -1,27 +1,31 @@
 ///|
+#derive(@json.FromJson(fields(kind(rename="type"))))
 priv struct PlaceholderKindRequest {
   kind : String
-} derive(@json.FromJson(fields(kind(rename="type"))))
+}
 
 ///|
+#derive(@json.FromJson(fields(kind(rename="type"))))
 priv struct PlaceholderDefinitionRequest {
   kind : String
   index : @common.RequestNumber
-} derive(@json.FromJson(fields(kind(rename="type"))))
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct InsertShapeKindRequest {
   kind : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct InsertObjectFrameRequest {
   x : @common.RequestNumber
   y : @common.RequestNumber
   width : @common.RequestNumber
   height : @common.RequestNumber
   text : String
-} derive(@json.FromJson)
+}
 
 ///|
 fn pptx_placeholder(change : Json) -> @model.ObjectEdit raise @failure.Failure {

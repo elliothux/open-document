@@ -1,0 +1,78 @@
+body {
+  margin: 20px;
+  font:
+    14px system-ui,
+    sans-serif;
+}
+
+form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+textarea {
+  width: 300px;
+  height: 50px;
+}
+
+#editor {
+  height: 650px;
+  border: 1px solid #ddd;
+}
+
+.react-example {
+  margin: 0;
+}
+
+.react-example main {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
+
+.react-example header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #ddd;
+}
+
+.react-example header :is(label, button) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.react-example .editor {
+  flex: 1;
+  min-height: 0;
+}
+
+.react-example .editor[data-spacious-ui] {
+  --od-editor-accent: #0f766e;
+  --od-editor-font-size: 15px;
+  --od-editor-density: 1.2;
+}
+
+.react-example
+  .editor[data-spacious-ui]
+  .open-document-editor[data-theme="dark"] {
+  --od-editor-accent: #5eead4;
+}
+
+.react-example [role="alert"] {
+  padding: 8px 16px;
+  color: #b3261e;
+  margin: 0;
+}

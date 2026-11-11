@@ -4,6 +4,7 @@ import type { XlsxThreads, XlsxThreadEdit } from "../web/xlsx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { xlsxThreadTextUnits } from "@open-document/wasm/engine-source";
+import { Icon } from "@open-document/ui/icons";
 
 export function XlsxComments({
   controller,
@@ -52,7 +53,10 @@ export function XlsxComments({
     controller.run(() => editor.objects.editThread(change));
   return (
     <fieldset disabled={disabled || !!blocked || stale || !!catalog?.reason}>
-      <legend>{t.cellComments}</legend>
+      <legend>
+        <Icon name="comment-count" />
+        {t.cellComments}
+      </legend>
       <p>{catalog?.cell}</p>
       {catalog?.reason && <p>{catalog.reason}</p>}
       {root?.resolved && <p>{t.commentResolved}</p>}
@@ -139,6 +143,7 @@ function Message({
           />
         </label>
         <button type="submit" disabled={!text.trim() || text === item.text}>
+          <Icon name="check" />
           {t.commentUpdate}
         </button>
       </form>

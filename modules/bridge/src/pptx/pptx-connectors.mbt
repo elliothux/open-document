@@ -1,17 +1,19 @@
 ///|
+#derive(@json.FromJson)
 priv struct ConnectorEndRequest {
   x : @common.RequestNumber
   y : @common.RequestNumber
   target : String
   site : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ConnectorEditRequest {
   kind : String
   start : ConnectorEndRequest
   end : ConnectorEndRequest
-} derive(@json.FromJson)
+}
 
 ///|
 fn ConnectorEndRequest::endpoint(

@@ -5,6 +5,7 @@ import type { EditorController, UiSnapshot } from "./context.js";
 import { readFile } from "@open-document/ui/file";
 import { messages } from "@open-document/ui/messages";
 import { pptxSlideCountLimit } from "@open-document/wasm/engine-source";
+import { Icon } from "@open-document/ui/icons";
 
 export function PptxImport({
   editor,
@@ -43,8 +44,12 @@ export function PptxImport({
         query.editView.kind !== "slide"
       }
     >
-      <legend>{t.importSlides}</legend>
+      <legend>
+        <Icon name="upload" />
+        {t.importSlides}
+      </legend>
       <label>
+        <Icon name="upload" />
         {t.importSlidesFile}
         <input
           type="file"
@@ -115,6 +120,7 @@ export function PptxImport({
               controller.run(() => editor.importSlides(source.bytes, selected))
             }
           >
+            <Icon name="upload" />
             {t.importSlides}
           </button>
         </>

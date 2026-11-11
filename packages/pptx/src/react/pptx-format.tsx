@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { EditorCommandButton } from "@open-document/ui";
 import { pptxParagraphTabCount } from "@open-document/wasm/engine-source";
 import type { PresentationEditor } from "../web/presentation-editor.js";
 import type {
@@ -10,6 +11,14 @@ import type {
 } from "../web/pptx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
+
+export const pptxTextToggles = [
+  "bold",
+  "italic",
+  "underline",
+  "strike",
+] as const;
 
 export function TextField({
   property,
@@ -221,7 +230,10 @@ export function PptxParagraph({
         !!state.document?.closed
       }
     >
-      <legend>{t.paragraph}</legend>
+      <legend>
+        <Icon name="paragraph-spacing" />
+        {t.paragraph}
+      </legend>
       <label>
         <input
           type="checkbox"
@@ -336,6 +348,7 @@ export function PptxParagraph({
           )
         }
       >
+        <Icon name="format-painter" />
         {t.listTextStyle}
       </button>
       <button
@@ -347,6 +360,7 @@ export function PptxParagraph({
           )
         }
       >
+        <Icon name="eraser" />
         {t.clearParagraph}
       </button>
       {paragraph.reason && <p>{paragraph.reason}</p>}
@@ -388,6 +402,7 @@ export function PptxTabs({
         disabled={disabled}
         onClick={() => apply({ defaultTab: null })}
       >
+        <Icon name="undo" />
         {t.restoreDefaultTab}
       </button>
       <form
@@ -397,7 +412,10 @@ export function PptxTabs({
         }}
       >
         <fieldset disabled={disabled}>
-          <legend>{t.tabStops}</legend>
+          <legend>
+            <Icon name="key-tab" />
+            {t.tabStops}
+          </legend>
           {tabs === null && <p>{t.mixed}</p>}
           {draft.map((tab, index) => (
             <div key={index}>
@@ -441,6 +459,7 @@ export function PptxTabs({
                 aria-label={`${t.removeTabStop} ${index + 1}`}
                 onClick={() => setDraft(draft.filter((_, i) => i !== index))}
               >
+                <Icon name="trash" />
                 {t.removeTabStop}
               </button>
             </div>
@@ -466,13 +485,19 @@ export function PptxTabs({
               ])
             }
           >
+            <Icon name="plus" />
             {t.addTabStop}
           </button>
-          <button type="submit">{t.applyTabStops}</button>
+          <button type="submit">
+            <Icon name="check" />
+            {t.applyTabStops}
+          </button>
           <button type="button" onClick={() => apply({ tabs: [] })}>
+            <Icon name="eraser" />
             {t.clearTabStops}
           </button>
           <button type="button" onClick={() => apply({ tabs: null })}>
+            <Icon name="undo" />
             {t.restoreTabStops}
           </button>
         </fieldset>
@@ -611,6 +636,7 @@ export function PptxListFields({
         </>
       )}
       <button type="submit" disabled={disabled || kind === "picture"}>
+        <Icon name="check" />
         {t.applyList}
       </button>
       {level !== undefined && (
@@ -632,6 +658,7 @@ export function PptxListFields({
             disabled={disabled || !draftLevel}
             onClick={() => onApply({ level: Number(draftLevel) - 1 })}
           >
+            <Icon name="refresh" />
             {t.updateListLevel}
           </button>
         </>
@@ -667,7 +694,10 @@ export function PptxFormat({
         !!state.document?.closed
       }
     >
-      <legend>{t.textFormat}</legend>
+      <legend>
+        <Icon name="format-painter" />
+        {t.textFormat}
+      </legend>
       {(
         [
           ["font", t.fontFamily],
@@ -688,24 +718,11 @@ export function PptxFormat({
           onApply={apply}
         />
       ))}
-      {(
-        [
-          ["bold", t.bold],
-          ["italic", t.italic],
-          ["underline", t.underline],
-          ["strike", t.strike],
-        ] as const
-      ).map(([key, label]) => (
-        <button
-          key={key}
-          type="button"
-          disabled={disabled}
-          aria-pressed={format[key] === null ? "mixed" : format[key]}
-          onClick={() => apply({ [key]: format[key] !== true })}
-        >
-          {label}
-        </button>
-      ))}
+      <div className="flex flex-wrap gap-1">
+        {pptxTextToggles.map((id) => (
+          <EditorCommandButton key={id} id={id} iconOnly />
+        ))}
+      </div>
       {(
         [
           ["left", t.alignLeft],
@@ -748,6 +765,7 @@ export function PptxFormat({
         disabled={disabled || format.highlight === ""}
         onClick={() => apply({ highlight: "" })}
       >
+        <Icon name="eraser" />
         {t.highlight_none}
       </button>
       {format.reason && <p>{format.reason}</p>}
@@ -760,6 +778,7 @@ export function PptxFormat({
           )
         }
       >
+        <Icon name="eraser" />
         {t.clearFont}
       </button>
     </fieldset>

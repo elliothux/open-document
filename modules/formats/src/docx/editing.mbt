@@ -8,13 +8,14 @@ let history_byte_limit = 4194304
 pub const TextCommandUnits : Int32 = 65536
 
 ///|
+#derive(Eq)
 pub(all) struct Position {
   paragraph : Int32
   offset : Int32
   affinity : String
   bidiLevel : Int32?
   frameStart : Int32?
-} derive(Eq)
+}
 
 ///|
 pub impl ToJson for Position with fn to_json(self) -> Json {
@@ -39,10 +40,11 @@ pub extend Position with Eq::{equal, not_equal}
 pub extend Position with ToJson::{to_json}
 
 ///|
+#derive(Eq, ToJson)
 pub(all) struct Selection {
   anchor : Position
   focus : Position
-} derive(Eq, ToJson)
+}
 
 ///|
 pub extend Selection with Eq::{equal, not_equal}

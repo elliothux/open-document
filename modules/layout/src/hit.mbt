@@ -1,4 +1,5 @@
 ///|
+#derive(ToJson)
 pub(all) struct Hit {
   paragraph : Int32
   offset : Int32
@@ -12,7 +13,7 @@ pub(all) struct Hit {
   y : Double
   height : Double
   reason : String
-} derive(ToJson)
+}
 
 ///|
 pub extend Hit with ToJson::{to_json}

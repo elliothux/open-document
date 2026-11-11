@@ -1,16 +1,18 @@
 ///|
+#derive(@json.FromJson(fields(cycling(rename="loop"))))
 priv struct ShowSettingsRequest {
   slides : Json
   timings : Bool
   animations : Bool
   cycling : Bool
-} derive(@json.FromJson(fields(cycling(rename="loop"))))
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ShowRangeRequest {
   first : @common.RequestInt
   last : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
 fn pptx_show_settings(change : Json) -> @model.SlideEdit raise @failure.Failure {

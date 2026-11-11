@@ -1,20 +1,22 @@
 ///|
+#derive(Eq)
 pub(all) enum ShowRange {
   ShowAll
   ShowRange(Int32, Int32)
   ShowCustom(String)
-} derive(Eq)
+}
 
 ///|
 pub extend ShowRange with Eq::{equal, not_equal}
 
 ///|
+#derive(Eq)
 pub(all) struct ShowSettings {
   slides : ShowRange
   timings : Bool
   animations : Bool
   cycling : Bool
-} derive(Eq)
+}
 
 ///|
 pub extend ShowSettings with Eq::{equal, not_equal}
@@ -25,18 +27,20 @@ pub fn ShowSettings::default() -> ShowSettings {
 }
 
 ///|
+#derive(ToJson(fields(cycling(rename="loop"))))
 priv struct ShowSettingsValue {
   slides : Json
   timings : Bool
   animations : Bool
   cycling : Bool
-} derive(ToJson(fields(cycling(rename="loop"))))
+}
 
 ///|
+#derive(ToJson)
 priv struct ShowSettingsQuery {
   value : Json
   reason : String
-} derive(ToJson)
+}
 
 ///|
 fn ShowSettings::query_value(self : ShowSettings) -> ShowSettingsValue {

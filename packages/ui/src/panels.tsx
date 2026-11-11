@@ -17,14 +17,16 @@ export function Navigation({ controller, state, file, disabled }: PanelProps) {
     <Group label={t.navigation}>
       <Command
         label={t.previous}
+        icon="chevron-left"
         disabled={disabled || page <= 0}
         action={() => navigate(page - 1)}
       />
-      <span>
+      <span className="od-page-count">
         {page + 1} / {count}
       </span>
       <Command
         label={t.next}
+        icon="chevron-right"
         disabled={disabled || page + 1 >= count}
         action={() => navigate(page + 1)}
       />
@@ -36,7 +38,7 @@ export function Zoom({ controller, state, file, disabled }: PanelProps) {
   const t = messages(state.locale);
   return (
     <label className="od-zoom">
-      {t.zoom}{" "}
+      <span className="od-sr-only">{t.zoom}</span>
       <select
         aria-label={t.zoom}
         disabled={disabled}

@@ -1,11 +1,13 @@
 ///|
+#derive(@json.FromJson)
 priv struct LayoutRequest {
   profile : Map[String, String]
   prepareImages : Bool?
   selectionView : SelectionViewRequest?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct LayoutResponse {
   id : Int32
   revision : Int32
@@ -21,56 +23,64 @@ priv struct LayoutResponse {
   diagnostics : Array[String]
   outlines : Array[@layout.Outline]
   fonts : Array[@layout.FontInfo]
-} derive(ToJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct HitRequest {
   page : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson(fields(extend_flag(rename="extend"))))
 priv struct NavigateRequest {
   revision : @common.RequestInt
   direction : String
   extend_flag : Bool
   selectionView : Bool?
-} derive(@json.FromJson(fields(extend_flag(rename="extend"))))
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ImageKeyRequest {
   key : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ImageSourceRequest {
   key : String
   header : Bool?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ImageRequest {
   key : String
   width : @common.RequestInt
   height : @common.RequestInt
   bytes : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PdfLayoutRequest {
   layoutId : @common.RequestInt?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PdfOutputRequest {
   outputBytes : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct MarkupOutputRequest {
   revision : @common.RequestInt
   format : String
   outputBytes : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
 fn Context::layout_document(

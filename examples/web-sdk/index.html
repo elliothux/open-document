@@ -3,35 +3,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Open Document SDK example</title>
-  <style>
-    body {
-      margin: 20px;
-      font:
-        14px Arial,
-        sans-serif;
-    }
-    form {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: end;
-      gap: 12px;
-      margin-bottom: 12px;
-    }
-    label {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    textarea {
-      width: 300px;
-      height: 50px;
-    }
-    #editor {
-      height: 650px;
-      border: 1px solid #ddd;
-    }
-  </style>
+  <link rel="stylesheet" href="./example.css" />
   <h1>Open Document — WIP SDK</h1>
+  <p>
+    <a href="./headless.html">Worker example</a> ·
+    <a href="./react.html">React example</a>
+  </p>
   <form id="open-form">
     <label
       >Document<input
@@ -59,6 +36,7 @@
       ></label
     >
     <button type="submit">Mount editor</button>
+    <button type="submit" id="open-sample" formnovalidate>Open sample</button>
     <button type="button" id="close">Close</button>
   </form>
   <p id="host-status" role="status">
@@ -66,7 +44,5 @@
     layout may differ. Files stay in this browser.
   </p>
   <div id="editor"></div>
-  <script type="module">
-    await import(`./dist/app.js?v=${Date.now()}`);
-  </script>
+  <script type="module" id="example-script" src="./dist/app.js"></script>
 </html>

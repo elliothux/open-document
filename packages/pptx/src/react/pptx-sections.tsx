@@ -3,6 +3,7 @@ import type { PresentationEditor } from "../web/presentation-editor.js";
 import type { PptxSlideEdit } from "../web/pptx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function PptxSections({
   editor,
@@ -27,7 +28,10 @@ export function PptxSections({
     controller.run(() => editor.editSlides(change));
   return (
     <fieldset disabled={disabled || !!sections.reason}>
-      <legend>{t.sections}</legend>
+      <legend>
+        <Icon name="list-nested" />
+        {t.sections}
+      </legend>
       <label>
         {t.section}
         <select
@@ -64,6 +68,7 @@ export function PptxSections({
         disabled={sections.items.length >= 256 || !name.trim()}
         onClick={() => edit({ action: "sectionAdd", name })}
       >
+        <Icon name="plus" />
         {t.addSection}
       </button>
       <button
@@ -71,6 +76,7 @@ export function PptxSections({
         disabled={!selected || !name.trim()}
         onClick={() => edit({ action: "sectionRename", id, name })}
       >
+        <Icon name="pen" />
         {t.renameSection}
       </button>
       <button
@@ -78,6 +84,7 @@ export function PptxSections({
         disabled={!selected}
         onClick={() => edit({ action: "sectionRemove", id })}
       >
+        <Icon name="trash" />
         {t.removeSection}
       </button>
       <button
@@ -85,6 +92,7 @@ export function PptxSections({
         disabled={sections.items.length === 0}
         onClick={() => edit({ action: "sectionRemoveAll" })}
       >
+        <Icon name="trash" />
         {t.removeAllSections}
       </button>
       <button
@@ -96,6 +104,7 @@ export function PptxSections({
         }
         onClick={() => edit({ action: "sectionDelete", id })}
       >
+        <Icon name="trash" />
         {t.deleteSectionSlides}
       </button>
       <button
@@ -103,6 +112,7 @@ export function PptxSections({
         disabled={!selected || position <= 0 || !!query.slideOrderReason}
         onClick={() => edit({ action: "sectionMove", id, index: position - 1 })}
       >
+        <Icon name="chevron-up" />
         {t.sectionEarlier}
       </button>
       <button
@@ -114,6 +124,7 @@ export function PptxSections({
         }
         onClick={() => edit({ action: "sectionMove", id, index: position + 1 })}
       >
+        <Icon name="chevron-down" />
         {t.sectionLater}
       </button>
       {sections.reason && <p>{sections.reason}</p>}

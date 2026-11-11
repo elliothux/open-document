@@ -141,6 +141,7 @@ export type PptxCommand =
   | {
       operation: "imagePptx";
       key: string;
+      preview?: string;
       width: number;
       height: number;
       bytes: Uint8Array;
@@ -173,6 +174,8 @@ const names: ReadonlySet<string> = new Set([
   "objectFragmentResourcesPptx",
   "layoutPptx",
   "printLayoutPptx",
+  "previewKeysPptx",
+  "previewPptx",
   "hitPptx",
   "selectionPptx",
   "navigatePptx",

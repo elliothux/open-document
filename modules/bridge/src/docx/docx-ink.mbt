@@ -1,9 +1,10 @@
 ///|
+#derive(@json.FromJson)
 priv struct InkStrokeStyle {
   color : String
   width : @common.RequestNumber
   highlighter : Bool
-} derive(@json.FromJson)
+}
 
 ///|
 fn ink_stroke(request : Json) -> @model.InkStroke raise @failure.Failure {
@@ -35,17 +36,19 @@ fn ink_stroke(request : Json) -> @model.InkStroke raise @failure.Failure {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct InkOperationRequest {
   action : String
   page : @common.RequestInt
   profile : Json?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct InkEraseRequest {
   x : @common.RequestNumber
   y : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
 fn Context::ink_operation(

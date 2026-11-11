@@ -3,6 +3,8 @@ export interface EngineSource {
   readonly build: string;
 }
 
+export type EngineInput = EngineSource | Uint8Array | WebAssembly.Module;
+
 declare const engineBrand: unique symbol;
 /** An immutable compiled engine; each document owns its context. */
 export interface EngineHandle {
@@ -15,10 +17,23 @@ const engines = new Map<string, Promise<EngineHandle>>();
 
 /** Share fetch/compile per engine source. Cancellation belongs to each waiter. */
 export function loadEngine(
-  source: EngineSource,
+  source: EngineInput,
   signal?: AbortSignal,
 ): Promise<EngineHandle> {
   signal?.throwIfAborted();
+  if (source instanceof WebAssembly.Module)
+    return Promise.resolve()
+      .then(() => engineHandle(source))
+      .catch((cause: unknown) => {
+        throw engineFailure(cause);
+      });
+  if (source instanceof Uint8Array)
+    return waitForEngine(
+      compileBytes(source).catch((cause: unknown) => {
+        throw engineFailure(cause);
+      }),
+      signal,
+    );
   if (
     !source.build ||
     !["http:", "https:", "file:"].includes(source.url.protocol)
@@ -38,11 +53,18 @@ export function loadEngine(
     });
     shared = pending;
   }
-  if (!signal) return shared;
+  return waitForEngine(shared, signal);
+}
+
+function waitForEngine(
+  pending: Promise<EngineHandle>,
+  signal?: AbortSignal,
+): Promise<EngineHandle> {
+  if (!signal) return pending;
   return new Promise((resolve, reject) => {
     const abort = () => reject(signal.reason);
     signal.addEventListener("abort", abort, { once: true });
-    shared
+    pending
       .then(resolve, reject)
       .finally(() => signal.removeEventListener("abort", abort));
     if (signal.aborted) abort();
@@ -50,13 +72,40 @@ export function loadEngine(
 }
 
 async function compile(source: EngineSource): Promise<EngineHandle> {
-  const response = await fetch(source.url, { cache: "no-store" });
-  if (!response.ok)
-    throw new Error(`Engine request failed: ${response.status}`);
-  const module = await WebAssembly.compile(await response.arrayBuffer(), {
-    builtins: ["js-string"],
-    importedStringConstants: "_",
-  });
+  try {
+    const response = await fetch(source.url, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await compileBytes(await response.arrayBuffer());
+  } catch (cause) {
+    throw engineFailure(cause, source.url.href);
+  }
+}
+
+function engineFailure(cause: unknown, resource?: string): DocumentError {
+  const reason = cause instanceof Error ? cause.message : String(cause);
+  return new DocumentError(
+    "engine-load",
+    `Cannot load Wasm engine${resource ? ` from ${resource}` : ""}: ${reason}`,
+    "",
+    -1,
+    "engine",
+    { cause, resource },
+  );
+}
+
+async function compileBytes(
+  bytes: ArrayBuffer | Uint8Array,
+): Promise<EngineHandle> {
+  const input = bytes instanceof Uint8Array ? new Uint8Array(bytes) : bytes;
+  return engineHandle(
+    await WebAssembly.compile(input, {
+      builtins: ["js-string"],
+      importedStringConstants: "_",
+    }),
+  );
+}
+
+function engineHandle(module: WebAssembly.Module): EngineHandle {
   if (
     !WebAssembly.Module.exports(module).some(
       (entry) => entry.name === "abi_version" && entry.kind === "function",
@@ -107,3 +156,4 @@ export function instantiateEngine(
   instances.set(module, instance);
   return { exports: instance.exports, context: create() };
 }
+import { DocumentError } from "./abi/session.js";

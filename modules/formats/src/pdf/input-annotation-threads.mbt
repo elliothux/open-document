@@ -225,22 +225,24 @@ pub fn PdfSession::delete_annotation_thread(
 }
 
 ///|
+#derive(ToJson)
 pub struct PdfAnnotationReply {
   id : String
   page : String
   parent : String
   text : String
   author : String
-} derive(ToJson)
+}
 
 ///|
 pub extend PdfAnnotationReply with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub struct PdfAnnotationThread {
   revision : Int32
   entries : Array[PdfAnnotationReply]
-} derive(ToJson)
+}
 
 ///|
 pub extend PdfAnnotationThread with ToJson::{to_json}

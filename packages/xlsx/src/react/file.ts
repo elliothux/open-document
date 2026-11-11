@@ -3,7 +3,10 @@ import { XlsxClient, SpreadsheetEditor } from "../web/index.js";
 import type { EditorOptions } from "./types.js";
 import type { OwnedFile } from "./context.js";
 import type { OfficeDocument } from "@open-document/ui/types";
-import { documentFailure } from "@open-document/web-core/connection";
+import {
+  documentFailure,
+  registerFonts,
+} from "@open-document/web-core/connection";
 import type { DocumentStage } from "@open-document/wasm/abi/session";
 export async function prepareFile(
   options: EditorOptions,
@@ -31,12 +34,6 @@ export async function prepareFile(
   const abort = () => client?.dispose();
   signal.addEventListener("abort", abort, { once: true });
   const profile = { ...options.resources.profile };
-  const fonts = async (connection: XlsxClient) => {
-    for (const font of options.resources.fonts) {
-      signal.throwIfAborted();
-      await connection.addFont(font.bytes, font.identity);
-    }
-  };
   try {
     const connection = (client = await XlsxClient.open(
       options.resources.engine,
@@ -66,7 +63,7 @@ export async function prepareFile(
         budget,
       });
     stage = "font";
-    await fonts(connection);
+    await registerFonts(connection, options.resources.fonts, signal);
     stage = "layout";
     file = {
       format: "xlsx",

@@ -1,11 +1,12 @@
 ///|
+#derive(ToJson)
 priv struct OutlineGroup {
   first : Int32
   last : Int32
   level : Int32
   summary : Int32
   collapsed : Bool
-} derive(ToJson)
+}
 
 ///|
 priv struct OutlineAxis {

@@ -12,6 +12,7 @@ import { sourceKinds, type DocxSource } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { DocxBibliography } from "./docx-bibliography.js";
+import { Icon } from "@open-document/ui/icons";
 
 function sourceValue(
   form: HTMLFormElement,
@@ -123,7 +124,10 @@ export function DocxSources({
     source.revision !== snapshot.revision;
   return (
     <section aria-label={t.sources}>
-      <h3>{t.sources}</h3>
+      <h3>
+        <Icon name="book" />
+        {t.sources}
+      </h3>
       <p>{t.sourceHelp}</p>
       <DocxBibliography
         controller={controller}
@@ -138,6 +142,7 @@ export function DocxSources({
         disabled={disabled || blocked || stale}
         onClick={() => controller.run(() => editor.sources.updateCitations())}
       >
+        <Icon name="refresh" />
         {t.updateCitations}
       </button>
       <form
@@ -153,7 +158,10 @@ export function DocxSources({
       >
         <fieldset disabled={disabled || blocked || stale}>
           <SourceFields t={t} />
-          <button type="submit">{t.createSource}</button>
+          <button type="submit">
+            <Icon name="plus" />
+            {t.createSource}
+          </button>
         </fieldset>
       </form>
       {source?.sources.map((entry) => (
@@ -173,7 +181,10 @@ export function DocxSources({
         >
           <fieldset disabled={disabled || blocked || stale || !!entry.reason}>
             <SourceFields t={t} value={entry} />
-            <button type="submit">{t.updateSource}</button>
+            <button type="submit">
+              <Icon name="refresh" />
+              {t.updateSource}
+            </button>
             <button
               type="button"
               disabled={
@@ -187,6 +198,7 @@ export function DocxSources({
                 )
               }
             >
+              <Icon name="plus" />
               {t.insertCitation}
             </button>
             <button
@@ -202,6 +214,7 @@ export function DocxSources({
                 )
               }
             >
+              <Icon name="trash" />
               {t.deleteSource}
             </button>
           </fieldset>

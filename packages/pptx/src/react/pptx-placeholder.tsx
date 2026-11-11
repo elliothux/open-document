@@ -3,6 +3,7 @@ import { pptxPlaceholderTypes, type PptxPlaceholderType } from "../web/pptx.js";
 import type { PresentationEditor } from "../web/presentation-editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function PlaceholderType({
   value,
@@ -77,7 +78,10 @@ export function PptxPlaceholder({
       }}
     >
       <fieldset disabled={blocked}>
-        <legend>{t.pptxPlaceholder}</legend>
+        <legend>
+          <Icon name="presentation" />
+          {t.pptxPlaceholder}
+        </legend>
         <PlaceholderType value={type} onChange={setType} state={state} />
         <label>
           {t.pptxPlaceholderIndex}
@@ -91,7 +95,10 @@ export function PptxPlaceholder({
             onChange={(event) => setIndex(event.currentTarget.value)}
           />
         </label>
-        <button type="submit">{t.pptxApplyPlaceholder}</button>
+        <button type="submit">
+          <Icon name="check" />
+          {t.pptxApplyPlaceholder}
+        </button>
         <button
           type="button"
           disabled={!metadata.value}
@@ -101,6 +108,7 @@ export function PptxPlaceholder({
             )
           }
         >
+          <Icon name="trash" />
           {t.pptxRemovePlaceholder}
         </button>
       </fieldset>

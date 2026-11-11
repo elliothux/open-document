@@ -4,6 +4,7 @@ import type { PptxMathValue } from "../web/pptx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { latexSourceUnits } from "@open-document/wasm/engine-source";
+import { Icon } from "@open-document/ui/icons";
 
 export function PptxMath({
   controller,
@@ -53,7 +54,10 @@ export function PptxMath({
   return (
     <section aria-label={t.mathExpressions}>
       <fieldset disabled={disabled || !!query.readOnlyReason}>
-        <legend>{t.mathExpressions}</legend>
+        <legend>
+          <Icon name="function-fx" />
+          {t.mathExpressions}
+        </legend>
         {!!object?.equations.length && (
           <label>
             {t.chooseExpression}
@@ -158,6 +162,7 @@ export function PptxMath({
             )
           }
         >
+          <Icon name="plus" />
           {t.insertExpression}
         </button>
         {(["start", "end"] as const).map((position) => (
@@ -191,6 +196,7 @@ export function PptxMath({
             )
           }
         >
+          <Icon name="check" />
           {t.applyExpression}
         </button>
         <button
@@ -204,6 +210,7 @@ export function PptxMath({
             )
           }
         >
+          <Icon name="trash" />
           {t.deleteExpression}
         </button>
         {current?.reason && <p>{current.reason}</p>}

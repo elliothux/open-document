@@ -18,7 +18,7 @@ priv struct RevisionEntry {
 }
 
 ///|
-impl ToJson for RevisionEntry with fn to_json(self) {
+fn RevisionEntry::to_json(self : RevisionEntry, target : Json) -> Json {
   {
     "id": self.node.to_string(),
     "sourceId": self.source_id,
@@ -31,15 +31,9 @@ impl ToJson for RevisionEntry with fn to_json(self) {
     .map(value => Json(value))
     .unwrap_or(Json::null()),
     "reason": self.reason,
+    "target": target,
   }
 }
-
-///|
-priv struct RevisionCatalog {
-  revision : Int32
-  reason : String
-  items : Array[RevisionEntry]
-} derive(ToJson)
 
 ///|
 fn revision_element(name : String) -> Bool {
@@ -269,15 +263,59 @@ pub fn Session::revisions(
   revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
-  let entries = WordTree::new(self.document()).revision_entries()
+  let tree = WordTree::new(self.document())
+  let entries = tree.revision_entries()
   let reason = try {
     self.check_revision_protection()
     ""
   } catch {
     @failure.Failure(message~, ..) => message
   }
-  let catalog : RevisionCatalog = { revision, reason, items: entries, }
-  ToJson::to_json(catalog)
+  let flow = if entries.any(entry => entry.paragraph is Some(_)) &&
+    physical_equal(self.document(), self.display_document()) {
+    Some(self.flow()) catch {
+      _ => None
+    }
+  } else {
+    None
+  }
+  let paragraphs : Map[Int32, @layout.Paragraph] = Map([])
+  if flow is Some(flow) {
+    for paragraph in flow.paragraphs {
+      paragraphs[paragraph.id] = paragraph
+    }
+    for table in flow.tables {
+      for paragraph in table.paragraphs() {
+        paragraphs[paragraph.id] = paragraph
+      }
+    }
+  }
+  {
+    "revision": revision,
+    "reason": reason,
+    "items": entries.map(entry => {
+      let target : Json = if flow is Some(flow) &&
+        entry.paragraph is Some(paragraph) {
+        try {
+          if entry.is_table_revision() {
+            let ids = tree.revision_table_paragraphs(flow, entry.node)
+            { "paragraphs": ids.to_array() }
+          } else {
+            let (start, end) = tree.revision_text_range(
+              entry,
+              paragraphs.get(paragraph),
+            )
+            { "start": start, "end": end }
+          }
+        } catch {
+          _ => Json::null()
+        }
+      } else {
+        Json::null()
+      }
+      entry.to_json(target)
+    }),
+  }
 }
 
 ///|

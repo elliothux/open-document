@@ -7,10 +7,11 @@
 ///   assert_eq(story.map_paragraphs(p => p).all_paragraphs().length(), 0)
 /// }
 /// ```
+#derive(ToJson)
 pub(all) struct RunningStory {
   paragraphs : Array[Paragraph]
   tables : Array[Table]
-} derive(ToJson)
+}
 
 ///|
 pub extend RunningStory with ToJson::{to_json}

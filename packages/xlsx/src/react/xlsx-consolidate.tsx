@@ -8,6 +8,7 @@ import {
 } from "../web/xlsx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function XlsxConsolidate({
   editor,
@@ -55,7 +56,10 @@ export function XlsxConsolidate({
   };
   return (
     <fieldset disabled={blocked}>
-      <legend>{t.consolidate}</legend>
+      <legend>
+        <Icon name="layers" />
+        {t.consolidate}
+      </legend>
       <p>{t.consolidateNotice}</p>
       <label>
         {t.consolidateSourceSheet}
@@ -94,6 +98,7 @@ export function XlsxConsolidate({
           })
         }
       >
+        <Icon name="plus" />
         {t.consolidateAddSource}
       </button>
       <ol>
@@ -111,6 +116,7 @@ export function XlsxConsolidate({
                 })
               }
             >
+              <Icon name="trash" />
               {t.consolidateRemoveSource}
             </button>
           </li>
@@ -165,6 +171,7 @@ export function XlsxConsolidate({
           })
         }
       >
+        <Icon name="eye" />
         {t.consolidatePreview}
       </button>
       {preview && (
@@ -215,6 +222,7 @@ export function XlsxConsolidate({
               )
             }
           >
+            <Icon name="layers" />
             {t.consolidate}
           </button>
         </>

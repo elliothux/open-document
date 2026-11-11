@@ -1,4 +1,5 @@
 ///|
+#derive(Eq)
 priv struct GridKey {
   revision : Int32
   drawing_selection : (String, String)?
@@ -15,7 +16,7 @@ priv struct GridKey {
   screen_scale : Double?
   chart_wire : Bool
   compact_cells : Bool
-} derive(Eq)
+}
 
 ///|
 priv struct Grid {

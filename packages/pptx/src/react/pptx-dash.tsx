@@ -3,6 +3,7 @@ import type { PresentationEditor } from "../web/presentation-editor.js";
 import type { PptxDash } from "../web/pptx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function PptxDashFields({
   controller,
@@ -34,7 +35,10 @@ export function PptxDashFields({
   ] as const;
   return (
     <fieldset disabled={!!reason}>
-      <legend>{t.shapeLineDash}</legend>
+      <legend>
+        <Icon name="pen" />
+        {t.shapeLineDash}
+      </legend>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -73,6 +77,7 @@ export function PptxDashFields({
             )
           }
         >
+          <Icon name="undo" />
           {t.resetLineDash}
         </button>
       </form>

@@ -1,4 +1,4 @@
-import { Connection } from "./connection.js";
+import { Connection, documentFailure } from "./connection.js";
 import type { InputLimits } from "@open-document/wasm/abi/session";
 import type { Response } from "./protocol.js";
 
@@ -82,11 +82,12 @@ export async function openWorkerConnection<
       signal?.removeEventListener("abort", entry.terminate);
     }
   }
-  const connection = new Connection<Operation, Limits>(
-    worker ?? new Worker(href, { type: "module" }),
-    (worker, id) => releaseWorker(worker, id, href, module),
-  );
+  let connection: Connection<Operation, Limits> | undefined;
   try {
+    connection = new Connection<Operation, Limits>(
+      worker ?? new Worker(href, { type: "module" }),
+      (worker, id) => releaseWorker(worker, id, href, module),
+    );
     await connection.initialize(
       worker
         ? { operation: "initialize" }
@@ -94,8 +95,9 @@ export async function openWorkerConnection<
       signal,
     );
     return connection;
-  } catch (error) {
-    connection.dispose(false);
-    throw error;
+  } catch (cause) {
+    connection?.dispose(false);
+    signal?.throwIfAborted();
+    throw documentFailure("worker", cause, href);
   }
 }

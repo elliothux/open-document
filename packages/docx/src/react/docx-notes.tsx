@@ -8,6 +8,7 @@ import type {
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { docxNoteTextUnits } from "@open-document/wasm/engine-source";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxNotes({
   controller,
@@ -43,7 +44,10 @@ export function DocxNotes({
     source.revision !== snapshot.revision;
   return (
     <section aria-label={t.docxNotes}>
-      <h4>{t.docxNotes}</h4>
+      <h4>
+        <Icon name="note" />
+        {t.docxNotes}
+      </h4>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -78,6 +82,7 @@ export function DocxNotes({
           />
         </label>
         <button type="submit" disabled={disabled}>
+          <Icon name="plus" />
           {t.insertDocxNote}
         </button>
       </form>
@@ -86,6 +91,7 @@ export function DocxNotes({
         disabled={disabled}
         onClick={() => controller.run(() => load())}
       >
+        <Icon name="refresh" />
         {t.readDocxNotes}
       </button>
       {source && (
@@ -122,6 +128,7 @@ export function DocxNotes({
               type="submit"
               disabled={disabled || stale || !!source.endnotes.reason}
             >
+              <Icon name="check" />
               {t.applyEndnotePosition}
             </button>
           </form>
@@ -186,6 +193,7 @@ export function DocxNotes({
                 type="submit"
                 disabled={disabled || stale || !!selected.reason}
               >
+                <Icon name="check" />
                 {t.applyDocxNote}
               </button>
               <button
@@ -201,6 +209,7 @@ export function DocxNotes({
                   })
                 }
               >
+                <Icon name="trash" />
                 {t.removeDocxNote}
               </button>
             </form>

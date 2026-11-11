@@ -21,6 +21,7 @@
 | [R1 领域拆包与共享 Wasm 加载](r1-domain-packages-shared-wasm.md) | 四格式独立 core/web/react/worker、领域 Bridge、唯一 Wasm、共享 Module 与独立会话 |
 | [R2 架构精简、核心下沉与性能重构](r2-architecture-and-performance.md) | 核心缓存、命令协议、绘制下沉、增量传输、单格式 Wasm 与登记兼容性复核 |
 | [G2 测试流水线与 Agent 改进闭环](g2-test-pipeline.md) | 冻结双路径报告、真实文件、受控恢复、独立性能与本地 Docker；不声明远端 CI 或盲测 |
+| [G4 Office SDK 集成与交互](g4-office-sdk-productization.md) | 四格式纯逻辑、Worker 和可组合编辑器。真实 Chrome 交互截图、打包接入与定向验证 |
 | [P0–P3 审查与修复记录](p0-p3-review.md) | 2026-10-10 的原始审查、已修复问题和当时的验证边界 |
 
 设计和调研不等于产品实现，活动工作见[文档索引](../README.md)。

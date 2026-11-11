@@ -1,16 +1,20 @@
-import type { PdfEditor } from "../web/index.js";
-import { mountProduct } from "@open-document/ui";
+import type { PdfEditor as PdfHost } from "../web/index.js";
+import { mountProduct, ProductEditor } from "@open-document/ui";
 import { Navigation } from "@open-document/ui/panels";
-import type { Product } from "@open-document/ui/types";
+import type { EditorEvents, Product } from "@open-document/ui/types";
 import { prepareFile } from "./file.js";
-import { FormatCommands, Properties, PageList } from "./panels.js";
+import {
+  FormatCommands,
+  Properties,
+  pdfTabs,
+  pdfContextActions,
+  pdfFileActions,
+} from "./panels.js";
+import { PageList } from "./pdf-pages.js";
 import type { EditorOptions, MountedEditor } from "./types.js";
 export type * from "./types.js";
-export async function mountEditor(
-  container: HTMLElement,
-  options: EditorOptions,
-): Promise<MountedEditor> {
-  const product: Product<PdfEditor> = {
+function product(options: EditorOptions): Product<PdfHost> & { format: "pdf" } {
+  return {
     format: "pdf",
     canCreate: true,
     delimited: false,
@@ -18,17 +22,20 @@ export async function mountEditor(
     readLabel: true,
     extraTabs: true,
     addressStatus: false,
-    editReadOnly: true,
+    editReadOnly: false,
     outputs: [
       { kind: "png", label: "exportPagePng" },
       { kind: "jpeg", label: "exportPageJpeg" },
       { kind: "images", label: "exportPageImages" },
       { kind: "jpegs", label: "exportPageJpegs" },
     ],
-    prepare: (document, parent, signal) =>
-      prepareFile(options, document, parent, signal),
+    prepare: (document, parent, signal, locale) =>
+      prepareFile({ ...options, locale }, document, parent, signal),
+    tabs: () => pdfTabs,
+    fileActions: pdfFileActions,
+    contextActions: pdfContextActions,
     render(slot, props) {
-      if (["edit", "view", "pages", "annotations"].includes(slot))
+      if (pdfTabs.some((tab) => tab.id === slot))
         return <FormatCommands {...props} tab={slot} />;
       if (slot === "properties")
         return <Properties key={props.state.document?.documentId} {...props} />;
@@ -37,12 +44,30 @@ export async function mountEditor(
       return null;
     },
   };
-  const mounted = await mountProduct(container, options, product);
-  return {
-    ...mounted,
-    format: "pdf",
-    get editor() {
-      return mounted.editor;
-    },
-  };
+}
+
+export type PdfEditorProps = EditorOptions & EditorEvents<MountedEditor>;
+
+export function PdfEditor({
+  onReady,
+  onChange,
+  onError,
+  ...options
+}: PdfEditorProps) {
+  return (
+    <ProductEditor
+      product={product}
+      options={options}
+      onReady={onReady}
+      onChange={onChange}
+      onError={onError}
+    />
+  );
+}
+
+export function mountEditor(
+  container: HTMLElement,
+  options: EditorOptions,
+): Promise<MountedEditor> {
+  return mountProduct(container, options, product);
 }

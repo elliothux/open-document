@@ -1,51 +1,57 @@
 ///|
+#derive(@json.FromJson)
 priv struct ClipboardRequest {
   revision : @common.RequestInt
   selection : SelectionRequest
   cut : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct FragmentRequest {
   revision : @common.RequestInt
   fragment : String
   preparePixels : Bool?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct MarkupImagesRequest {
   revision : @common.RequestInt
   kind : String
   input : String
   mode : String
   preparePixels : Bool?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PasteHtmlRequest {
   revision : @common.RequestInt
   selection : SelectionRequest
   html : String
   profile : @common.RequestProfile
   mode : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PasteMarkdownRequest {
   revision : @common.RequestInt
   selection : SelectionRequest
   markdown : String
   profile : @common.RequestProfile
   mode : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PasteFragmentRequest {
   revision : @common.RequestInt
   selection : SelectionRequest
   fragment : String
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
 let clipboard_handlers : Map[

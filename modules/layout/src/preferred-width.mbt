@@ -1,8 +1,9 @@
 ///|
+#derive(ToJson)
 pub(all) struct PreferredWidth {
   value : Double
   percent : Bool
-} derive(ToJson)
+}
 
 ///|
 pub extend PreferredWidth with ToJson::{to_json}

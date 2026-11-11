@@ -6,12 +6,13 @@ pub(all) enum ImageHeader {
 }
 
 ///|
+#derive(ToJson)
 priv struct ImageDimensionsOutput {
   width : Int32
   height : Int32
   allowTranspose : Bool?
   coreVerified : Bool?
-} derive(ToJson)
+}
 
 ///|
 pub impl ToJson for ImageHeader with fn to_json(self) {
@@ -42,20 +43,22 @@ pub impl ToJson for ImageHeader with fn to_json(self) {
 pub extend ImageHeader with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 priv struct RgbaImageOutput {
   kind : String
   key : String
   width : Int32
   height : Int32
   bytes : Int32
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct EncodedImageOutput {
   kind : String
   bytes : Int32
   header : ImageHeader
-} derive(ToJson)
+}
 
 ///|
 pub fn image_response(
@@ -98,10 +101,11 @@ pub fn image_header(source : Bytes) -> ImageHeader {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct OfficeUploadRequest {
   bytes : String
   verify : Bool?
-} derive(@json.FromJson)
+}
 
 ///|
 pub fn office_upload_header(

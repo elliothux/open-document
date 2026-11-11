@@ -3,6 +3,7 @@ import type { PresentationEditor } from "../web/presentation-editor.js";
 import type { PptxConnectorEnd } from "../web/pptx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function PptxConnectors({
   controller,
@@ -65,7 +66,10 @@ export function PptxConnectors({
               query.selection.objects.length !== 1))
         }
       >
-        <legend>{insert ? t.insertConnector : t.connectorEndpoints}</legend>
+        <legend>
+          <Icon name="move" />
+          {insert ? t.insertConnector : t.connectorEndpoints}
+        </legend>
         <label>
           {t.connectorKind}
           <select

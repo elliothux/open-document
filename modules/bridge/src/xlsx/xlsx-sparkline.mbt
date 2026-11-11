@@ -1,9 +1,10 @@
 ///|
+#derive(@json.FromJson)
 priv struct SparklineRequest {
   cell : String
   source : @common.RequiredNullable[String]
   kind : String
-} derive(@json.FromJson)
+}
 
 ///|
 fn xlsx_sparkline_edit(

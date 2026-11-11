@@ -138,6 +138,7 @@ fn Session::duplicate_plan(
 }
 
 ///|
+#derive(ToJson)
 priv struct DuplicatePreview {
   revision : Int32
   sheet : String
@@ -149,7 +150,7 @@ priv struct DuplicatePreview {
   removedRows : Array[Int32]
   resultRange : String
   preview : Array[Array[String]]
-} derive(ToJson)
+}
 
 ///|
 /// Previews stable first-occurrence removal using formatted values without changing the workbook.

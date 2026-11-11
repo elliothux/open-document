@@ -1,7 +1,12 @@
 import { useState } from "react";
 import type { SpreadsheetEditor } from "../web/spreadsheet-editor.js";
-import type { EditorController, UiSnapshot } from "./context.js";
+import {
+  preserveGridDraft,
+  type EditorController,
+  type UiSnapshot,
+} from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 import {
   xlsxDateSeriesStepMax,
   xlsxWorksheetCount,
@@ -14,12 +19,76 @@ interface SheetProps {
   disabled: boolean;
 }
 
+export function XlsxSheetStrip({
+  controller,
+  state,
+  editor,
+  disabled,
+  manage,
+}: SheetProps & { manage?: (() => void) | undefined }) {
+  const t = messages(state.locale);
+  const query = editor.currentState;
+  const visible = query.sheets.filter((sheet) => sheet.state === "visible");
+  return (
+    <nav
+      className="od-sheets"
+      aria-label={t.sheet}
+      onMouseDown={preserveGridDraft}
+    >
+      {visible.map((sheet) => (
+        <button
+          type="button"
+          key={sheet.id}
+          aria-current={sheet.id === query.sheet ? "page" : undefined}
+          disabled={disabled}
+          onClick={() =>
+            controller.run(() => editor.objects.select("A1", sheet.id))
+          }
+        >
+          {sheet.name}
+        </button>
+      ))}
+      {manage && (
+        <div className="od-sheets-actions">
+          <button
+            type="button"
+            className="od-icon-command"
+            aria-label={t.addSheet}
+            title={t.addSheet}
+            disabled={
+              disabled ||
+              query.sheets.length >= xlsxWorksheetCount ||
+              !!query.sheetEditReason
+            }
+            onClick={() =>
+              controller.run(() => editor.objects.editSheet({ action: "add" }))
+            }
+          >
+            <Icon name="plus" />
+          </button>
+          <button
+            type="button"
+            className="od-icon-command"
+            aria-label={t.manageSheets}
+            title={t.manageSheets}
+            disabled={disabled}
+            onClick={manage}
+          >
+            <Icon name="more-horizontal" />
+          </button>
+        </div>
+      )}
+    </nav>
+  );
+}
+
 export function XlsxSheets({
   controller,
   state,
   editor,
   disabled,
-}: SheetProps) {
+  task,
+}: SheetProps & { task: "sheets" | "dimensions" }) {
   const t = messages(state.locale),
     query = editor.currentState;
   const [chosen, setChosen] = useState("");
@@ -42,442 +111,448 @@ export function XlsxSheets({
   const target =
     hidden.find((sheet) => sheet.id === chosen)?.id ?? hidden[0]?.id ?? "";
   return (
-    <nav
-      className="od-sheets"
-      aria-label={t.sheet}
-      onMouseDown={(event) => {
-        // The queued sheet command commits the draft without losing the click to blur.
-        if (
-          event.button === 0 &&
-          event.target instanceof Element &&
-          event.target.closest("button")
-        )
-          event.preventDefault();
-      }}
-    >
-      {visible.map((sheet) => (
-        <button
-          type="button"
-          key={sheet.id}
-          aria-current={sheet.id === query.sheet ? "page" : undefined}
-          disabled={disabled}
-          onClick={() =>
-            controller.run(() => editor.objects.select("A1", sheet.id))
-          }
-        >
-          {sheet.name}
-        </button>
-      ))}
-      <fieldset disabled={disabled}>
-        <legend>{t.manageSheets}</legend>
-        <button
-          type="button"
-          disabled={
-            query.sheets.length >= xlsxWorksheetCount || !!query.sheetEditReason
-          }
-          onClick={() =>
-            controller.run(() => editor.objects.editSheet({ action: "add" }))
-          }
-        >
-          {t.addSheet}
-        </button>
-        <button
-          type="button"
-          disabled={
-            query.sheets.length >= xlsxWorksheetCount || !!query.sheetCopyReason
-          }
-          onClick={() =>
-            controller.run(() => editor.objects.editSheet({ action: "copy" }))
-          }
-        >
-          {t.copySheet}
-        </button>
-        <button
-          type="button"
-          disabled={visible.length <= 1 || !!query.sheetDeleteReason}
-          onClick={() =>
-            controller.run(() => editor.objects.editSheet({ action: "delete" }))
-          }
-        >
-          {t.deleteSheet}
-        </button>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            controller.run(async () => {
-              await editor.objects.editSheet({ action: "rename", name });
-              setName("");
-            });
-          }}
-        >
-          <label>
-            {t.sheetName}
-            <input
-              value={name}
-              maxLength={31}
-              required
-              disabled={!!query.sheetRenameReason}
-              onChange={(event) => setName(event.currentTarget.value)}
-            />
-          </label>
-          <button type="submit" disabled={!!query.sheetRenameReason || !name}>
-            {t.renameSheet}
-          </button>
-        </form>
-        {query.sheetRenameReason &&
-          query.sheetRenameReason !== query.sheetEditReason && (
-            <p>{query.sheetRenameReason}</p>
-          )}
-        <button
-          type="button"
-          disabled={position <= 0 || !!query.sheetEditReason}
-          onClick={() =>
-            controller.run(() =>
-              editor.objects.editSheet({ action: "move", index: position - 1 }),
-            )
-          }
-        >
-          {t.sheetEarlier}
-        </button>
-        <button
-          type="button"
-          disabled={
-            position >= query.sheets.length - 1 || !!query.sheetEditReason
-          }
-          onClick={() =>
-            controller.run(() =>
-              editor.objects.editSheet({ action: "move", index: position + 1 }),
-            )
-          }
-        >
-          {t.sheetLater}
-        </button>
-        <button
-          type="button"
-          disabled={visible.length <= 1 || !!query.sheetEditReason}
-          onClick={() =>
-            controller.run(() =>
-              editor.objects.editSheet({
-                action: "visibility",
-                state: "hidden",
-              }),
-            )
-          }
-        >
-          {t.hideSheet}
-        </button>
-        <label>
-          {t.hiddenSheet}
-          <select
-            value={target}
-            disabled={!hidden.length || !!query.sheetEditReason}
-            onChange={(event) => setChosen(event.currentTarget.value)}
-          >
-            {!hidden.length && <option value="">{t.choose}</option>}
-            {hidden.map((sheet) => (
-              <option key={sheet.id} value={sheet.id}>
-                {sheet.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="button"
-          disabled={!target || !!query.sheetEditReason}
-          onClick={() =>
-            controller.run(() =>
-              editor.objects.editSheet(
-                { action: "visibility", state: "visible" },
-                target,
-              ),
-            )
-          }
-        >
-          {t.showSheet}
-        </button>
-      </fieldset>
-      {query.sheetEditReason && <p>{query.sheetEditReason}</p>}
-      <fieldset disabled={disabled || !!query.dimensions.readOnlyReason}>
-        <legend>{t.dimensions}</legend>
-        <label>
-          <input
-            type="checkbox"
-            checked={series}
-            onChange={(event) => setSeries(event.currentTarget.checked)}
-          />
-          {t.numericSeries}
-        </label>
-        {series && (
-          <>
-            <label>
-              {t.seriesMode}
-              <select
-                value={seriesMode}
-                onChange={(event) => {
-                  const mode = event.currentTarget.value;
-                  if (
-                    mode === "linear" ||
-                    mode === "growth" ||
-                    mode === "date" ||
-                    mode === "text" ||
-                    mode === "auto"
-                  )
-                    setSeriesMode(mode);
-                }}
+    <div onMouseDown={preserveGridDraft}>
+      {task === "sheets" ? (
+        <>
+          <fieldset disabled={disabled}>
+            <legend>
+              <Icon name="file-spreadsheet" />
+              {t.manageSheets}
+            </legend>
+            <button
+              type="button"
+              disabled={
+                query.sheets.length >= xlsxWorksheetCount ||
+                !!query.sheetCopyReason
+              }
+              onClick={() =>
+                controller.run(() =>
+                  editor.objects.editSheet({ action: "copy" }),
+                )
+              }
+            >
+              <Icon name="copy" />
+              {t.copySheet}
+            </button>
+            <button
+              type="button"
+              disabled={visible.length <= 1 || !!query.sheetDeleteReason}
+              onClick={() =>
+                controller.run(() =>
+                  editor.objects.editSheet({ action: "delete" }),
+                )
+              }
+            >
+              <Icon name="trash" />
+              {t.deleteSheet}
+            </button>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                controller.run(async () => {
+                  await editor.objects.editSheet({ action: "rename", name });
+                  setName("");
+                });
+              }}
+            >
+              <label>
+                {t.sheetName}
+                <input
+                  value={name}
+                  maxLength={31}
+                  required
+                  disabled={!!query.sheetRenameReason}
+                  onChange={(event) => setName(event.currentTarget.value)}
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={!!query.sheetRenameReason || !name}
               >
-                <option value="linear">{t.linearTrend}</option>
-                <option value="growth">{t.growthTrend}</option>
-                <option value="date">{t.dateSeries}</option>
-                <option value="text">{t.textSeries}</option>
-                <option value="auto">{t.automaticSeries}</option>
-              </select>
-            </label>
-            {seriesMode === "date" && (
-              <>
-                <label>
-                  {t.seriesDateUnit}
-                  <select
-                    value={dateUnit}
-                    onChange={(event) => {
-                      const unit = event.currentTarget.value;
-                      if (
-                        unit === "day" ||
-                        unit === "weekday" ||
-                        unit === "month" ||
-                        unit === "year"
-                      )
-                        setDateUnit(unit);
-                    }}
-                  >
-                    <option value="day">{t.seriesDay}</option>
-                    <option value="weekday">{t.seriesWeekday}</option>
-                    <option value="month">{t.seriesMonth}</option>
-                    <option value="year">{t.seriesYear}</option>
-                  </select>
-                </label>
-                <label>
-                  {t.seriesStep}
-                  <input
-                    type="number"
-                    step={dateUnit === "day" ? "any" : "1"}
-                    min={-xlsxDateSeriesStepMax}
-                    max={xlsxDateSeriesStepMax}
-                    value={dateStep}
-                    onChange={(event) => setDateStep(event.currentTarget.value)}
-                  />
-                </label>
-              </>
-            )}
+                <Icon name="pen" />
+                {t.renameSheet}
+              </button>
+            </form>
+            {query.sheetRenameReason &&
+              query.sheetRenameReason !== query.sheetEditReason && (
+                <p>{query.sheetRenameReason}</p>
+              )}
+            <button
+              type="button"
+              disabled={position <= 0 || !!query.sheetEditReason}
+              onClick={() =>
+                controller.run(() =>
+                  editor.objects.editSheet({
+                    action: "move",
+                    index: position - 1,
+                  }),
+                )
+              }
+            >
+              <Icon name="chevron-up" />
+              {t.sheetEarlier}
+            </button>
+            <button
+              type="button"
+              disabled={
+                position >= query.sheets.length - 1 || !!query.sheetEditReason
+              }
+              onClick={() =>
+                controller.run(() =>
+                  editor.objects.editSheet({
+                    action: "move",
+                    index: position + 1,
+                  }),
+                )
+              }
+            >
+              <Icon name="chevron-down" />
+              {t.sheetLater}
+            </button>
+            <button
+              type="button"
+              disabled={visible.length <= 1 || !!query.sheetEditReason}
+              onClick={() =>
+                controller.run(() =>
+                  editor.objects.editSheet({
+                    action: "visibility",
+                    state: "hidden",
+                  }),
+                )
+              }
+            >
+              <Icon name="eye-off" />
+              {t.hideSheet}
+            </button>
             <label>
-              {t.seriesSource}
-              <input
-                value={source}
-                maxLength={64}
-                onChange={(event) =>
-                  setSeed({
-                    sheet: query.sheet,
-                    range: event.currentTarget.value,
-                  })
-                }
-              />
+              {t.hiddenSheet}
+              <select
+                value={target}
+                disabled={!hidden.length || !!query.sheetEditReason}
+                onChange={(event) => setChosen(event.currentTarget.value)}
+              >
+                {!hidden.length && <option value="">{t.choose}</option>}
+                {hidden.map((sheet) => (
+                  <option key={sheet.id} value={sheet.id}>
+                    {sheet.name}
+                  </option>
+                ))}
+              </select>
             </label>
             <button
               type="button"
+              disabled={!target || !!query.sheetEditReason}
               onClick={() =>
-                setSeed({
-                  sheet: query.sheet,
-                  range: editor.currentState.selection.address,
+                controller.run(() =>
+                  editor.objects.editSheet(
+                    { action: "visibility", state: "visible" },
+                    target,
+                  ),
+                )
+              }
+            >
+              <Icon name="eye" />
+              {t.showSheet}
+            </button>
+          </fieldset>
+          {query.sheetEditReason && <p>{query.sheetEditReason}</p>}
+        </>
+      ) : (
+        <fieldset disabled={disabled || !!query.dimensions.readOnlyReason}>
+          <legend>
+            <Icon name="ruler" />
+            {t.dimensions}
+          </legend>
+          <label>
+            <input
+              type="checkbox"
+              checked={series}
+              onChange={(event) => setSeries(event.currentTarget.checked)}
+            />
+            {t.numericSeries}
+          </label>
+          {series && (
+            <>
+              <label>
+                {t.seriesMode}
+                <select
+                  value={seriesMode}
+                  onChange={(event) => {
+                    const mode = event.currentTarget.value;
+                    if (
+                      mode === "linear" ||
+                      mode === "growth" ||
+                      mode === "date" ||
+                      mode === "text" ||
+                      mode === "auto"
+                    )
+                      setSeriesMode(mode);
+                  }}
+                >
+                  <option value="linear">{t.linearTrend}</option>
+                  <option value="growth">{t.growthTrend}</option>
+                  <option value="date">{t.dateSeries}</option>
+                  <option value="text">{t.textSeries}</option>
+                  <option value="auto">{t.automaticSeries}</option>
+                </select>
+              </label>
+              {seriesMode === "date" && (
+                <>
+                  <label>
+                    {t.seriesDateUnit}
+                    <select
+                      value={dateUnit}
+                      onChange={(event) => {
+                        const unit = event.currentTarget.value;
+                        if (
+                          unit === "day" ||
+                          unit === "weekday" ||
+                          unit === "month" ||
+                          unit === "year"
+                        )
+                          setDateUnit(unit);
+                      }}
+                    >
+                      <option value="day">{t.seriesDay}</option>
+                      <option value="weekday">{t.seriesWeekday}</option>
+                      <option value="month">{t.seriesMonth}</option>
+                      <option value="year">{t.seriesYear}</option>
+                    </select>
+                  </label>
+                  <label>
+                    {t.seriesStep}
+                    <input
+                      type="number"
+                      step={dateUnit === "day" ? "any" : "1"}
+                      min={-xlsxDateSeriesStepMax}
+                      max={xlsxDateSeriesStepMax}
+                      value={dateStep}
+                      onChange={(event) =>
+                        setDateStep(event.currentTarget.value)
+                      }
+                    />
+                  </label>
+                </>
+              )}
+              <label>
+                {t.seriesSource}
+                <input
+                  value={source}
+                  maxLength={64}
+                  onChange={(event) =>
+                    setSeed({
+                      sheet: query.sheet,
+                      range: event.currentTarget.value,
+                    })
+                  }
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() =>
+                  setSeed({
+                    sheet: query.sheet,
+                    range: editor.currentState.selection.address,
+                  })
+                }
+              >
+                <Icon name="selection" />
+                {t.seriesUseSelection}
+              </button>
+            </>
+          )}
+          {(
+            [
+              ["down", t.fillDown],
+              ["up", t.fillUp],
+              ["right", t.fillRight],
+              ["left", t.fillLeft],
+            ] as const
+          ).map(([direction, label]) => (
+            <button
+              type="button"
+              key={direction}
+              disabled={
+                series &&
+                (!source.trim() || (seriesMode === "date" && !dateStep.trim()))
+              }
+              onClick={() =>
+                controller.run(() =>
+                  editor.objects.editSheet(
+                    series
+                      ? {
+                          action: "series",
+                          ...(seriesMode === "date"
+                            ? ({
+                                mode: "date",
+                                unit: dateUnit,
+                                step: Number(dateStep),
+                              } as const)
+                            : { mode: seriesMode }),
+                          source,
+                          direction,
+                          range: editor.currentState.selection.address,
+                        }
+                      : {
+                          action: "fill",
+                          direction,
+                          range: editor.currentState.selection.address,
+                        },
+                  ),
+                )
+              }
+            >
+              {label}
+            </button>
+          ))}
+          {(
+            [
+              [{ action: "insertCells", direction: "down" }, t.insertCellsDown],
+              [
+                { action: "insertCells", direction: "right" },
+                t.insertCellsRight,
+              ],
+              [{ action: "deleteCells", direction: "up" }, t.deleteCellsUp],
+              [{ action: "deleteCells", direction: "left" }, t.deleteCellsLeft],
+            ] as const
+          ).map(([change, label]) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() =>
+                controller.run(() =>
+                  editor.objects.editSheet({
+                    ...change,
+                    range: editor.currentState.selection.address,
+                  }),
+                )
+              }
+            >
+              {label}
+            </button>
+          ))}
+          {(
+            [
+              ["insertRows", t.insertRows],
+              ["deleteRows", t.deleteRows],
+              ["insertColumns", t.insertColumns],
+              ["deleteColumns", t.deleteColumns],
+            ] as const
+          ).map(([action, label]) => (
+            <button
+              type="button"
+              key={action}
+              onClick={() =>
+                controller.run(() => {
+                  const range = editor.currentState.selection.range,
+                    rows = action.endsWith("Rows");
+                  return editor.objects.editSheet({
+                    action,
+                    first: rows ? range.top : range.left,
+                    count: rows
+                      ? range.bottom - range.top + 1
+                      : range.right - range.left + 1,
+                  });
                 })
               }
             >
-              {t.seriesUseSelection}
+              {label}
             </button>
-          </>
-        )}
-        {(
-          [
-            ["down", t.fillDown],
-            ["up", t.fillUp],
-            ["right", t.fillRight],
-            ["left", t.fillLeft],
-          ] as const
-        ).map(([direction, label]) => (
+          ))}
           <button
             type="button"
-            key={direction}
-            disabled={
-              series &&
-              (!source.trim() || (seriesMode === "date" && !dateStep.trim()))
-            }
-            onClick={() =>
-              controller.run(() =>
-                editor.objects.editSheet(
-                  series
-                    ? {
-                        action: "series",
-                        ...(seriesMode === "date"
-                          ? ({
-                              mode: "date",
-                              unit: dateUnit,
-                              step: Number(dateStep),
-                            } as const)
-                          : { mode: seriesMode }),
-                        source,
-                        direction,
-                        range: editor.currentState.selection.address,
-                      }
-                    : {
-                        action: "fill",
-                        direction,
-                        range: editor.currentState.selection.address,
-                      },
-                ),
-              )
-            }
+            onClick={() => controller.run(() => editor.autoFit("rows"))}
           >
-            {label}
+            <Icon name="ruler" />
+            {t.autoFitRows}
           </button>
-        ))}
-        {(
-          [
-            [{ action: "insertCells", direction: "down" }, t.insertCellsDown],
-            [{ action: "insertCells", direction: "right" }, t.insertCellsRight],
-            [{ action: "deleteCells", direction: "up" }, t.deleteCellsUp],
-            [{ action: "deleteCells", direction: "left" }, t.deleteCellsLeft],
-          ] as const
-        ).map(([change, label]) => (
           <button
-            key={label}
             type="button"
-            onClick={() =>
-              controller.run(() =>
-                editor.objects.editSheet({
-                  ...change,
-                  range: editor.currentState.selection.address,
-                }),
-              )
-            }
+            onClick={() => controller.run(() => editor.autoFit("columns"))}
           >
-            {label}
+            <Icon name="ruler" />
+            {t.autoFitColumns}
           </button>
-        ))}
-        {(
-          [
-            ["insertRows", t.insertRows],
-            ["deleteRows", t.deleteRows],
-            ["insertColumns", t.insertColumns],
-            ["deleteColumns", t.deleteColumns],
-          ] as const
-        ).map(([action, label]) => (
-          <button
-            type="button"
-            key={action}
-            onClick={() =>
-              controller.run(() => {
-                const range = editor.currentState.selection.range,
-                  rows = action.endsWith("Rows");
-                return editor.objects.editSheet({
-                  action,
-                  first: rows ? range.top : range.left,
-                  count: rows
-                    ? range.bottom - range.top + 1
-                    : range.right - range.left + 1,
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              controller.run(async () => {
+                const range = editor.currentState.selection.range;
+                await editor.objects.editSheet({
+                  action: "rowHeight",
+                  first: range.top,
+                  last: range.bottom,
+                  size: Number(height),
                 });
-              })
-            }
+                setHeight("");
+              });
+            }}
           >
-            {label}
-          </button>
-        ))}
-        <button
-          type="button"
-          onClick={() => controller.run(() => editor.autoFit("rows"))}
-        >
-          {t.autoFitRows}
-        </button>
-        <button
-          type="button"
-          onClick={() => controller.run(() => editor.autoFit("columns"))}
-        >
-          {t.autoFitColumns}
-        </button>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            controller.run(async () => {
-              const range = editor.currentState.selection.range;
-              await editor.objects.editSheet({
-                action: "rowHeight",
-                first: range.top,
-                last: range.bottom,
-                size: Number(height),
+            <label>
+              {t.rowHeight}
+              <input
+                type="number"
+                min={0}
+                max={409.5}
+                step="any"
+                required
+                value={height}
+                placeholder={
+                  query.dimensions.rowHeight === null
+                    ? t.mixed
+                    : String(query.dimensions.rowHeight)
+                }
+                onChange={(event) => setHeight(event.currentTarget.value)}
+              />
+            </label>
+            <button type="submit" disabled={!height}>
+              <Icon name="ruler" />
+              {t.setRowHeight}
+            </button>
+          </form>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              controller.run(async () => {
+                const range = editor.currentState.selection.range;
+                await editor.objects.editSheet({
+                  action: "columnWidth",
+                  first: range.left,
+                  last: range.right,
+                  size: Number(width),
+                });
+                setWidth("");
               });
-              setHeight("");
-            });
-          }}
-        >
-          <label>
-            {t.rowHeight}
-            <input
-              type="number"
-              min={0}
-              max={409.5}
-              step="any"
-              required
-              value={height}
-              placeholder={
-                query.dimensions.rowHeight === null
-                  ? t.mixed
-                  : String(query.dimensions.rowHeight)
-              }
-              onChange={(event) => setHeight(event.currentTarget.value)}
-            />
-          </label>
-          <button type="submit" disabled={!height}>
-            {t.setRowHeight}
-          </button>
-        </form>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            controller.run(async () => {
-              const range = editor.currentState.selection.range;
-              await editor.objects.editSheet({
-                action: "columnWidth",
-                first: range.left,
-                last: range.right,
-                size: Number(width),
-              });
-              setWidth("");
-            });
-          }}
-        >
-          <label>
-            {t.columnWidth}
-            <input
-              type="number"
-              min={0}
-              max={255}
-              step="any"
-              required
-              value={width}
-              placeholder={
-                query.dimensions.columnWidth === null
-                  ? t.mixed
-                  : String(query.dimensions.columnWidth)
-              }
-              onChange={(event) => setWidth(event.currentTarget.value)}
-            />
-          </label>
-          <button type="submit" disabled={!width}>
-            {t.setColumnWidth}
-          </button>
-        </form>
-        {query.dimensions.readOnlyReason && (
-          <p>{query.dimensions.readOnlyReason}</p>
-        )}
-      </fieldset>
-    </nav>
+            }}
+          >
+            <label>
+              {t.columnWidth}
+              <input
+                type="number"
+                min={0}
+                max={255}
+                step="any"
+                required
+                value={width}
+                placeholder={
+                  query.dimensions.columnWidth === null
+                    ? t.mixed
+                    : String(query.dimensions.columnWidth)
+                }
+                onChange={(event) => setWidth(event.currentTarget.value)}
+              />
+            </label>
+            <button type="submit" disabled={!width}>
+              <Icon name="ruler" />
+              {t.setColumnWidth}
+            </button>
+          </form>
+          {query.dimensions.readOnlyReason && (
+            <p>{query.dimensions.readOnlyReason}</p>
+          )}
+        </fieldset>
+      )}
+    </div>
   );
 }
 
@@ -486,7 +561,10 @@ export function XlsxView({ controller, state, editor, disabled }: SheetProps) {
     query = editor.currentState;
   return (
     <fieldset disabled={disabled || !!query.view.readOnlyReason}>
-      <legend>{t.worksheetView}</legend>
+      <legend>
+        <Icon name="eye" />
+        {t.worksheetView}
+      </legend>
       {(["gridLines", "headings", "rtl", "formulas"] as const).map((key) => (
         <label key={key} onMouseDown={(event) => event.preventDefault()}>
           <input
@@ -523,7 +601,10 @@ export function XlsxFrozen({
     query = editor.currentState;
   return (
     <fieldset disabled={disabled || !!query.frozen.readOnlyReason}>
-      <legend>{t.freezePanes}</legend>
+      <legend>
+        <Icon name="grid" />
+        {t.freezePanes}
+      </legend>
       <button
         type="button"
         disabled={
@@ -539,6 +620,7 @@ export function XlsxFrozen({
           )
         }
       >
+        <Icon name="grid" />
         {t.freezeSelection}
       </button>
       <button
@@ -549,6 +631,7 @@ export function XlsxFrozen({
           )
         }
       >
+        <Icon name="grid" />
         {t.freezeTopRow}
       </button>
       <button
@@ -559,6 +642,7 @@ export function XlsxFrozen({
           )
         }
       >
+        <Icon name="grid" />
         {t.freezeFirstColumn}
       </button>
       <button
@@ -570,6 +654,7 @@ export function XlsxFrozen({
           )
         }
       >
+        <Icon name="grid" />
         {t.unfreezePanes}
       </button>
       {query.frozen.readOnlyReason && <p>{query.frozen.readOnlyReason}</p>}

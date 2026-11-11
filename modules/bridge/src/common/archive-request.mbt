@@ -1,4 +1,5 @@
 ///|
+#derive(@json.FromJson)
 priv struct ArchiveBudgetFields {
   fileBytes : RequestInt
   entryBytes : RequestInt
@@ -7,7 +8,7 @@ priv struct ArchiveBudgetFields {
   entries : RequestInt
   xmlDepth : RequestInt
   outputBytes : RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
 pub struct RequestArchiveBudget {

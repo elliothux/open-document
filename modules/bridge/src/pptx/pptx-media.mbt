@@ -1,21 +1,24 @@
 ///|
+#derive(@json.FromJson)
 priv struct MediaKindRequest {
   bytes : String
   kind : String
   contentType : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct MediaPosterRequest {
   poster : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson(fields(cycling(rename="loop"))))
 priv struct MediaPlaybackRequest {
   cycling : Bool
   volume : @common.RequestInt
   mute : Bool
-} derive(@json.FromJson(fields(cycling(rename="loop"))))
+}
 
 ///|
 fn pptx_insert_media(

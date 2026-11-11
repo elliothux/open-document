@@ -1,4 +1,5 @@
 ///|
+#derive(ToJson)
 pub(all) struct SelectionRect {
   page : Int32
   line : Int32
@@ -6,7 +7,7 @@ pub(all) struct SelectionRect {
   y : Double
   width : Double
   height : Double
-} derive(ToJson)
+}
 
 ///|
 pub extend SelectionRect with ToJson::{to_json}

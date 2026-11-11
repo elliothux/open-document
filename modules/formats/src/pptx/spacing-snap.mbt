@@ -1,10 +1,11 @@
 ///|
+#derive(ToJson)
 priv struct SpacingMark {
   axis : String
   from : Double
   to : Double
   at : Double
-} derive(ToJson)
+}
 
 ///|
 priv struct SpacingSpan {

@@ -1,116 +1,133 @@
 ///|
+#derive(@json.FromJson)
 priv struct TableIdRequest {
   id : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableStyleDefinitionRequest {
   original : @common.RequiredNullable[String]
   name : String
   elements : Array[TableStyleRegionRequest]
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableStyleDeleteRequest {
   name : String
   replacement : @common.RequiredNullable[String]
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableStyleRegionRequest {
   kind : String
   size : @common.RequestInt
   format : CellFormatRequest
   vertical : @common.RequiredNullable[@model.CellBorder]
   horizontal : @common.RequiredNullable[@model.CellBorder]
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableStyleRequest {
   id : @common.RequestInt
   style : TableStyleOptionsRequest
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableStyleOptionsRequest {
   name : @common.RequiredNullable[String]
   firstColumn : Bool
   lastColumn : Bool
   rowStripes : Bool
   columnStripes : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableTotalsRequest {
   id : @common.RequestInt
   visible : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableColumnTotalRequest {
   id : @common.RequestInt
   column : @common.RequestInt
   total : TableColumnTotalInput
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableColumnFormulaRequest {
   id : @common.RequestInt
   column : @common.RequestInt
   formula : @common.RequiredNullable[String]
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableResizeRequest {
   id : @common.RequestInt
   range : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableCreateRequest {
   range : String
   name : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableRenameRequest {
   id : @common.RequestInt
   name : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableColumnRenameRequest {
   id : @common.RequestInt
   column : @common.RequestInt
   name : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct OutlineGroupRequest {
   axis : String
   first : @common.RequestInt
   last : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct OutlineCollapseRequest {
   axis : String
   first : @common.RequestInt
   last : @common.RequestInt
   level : @common.RequestInt
   collapsed : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct OutlineAxisRequest {
   axis : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct OutlineSummaryRequest {
   axis : String
   after : Bool
-} derive(@json.FromJson)
+}
 
 ///|
 fn[T : @json.FromJson] table_request(

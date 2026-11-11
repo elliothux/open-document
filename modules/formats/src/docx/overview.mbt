@@ -7,6 +7,12 @@ pub fn Session::overview(
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
   let body = tree.child(0, "body").unwrap()
+  let bookmarks = tree.bookmark_catalog()
+  let cross_paragraph_bookmarks = bookmarks.any(bookmark => {
+    bookmark.selection is Some(selection) &&
+    selection.anchor.paragraph != selection.focus.paragraph
+  })
+  let bookmark_paragraphs : Array[Json] = []
   let styles = self.styles([])
   let atoms : Map[Int32, Array[Int32]] = Map([])
   for node in self.texts {
@@ -48,6 +54,14 @@ pub fn Session::overview(
       continue
     }
     let parent = tree.nodes[node.parent]
+    if cross_paragraph_bookmarks {
+      if tree.text_box_drawing(id) is Some(story) {
+        bookmark_paragraphs.push([Json(id), Json(story)])
+      } else if node.parent == body ||
+        (parent.uri == word_uri && parent.name == "tc") {
+        bookmark_paragraphs.push([Json(id), Json::null()])
+      }
+    }
     if node.parent != body && !(parent.uri == word_uri && parent.name == "tc") {
       statistics_reason = "Some document regions are not included in body statistics"
       continue
@@ -124,10 +138,8 @@ pub fn Session::overview(
   }
   {
     "revision": revision,
-    "bookmarks": match self.bookmarks(revision) {
-      { "items": items, .. } => items
-      _ => []
-    },
+    "bookmarks": bookmarks,
+    "bookmarkParagraphs": bookmark_paragraphs,
     "headings": headings,
     "truncated": truncated,
     "diagnostics": diagnostics,

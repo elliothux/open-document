@@ -1,4 +1,5 @@
 import { Group, Command } from "@open-document/ui/controls";
+import { Icon } from "@open-document/ui/icons";
 
 export function AnnotationTools(props: {
   locale: "zh-CN" | "en-US";
@@ -17,16 +18,19 @@ export function AnnotationTools(props: {
     >
       <Command
         label={zh ? "墨迹" : "Ink"}
+        icon="pen"
         disabled={props.disabled}
         action={() => props.onInk(false)}
       />
       <Command
         label={zh ? "手写签名" : "Handwritten signature"}
+        icon="signature"
         disabled={props.disabled}
         action={() => props.onInk(true)}
       />
       {[false, true].map((signature) => (
         <label className="od-command" key={String(signature)}>
+          <Icon name="upload" />
           {zh
             ? signature
               ? "图片签名"
@@ -49,16 +53,19 @@ export function AnnotationTools(props: {
       ))}
       <Command
         label={zh ? "批注位置与样式" : "Annotation position and style"}
+        icon="adjust"
         disabled={props.disabled || !props.selected}
         action={props.onEdit}
       />
       <Command
         label={zh ? "回复批注" : "Reply to annotation"}
+        icon="comment-count"
         disabled={props.disabled || !props.selected}
         action={props.onReply}
       />
       <Command
         label={zh ? "删除整条回复线程" : "Delete whole reply thread"}
+        icon="trash"
         disabled={props.disabled || !props.selected}
         action={props.onDeleteThread}
       />

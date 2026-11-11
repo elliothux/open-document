@@ -1,17 +1,20 @@
 ///|
+#derive(@json.FromJson)
 priv struct QueryRequest {
   sheet : String?
   range : String?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct CellRangeRequest {
   revision : @common.RequestInt
   sheet : String
   range : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ReplaceCellsRequest {
   revision : @common.RequestInt
   sheet : String
@@ -19,7 +22,7 @@ priv struct ReplaceCellsRequest {
   values : Json
   literal : Bool
   acceptWarnings : Bool
-} derive(@json.FromJson)
+}
 
 ///|
 fn xlsx_replacement_values(
@@ -44,11 +47,29 @@ fn xlsx_replacement_values(
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct LayoutRequest {
   layoutId : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
+priv struct FormulaAssistanceRequest {
+  revision : @common.RequestInt
+  sheet : String
+  source : String
+  caret : @common.RequestInt
+  layoutId : @common.RequestInt?
+}
+
+///|
+#derive(@json.FromJson)
+priv struct NumberFormatSamplesRequest {
+  formats : Array[String]
+}
+
+///|
+#derive(@json.FromJson)
 priv struct ViewportRequest {
   sheet : String
   scrollX : @common.RequestNumber
@@ -59,57 +80,64 @@ priv struct ViewportRequest {
   reveal : Bool
   screenScale : @common.RequestNumber?
   compactCells : Bool?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct HitRequest {
   layoutId : @common.RequestInt
   x : @common.RequestNumber
   y : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson(fields(extend_flag(rename="extend"))))
 priv struct NavigateRequest {
   revision : @common.RequestInt
   direction : String
   extend_flag : Bool
-} derive(@json.FromJson(fields(extend_flag(rename="extend"))))
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PasteCellsRequest {
   revision : @common.RequestInt
   copied : Json
   mode : String
   transpose : Bool
   acceptWarnings : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PasteTextRequest {
   revision : @common.RequestInt
   text : String
   acceptWarnings : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ClearRequest {
   revision : @common.RequestInt
   mode : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ExportCsvRequest {
   revision : @common.RequestInt
   selection : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct FindOptionsRequest {
   matchCase : Bool
   wholeCell : Bool
   formulas : Bool
   workbook : Bool
-} derive(@json.FromJson)
+}
 
 ///|
 fn FindOptionsRequest::options(self : FindOptionsRequest) -> @model.FindOptions {
@@ -122,14 +150,16 @@ fn FindOptionsRequest::options(self : FindOptionsRequest) -> @model.FindOptions 
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct FindRequest {
   revision : @common.RequestInt
   sheet : String
   text : String
   options : FindOptionsRequest
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ReplaceMatchesRequest {
   revision : @common.RequestInt
   sheet : String
@@ -137,9 +167,10 @@ priv struct ReplaceMatchesRequest {
   options : FindOptionsRequest
   replacement : String
   index : @common.RequiredNullable[@common.RequestInt]?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct AutoFitRequest {
   revision : @common.RequestInt
   sheet : String
@@ -147,36 +178,41 @@ priv struct AutoFitRequest {
   first : @common.RequestInt
   last : @common.RequestInt
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ApplyFormatRequest {
   revision : @common.RequestInt
   format : Json
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct FormatCellsRequest {
   revision : @common.RequestInt
   patch : CellFormatRequest
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct FillPointRequest {
   x : @common.RequestNumber
   y : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct FillDirectionRequest {
   direction : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct FillModifierRequest {
   kind : String
   ctrl : Bool?
-} derive(@json.FromJson)
+}
 
 ///|
 priv struct FillTargetRequest {
@@ -185,10 +221,11 @@ priv struct FillTargetRequest {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct FillPreviewRequest {
   layoutId : @common.RequestInt
   target : FillTargetRequest
-} derive(@json.FromJson)
+}
 
 ///|
 impl @json.FromJson for FillTargetRequest with fn from_json(input, path) {

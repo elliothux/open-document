@@ -2,10 +2,11 @@
 pub const GuideCount : Int32 = 64
 
 ///|
+#derive(Eq, ToJson)
 pub(all) struct Guide {
   orientation : String
   position : Double
-} derive(Eq, ToJson)
+}
 
 ///|
 pub extend Guide with Eq::{equal, not_equal}
@@ -14,11 +15,12 @@ pub extend Guide with Eq::{equal, not_equal}
 pub extend Guide with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 priv struct GuidesQuery {
   visible : Bool
   items : Array[Guide]
   reason : String
-} derive(ToJson)
+}
 
 ///|
 fn Session::guide_properties(self : Session) -> Tree? raise @failure.Failure {

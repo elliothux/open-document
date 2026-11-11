@@ -1,24 +1,27 @@
 ///|
+#derive(@json.FromJson)
 priv struct ChartEditRequest {
   revision : @common.RequestInt
   chart : Json?
   profile : Json?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ChartGeometryRequest {
   width : @common.RequestNumber
   height : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ChartContentRequest {
   kind : String
   title : String
   data : String
   holeSize : @common.RequestInt?
   legend : String?
-} derive(@json.FromJson)
+}
 
 ///|
 fn Context::edit_chart_command(

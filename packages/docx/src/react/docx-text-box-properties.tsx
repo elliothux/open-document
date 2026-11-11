@@ -3,6 +3,7 @@ import type { DocxTextBoxProperties as Properties } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { docxTextBoxInsetPoints } from "@open-document/wasm/engine-source";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxTextBoxProperties({
   controller,
@@ -29,7 +30,10 @@ export function DocxTextBoxProperties({
       }}
     >
       <fieldset disabled={disabled || !!reason}>
-        <legend>{t.docxTextBoxLayout}</legend>
+        <legend>
+          <Icon name="text-box" />
+          {t.docxTextBoxLayout}
+        </legend>
         {[
           t.docxTextBoxTop,
           t.docxTextBoxRight,
@@ -91,7 +95,10 @@ export function DocxTextBoxProperties({
           />
           {t.docxTextBoxClip}
         </label>
-        <button type="submit">{t.applyDocxTextBoxLayout}</button>
+        <button type="submit">
+          <Icon name="check" />
+          {t.applyDocxTextBoxLayout}
+        </button>
       </fieldset>
       {reason && <p>{reason}</p>}
     </form>

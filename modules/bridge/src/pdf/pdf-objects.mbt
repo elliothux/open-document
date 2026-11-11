@@ -1,4 +1,5 @@
 ///|
+#derive(@json.FromJson)
 priv struct TextSpecRequest {
   placement : PlacementRequest
   text : String
@@ -7,7 +8,7 @@ priv struct TextSpecRequest {
   color : String
   role : String
   foreground : Bool
-} derive(@json.FromJson)
+}
 
 ///|
 fn TextSpecRequest::spec(self : TextSpecRequest) -> @model.PdfTextSpec {
@@ -23,23 +24,26 @@ fn TextSpecRequest::spec(self : TextSpecRequest) -> @model.PdfTextSpec {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct AddTextRequest {
   revision : @common.RequestInt
   pages : PdfPages
   spec : TextSpecRequest
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ReplaceTextRequest {
   revision : @common.RequestInt
   page : String
   object : String
   spec : TextSpecRequest
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ImageAddRequest {
   bytes : String
   revision : @common.RequestInt
@@ -49,33 +53,36 @@ priv struct ImageAddRequest {
   pixelHeight : @common.RequestInt
   profile : @common.RequestProfile
   replace : String?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct MoveObjectRequest {
   revision : @common.RequestInt
   page : String
   object : String
   placement : PlacementRequest
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ObjectRequest {
   revision : @common.RequestInt
   page : String
   object : String
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct CropImageRequest {
   revision : @common.RequestInt
   page : String
   object : String
   crop : CropWindowRequest
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
 let object_handlers : Map[

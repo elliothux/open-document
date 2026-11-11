@@ -110,15 +110,17 @@ fn Session::ruler_context(
 }
 
 ///|
+#derive(ToJson)
 priv struct RulerMarker {
   kind : String
   position : Double
   index : Int32
   align : String
   leader : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 pub struct RulerResponse {
   revision : Int32
   selection : Selection
@@ -130,7 +132,7 @@ pub struct RulerResponse {
   priv markers : Array[RulerMarker]
   reason : String
   layoutId : Int32
-} derive(ToJson)
+}
 
 ///|
 pub extend RulerResponse with ToJson::{to_json}

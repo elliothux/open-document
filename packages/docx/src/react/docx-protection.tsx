@@ -3,6 +3,7 @@ import { officePasswordUnits } from "@open-document/wasm/engine-source";
 import type { DocumentEditor, DocumentProtection } from "../web/editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxProtection({
   controller,
@@ -30,13 +31,17 @@ export function DocxProtection({
   };
   return (
     <section aria-label={t.documentProtection}>
-      <h4>{t.documentProtection}</h4>
+      <h4>
+        <Icon name="lock" />
+        {t.documentProtection}
+      </h4>
       <p>{t.documentProtectionScope}</p>
       <button
         type="button"
         disabled={disabled}
         onClick={() => controller.run(load)}
       >
+        <Icon name="refresh" />
         {t.loadDocumentProtection}
       </button>
       {source && (

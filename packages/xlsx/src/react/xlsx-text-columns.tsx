@@ -9,6 +9,7 @@ import {
 } from "../web/xlsx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function XlsxTextColumns({
   editor,
@@ -94,7 +95,10 @@ export function XlsxTextColumns({
         preview.breaks.every((value, index) => value === positions[index]));
   return (
     <fieldset disabled={blocked}>
-      <legend>{t.textToColumns}</legend>
+      <legend>
+        <Icon name="columns-2" />
+        {t.textToColumns}
+      </legend>
       <p>{query.selection.address}</p>
       <p>{mode === "fixed" ? t.columnFixedNotice : t.columnNotice}</p>
       {!bounded && <p>{t.columnLimit}</p>}
@@ -158,7 +162,10 @@ export function XlsxTextColumns({
       {bounded && !valid && <p>{t.columnBreakInvalid}</p>}
       {types.length > 0 && (
         <fieldset disabled={blocked}>
-          <legend>{t.columnTypes}</legend>
+          <legend>
+            <Icon name="columns-2" />
+            {t.columnTypes}
+          </legend>
           {types.map((kind, index) => (
             <label key={index}>
               {t.columnType} {index + 1}
@@ -223,6 +230,7 @@ export function XlsxTextColumns({
           })
         }
       >
+        <Icon name="eye" />
         {t.previewColumns}
       </button>
       {preview && (
@@ -289,6 +297,7 @@ export function XlsxTextColumns({
               )
             }
           >
+            <Icon name="table-cells" />
             {t.splitColumns}
           </button>
         </>

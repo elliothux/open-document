@@ -22,24 +22,66 @@ pub fn Session::revision_rects(
     entry.paragraph is Some(paragraph) else {
     @failure.reject("protected-content", "Revision has no supported body range")
   }
-  if tree.is_row_revision(entry.node) ||
-    ["rowFormat", "tableFormat", "cellFormat"].contains(entry.kind) {
-    return self.row_revision_rects(tree, entry.node, layout)
-  }
-  let target = match entry.kind {
-    "characterFormat" => tree.nodes[tree.nodes[entry.node].parent].parent
-    "paragraphFormat" => paragraph
-    _ => entry.node
-  }
-  let target = tree.nodes[target]
   let flow = self.flow()
+  if entry.is_table_revision() {
+    let paragraphs = tree.revision_table_paragraphs(flow, entry.node)
+    return row_revision_rects(paragraphs, layout)
+  }
   let paragraphs = flow.paragraphs +
     flow.tables.map(table => table.paragraphs()).flatten()
-  guard paragraphs.iter().find_first(p => p.id == paragraph) is Some(p) else {
+  let (start, end) = tree.revision_text_range(
+    entry,
+    paragraphs.iter().find_first(p => p.id == paragraph),
+  )
+  let mut low = -1
+  let mut high : Int32? = None
+  for page in layout.pages {
+    for line in page.lines {
+      if line.paragraph != paragraph || line.repeated {
+        continue
+      }
+      for caret in line.carets {
+        if caret.offset <= start {
+          low = low.max(caret.offset)
+        }
+        if caret.offset >= end {
+          high = Some(high.unwrap_or(caret.offset).min(caret.offset))
+        }
+      }
+    }
+  }
+  guard low >= 0 && high is Some(high) else {
+    @failure.reject(
+      "protected-content", "Revision range has no current layout geometry",
+    )
+  }
+  revision_selection_rects(layout, paragraph, low, high)
+}
+
+///|
+fn RevisionEntry::is_table_revision(self : RevisionEntry) -> Bool {
+  ["rowInsert", "rowDelete", "rowFormat", "tableFormat", "cellFormat"].contains(
+    self.kind,
+  )
+}
+
+///|
+fn WordTree::revision_text_range(
+  tree : WordTree,
+  entry : RevisionEntry,
+  paragraph : @layout.Paragraph?,
+) -> (Int32, Int32) raise @failure.Failure {
+  guard paragraph is Some(p) else {
     @failure.reject(
       "protected-content", "Revision paragraph has no layout content",
     )
   }
+  let target = match entry.kind {
+    "characterFormat" => tree.nodes[tree.nodes[entry.node].parent].parent
+    "paragraphFormat" => p.id
+    _ => entry.node
+  }
+  let target = tree.nodes[target]
   guard p.readOnlyReason.is_empty() ||
     p.readOnlyReason == "Tracked revisions require review before editing" else {
     @failure.reject("protected-content", p.readOnlyReason)
@@ -67,29 +109,16 @@ pub fn Session::revision_rects(
   } else {
     start.unwrap_or(insertion)
   }
-  let end = end.max(start)
-  let mut low = -1
-  let mut high : Int32? = None
-  for page in layout.pages {
-    for line in page.lines {
-      if line.paragraph != paragraph || line.repeated {
-        continue
-      }
-      for caret in line.carets {
-        if caret.offset <= start {
-          low = low.max(caret.offset)
-        }
-        if caret.offset >= end {
-          high = Some(high.unwrap_or(caret.offset).min(caret.offset))
-        }
-      }
-    }
-  }
-  guard low >= 0 && high is Some(high) else {
-    @failure.reject(
-      "protected-content", "Revision range has no current layout geometry",
-    )
-  }
+  (start, end.max(start))
+}
+
+///|
+fn revision_selection_rects(
+  layout : @layout.Layout,
+  paragraph : Int32,
+  low : Int32,
+  high : Int32,
+) -> Array[@layout.SelectionRect] raise @failure.Failure {
   let rects = layout
     .selection_rects((paragraph, low, "after"), (paragraph, high, "before"))
     .filter_map(rect => {

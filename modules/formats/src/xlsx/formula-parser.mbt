@@ -2,13 +2,15 @@
 pub const FormulaSourceUnits : Int32 = 8192
 
 ///|
+#derive(Eq)
 priv struct FormulaAddress {
   address : Address
   fixed_row : Bool
   fixed_column : Bool
-} derive(Eq)
+}
 
 ///|
+#derive(Eq)
 priv enum Expression {
   Constant(Value)
   Reference(String?, FormulaAddress, FormulaAddress?)
@@ -17,7 +19,7 @@ priv enum Expression {
   Unary(String, Expression)
   Binary(String, Expression, Expression)
   Function(String, Array[Expression])
-} derive(Eq)
+}
 
 ///|
 priv enum Token {
@@ -316,6 +318,32 @@ fn FormulaAddress::range(self : FormulaAddress, last : FormulaAddress) -> Range 
 }
 
 ///|
+fn formula_function_name(word : String) -> String {
+  match word.to_upper() {
+    "_XLFN.IFNA" => "IFNA"
+    "_XLFN.XOR" => "XOR"
+    "_XLFN.CONCAT" => "CONCAT"
+    "_XLFN.TEXTJOIN" => "TEXTJOIN"
+    "_XLFN.DAYS" => "DAYS"
+    "_XLFN.ISOWEEKNUM" => "ISOWEEKNUM"
+    "_XLFN.COMBINA" => "COMBINA"
+    "_XLFN.XLOOKUP" => "XLOOKUP"
+    "_XLFN.VAR.S" => "VAR.S"
+    "_XLFN.VAR.P" => "VAR.P"
+    "_XLFN.STDEV.S" => "STDEV.S"
+    "_XLFN.STDEV.P" => "STDEV.P"
+    "_XLFN.MODE.SNGL" => "MODE.SNGL"
+    "_XLFN.MINIFS" => "MINIFS"
+    "_XLFN.MAXIFS" => "MAXIFS"
+    "_XLFN.CEILING.MATH" => "CEILING.MATH"
+    "_XLFN.FLOOR.MATH" => "FLOOR.MATH"
+    "_XLFN.CEILING.PRECISE" => "CEILING.PRECISE"
+    "_XLFN.FLOOR.PRECISE" => "FLOOR.PRECISE"
+    name => name
+  }
+}
+
+///|
 fn FormulaParser::atom(
   self : FormulaParser,
   depth : Int32,
@@ -359,29 +387,7 @@ fn FormulaParser::atom(
       if self.accept("!") {
         return self.reference(Some(word), self.reference_token())
       }
-      let upper = word.to_upper()
-      let name = match upper {
-        "_XLFN.IFNA" => "IFNA"
-        "_XLFN.XOR" => "XOR"
-        "_XLFN.CONCAT" => "CONCAT"
-        "_XLFN.TEXTJOIN" => "TEXTJOIN"
-        "_XLFN.DAYS" => "DAYS"
-        "_XLFN.ISOWEEKNUM" => "ISOWEEKNUM"
-        "_XLFN.COMBINA" => "COMBINA"
-        "_XLFN.XLOOKUP" => "XLOOKUP"
-        "_XLFN.VAR.S" => "VAR.S"
-        "_XLFN.VAR.P" => "VAR.P"
-        "_XLFN.STDEV.S" => "STDEV.S"
-        "_XLFN.STDEV.P" => "STDEV.P"
-        "_XLFN.MODE.SNGL" => "MODE.SNGL"
-        "_XLFN.MINIFS" => "MINIFS"
-        "_XLFN.MAXIFS" => "MAXIFS"
-        "_XLFN.CEILING.MATH" => "CEILING.MATH"
-        "_XLFN.FLOOR.MATH" => "FLOOR.MATH"
-        "_XLFN.CEILING.PRECISE" => "CEILING.PRECISE"
-        "_XLFN.FLOOR.PRECISE" => "FLOOR.PRECISE"
-        name => name
-      }
+      let name = formula_function_name(word)
       if self.accept("(") {
         let args : Array[Expression] = []
         if !self.accept(")") {

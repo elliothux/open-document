@@ -8,11 +8,12 @@ pub const GridSpacingMaxPoints : Int32 = 144
 let grid_units : Double = GridUnitsPerPoint.to_double()
 
 ///|
+#derive(Eq)
 pub(all) struct SnapSettings {
   grid : Bool
   objects : Bool
   spacing : Double
-} derive(Eq)
+}
 
 ///|
 pub extend SnapSettings with Eq::{equal, not_equal}
@@ -45,12 +46,13 @@ fn read_snapping(tree : Tree?) -> SnapSettings raise @failure.Failure {
 }
 
 ///|
+#derive(ToJson)
 priv struct SnappingQuery {
   grid : Bool
   objects : Bool
   spacing : Double
   reason : String
-} derive(ToJson)
+}
 
 ///|
 fn Session::snapping_query(self : Session) -> SnappingQuery {
@@ -193,16 +195,18 @@ fn grid_origin(size : Double, stride : Double) -> Double {
 }
 
 ///|
+#derive(ToJson)
 priv struct GridPoint {
   x : Double
   y : Double
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct GridGeometry {
   points : Array[GridPoint]
   cross : Bool
-} derive(ToJson)
+}
 
 ///|
 fn Session::grid_geometry(

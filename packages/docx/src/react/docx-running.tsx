@@ -13,6 +13,7 @@ import type {
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { listFormats } from "../web/foundation.js";
+import { Icon } from "@open-document/ui/icons";
 
 function runningDraft(content: DocxRunningContent[]): DocxRunningContent[] {
   const result: DocxRunningContent[] = [{ text: "" }];
@@ -78,7 +79,10 @@ export function DocxRunning({
   };
   return (
     <section aria-label={t.runningArea}>
-      <h3>{t.runningArea}</h3>
+      <h3>
+        <Icon name="layout-header" />
+        {t.runningArea}
+      </h3>
       <label>
         {t.runningArea}
         <select
@@ -122,6 +126,7 @@ export function DocxRunning({
         disabled={disabled}
         onClick={() => controller.run(load)}
       >
+        <Icon name="refresh" />
         {t.loadRunningArea}
       </button>
       {area && (
@@ -135,6 +140,7 @@ export function DocxRunning({
             })
           }
         >
+          <Icon name="link" />
           {t.unlinkRunningArea}
         </button>
       )}
@@ -149,6 +155,7 @@ export function DocxRunning({
             })
           }
         >
+          <Icon name="link" />
           {t.linkRunningArea}
         </button>
       )}
@@ -207,6 +214,7 @@ export function DocxRunning({
                 })
               }
             >
+              <Icon name="check" />
               {t.applyRunningOptions}
             </button>
           </fieldset>
@@ -323,15 +331,18 @@ export function DocxRunning({
                       active.current = null;
                     }}
                   >
+                    <Icon name="trash" />
                     {t.removeRunningField}
                   </button>
                 </div>
               ),
             )}
             <button type="button" onClick={() => insertField("PAGE")}>
+              <Icon name="plus" />
               {t.insertCurrentPageField}
             </button>
             <button type="button" onClick={() => insertField("NUMPAGES")}>
+              <Icon name="plus" />
               {t.insertTotalPagesField}
             </button>
             <label>
@@ -348,7 +359,10 @@ export function DocxRunning({
                 }
               />
             </label>
-            <button type="submit">{t.apply}</button>
+            <button type="submit">
+              <Icon name="check" />
+              {t.apply}
+            </button>
           </fieldset>
           {area.reason && <p>{area.reason}</p>}
           {stale && <p>{t.reloadPageSetup}</p>}

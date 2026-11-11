@@ -1,18 +1,21 @@
 ///|
+#derive(@json.FromJson)
 priv struct GuideRequest {
   revision : @common.RequestInt
   x : @common.RequestNumber
   y : @common.RequestNumber
   tolerance : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct BeginRequest {
   revision : @common.RequestInt
   kind : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TransformRequest {
   revision : @common.RequestInt
   candidateId : @common.RequestInt
@@ -20,9 +23,10 @@ priv struct TransformRequest {
   y : @common.RequestNumber
   width : @common.RequestNumber
   height : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct DragRequest {
   revision : @common.RequestInt
   candidateId : @common.RequestInt
@@ -32,20 +36,22 @@ priv struct DragRequest {
   shift : Bool?
   center : Bool?
   tolerance : @common.RequestNumber?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct FinishRequest {
   revision : @common.RequestInt
   candidateId : @common.RequestInt
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct CancelRequest {
   revision : @common.RequestInt
   candidateId : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
 let gesture_handlers : Map[

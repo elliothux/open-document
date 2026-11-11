@@ -1,8 +1,9 @@
 ///|
+#derive(Eq, ToJson)
 pub(all) struct TextSpacing {
   unit : String
   value : Double
-} derive(Eq, ToJson)
+}
 
 ///|
 pub extend TextSpacing with Eq::{equal, not_equal}

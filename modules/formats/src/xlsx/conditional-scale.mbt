@@ -1,9 +1,10 @@
 ///|
+#derive(Eq, ToJson, @json.FromJson)
 pub(all) struct ConditionalStop {
   kind : String
   value : String
   color : String
-} derive(Eq, ToJson, @json.FromJson)
+}
 
 ///|
 pub extend ConditionalStop with Eq::{equal, not_equal}

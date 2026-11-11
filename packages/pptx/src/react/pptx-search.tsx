@@ -3,9 +3,10 @@ import { pptxTextFrameUnits } from "@open-document/wasm/engine-source";
 import type {
   PresentationEditor,
   PresentationSearchResult,
-} from "../web/presentation-editor.js";
+} from "../web/index.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function PptxSearch({
   controller,
@@ -41,7 +42,6 @@ export function PptxSearch({
     });
   return (
     <section aria-label={t.findReplace}>
-      <h2>{t.findReplace}</h2>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -98,51 +98,58 @@ export function PptxSearch({
           {t.searchAllSlides}
         </label>
         <button type="submit" disabled={disabled || !text}>
+          <Icon name="search" />
           {t.find}
         </button>
       </form>
-      <label>
-        {t.replaceWith}
-        <input
-          value={replacement}
-          maxLength={pptxTextFrameUnits}
-          disabled={disabled}
-          onChange={(event) => setReplacement(event.currentTarget.value)}
-        />
-      </label>
-      <button
-        type="button"
-        disabled={
-          disabled ||
-          stale ||
-          !result?.matches[selected] ||
-          !!result.matches[selected]?.reason
-        }
-        onClick={() =>
-          result &&
-          controller.run(() =>
-            editor.replaceMatches(result, replacement, selected),
-          )
-        }
-      >
-        {t.replaceMatch}
-      </button>
-      <button
-        type="button"
-        disabled={
-          disabled ||
-          stale ||
-          !result?.matches.length ||
-          result.truncated ||
-          result.matches.some((item) => !!item.reason)
-        }
-        onClick={() =>
-          result &&
-          controller.run(() => editor.replaceMatches(result, replacement))
-        }
-      >
-        {t.replaceAll}
-      </button>
+      {state.mode === "edit" && (
+        <>
+          <label>
+            {t.replaceWith}
+            <input
+              value={replacement}
+              maxLength={pptxTextFrameUnits}
+              disabled={disabled}
+              onChange={(event) => setReplacement(event.currentTarget.value)}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={
+              disabled ||
+              stale ||
+              !result?.matches[selected] ||
+              !!result.matches[selected]?.reason
+            }
+            onClick={() =>
+              result &&
+              controller.run(() =>
+                editor.replaceMatches(result, replacement, selected),
+              )
+            }
+          >
+            <Icon name="search" />
+            {t.replaceMatch}
+          </button>
+          <button
+            type="button"
+            disabled={
+              disabled ||
+              stale ||
+              !result?.matches.length ||
+              result.truncated ||
+              result.matches.some((item) => !!item.reason)
+            }
+            onClick={() =>
+              result &&
+              controller.run(() => editor.replaceMatches(result, replacement))
+            }
+          >
+            <Icon name="search" />
+            {t.replaceAll}
+          </button>
+        </>
+      )}
       <p role="status">
         {stale
           ? t.searchStale

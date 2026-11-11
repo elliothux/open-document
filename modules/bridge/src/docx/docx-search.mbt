@@ -1,16 +1,18 @@
 ///|
+#derive(@json.FromJson)
 priv struct FindRequest {
   revision : @common.RequestInt
   text : String
   options : Map[String, Bool]
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ReplaceMatchesRequest {
   revision : @common.RequestInt
   text : String
   matches : Array[SelectionRequest]
-} derive(@json.FromJson)
+}
 
 ///|
 let search_handlers : Map[

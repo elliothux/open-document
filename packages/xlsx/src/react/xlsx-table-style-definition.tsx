@@ -10,6 +10,7 @@ import type { PanelProps } from "./panels.js";
 import { messages } from "@open-document/ui/messages";
 import { XlsxFormatFields } from "./xlsx-format-fields.js";
 import { tableStyleNames } from "./xlsx-table-style.js";
+import { Icon } from "@open-document/ui/icons";
 
 export function XlsxTableStyleDefinitions(props: PanelProps) {
   const [original, setOriginal] = useState<string | null>(null),
@@ -65,7 +66,10 @@ export function XlsxTableStyleDefinitions(props: PanelProps) {
   ];
   return (
     <fieldset disabled={disabled}>
-      <legend>{t.tableStyleDefinition}</legend>
+      <legend>
+        <Icon name="table-cells" />
+        {t.tableStyleDefinition}
+      </legend>
       {reason && <p role="status">{reason}</p>}
       <label>
         {t.tableChoice}
@@ -87,6 +91,7 @@ export function XlsxTableStyleDefinitions(props: PanelProps) {
         </select>
       </label>
       <button type="button" onClick={() => choose("")}>
+        <Icon name="plus" />
         {t.newTableStyle}
       </button>
       <form
@@ -254,7 +259,10 @@ export function XlsxTableStyleDefinitions(props: PanelProps) {
             </>
           )}
         </fieldset>
-        <button type="submit">{t.saveTableStyle}</button>
+        <button type="submit">
+          <Icon name="save" />
+          {t.saveTableStyle}
+        </button>
       </form>
       <p>{t.deleteTableStyleHelp}</p>
       <label>
@@ -289,6 +297,7 @@ export function XlsxTableStyleDefinitions(props: PanelProps) {
             });
         }}
       >
+        <Icon name="trash" />
         {t.deleteTableStyle}
       </button>
     </fieldset>

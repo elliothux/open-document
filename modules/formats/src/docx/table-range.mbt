@@ -122,6 +122,7 @@ fn Session::table_cell_range(
 }
 
 ///|
+#derive(ToJson)
 priv struct TableCellSelectionValue {
   table : Int32
   top : Int32
@@ -137,7 +138,7 @@ priv struct TableCellSelectionValue {
   rowHeightRule : FormatSummary
   maxRowHeight : Double
   margins : Json
-} derive(ToJson)
+}
 
 ///|
 priv struct TableCellSelectionQuery {

@@ -83,13 +83,15 @@ fn ShowState::advance(
 }
 
 ///|
+#derive(ToJson)
 priv struct ShowInkQuery {
   strokes : Int32
   points : Int32
   drawing : Bool
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct ShowQuery {
   active : Bool
   external : Json
@@ -108,7 +110,7 @@ priv struct ShowQuery {
   ink : ShowInkQuery
   nextSlide : Json
   notes : NotesQuery
-} derive(ToJson)
+}
 
 ///|
 fn Session::show_state(

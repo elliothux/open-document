@@ -2,6 +2,7 @@
 pub const PageOperationCount : Int32 = 1024
 
 ///|
+#derive(ToJson)
 pub(all) struct PdfBudget {
   fileBytes : Int32
   objects : Int32
@@ -13,7 +14,7 @@ pub(all) struct PdfBudget {
   decodedBytes : Int32
   steps : Int32
   outputBytes : Int32
-} derive(ToJson)
+}
 
 ///|
 pub extend PdfBudget with ToJson::{to_json}
@@ -63,6 +64,7 @@ priv struct TextSpan {
 }
 
 ///|
+#derive(ToJson)
 pub struct PdfText {
   page : String
   revision : Int32
@@ -70,34 +72,37 @@ pub struct PdfText {
   priv spans : Array[TextSpan]
   complete : Bool
   diagnostics : Array[String]
-} derive(ToJson)
+}
 
 ///|
 pub extend PdfText with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub struct PdfSearchHit {
   start : Int32
   end : Int32
   quads : Array[Array[Double]]
-} derive(ToJson)
+}
 
 ///|
 pub extend PdfSearchHit with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub struct PdfSearch {
   page : String
   revision : Int32
   complete : Bool
   hits : Array[PdfSearchHit]
   diagnostics : Array[String]
-} derive(ToJson)
+}
 
 ///|
 pub extend PdfSearch with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub struct PdfSelection {
   page : String
   layoutId : Int32
@@ -105,18 +110,19 @@ pub struct PdfSelection {
   anchor : Int32
   focus : Int32
   quads : Array[Array[Double]]
-} derive(ToJson)
+}
 
 ///|
 pub extend PdfSelection with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub struct PdfHit {
   page : String
   layoutId : Int32
   revision : Int32
   offset : Int32
-} derive(ToJson)
+}
 
 ///|
 pub extend PdfHit with ToJson::{to_json}
@@ -160,6 +166,7 @@ fn TextSpan::display_span(self : TextSpan) -> PdfDisplaySpan {
 }
 
 ///|
+#derive(ToJson)
 priv struct PdfDisplayContent {
   revision : Int32
   page : String
@@ -170,7 +177,7 @@ priv struct PdfDisplayContent {
   textComplete : Bool
   displayComplete : Bool
   diagnostics : Array[String]
-} derive(ToJson)
+}
 
 ///|
 struct PageDisplay {

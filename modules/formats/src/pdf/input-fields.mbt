@@ -321,18 +321,21 @@ fn PdfSession::fields(
 }
 
 ///|
+#derive(ToJson)
 priv struct PdfQueryFieldOption {
   value : String
   label : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct PdfQueryFieldWidget {
   id : String
   page : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct PdfQueryField {
   id : String
   name : String
@@ -344,7 +347,7 @@ priv struct PdfQueryField {
   options : Array[PdfQueryFieldOption]
   multiSelect : Bool
   widgets : Array[PdfQueryFieldWidget]
-} derive(ToJson)
+}
 
 ///|
 fn field_query(field : FormField) -> PdfQueryField raise @failure.Failure {

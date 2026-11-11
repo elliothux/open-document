@@ -1,4 +1,5 @@
 ///|
+#derive(ToJson)
 pub(all) struct Glyph {
   id : UInt32
   cluster : Int32
@@ -12,21 +13,23 @@ pub(all) struct Glyph {
   yAdvance : Int32
   xOffset : Int32
   yOffset : Int32
-} derive(ToJson)
+}
 
 ///|
 pub extend Glyph with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub(all) struct Outline {
   key : String
   path : String
-} derive(ToJson)
+}
 
 ///|
 pub extend Outline with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub(all) struct GlyphRun {
   start : Int32
   end : Int32
@@ -34,12 +37,13 @@ pub(all) struct GlyphRun {
   font : Int32
   script : String
   language : String
-} derive(ToJson)
+}
 
 ///|
 pub extend GlyphRun with ToJson::{to_json}
 
 ///|
+#derive(Eq, ToJson)
 pub(all) struct FontInfo {
   identity : String
   face : Int32
@@ -51,7 +55,7 @@ pub(all) struct FontInfo {
   bbox : Array[Int32]
   capHeight : Int32
   italicAngle : Double
-} derive(Eq, ToJson)
+}
 
 ///|
 pub extend FontInfo with Eq::{equal, not_equal}
@@ -60,16 +64,18 @@ pub extend FontInfo with Eq::{equal, not_equal}
 pub extend FontInfo with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub(all) struct GlyphDiagnostic {
   code : String
   cluster : Int32
   codepoint : Int32
-} derive(ToJson)
+}
 
 ///|
 pub extend GlyphDiagnostic with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub(all) struct ShapeBatch {
   text : String
   carets : Array[Caret]
@@ -81,7 +87,7 @@ pub(all) struct ShapeBatch {
   width : Double
   fontBytes : Int32
   outlineBytes : Int32
-} derive(ToJson)
+}
 
 ///|
 pub extend ShapeBatch with ToJson::{to_json}

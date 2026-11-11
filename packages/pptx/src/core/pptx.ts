@@ -221,7 +221,7 @@ type Result<C extends PptxCommand> = C["operation"] extends "inspectPptxSlides"
       ? PptxShowLayout
       : C["operation"] extends "findPptx"
         ? PptxSearchResult
-        : C["operation"] extends "printLayoutPptx"
+        : C["operation"] extends "printLayoutPptx" | "previewPptx"
           ? PptxPrintLayout
           : C["operation"] extends "layoutPptx"
             ? PptxLayout
@@ -235,7 +235,9 @@ type Result<C extends PptxCommand> = C["operation"] extends "inspectPptxSlides"
                         "savePptx" | "mediaBytesPptx" | "exportPptxPdf"
                     ? Uint8Array
                     : C["operation"] extends
-                          "imageKeysPptx" | "imageKeysShowPptx"
+                          | "imageKeysPptx"
+                          | "imageKeysShowPptx"
+                          | "previewKeysPptx"
                       ? string[]
                       : C["operation"] extends "copyPptx"
                         ? {

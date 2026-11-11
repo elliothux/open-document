@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { XlsxTable, XlsxTableStyle } from "../web/xlsx.js";
 import type { PanelProps } from "./panels.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 export const tableStyleNames = ["Medium", "Light", "Dark"].flatMap((family) =>
   Array.from(
     { length: family === "Medium" ? 28 : family === "Light" ? 21 : 11 },
@@ -56,7 +57,10 @@ export function XlsxTableStyleForm({
       }}
     >
       <fieldset disabled={!!table.readOnlyReason}>
-        <legend>{t.tableStyle}</legend>
+        <legend>
+          <Icon name="table-cells" />
+          {t.tableStyle}
+        </legend>
         <label>
           {t.tableStyleName}
           <select
@@ -120,7 +124,10 @@ export function XlsxTableStyleForm({
             }
           </label>
         ))}
-        <button type="submit">{t.applyTableStyle}</button>
+        <button type="submit">
+          <Icon name="check" />
+          {t.applyTableStyle}
+        </button>
       </fieldset>
     </form>
   );

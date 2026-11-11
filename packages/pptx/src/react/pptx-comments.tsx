@@ -7,6 +7,7 @@ import {
 import type { PanelProps } from "./panels.js";
 import { messages } from "@open-document/ui/messages";
 import { pptxCommentTextUnits } from "@open-document/wasm/engine-source";
+import { Icon } from "@open-document/ui/icons";
 
 export function PptxComments(props: PanelProps) {
   const { controller, state, file, disabled } = props;
@@ -27,7 +28,10 @@ export function PptxComments(props: PanelProps) {
   const roots = comments.items.filter((item) => item.parent === null);
   return (
     <fieldset disabled={disabled || !!comments.reason}>
-      <legend>{t.slideComments}</legend>
+      <legend>
+        <Icon name="comment-count" />
+        {t.slideComments}
+      </legend>
       {comments.reason && <p>{comments.reason}</p>}
       <ul>
         {roots.map((root) => (
@@ -58,6 +62,7 @@ export function PptxComments(props: PanelProps) {
               disabled={!author}
               onClick={() => setParent(root.id)}
             >
+              <Icon name="check" />
               {t.commentReply}
             </button>
             <ul>
@@ -105,6 +110,7 @@ export function PptxComments(props: PanelProps) {
           <p>
             {comments.items.find((item) => item.id === parent)?.text}
             <button type="button" onClick={() => setParent(null)}>
+              <Icon name="close" />
               {t.cancel}
             </button>
           </p>
@@ -182,6 +188,7 @@ function CommentEntry({
           />
         </label>
         <button type="submit" disabled={!text.trim() || text === entry.text}>
+          <Icon name="check" />
           {t.commentUpdate}
         </button>
         <button
@@ -195,6 +202,7 @@ function CommentEntry({
             )
           }
         >
+          <Icon name="trash" />
           {t.commentRemove}
         </button>
       </form>

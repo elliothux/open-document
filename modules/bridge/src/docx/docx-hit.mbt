@@ -1,4 +1,5 @@
 ///|
+#derive(ToJson)
 priv struct HitResponse {
   layoutId : Int32
   revision : Int32
@@ -11,7 +12,7 @@ priv struct HitResponse {
   x : Double
   y : Double
   height : Double
-} derive(ToJson)
+}
 
 ///|
 fn Context::hit_result(

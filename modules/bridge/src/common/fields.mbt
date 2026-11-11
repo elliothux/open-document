@@ -63,24 +63,27 @@ pub fn byte_input(
 }
 
 ///|
+#derive(ToJson)
 priv struct SuccessResponse {
   ok : Bool
   value : Json
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct ResponseError {
   code : String
   part : String
   offset : Int32
   message : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct FailureResponse {
   ok : Bool
   error : ResponseError
-} derive(ToJson)
+}
 
 ///|
 pub fn response(operation : () -> Json raise @failure.Failure) -> String {
@@ -159,6 +162,7 @@ fn attach_request_bytes(
 }
 
 ///|
+#derive(ToJson)
 priv struct ArchiveBudgetResponse {
   fileBytes : Int32
   entryBytes : Int32
@@ -167,7 +171,7 @@ priv struct ArchiveBudgetResponse {
   entries : Int32
   xmlDepth : Int32
   outputBytes : Int32
-} derive(ToJson)
+}
 
 ///|
 pub fn archive_budget() -> Json {

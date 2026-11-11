@@ -12,8 +12,16 @@ export interface PptxLayout extends DrawingBatch {
 }
 
 export type PptxOutputCommand =
-  | { operation: "prepareImagePptx" | "mediaBytesPptx"; key: string }
+  | { operation: "prepareImagePptx"; key: string; preview?: string }
+  | { operation: "mediaBytesPptx"; key: string }
   | { operation: "imageKeysPptx"; all: boolean; hidden: boolean }
+  | { operation: "previewKeysPptx"; revision: number; slide: string }
+  | {
+      operation: "previewPptx";
+      revision: number;
+      slide: string;
+      profile: Record<string, string>;
+    }
   | {
       operation: "printLayoutPptx";
       revision: number;

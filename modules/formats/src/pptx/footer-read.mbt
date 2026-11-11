@@ -6,10 +6,11 @@ pub const FooterParagraphCount : Int32 = 256
 
 ///|
 /// A fixed label or date format 1–13 with en-US, zh-CN or zh-TW language.
+#derive(Eq)
 pub(all) enum FooterDate {
   Fixed(String)
   Automatic(Int32, String)
-} derive(Eq)
+}
 
 ///|
 pub extend FooterDate with Eq::{equal, not_equal}

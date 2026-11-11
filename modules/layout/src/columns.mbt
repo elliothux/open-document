@@ -2,21 +2,23 @@
 pub const PageColumnCount : Int32 = 12
 
 ///|
+#derive(ToJson)
 pub(all) struct Column {
   width : Double
   gap : Double
-} derive(ToJson)
+}
 
 ///|
 pub extend Column with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub(all) struct Columns {
   count : Int32
   gap : Double
   separator : Bool
   custom : Array[Column]
-} derive(ToJson)
+}
 
 ///|
 pub extend Columns with ToJson::{to_json}

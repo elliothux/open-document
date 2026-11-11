@@ -1,11 +1,12 @@
 ///|
+#derive(@json.FromJson)
 priv struct ChartEditRequest {
   kind : String
   title : String
   data : String
   holeSize : @common.RequestInt?
   legend : String?
-} derive(@json.FromJson)
+}
 
 ///|
 fn pptx_chart_edit(

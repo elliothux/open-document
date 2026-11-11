@@ -4,6 +4,7 @@ export function presentationKey(
   event: KeyboardEvent,
   editor: PresentationEditor,
   available: boolean,
+  readOnly: boolean,
   escape: () => Promise<void>,
   tab: (backward: boolean) => Promise<void>,
 ): Promise<void> | undefined {
@@ -34,7 +35,8 @@ export function presentationKey(
   );
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
     event.preventDefault();
-    return event.shiftKey ? editor.redo() : editor.undo();
+    if (!readOnly) return event.shiftKey ? editor.redo() : editor.undo();
+    return;
   }
   if (
     (event.ctrlKey || event.metaKey) &&
@@ -43,6 +45,7 @@ export function presentationKey(
   ) {
     event.preventDefault();
     if (
+      readOnly ||
       objects.some(
         (object) =>
           object.duplicateReason || object.parent !== objects[0]?.parent,
@@ -67,6 +70,7 @@ export function presentationKey(
   ) {
     event.preventDefault();
     if (
+      readOnly ||
       objects.some(
         (object) =>
           object.transformReason || object.parent !== objects[0]?.parent,
@@ -81,6 +85,7 @@ export function presentationKey(
   } else if (event.key === "Delete" || event.key === "Backspace") {
     event.preventDefault();
     if (
+      readOnly ||
       objects.some(
         (object) => object.deleteReason || object.parent !== objects[0]?.parent,
       )

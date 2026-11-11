@@ -1,58 +1,66 @@
 ///|
+#derive(@json.FromJson)
 priv struct NoteNumberingRequest {
   revision : @common.RequestInt
   kind : String
   section : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct NoteNumberingInput {
   format : String
   start : @common.RequestNumber
   restart : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SetNoteNumberingRequest {
   revision : @common.RequestInt
   kind : String
   section : @common.RequestInt
   numbering : NoteNumberingInput
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct EndnotePositionRequest {
   revision : @common.RequestInt
   position : String
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct NoteEditRequest[T] {
   revision : @common.RequestInt
   note : T
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct NoteInsertInput {
   kind : String
   text : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct NoteRemoveInput {
   kind : String
   id : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct NoteEditInput {
   kind : String
   id : String
   text : String
-} derive(@json.FromJson)
+}
 
 ///|
 fn[T : @json.FromJson] note_edit_request(

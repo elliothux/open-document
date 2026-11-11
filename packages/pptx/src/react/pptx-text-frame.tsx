@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { PresentationEditor } from "../web/presentation-editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function PptxTextFrame({
   controller,
@@ -57,7 +58,10 @@ export function PptxTextFrame({
   );
   return (
     <fieldset disabled={disabled || objects.length === 0 || !!reason}>
-      <legend>{t.textFrame}</legend>
+      <legend>
+        <Icon name="text-box" />
+        {t.textFrame}
+      </legend>
       <label>
         {t.textDirection}
         <select

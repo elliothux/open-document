@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { XlsxPivotNumberGroup } from "../web/xlsx.js";
 import type { UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function PivotNumberGroups({
   groups,
@@ -77,6 +78,7 @@ export function PivotNumberGroups({
             type="button"
             onClick={() => setGroups(groups.filter((_, i) => i !== index))}
           >
+            <Icon name="trash" />
             {t.pivotRemoveNumberGroup}
           </button>
         </fieldset>
@@ -95,6 +97,7 @@ export function PivotNumberGroups({
             setGroups([...groups, { field, start: 0, end: 100, interval: 10 }]);
         }}
       >
+        <Icon name="plus" />
         {t.pivotAddNumberGroup}
       </button>
     </>

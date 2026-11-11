@@ -1,15 +1,17 @@
 ///|
 /// Keep leaves a direct property unchanged; Clear restores inheritance.
+#derive(Eq)
 pub(all) enum FormatChange[T] {
   Keep
   Clear
   Set(T)
-} derive(Eq)
+}
 
 ///|
 pub extend FormatChange with Eq::{equal, not_equal}
 
 ///|
+#derive(Eq)
 pub(all) struct CharacterFormat {
   style : FormatChange[String]
   family : FormatChange[String]
@@ -22,7 +24,7 @@ pub(all) struct CharacterFormat {
   strike : FormatChange[Bool]
   highlight : FormatChange[String]
   vertAlign : FormatChange[String]
-} derive(Eq)
+}
 
 ///|
 pub extend CharacterFormat with Eq::{equal, not_equal}

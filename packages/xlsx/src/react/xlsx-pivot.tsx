@@ -26,6 +26,7 @@ import { PivotDateGroups } from "./xlsx-pivot-date-groups.js";
 import { PivotBaseItemSelect } from "./xlsx-pivot-base-item.js";
 import { XlsxSlicersPanel } from "./xlsx-slicers.js";
 import { XlsxTimelinesPanel } from "./xlsx-timelines.js";
+import { Icon } from "@open-document/ui/icons";
 
 export function XlsxPivotsPanel({
   editor,
@@ -141,7 +142,10 @@ export function XlsxPivotsPanel({
       }
     />,
     <fieldset key="pivots" disabled={blocked}>
-      <legend>{t.pivots}</legend>
+      <legend>
+        <Icon name="pivot-table" />
+        {t.pivots}
+      </legend>
       <XlsxSlicersPanel
         editor={editor}
         controller={controller}
@@ -182,6 +186,7 @@ export function XlsxPivotsPanel({
           setSource(query.selection.address);
         }}
       >
+        <Icon name="selection" />
         {t.pivotUseSelection}
       </button>
       <label>
@@ -354,6 +359,7 @@ export function XlsxPivotsPanel({
             disabled={values.length === 1}
             onClick={() => setValues(values.filter((_, i) => i !== index))}
           >
+            <Icon name="trash" />
             {t.pivotRemoveValue}
           </button>
         </fieldset>
@@ -375,6 +381,7 @@ export function XlsxPivotsPanel({
           ])
         }
       >
+        <Icon name="plus" />
         {t.pivotAddValue}
       </button>
       <button
@@ -386,6 +393,7 @@ export function XlsxPivotsPanel({
           )
         }
       >
+        <Icon name="eye" />
         {t.pivotPreview}
       </button>
       {preview && (
@@ -563,6 +571,7 @@ export function XlsxPivotsPanel({
             setPreview(undefined);
           }}
         >
+          <Icon name="plus" />
           {t.pivotNew}
         </button>
       )}
@@ -572,6 +581,7 @@ export function XlsxPivotsPanel({
           controller.run(async () => setCatalog(await editor.objects.pivots()))
         }
       >
+        <Icon name="list-nested" />
         {t.pivotList}
       </button>
       {catalog && (
@@ -624,6 +634,7 @@ export function XlsxPivotsPanel({
                   setPreview(undefined);
                 }}
               >
+                <Icon name="pen" />
                 {t.pivotEdit}
               </button>
               <button
@@ -639,6 +650,7 @@ export function XlsxPivotsPanel({
                   })
                 }
               >
+                <Icon name="refresh" />
                 {t.pivotRefresh}
               </button>
               <button
@@ -658,6 +670,7 @@ export function XlsxPivotsPanel({
                   })
                 }
               >
+                <Icon name="trash" />
                 {t.pivotDelete}
               </button>
             </fieldset>

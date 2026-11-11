@@ -1,11 +1,12 @@
 ///|
+#derive(ToJson(fields(kind(rename="type"))))
 pub(all) struct Relationship {
   owner : String
   id : String
   kind : String
   target : String
   external : Bool
-} derive(ToJson(fields(kind(rename="type"))))
+}
 
 ///|
 pub extend Relationship with ToJson::{to_json}

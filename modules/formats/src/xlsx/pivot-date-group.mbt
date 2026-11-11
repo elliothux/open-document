@@ -1,8 +1,9 @@
 ///|
+#derive(ToJson)
 pub(all) struct PivotDateGroup {
   field : Int32
   units : Array[String]
-} derive(ToJson)
+}
 
 ///|
 pub extend PivotDateGroup with ToJson::{to_json}

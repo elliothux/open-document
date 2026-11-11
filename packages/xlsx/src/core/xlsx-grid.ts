@@ -39,7 +39,13 @@ export interface XlsxViewport extends DrawingBatch {
     slicer?: XlsxSlicerView;
     timeline?: XlsxTimelineView;
   }[];
-  rows: { index: number; position: number; size: number }[];
+  rows: {
+    index: number;
+    position: number;
+    size: number;
+    label: string;
+    clip: DrawRect;
+  }[];
   columns: XlsxViewport["rows"];
   diagnostics: string[];
 }

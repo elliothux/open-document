@@ -1,61 +1,72 @@
 ///|
+#derive(@json.FromJson)
 priv struct LineEndEditRequest {
   side : String
   end : Json
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct LineEndRequest {
   kind : String
   width : String
   length : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct StrokeCapRequest {
   cap : Json
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct StrokeJoinRequest {
   join : Json
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct MiterLimitRequest {
   miterLimit : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct StrokeDashRequest {
   dash : Json
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ShapeAdjustmentRequest {
   name : String
   value : Json
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ShapeTypeRequest {
   preset : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PaintColorRequest {
   color : Json
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct StrokeWidthRequest {
   width : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PaintOpacityRequest {
   opacity : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
 fn paint_string(value : Json) -> String? raise @failure.Failure {

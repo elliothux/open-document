@@ -1,17 +1,19 @@
 ///|
+#derive(@json.FromJson)
 priv struct ImportRequest {
   revision : @common.RequestInt
   after : String
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct InspectImportRequest {
   revision : @common.RequestInt
   prepareResources : Json?
   prepareImages : Json?
   verifyImages : Json?
-} derive(@json.FromJson)
+}
 
 ///|
 fn pptx_import_source(

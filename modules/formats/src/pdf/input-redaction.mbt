@@ -393,13 +393,14 @@ fn PdfSession::redaction_plan(
 }
 
 ///|
+#derive(ToJson)
 pub struct PdfRedactionPreview {
   revision : Int32
   regions : Array[PdfRedactionRegion]
   affected : Array[PdfRedactionAffected]
   warnings : Array[String]
   readOnlyReason : String
-} derive(ToJson)
+}
 
 ///|
 pub extend PdfRedactionPreview with ToJson::{to_json}

@@ -44,19 +44,22 @@ impl @json.FromJson for PdfSplitRegions with fn from_json(input, path) {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct PageOrderRequest {
   revision : @common.RequestInt
   pages : PdfPages
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct RotatePagesRequest {
   revision : @common.RequestInt
   pages : PdfPages
   degrees : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct CropPageRequest {
   revision : @common.RequestInt
   page : String
@@ -64,9 +67,10 @@ priv struct CropPageRequest {
   y : @common.RequestNumber
   width : @common.RequestNumber
   height : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ResizePageRequest {
   revision : @common.RequestInt
   page : String
@@ -74,69 +78,78 @@ priv struct ResizePageRequest {
   height : @common.RequestNumber
   scaleContent : Bool
   anchor : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ImportPagesRequest {
   bytes : String
   revision : @common.RequestInt
   pages : PdfPages
   index : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ReplacePagesRequest {
   bytes : String
   revision : @common.RequestInt
   pages : PdfPages
   index : @common.RequestInt
   replace : PdfPages
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct BlankPageRequest {
   revision : @common.RequestInt
   index : @common.RequestInt
   width : @common.RequestNumber
   height : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SplitFilesRequest {
   revision : @common.RequestInt
   groups : PdfPageGroups
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ExportTextRequest {
   revision : @common.RequestInt
   pages : PdfPages
   format : String
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct MetadataRequest {
   revision : @common.RequestInt
   fields : Map[String, String]
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SplitPageRequest {
   revision : @common.RequestInt
   page : Json?
   regions : PdfSplitRegions
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SplitGridRequest {
   revision : @common.RequestInt
   page : Json?
   columns : @common.RequestInt
   rows : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct NupPagesRequest {
   revision : @common.RequestInt
   pages : PdfPages
@@ -144,38 +157,42 @@ priv struct NupPagesRequest {
   rows : @common.RequestInt
   width : @common.RequestNumber
   height : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct RenderPageRequest {
   revision : @common.RequestInt
   page : String
   profile : @common.RequestProfile
   activate : Bool?
   reuse : Bool?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ImageSizeRequest {
   width : @common.RequestInt
   height : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ImageReadRequest {
   layoutId : @common.RequestInt
   key : String
   size : ImageSizeRequest?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ImageDecodeRequest {
   bytes : String
   layoutId : @common.RequestInt
   key : String
   width : @common.RequestInt
   height : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
 fn split_page_key(input : Json?) -> String {

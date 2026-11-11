@@ -138,6 +138,7 @@ export function styleCellDraft(
 interface SpreadsheetKeyHost {
   rtl: boolean;
   paused: boolean;
+  readOnly: boolean;
   composing: boolean;
   draft: boolean;
   cancelDraft(): void;
@@ -186,6 +187,7 @@ export function spreadsheetKey(
     ["z", "y"].includes(event.key.toLowerCase())
   ) {
     event.preventDefault();
+    if (host.readOnly) return;
     host.handle(() =>
       event.shiftKey || event.key.toLowerCase() === "y"
         ? host.redo()
@@ -213,9 +215,9 @@ export function spreadsheetKey(
     );
   } else if (event.key === "F2") {
     event.preventDefault();
-    host.handle(() => host.edit());
+    if (!host.readOnly) host.handle(() => host.edit());
   } else if (event.key === "Delete" || event.key === "Backspace") {
     event.preventDefault();
-    host.handle(() => host.clear());
+    if (!host.readOnly) host.handle(() => host.clear());
   }
 }

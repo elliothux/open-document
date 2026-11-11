@@ -4,6 +4,7 @@ import type { DocumentEditor } from "../web/editor.js";
 import type { DocxTracking as Tracking } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxTracking({
   controller,
@@ -39,7 +40,10 @@ export function DocxTracking({
     });
   return (
     <fieldset disabled={disabled || !mode || !!mode.reason}>
-      <legend>{t.revisionRecording}</legend>
+      <legend>
+        <Icon name="pen" />
+        {t.revisionRecording}
+      </legend>
       <label>
         {t.revisionRecordingAuthor}
         <input

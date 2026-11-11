@@ -2,6 +2,7 @@
 let uncalculated_chart_reason = "Chart formulas are uncalculated; imported cached values are shown"
 
 ///|
+#derive(Eq)
 priv struct ChartInput {
   sheet : String
   address : Address
@@ -9,15 +10,16 @@ priv struct ChartInput {
   formula : String?
   hidden_row : Bool
   hidden_column : Bool
-} derive(Eq)
+}
 
 ///|
+#derive(Eq)
 priv struct ChartInputs {
   pending : Bool
   has_formula : Bool
   has_error : Bool
   references : Map[String, Array[ChartInput]]
-} derive(Eq)
+}
 
 ///|
 fn Session::chart_input_state(

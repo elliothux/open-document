@@ -168,6 +168,7 @@ fn Session::find_cells(
 }
 
 ///|
+#derive(ToJson)
 priv struct SearchMatch {
   sheet : String
   name : String
@@ -175,14 +176,15 @@ priv struct SearchMatch {
   hidden : Bool
   snippet : String
   reason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct SearchResult {
   revision : Int32
   truncated : Bool
   matches : Array[SearchMatch]
-} derive(ToJson)
+}
 
 ///|
 /// Finds matching cells in worksheet/row/column order without changing selection.

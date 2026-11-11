@@ -7,7 +7,11 @@ import type {
   InputLimits,
 } from "@open-document/wasm/abi/session";
 
-export function documentFailure(stage: DocumentStage, cause: unknown): Error {
+export function documentFailure(
+  stage: DocumentStage,
+  cause: unknown,
+  resource?: string,
+): Error {
   if (
     (cause instanceof DocumentError && cause.stage) ||
     (cause instanceof DOMException &&
@@ -21,10 +25,11 @@ export function documentFailure(stage: DocumentStage, cause: unknown): Error {
       error?.code === "unsupported-package")
   )
     stage = "container";
-  const message = `Document ${stage} failed: ${cause instanceof Error ? cause.message : String(cause)}`;
+  const message = `Document ${stage} failed${resource ? ` (${resource})` : ""}: ${cause instanceof Error ? cause.message : String(cause)}`;
   if (cause instanceof DOMException)
     return Object.assign(new DOMException(message, cause.name), {
       stage,
+      resource,
       cause,
     });
   return new DocumentError(
@@ -33,8 +38,26 @@ export function documentFailure(stage: DocumentStage, cause: unknown): Error {
     error?.part ?? "",
     error?.offset ?? -1,
     stage,
-    { cause },
+    { cause, resource },
   );
+}
+
+export async function registerFonts(
+  connection: {
+    addFont(bytes: Uint8Array, identity: string): Promise<unknown>;
+  },
+  fonts: readonly { readonly identity: string; readonly bytes: Uint8Array }[],
+  signal: AbortSignal,
+): Promise<void> {
+  for (const font of fonts) {
+    signal.throwIfAborted();
+    try {
+      await connection.addFont(font.bytes, font.identity);
+    } catch (cause) {
+      signal.throwIfAborted();
+      throw documentFailure("font", cause, font.identity);
+    }
+  }
 }
 
 /** One worker owner with one in-flight operation. Disposal cancels pending work. */
@@ -86,7 +109,13 @@ export class Connection<
             : new Error(response.error),
         );
     };
-    worker.onerror = (event) => this.fail(new Error(event.message));
+    worker.onerror = (event) =>
+      this.fail(
+        new Error(
+          event.message ||
+            "Worker script could not load or stopped unexpectedly",
+        ),
+      );
     worker.onmessageerror = () =>
       this.fail(new Error("Worker message could not be decoded"));
   }

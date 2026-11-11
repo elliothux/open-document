@@ -1,15 +1,17 @@
 ///|
+#derive(@json.FromJson)
 priv struct ThemeFontRequest {
   kind : String
   script : String
   font : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ThemeFontsRequest {
   revision : @common.RequestInt
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
 fn Context::docx_theme_fonts(

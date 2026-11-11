@@ -3,6 +3,7 @@ import type { PptxLineEnd } from "../web/pptx.js";
 import type { PresentationEditor } from "../web/presentation-editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function PptxLineEnds({
   editor,
@@ -23,7 +24,10 @@ export function PptxLineEnds({
     .lineEndReason;
   return (
     <fieldset disabled={disabled || !!reason || !objects.length}>
-      <legend>{t.lineEnds}</legend>
+      <legend>
+        <Icon name="pen" />
+        {t.lineEnds}
+      </legend>
       {(["head", "tail"] as const).map((side) => (
         <LineEndForm
           key={side}
@@ -91,7 +95,10 @@ function LineEndForm({
       }}
     >
       <fieldset>
-        <legend>{side === "head" ? t.lineEndHead : t.lineEndTail}</legend>
+        <legend>
+          <Icon name="pen" />
+          {side === "head" ? t.lineEndHead : t.lineEndTail}
+        </legend>
         {mixed && <p>{t.mixed}</p>}
         <label>
           {t.lineEndKind}
@@ -133,8 +140,12 @@ function LineEndForm({
             </select>
           </label>
         ))}
-        <button type="submit">{t.applyLineEnd}</button>
+        <button type="submit">
+          <Icon name="check" />
+          {t.applyLineEnd}
+        </button>
         <button type="button" onClick={() => apply(null)}>
+          <Icon name="undo" />
           {t.resetLineEnd}
         </button>
       </fieldset>

@@ -7,6 +7,7 @@ import { messages } from "@open-document/ui/messages";
 import { DocxMargins } from "./docx-margins.js";
 import { DocxBorders } from "./docx-borders.js";
 import { DocxCellFill } from "./docx-cell-fill.js";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxCellSelection({
   controller,
@@ -38,11 +39,15 @@ export function DocxCellSelection({
   return (
     <section aria-label={t.selectedCells}>
       <h3>
+        <Icon name="grid" />
         {t.selectedCells}: {selected.count}
       </h3>
       <p>{t.cellSelectionText}</p>
       <fieldset disabled={disabled}>
-        <legend>{t.cellFill}</legend>
+        <legend>
+          <Icon name="paint-bucket" />
+          {t.cellFill}
+        </legend>
         {selected.fill.kind === "mixed" && <p>{t.mixed}</p>}
         <DocxCellFill
           controller={controller}
@@ -52,7 +57,10 @@ export function DocxCellSelection({
         />
       </fieldset>
       <fieldset disabled={disabled}>
-        <legend>{t.cellVerticalAlign}</legend>
+        <legend>
+          <Icon name="align-objects-center" />
+          {t.cellVerticalAlign}
+        </legend>
         {selected.verticalAlign.kind === "mixed" && <p>{t.mixed}</p>}
         {(
           [
@@ -88,6 +96,7 @@ export function DocxCellSelection({
             )
           }
         >
+          <Icon name="format-painter" />
           {t.inheritStyleProperty}
         </button>
       </fieldset>
@@ -193,7 +202,10 @@ export function DocxRowHeight({
       }}
     >
       <fieldset disabled={disabled}>
-        <legend>{t.tableRowHeight}</legend>
+        <legend>
+          <Icon name="ruler" />
+          {t.tableRowHeight}
+        </legend>
         <label>
           {t.rowHeightRule}
           <select
@@ -232,6 +244,7 @@ export function DocxRowHeight({
           aria-label={`${t.apply} ${label}`}
           disabled={!valid}
         >
+          <Icon name="check" />
           {t.apply}
         </button>
       </fieldset>

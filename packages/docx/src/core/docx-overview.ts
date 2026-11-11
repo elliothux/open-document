@@ -50,6 +50,8 @@ export interface DocxOverview {
     selection: DocxSelection | null;
     reason: string;
   }[];
+  /** Source order for cross-paragraph bookmarks, with null for the main story. */
+  bookmarkParagraphs: [paragraph: number, textBox: number | null][];
   headings: {
     paragraph: number;
     level: number;

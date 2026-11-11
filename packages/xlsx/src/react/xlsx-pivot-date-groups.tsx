@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { xlsxPivotDateUnits, type XlsxPivotDateGroup } from "../web/xlsx.js";
 import type { UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function PivotDateGroups({
   groups,
@@ -67,6 +68,7 @@ export function PivotDateGroups({
             type="button"
             onClick={() => setGroups(groups.filter((_, i) => i !== index))}
           >
+            <Icon name="trash" />
             {t.pivotRemoveDateGroup}
           </button>
         </fieldset>
@@ -85,6 +87,7 @@ export function PivotDateGroups({
             setGroups([...groups, { field, units: ["years"] }]);
         }}
       >
+        <Icon name="plus" />
         {t.pivotAddDateGroup}
       </button>
     </>

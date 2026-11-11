@@ -136,7 +136,7 @@ fn running_lines(
                 vertical: Offset("page" | "margin", _)
                 | Aligned("page" | "margin", _),
                 ..
-              }
+              },
             ) => true
             _ => false
           }

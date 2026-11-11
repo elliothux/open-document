@@ -6,6 +6,7 @@ import {
 } from "../web/xlsx.js";
 import type { UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function initialConditionalIcons(): XlsxIconSet {
   return {
@@ -68,7 +69,10 @@ export function ConditionalIconFields({
   const set = (icons: XlsxIconSet) => update({ ...rule, icons });
   return (
     <fieldset>
-      <legend>{t.conditionalIconSet}</legend>
+      <legend>
+        <Icon name="magic-wand" />
+        {t.conditionalIconSet}
+      </legend>
       <label>
         {t.conditionalIconKind}
         <select

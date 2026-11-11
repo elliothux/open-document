@@ -7,6 +7,7 @@ import {
   xlsxDrawingDescriptionUnits,
   xlsxDrawingNameUnits,
 } from "@open-document/wasm/engine-source";
+import { Icon } from "@open-document/ui/icons";
 
 export function XlsxPictures({
   controller,
@@ -37,10 +38,16 @@ export function XlsxPictures({
     catalog?.sheet !== editor.currentState.sheet;
   return (
     <section aria-label={t.pictureProperties}>
-      <h3>{t.pictureProperties}</h3>
+      <h3>
+        <Icon name="image" />
+        {t.pictureProperties}
+      </h3>
       <p>{t.xlsxPictureHint}</p>
       <fieldset disabled={disabled}>
-        <legend>{t.insertImage}</legend>
+        <legend>
+          <Icon name="image" />
+          {t.insertImage}
+        </legend>
         {(
           [
             ["width", t.insertPictureWidth],
@@ -63,6 +70,7 @@ export function XlsxPictures({
           </label>
         ))}
         <label>
+          <Icon name="upload" />
           {t.pictureFile}
           <input
             type="file"
@@ -91,6 +99,7 @@ export function XlsxPictures({
         disabled={disabled}
         onClick={() => controller.run(() => load())}
       >
+        <Icon name="refresh" />
         {t.loadPictures}
       </button>
       {catalog?.reason && <p>{catalog.reason}</p>}
@@ -128,6 +137,7 @@ export function XlsxPictures({
         >
           <fieldset disabled={disabled || stale || !!catalog?.reason}>
             <label>
+              <Icon name="upload" />
               {t.xlsxReplacePicture}
               <input
                 type="file"
@@ -254,6 +264,7 @@ export function XlsxPictures({
                 draft.crop[1]! + draft.crop[3]! >= 1
               }
             >
+              <Icon name="check" />
               {t.xlsxPictureApply}
             </button>
             <button
@@ -272,6 +283,7 @@ export function XlsxPictures({
                 })
               }
             >
+              <Icon name="undo" />
               {t.resetCrop}
             </button>
             {(
@@ -308,6 +320,7 @@ export function XlsxPictures({
                 })
               }
             >
+              <Icon name="trash" />
               {t.deletePicture}
             </button>
             <button
@@ -322,6 +335,7 @@ export function XlsxPictures({
                 })
               }
             >
+              <Icon name="copy" />
               {t.duplicateObject}
             </button>
             <button
@@ -330,6 +344,7 @@ export function XlsxPictures({
                 controller.run(() => editor.clipboard.cutDrawing(draft.id))
               }
             >
+              <Icon name="cut" />
               {t.cutDrawing}
             </button>
             <button
@@ -338,6 +353,7 @@ export function XlsxPictures({
                 controller.run(() => editor.clipboard.copyDrawing(draft.id))
               }
             >
+              <Icon name="copy" />
               {t.copyDrawing}
             </button>
           </fieldset>

@@ -46,6 +46,21 @@ let cell_handlers : Map[
     let command : LayoutRequest = @common.request(input)
     Json(session.selection_geometry(command.layoutId.value))
   },
+  "formulaAssistXlsx": (_context, session, input) => {
+    let command : FormulaAssistanceRequest = @common.request(input)
+    let layout = command.layoutId.map(value => value.value)
+    session.formula_assistance(
+      command.revision.value,
+      command.sheet,
+      command.source,
+      command.caret.value,
+      layout?,
+    )
+  },
+  "numberFormatSamplesXlsx": (_context, session, input) => {
+    let command : NumberFormatSamplesRequest = @common.request(input)
+    Json(session.number_format_samples(command.formats))
+  },
   "fillPreviewXlsx": (_context, session, input) => {
     let command : FillPreviewRequest = @common.request(input)
     Json(

@@ -2,11 +2,12 @@
 pub const GradientStopCount : Int32 = 32
 
 ///|
+#derive(Eq, ToJson, Debug)
 pub(all) struct GradientStop {
   position : Double
   color : String
   opacity : Double
-} derive(Eq, ToJson, Debug)
+}
 
 ///|
 pub extend GradientStop with Eq::{equal, not_equal}

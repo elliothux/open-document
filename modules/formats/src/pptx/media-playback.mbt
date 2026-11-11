@@ -2,11 +2,12 @@
 pub const MediaVolumeMax : Int32 = 100000
 
 ///|
+#derive(Eq, ToJson(fields(cycling(rename="loop"))))
 pub(all) struct MediaPlaybackSettings {
   cycling : Bool
   volume : Int32
   mute : Bool
-} derive(Eq, ToJson(fields(cycling(rename="loop"))))
+}
 
 ///|
 pub extend MediaPlaybackSettings with Eq::{equal, not_equal}
@@ -230,10 +231,11 @@ fn media_nodes_markup(
 }
 
 ///|
+#derive(ToJson)
 priv struct MediaPlaybackQuery {
   value : Json
   reason : String
-} derive(ToJson)
+}
 
 ///|
 fn Session::media_playback_query(self : Session) -> MediaPlaybackQuery {

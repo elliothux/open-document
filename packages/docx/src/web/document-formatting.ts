@@ -25,9 +25,38 @@ export function createDocumentFormatting(
     changed(state: EditState): Promise<void>;
   },
 ) {
+  const apply = (format: () => CopiedFormat) =>
+    host.edit(() =>
+      client.execute({
+        operation: "applyFormat",
+        revision: host.state().revision,
+        selection: host.selection(),
+        format: format(),
+        profile,
+      }),
+    );
   const commands = {
-    setCharacterFormat(format: CharacterFormatPatch): Promise<void> {
-      return commands.applyFormat({ character: format, paragraph: {} });
+    toggleCharacterFormat(
+      key: "bold" | "italic" | "underline" | "strike",
+      verify?: () => void,
+    ): Promise<void> {
+      return apply(() => {
+        verify?.();
+        const current = host.state().formatting?.character[key];
+        return {
+          character: { [key]: !(current?.kind === "value" && current.value) },
+          paragraph: {},
+        };
+      });
+    },
+    setCharacterFormat(
+      format: CharacterFormatPatch,
+      verify?: () => void,
+    ): Promise<void> {
+      return apply(() => {
+        verify?.();
+        return { character: format, paragraph: {} };
+      });
     },
     setHyperlink(target: string | null, text?: string): Promise<void> {
       return host.edit(() =>
@@ -40,8 +69,14 @@ export function createDocumentFormatting(
         }),
       );
     },
-    setParagraphFormat(format: ParagraphFormatPatch): Promise<void> {
-      return commands.applyFormat({ character: {}, paragraph: format });
+    setParagraphFormat(
+      format: ParagraphFormatPatch,
+      verify?: () => void,
+    ): Promise<void> {
+      return apply(() => {
+        verify?.();
+        return { character: {}, paragraph: format };
+      });
     },
     setDefaultTabStop(interval: number | null): Promise<void> {
       return host.edit(() =>
@@ -174,15 +209,7 @@ export function createDocumentFormatting(
       );
     },
     applyFormat(format: CopiedFormat): Promise<void> {
-      return host.edit(() =>
-        client.execute({
-          operation: "applyFormat",
-          revision: host.state().revision,
-          selection: host.selection(),
-          format: format,
-          profile: profile,
-        }),
-      );
+      return apply(() => format);
     },
   };
   return commands;

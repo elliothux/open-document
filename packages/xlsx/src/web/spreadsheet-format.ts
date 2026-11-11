@@ -1,3 +1,4 @@
+import type { XlsxClearMode } from "../core/xlsx.js";
 import {
   copiedCellFormat,
   type CopiedCellFormat,
@@ -31,7 +32,9 @@ export function formatGrid(
   query: XlsxQuery,
   patch: XlsxCellFormat,
   profile: Record<string, string>,
+  verify?: () => void,
 ) {
+  verify?.();
   checkFormatFonts(patch, query.formatting, profile);
   return client.execute({
     operation: "formatXlsxCells",
@@ -90,4 +93,18 @@ export function checkFormatFonts(
       ((patch.italic ?? parts.includes("italic")) ? "|italic" : "");
     checkFontMapping(key, profile);
   }
+}
+
+export function clearGrid(
+  client: XlsxClient,
+  state: XlsxQuery,
+  profile: Record<string, string>,
+  mode: XlsxClearMode,
+): Promise<XlsxQuery> {
+  if (mode !== "contents") checkFontMapping(state.normalFont, profile);
+  return client.execute({
+    operation: "clearXlsx",
+    revision: state.revision,
+    mode,
+  });
 }

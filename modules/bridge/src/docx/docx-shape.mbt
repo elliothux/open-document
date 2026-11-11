@@ -1,44 +1,50 @@
 ///|
+#derive(@json.FromJson)
 priv struct ShapeCommandRequest {
   revision : @common.RequestInt
   shape : Json
   profile : Json?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct WordArtRequest {
   preset : String
   text : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ShapeInsertRequest {
   preset : String
   text : String?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ShapeAppearanceRequest {
   width : @common.RequestNumber
   height : @common.RequestNumber
   fill : String
   stroke : String
   lineWidth : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TextBoxRequest {
   insets : Array[@common.RequestNumber]
   anchor : String
   wrap : Bool
   clip : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TextBoxEditRequest {
   id : @common.RequestInt
   properties : TextBoxRequest
-} derive(@json.FromJson)
+}
 
 ///|
 fn Context::edit_shape_command(

@@ -1,7 +1,7 @@
 import type { DocumentEditor } from "../web/index.js";
 import type {
   CommonOptions,
-  MountedMethods,
+  MountedProduct,
   OfficeDocument,
 } from "@open-document/ui/types";
 import type { Budget } from "@open-document/wasm/abi/validation";
@@ -14,13 +14,11 @@ export type {
   SavedDocument,
   Locale,
   Theme,
+  EditorMode,
+  EditorSlots,
 } from "@open-document/ui/types";
 export interface EditorOptions extends CommonOptions {
   readonly document: OfficeDocument;
   readonly budget?: Budget;
 }
-export type MountedEditor = MountedMethods & {
-  readonly format: "docx";
-  readonly editor: DocumentEditor;
-  create(document: { readonly name: string }): Promise<boolean>;
-};
+export type MountedEditor = MountedProduct<DocumentEditor, "docx">;

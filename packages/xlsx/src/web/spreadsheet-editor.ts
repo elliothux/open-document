@@ -34,7 +34,7 @@ import {
   autoFitGrid,
   formatGrid,
   checkCopiedFormatFonts,
-  checkFontMapping,
+  clearGrid,
 } from "./spreadsheet-format.js";
 import { bindSpreadsheetClipboard } from "./spreadsheet-clipboard.js";
 import {
@@ -114,7 +114,8 @@ export class SpreadsheetEditor {
       data: { query: state, printPage: 0, printPages: 0, printVisible: false },
     });
     const host = {
-      read: <T>(action: () => Promise<T>) => this.read(action),
+      read: <T>(action: () => Promise<T>, commit?: boolean) =>
+        this.read(action, commit),
       change: (action: () => Promise<XlsxQuery>) => this.change(action),
       state: () => this.state,
       snapshot: () => this.getSnapshot(),
@@ -148,13 +149,18 @@ export class SpreadsheetEditor {
       this.input,
       this.holder,
       this.listeners.signal,
-      () => this.handle(() => this.editFormula()),
+      {
+        edit: () => this.handle(() => this.editFormula()),
+        current: () => ({ client, layout: this.layout, scale: this.scale }),
+        queue: this.queue,
+      },
     );
     const options = { signal: this.listeners.signal };
     const keydown = (event: KeyboardEvent) =>
       spreadsheetKey(event, {
         rtl: this.state.view.rtl,
         paused: this.paused,
+        readOnly: this.client.readOnly,
         composing: this.composing,
         draft: !!this.draft || !!this.draftIntent,
         cancelDraft: () => this.cancelDraft(),
@@ -275,32 +281,35 @@ export class SpreadsheetEditor {
   get currentLayout(): XlsxViewport | undefined {
     return this.layout;
   }
-  /** Mount this stable node beside the grid to expose the shared native draft. */
   get formulaBar(): HTMLElement {
     return this.formula.element;
   }
   readonly getSnapshot = () => this.observable.getSnapshot();
   readonly subscribe = (listener: () => void): (() => void) =>
     this.observable.subscribe(listener);
-  markSaved(output: EditorOutput): void {
+  readonly markSaved = (output: EditorOutput) =>
     this.observable.markSaved(output);
-  }
   markDownloaded(output: EditorOutput): void {
     this.observable.markDownloaded(output);
   }
-  copy(): Promise<void> {
-    return this.clipboard.copy();
-  }
+  readonly copy = () => this.clipboard.copy();
   focus(): void {
     if (this.closed) throw new Error("Editor is disposed");
     this.input.focus({ preventScroll: true });
+  }
+  setReadOnly(readOnly: boolean): void {
+    if (readOnly === this.client.readOnly) return;
+    this.client.readOnly = readOnly;
+    this.pointer.cancel();
+    this.input.readOnly = readOnly || this.paused || this.committing;
+    this.publish();
   }
   async setPaused(paused: boolean): Promise<void> {
     if (this.closed) throw new Error("Editor is disposed");
     this.paused = paused;
     this.pointer.cancel();
     this.container.inert = paused;
-    this.input.readOnly = paused || this.committing;
+    this.input.readOnly = this.client.readOnly || paused || this.committing;
     this.publish();
     if (paused) await this.queue.whenIdle();
   }
@@ -398,6 +407,7 @@ export class SpreadsheetEditor {
   private beginDraft(replace: boolean, retainValue = false): void {
     if (this.closed || this.paused || this.committing)
       throw new Error("Cell input is busy");
+    if (this.client.readOnly) return;
     const cell = this.active();
     if (!cell) throw new Error("Select a visible cell first");
     if (cell.readOnlyReason) throw new Error(cell.readOnlyReason);
@@ -448,7 +458,7 @@ export class SpreadsheetEditor {
       await this.present(true);
     } finally {
       this.committing = false;
-      this.input.readOnly = this.paused;
+      this.input.readOnly = this.client.readOnly || this.paused;
       this.styleInput();
       this.publish();
     }
@@ -551,7 +561,8 @@ export class SpreadsheetEditor {
     this.formula.update(
       !!this.draft || !!this.draftIntent,
       this.active(),
-      this.paused ||
+      this.client.readOnly ||
+        this.paused ||
         this.blocked ||
         !this.active() ||
         !!this.active()?.readOnlyReason,
@@ -595,9 +606,9 @@ export class SpreadsheetEditor {
       autoFitGrid(this.client, this.state, axis, this.profile),
     );
   }
-  formatCells(patch: XlsxCellFormat): Promise<void> {
+  formatCells(patch: XlsxCellFormat, verify?: () => void): Promise<void> {
     return this.change(() =>
-      formatGrid(this.client, this.state, patch, this.profile),
+      formatGrid(this.client, this.state, patch, this.profile, verify),
     );
   }
   captureFormat(): Promise<CopiedCellFormat> {
@@ -608,7 +619,8 @@ export class SpreadsheetEditor {
       }),
     );
   }
-  private read<T>(action: () => Promise<T>): Promise<T> {
+  private read<T>(action: () => Promise<T>, commit = true): Promise<T> {
+    if (!commit) return this.enqueue(action, false, false, true);
     return this.enqueue(async () => {
       requireCellCompositionEnd(this.composing);
       await this.commitDraft();
@@ -752,16 +764,9 @@ export class SpreadsheetEditor {
     });
   }
   clear(mode: XlsxClearMode = "contents"): Promise<void> {
-    return this.change(() => {
-      if (mode !== "contents") {
-        checkFontMapping(this.state.normalFont, this.profile);
-      }
-      return this.client.execute({
-        operation: "clearXlsx",
-        revision: this.state.revision,
-        mode: mode,
-      });
-    });
+    return this.change(() =>
+      clearGrid(this.client, this.state, this.profile, mode),
+    );
   }
   showPrintPage(index: number): Promise<void> {
     return this.enqueue(async () => this.printView.showPage(index));

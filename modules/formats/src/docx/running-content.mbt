@@ -6,12 +6,13 @@ pub const RunningContentUnits : Int32 = 8192
 
 ///|
 /// Ordered text, links and page fields in a single-section header or footer.
+#derive(Eq)
 pub(all) enum RunningContent {
   Text(String)
   Link(String, String)
   Field(String)
   FormattedField(String, String)
-} derive(Eq)
+}
 
 ///|
 pub extend RunningContent with Eq::{equal, not_equal}

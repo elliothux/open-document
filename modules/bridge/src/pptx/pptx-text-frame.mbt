@@ -1,42 +1,49 @@
 ///|
+#derive(@json.FromJson)
 priv struct TextInsetsRequest {
   left : @common.RequestNumber
   top : @common.RequestNumber
   right : @common.RequestNumber
   bottom : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TextAnchorRequest {
   anchor : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TextWrapRequest {
   wrap : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TextFitRequest {
   fit : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TextUprightRequest {
   upright : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TextDirectionRequest {
   direction : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TextColumnsRequest {
   columns : @common.RequestInt
   gap : @common.RequestNumber
   rtl : Bool
-} derive(@json.FromJson)
+}
 
 ///|
 fn pptx_text_frame(

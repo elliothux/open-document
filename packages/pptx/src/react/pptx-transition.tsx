@@ -3,6 +3,7 @@ import type { PresentationEditor } from "../web/presentation-editor.js";
 import type { PptxTransition } from "../web/pptx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function PptxTransitionForm({
   editor,
@@ -30,7 +31,10 @@ export function PptxTransitionForm({
   return (
     <div>
       <fieldset disabled={disabled || !!current.reason}>
-        <legend>{t.transition}</legend>
+        <legend>
+          <Icon name="sparkles" />
+          {t.transition}
+        </legend>
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -99,7 +103,10 @@ export function PptxTransitionForm({
               <option value="down">{t.alignBottom}</option>
             </select>
           </label>
-          <button type="submit">{t.transitionApply}</button>
+          <button type="submit">
+            <Icon name="check" />
+            {t.transitionApply}
+          </button>
           <button
             type="button"
             onClick={() =>
@@ -108,6 +115,7 @@ export function PptxTransitionForm({
               )
             }
           >
+            <Icon name="eraser" />
             {t.transitionClear}
           </button>
         </form>
@@ -150,7 +158,10 @@ export function PptxTransitionForm({
               onChange={(event) => setAfter(event.currentTarget.valueAsNumber)}
             />
           </label>
-          <button type="submit">{t.advanceApply}</button>
+          <button type="submit">
+            <Icon name="check" />
+            {t.advanceApply}
+          </button>
         </form>
       </fieldset>
       {current.reason && <p>{current.reason}</p>}

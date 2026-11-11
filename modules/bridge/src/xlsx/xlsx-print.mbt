@@ -1,12 +1,14 @@
 ///|
+#derive(@json.FromJson)
 priv struct PrintRequest {
   revision : @common.RequestInt
   sheet : String
   options : PrintOptionsRequest
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PaperRequest {
   width : @common.RequestNumber
   height : @common.RequestNumber
@@ -14,14 +16,16 @@ priv struct PaperRequest {
   right : @common.RequestNumber
   top : @common.RequestNumber
   bottom : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PdfExportRequest {
   outputBytes : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SheetPageSetupRequest {
   paper : String
   orientation : String
@@ -32,7 +36,7 @@ priv struct SheetPageSetupRequest {
   scale : @common.RequestInt
   fitWidth : @common.RequestInt
   fitHeight : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
 fn xlsx_sheet_page_setup(
@@ -53,11 +57,12 @@ fn xlsx_sheet_page_setup(
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct SheetPrintRangeRequest {
   area : String
   rows : String
   columns : String
-} derive(@json.FromJson)
+}
 
 ///|
 fn xlsx_sheet_print_range(
@@ -68,6 +73,7 @@ fn xlsx_sheet_print_range(
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct SheetHeaderFooterRequest {
   oddHeader : String
   oddFooter : String
@@ -81,7 +87,7 @@ priv struct SheetHeaderFooterRequest {
   alignWithMargins : Bool
   headerMargin : @common.RequestNumber
   footerMargin : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
 fn xlsx_sheet_header_footer(
@@ -105,6 +111,7 @@ fn xlsx_sheet_header_footer(
 }
 
 ///|
+#derive(ToJson)
 priv struct PrintResponse {
   id : Int32
   revision : Int32
@@ -112,7 +119,7 @@ priv struct PrintResponse {
   regions : Array[@layout.DrawingRegion]
   images : Array[String]
   outlines : Array[@layout.Outline]
-} derive(ToJson)
+}
 
 ///|
 priv struct PrintOptions {

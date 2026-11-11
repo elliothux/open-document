@@ -1,8 +1,9 @@
 ///|
+#derive(Eq)
 priv struct StoredSort {
   bounds : Range
   source : String
-} derive(Eq)
+}
 
 ///|
 fn read_sort_state(

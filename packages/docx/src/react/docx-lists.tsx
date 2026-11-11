@@ -9,6 +9,7 @@ import {
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { DocxListLevelEdit } from "./docx-list-level.js";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxLists({
   controller,
@@ -50,7 +51,10 @@ export function DocxLists({
     });
   return (
     <fieldset disabled={disabled}>
-      <legend>{t.lists}</legend>
+      <legend>
+        <Icon name="list-ordered" />
+        {t.lists}
+      </legend>
       <button
         type="button"
         onClick={() =>
@@ -59,6 +63,7 @@ export function DocxLists({
           )
         }
       >
+        <Icon name="refresh" />
         {t.loadLists}
       </button>
       <label>
@@ -115,6 +120,7 @@ export function DocxLists({
           </select>
         </label>
         <button type="submit" disabled={cannotEdit}>
+          <Icon name="plus" />
           {t.createList}
         </button>
       </form>
@@ -148,6 +154,7 @@ export function DocxLists({
             !choice.levels.some((item) => item.level === level)
           }
         >
+          <Icon name="check" />
           {t.applyList}
         </button>
       </form>
@@ -175,6 +182,7 @@ export function DocxLists({
         disabled={cannotEdit || (value?.kind !== "mixed" && !current)}
         onClick={() => change({ action: "remove" })}
       >
+        <Icon name="trash" />
         {t.removeList}
       </button>
       <form
@@ -206,6 +214,7 @@ export function DocxLists({
             currentLevel.format === "bullet"
           }
         >
+          <Icon name="refresh" />
           {t.restartList}
         </button>
       </form>

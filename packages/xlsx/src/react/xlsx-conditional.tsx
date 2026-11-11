@@ -16,6 +16,7 @@ import {
   ConditionalIconFields,
   initialConditionalIcons,
 } from "./conditional-icons.js";
+import { Icon } from "@open-document/ui/icons";
 
 function scaleStops(): XlsxConditionalStop[] {
   return [
@@ -71,7 +72,10 @@ function VisualRuleFields({
     );
   return (
     <fieldset>
-      <legend>{bar ? t.conditionalDataBar : t.conditionalColorScale}</legend>
+      <legend>
+        <Icon name="magic-wand" />
+        {bar ? t.conditionalDataBar : t.conditionalColorScale}
+      </legend>
       {!bar && (
         <label>
           {t.conditionalStopCount}
@@ -301,7 +305,10 @@ export function XlsxConditional({
   return (
     <section aria-label={t.conditionalFormatting}>
       <fieldset disabled={disabled}>
-        <legend>{t.conditionalFormatting}</legend>
+        <legend>
+          <Icon name="magic-wand" />
+          {t.conditionalFormatting}
+        </legend>
         <label>
           {t.conditionalRules}
           <select
@@ -321,6 +328,7 @@ export function XlsxConditional({
           </select>
         </label>
         <button type="button" onClick={() => choose("")}>
+          <Icon name="plus" />
           {t.conditionalNew}
         </button>
         {reason && <p role="status">{reason}</p>}
@@ -690,6 +698,7 @@ export function XlsxConditional({
             </>
           )}
           <button type="button" onClick={() => apply(rule)}>
+            <Icon name="check" />
             {t.conditionalApply}
           </button>
           <button
@@ -697,6 +706,7 @@ export function XlsxConditional({
             disabled={priority === null}
             onClick={() => apply(null)}
           >
+            <Icon name="trash" />
             {t.conditionalDelete}
           </button>
         </fieldset>
@@ -705,6 +715,7 @@ export function XlsxConditional({
           disabled={!!current.readOnlyReason}
           onClick={() => apply(null, null)}
         >
+          <Icon name="eraser" />
           {t.conditionalClear}
         </button>
         {[

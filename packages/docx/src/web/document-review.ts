@@ -46,7 +46,11 @@ export interface DocumentRevisions extends DocxRevisions {
 export function createDocumentReview(
   client: FoundationClient,
   host: DocumentHost & {
-    showRevisionGeometry(geometry: DocxSelectionGeometry): Promise<void>;
+    shownRevision(): string | undefined;
+    showRevisionGeometry(
+      id: string,
+      geometry: DocxSelectionGeometry,
+    ): Promise<void>;
   },
 ) {
   let commentFocus: Readonly<{ id: string }> | undefined;
@@ -257,6 +261,7 @@ export function createDocumentReview(
     getCommentFocus(): Readonly<{ id: string }> | undefined {
       return commentFocus;
     },
+    getShownRevision: host.shownRevision,
     showRevision(source: DocumentRevisions, id: string): Promise<void> {
       const check = () => {
         const current = host.snapshot(),
@@ -307,7 +312,7 @@ export function createDocumentReview(
               })
             )
               throw new Error("Invalid revision geometry");
-            await host.showRevisionGeometry(geometry);
+            await host.showRevisionGeometry(id, geometry);
             return { ok: true as const };
           } catch (error) {
             return { ok: false as const, error };

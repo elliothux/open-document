@@ -1,4 +1,5 @@
 ///|
+#derive(Eq)
 pub(all) struct PdfFieldDesign {
   name : String
   tooltip : String
@@ -17,7 +18,7 @@ pub(all) struct PdfFieldDesign {
   color : String
   background : String
   border : Double
-} derive(Eq)
+}
 
 ///|
 pub extend PdfFieldDesign with Eq::{equal, not_equal}

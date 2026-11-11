@@ -77,6 +77,7 @@ export function ConversionCommands({
               </label>
               <Command
                 label={chinese ? "转换并下载" : "Convert and download"}
+                icon="download"
                 disabled={
                   disabled ||
                   !accepted ||

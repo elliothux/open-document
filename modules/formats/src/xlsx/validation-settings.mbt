@@ -8,6 +8,7 @@ pub const ValidationTitleUnits : Int32 = 32
 pub const ValidationMessageUnits : Int32 = 255
 
 ///|
+#derive(Eq, ToJson, @json.FromJson)
 pub(all) struct DataValidation {
   kind : String
   operator : String
@@ -22,7 +23,7 @@ pub(all) struct DataValidation {
   promptTitle : String
   prompt : String
   showDropDown : Bool
-} derive(Eq, ToJson, @json.FromJson)
+}
 
 ///|
 pub extend DataValidation with Eq::{equal, not_equal}

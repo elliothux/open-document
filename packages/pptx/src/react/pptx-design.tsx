@@ -3,6 +3,7 @@ import type { PanelProps } from "./panels.js";
 import { messages } from "@open-document/ui/messages";
 import { pptxSourceNameUnits } from "@open-document/wasm/engine-source";
 import { PptxMasterText } from "./pptx-master-text.js";
+import { Icon } from "@open-document/ui/icons";
 
 export function PptxDesign({ controller, state, file, disabled }: PanelProps) {
   const query = file.format === "pptx" ? file.editor.query : undefined,
@@ -25,7 +26,10 @@ export function PptxDesign({ controller, state, file, disabled }: PanelProps) {
         }}
       >
         <fieldset disabled={disabled}>
-          <legend>{t.pptxSourceManagement}</legend>
+          <legend>
+            <Icon name="folder-open" />
+            {t.pptxSourceManagement}
+          </legend>
           <label>
             {t.pptxSourceName}
             <input
@@ -41,6 +45,7 @@ export function PptxDesign({ controller, state, file, disabled }: PanelProps) {
             disabled={!!operations.rename}
             title={operations.rename}
           >
+            <Icon name="pen" />
             {t.pptxRenameSource}
           </button>
           {(
@@ -85,6 +90,7 @@ export function PptxDesign({ controller, state, file, disabled }: PanelProps) {
                   )
                 }
               >
+                <Icon name="trash" />
                 {t.pptxDeleteMaster}
               </button>
               {operations.deleteMaster && <p>{operations.deleteMaster}</p>}

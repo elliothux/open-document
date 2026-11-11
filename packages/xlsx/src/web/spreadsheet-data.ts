@@ -12,6 +12,12 @@ export function createSpreadsheetData(
   host: SpreadsheetHost,
 ) {
   return {
+    numberFormatSamples(formats: readonly string[]) {
+      return host.read(
+        () => client.execute({ operation: "numberFormatSamplesXlsx", formats }),
+        false,
+      );
+    },
     recalculate(): Promise<void> {
       return host.change(() =>
         client.execute({

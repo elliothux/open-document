@@ -1,25 +1,30 @@
 ///|
+#derive(@json.FromJson)
 priv struct TableStructureRequest {
   operation : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableDimensionRequest {
   value : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableDirectionRequest {
   rtl : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableSizeRequest {
   rows : @common.RequestInt
   columns : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct InsertTableRequest {
   rows : @common.RequestInt
   columns : @common.RequestInt
@@ -27,7 +32,7 @@ priv struct InsertTableRequest {
   y : @common.RequestNumber
   width : @common.RequestNumber
   height : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
 fn pptx_table_edit(

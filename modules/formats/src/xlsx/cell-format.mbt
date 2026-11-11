@@ -1,8 +1,9 @@
 ///|
+#derive(ToJson, Eq, Hash, @json.FromJson)
 pub(all) struct CellBorder {
   style : String
   color : String
-} derive(ToJson, Eq, Hash, @json.FromJson)
+}
 
 ///|
 pub extend CellBorder with ToJson::{to_json}
@@ -17,6 +18,7 @@ pub extend CellBorder with Hash::{hash, hash_combine}
 pub extend CellBorder with @json.FromJson::{from_json}
 
 ///|
+#derive(Eq, Hash, @json.FromJson)
 pub struct CellFormat {
   family : String?
   size : Double?
@@ -40,7 +42,7 @@ pub struct CellFormat {
   right : CellBorder?
   top : CellBorder?
   bottom : CellBorder?
-} derive(Eq, Hash, @json.FromJson)
+}
 
 ///|
 pub extend CellFormat with Eq::{equal, not_equal}

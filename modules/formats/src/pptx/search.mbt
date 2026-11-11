@@ -108,6 +108,7 @@ fn Session::find_text(
 }
 
 ///|
+#derive(ToJson)
 priv struct SearchMatch {
   slide : String
   object : String
@@ -116,14 +117,15 @@ priv struct SearchMatch {
   hidden : Bool
   snippet : String
   reason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct SearchResult {
   revision : Int32
   truncated : Bool
   matches : Array[SearchMatch]
-} derive(ToJson)
+}
 
 ///|
 /// Find literal text in slide/source-object order without changing document state.

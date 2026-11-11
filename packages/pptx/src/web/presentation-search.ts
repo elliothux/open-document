@@ -4,6 +4,7 @@ import {
   type PptxFindOptions,
   type PptxSearchResult,
   type PptxQuery,
+  type PptxSelection,
 } from "../core/pptx.js";
 import type { EditorSnapshot } from "@open-document/web-core/editor-state";
 import type { PptxClient } from "./pptx.js";
@@ -79,4 +80,21 @@ export function checkPresentationSearch(
     (!Number.isInteger(index) || !result.matches[index])
   )
     throw new Error("Search match is missing");
+}
+
+export function presentationMatchSelection(
+  result: PresentationSearchResult,
+  snapshot: EditorSnapshot,
+  index: number,
+): PptxSelection {
+  checkPresentationSearch(result, snapshot, index);
+  const match = result.matches[index]!;
+  return {
+    slide: match.slide,
+    object: match.object,
+    objects: [match.object],
+    mode: match.reason ? "object" : "text",
+    anchor: match.anchor,
+    focus: match.focus,
+  };
 }

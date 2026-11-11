@@ -80,6 +80,9 @@ export class DocumentPointer {
   get active() {
     return this.text.active || this.drawing.active || this.ink.active;
   }
+  get pictureSelected(): boolean {
+    return this.drawing.pictureSelected;
+  }
   flush() {
     this.text.flush();
     this.drawing.flush();

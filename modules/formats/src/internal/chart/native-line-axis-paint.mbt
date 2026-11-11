@@ -35,7 +35,7 @@ fn line_value_label(
             fill,
             stroke,
             pen,
-            style
+            style,
           ) if y == at &&
             left == 0 &&
             (right - block.widths[0]).abs() < 0.000001 =>

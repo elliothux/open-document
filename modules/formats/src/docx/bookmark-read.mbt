@@ -9,6 +9,15 @@ priv struct Bookmark {
 }
 
 ///|
+impl ToJson for Bookmark with fn to_json(self) {
+  {
+    "name": self.name,
+    "reason": self.reason,
+    "selection": self.selection.map(s => s.to_json()).unwrap_or(Json::null()),
+  }
+}
+
+///|
 fn WordTree::next_bookmark_key(
   self : WordTree,
 ) -> String raise @failure.Failure {
@@ -284,18 +293,17 @@ pub fn Session::bookmarks(
   revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
-  let items = WordTree::new(self.document()).bookmarks()
+  let items = WordTree::new(self.document()).bookmark_catalog()
+  { "revision": revision, "items": items }
+}
+
+///|
+fn WordTree::bookmark_catalog(
+  self : WordTree,
+) -> Array[Bookmark] raise @failure.Failure {
+  let items = self.bookmarks()
   guard items.length() <= 4096 else {
     @failure.reject("limit-exceeded", "Bookmark catalog exceeds budget")
   }
-  {
-    "revision": revision,
-    "items": items.map(fn(b) -> Json {
-      {
-        "name": b.name,
-        "reason": b.reason,
-        "selection": b.selection.map(s => s.to_json()).unwrap_or(Json::null()),
-      }
-    }),
-  }
+  items
 }

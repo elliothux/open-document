@@ -47,3 +47,30 @@ fn formatted(value : Value, format : String, date1904 : Bool) -> String {
   }
   Number(value).display()
 }
+
+///|
+/// Format representative values in the workbook's date system without changing cells.
+pub fn Session::number_format_samples(
+  self : Session,
+  formats : Array[String],
+) -> Array[String] raise @failure.Failure {
+  self.check()
+  guard formats.length() <= 64 else {
+    @failure.reject("limit-exceeded", "Number format sample count exceeds 64")
+  }
+  formats.map(format => {
+    guard format.length() <= 256 && supported_format(format) else {
+      @failure.reject("invalid-operation", "Unsupported number format sample")
+    }
+    let value : Value = if format == "@" {
+      Text("Sample")
+    } else if date_format(format) is Some(_) {
+      Number(45351.625 - (if self.date1904 { 1462.0 } else { 0.0 }))
+    } else if format.contains("%") {
+      Number(0.1256)
+    } else {
+      Number(1234.5678)
+    }
+    formatted(value, format, self.date1904)
+  })
+}

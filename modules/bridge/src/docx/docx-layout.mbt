@@ -1,7 +1,8 @@
 ///|
+#derive(@json.FromJson)
 priv struct LayoutIdRequest {
   layoutId : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
 fn Context::current_layout(

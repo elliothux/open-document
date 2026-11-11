@@ -1,12 +1,14 @@
 ///|
+#derive(@json.FromJson)
 priv struct ShapeInsetsRequest {
   left : @common.RequestNumber
   top : @common.RequestNumber
   right : @common.RequestNumber
   bottom : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ShapeSettingsRequest {
   kind : String
   anchor : String
@@ -29,7 +31,7 @@ priv struct ShapeSettingsRequest {
   align : String
   vertical : String
   insets : ShapeInsetsRequest
-} derive(@json.FromJson)
+}
 
 ///|
 fn ShapeSettingsRequest::settings(
@@ -68,6 +70,7 @@ fn ShapeSettingsRequest::settings(
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct InsertShapeRequest {
   revision : @common.RequestInt
   sheet : String
@@ -76,16 +79,17 @@ priv struct InsertShapeRequest {
   height : @common.RequestNumber
   text : String
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SetShapeRequest {
   revision : @common.RequestInt
   sheet : String
   id : String
   settings : ShapeSettingsRequest
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
 let shape_handlers : Map[

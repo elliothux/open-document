@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import type { SpreadsheetEditor } from "../web/spreadsheet-editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
@@ -12,6 +12,7 @@ import {
   xlsxPrintScaleMin,
   xlsxPrintTitleUnits,
 } from "@open-document/wasm/engine-source";
+import { Icon } from "@open-document/ui/icons";
 
 type PrintProps = {
   controller: EditorController;
@@ -25,14 +26,14 @@ export function XlsxPrintCommands({
   state,
   editor,
   disabled,
-  navigation,
-}: PrintProps & { navigation: ReactNode }) {
+}: PrintProps) {
   const t = messages(state.locale),
     visible = editor.getSnapshot().data.printVisible;
   return (
     <Group label={t.print}>
       <Command
         label={visible ? t.closePrint : t.print}
+        icon={visible ? "close" : "printer"}
         disabled={disabled}
         action={() =>
           controller.run(() =>
@@ -42,12 +43,12 @@ export function XlsxPrintCommands({
       />
       <Command
         label={t.printWorkbook}
+        icon="file-spreadsheet"
         disabled={disabled}
         action={() =>
           controller.run(() => editor.printLayout({ sheets: "visible" }))
         }
       />
-      {visible && navigation}
     </Group>
   );
 }
@@ -93,7 +94,10 @@ export function XlsxPrintSetup({
   return (
     <>
       <fieldset disabled={draftDisabled || !!current.readOnlyReason}>
-        <legend>{t.sheetPrintSetup}</legend>
+        <legend>
+          <Icon name="ruler" />
+          {t.sheetPrintSetup}
+        </legend>
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -190,7 +194,10 @@ export function XlsxPrintSetup({
         {current.readOnlyReason && <p>{current.readOnlyReason}</p>}
       </fieldset>
       <fieldset disabled={draftDisabled || !!currentRange.readOnlyReason}>
-        <legend>{t.sheetPrintRange}</legend>
+        <legend>
+          <Icon name="ruler" />
+          {t.sheetPrintRange}
+        </legend>
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -232,7 +239,10 @@ export function XlsxPrintSetup({
         {currentRange.readOnlyReason && <p>{currentRange.readOnlyReason}</p>}
       </fieldset>
       <fieldset disabled={draftDisabled || !!headerReason}>
-        <legend>{t.sheetHeaderFooter}</legend>
+        <legend>
+          <Icon name="layout-header" />
+          {t.sheetHeaderFooter}
+        </legend>
         <form
           onSubmit={(event) => {
             event.preventDefault();

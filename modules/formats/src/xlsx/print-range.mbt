@@ -8,11 +8,12 @@ pub const PrintTitleUnits : Int32 = 32
 const PrintAreaCount : Int32 = 32
 
 ///|
+#derive(Eq, ToJson)
 pub(all) struct PrintRange {
   area : String
   rows : String
   columns : String
-} derive(Eq, ToJson)
+}
 
 ///|
 pub extend PrintRange with Eq::{equal, not_equal}

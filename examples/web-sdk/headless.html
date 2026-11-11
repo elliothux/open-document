@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Open Document Worker example</title>
+  <link rel="stylesheet" href="./example.css" />
+  <h1>Edit a DOCX in a Worker</h1>
+  <form>
+    <label
+      >Document <input type="file" name="document" accept=".docx" required
+    /></label>
+    <label>Prefix <input name="prefix" value="Reviewed: " required /></label>
+    <button type="submit">Edit document</button>
+    <button type="submit" id="edit-sample" formnovalidate>Edit sample</button>
+  </form>
+  <p role="status"></p>
+  <a id="result" hidden>Download edited document</a>
+  <script type="module" id="example-script" src="./dist/headless.js"></script>
+</html>

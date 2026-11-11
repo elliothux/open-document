@@ -1,4 +1,5 @@
 ///|
+#derive(@json.FromJson)
 priv struct PivotSettingsFields {
   sourceSheet : String
   source : String
@@ -9,30 +10,34 @@ priv struct PivotSettingsFields {
   numberGroups : Array[PivotNumberGroupRequest]
   dateGroups : Array[PivotDateGroupRequest]
   values : Array[PivotValueRequest]
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PivotFilterRequest {
   field : @common.RequestInt
   report : Bool
   values : @common.RequiredNullable[Array[CellValueRequest]]
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PivotDateGroupRequest {
   field : @common.RequestInt
   units : Array[String]
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PivotNumberGroupRequest {
   field : @common.RequestInt
   start : @common.RequiredNullable[@common.RequestNumber]
   end : @common.RequiredNullable[@common.RequestNumber]
   interval : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PivotValueRequest {
   field : @common.RequestInt
   aggregate : String
@@ -40,7 +45,7 @@ priv struct PivotValueRequest {
   showDataAs : String
   baseField : @common.RequiredNullable[@common.RequestInt]
   baseItem : Json
-} derive(@json.FromJson)
+}
 
 ///|
 priv struct PivotSettingsRequest {
@@ -163,81 +168,93 @@ impl @json.FromJson for PivotSettingsRequest with fn from_json(input, path) {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct TimelineEndpointRequest {
   name : String
   handle : @common.RequestInt
   level : @common.RequestInt
   position : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TimelineLevelRequest {
   name : String
   level : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TimelineScrollRequest {
   name : String
   level : @common.RequestInt
   position : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TimelineRangeRequest {
   start : String
   end : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TimelineFilterRequest {
   name : String
   range : @common.RequiredNullable[TimelineRangeRequest]
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SlicerScrollRequest {
   layout : @common.RequestInt
   id : String
   position : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SlicerSelectionRequest {
   layout : @common.RequestInt
   id : String
   index : @common.RequiredNullable[@common.RequestInt]
   additive : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SlicerFilterRequest {
   name : String
   indices : Array[@common.RequestInt]
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PivotSourceRevisionRequest {
   sourceRevision : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PivotCreateRequest {
   name : String
   destination : String
   settings : PivotSettingsRequest
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PivotUpdateRequest {
   part : String
   settings : PivotSettingsRequest
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PivotPartRequest {
   part : String
-} derive(@json.FromJson)
+}
 
 ///|
 fn slicer_member_index(

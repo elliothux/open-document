@@ -1,10 +1,11 @@
 ///|
+#derive(Eq, ToJson)
 pub(all) struct ConnectorEnd {
   x : Double
   y : Double
   target : String
   site : Int32
-} derive(Eq, ToJson)
+}
 
 ///|
 pub extend ConnectorEnd with Eq::{equal, not_equal}

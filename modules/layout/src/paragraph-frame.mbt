@@ -1,4 +1,5 @@
 ///|
+#derive(ToJson)
 pub(all) struct ParagraphFrame {
   width : Double
   height : Double
@@ -12,7 +13,7 @@ pub(all) struct ParagraphFrame {
   horizontalSpace : Double
   verticalSpace : Double
   borders : Map[String, (Double, BorderStyle)]
-} derive(ToJson)
+}
 
 ///|
 pub extend ParagraphFrame with ToJson::{to_json}

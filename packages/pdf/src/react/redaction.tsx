@@ -1,5 +1,6 @@
 import { useLayoutEffect, useState } from "react";
 import { Command, Group } from "@open-document/ui/controls";
+import { Icon } from "@open-document/ui/icons";
 import { pdfRedactionRegionCount } from "@open-document/wasm/engine-source";
 import { downloadBytes } from "@open-document/web-core/download";
 import type { PdfRedactionPreview, PdfRedactionRegion } from "../core/pdf.js";
@@ -110,7 +111,7 @@ export function RedactionPanel({
                 );
               }}
             >
-              ×
+              <Icon name="close" />
             </button>
           </li>
         ))}
@@ -174,6 +175,7 @@ export function RedactionPanel({
         label={
           chinese ? "应用并导出脱敏副本" : "Apply and export redacted copy"
         }
+        icon="download"
         disabled={disabled || !ready}
         action={() =>
           controller.run(async () => {
@@ -189,6 +191,7 @@ export function RedactionPanel({
       />
       <Command
         label={chinese ? "清除脱敏标记" : "Clear redaction marks"}
+        icon="eraser"
         disabled={disabled || regions.length === 0}
         action={() => {
           invalidate();

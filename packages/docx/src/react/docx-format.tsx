@@ -1,5 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import { docxHyperlinkTargetUnits } from "@open-document/wasm/engine-source";
+import {
+  EditorColorPalette,
+  EditorCommandButton,
+  EditorFontControls,
+} from "@open-document/ui";
+import { useEffect, useState } from "react";
 import type { DocumentEditor } from "../web/editor.js";
 import type {
   FormatValue,
@@ -11,35 +15,22 @@ import {
   highlightColors,
   DOCX_PAGE_BREAK,
   DOCX_COLUMN_BREAK,
-  checkDocxHyperlink,
 } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
+import { Icon } from "@open-document/ui/icons";
 import { Command, Group } from "@open-document/ui/controls";
 import { messages } from "@open-document/ui/messages";
-import { DocxSearch } from "./docx-search.js";
-import { DocxOverview } from "./docx-overview.js";
-import { DocxComments } from "./docx-comments.js";
-import { DocxRevisions } from "./docx-revisions.js";
-import { DocxTabs, DocxDefaultTab } from "./docx-tabs.js";
-import { DocxStyles } from "./docx-styles.js";
-import { DocxLists } from "./docx-lists.js";
-import { DocxPage } from "./docx-page.js";
-import { DocxTheme, DocxThemeFontsPanel } from "./docx-theme.js";
-import { DocxPictures } from "./docx-pictures.js";
-import { DocxShapes } from "./docx-shapes.js";
-import { DocxCharts } from "./docx-charts.js";
-import { DocxMath } from "./docx-math.js";
-import { DocxTables } from "./docx-tables.js";
 import { DocxSymbols } from "./docx-symbols.js";
+import { RibbonMenu } from "@open-document/ui/ribbon";
 
-interface Props {
+export interface DocxPanelProps {
   controller: EditorController;
   state: UiSnapshot;
   editor: DocumentEditor;
   disabled: boolean;
 }
 
-function NumericFormat({
+export function NumericFormat({
   label,
   value,
   min,
@@ -71,7 +62,7 @@ function NumericFormat({
       }}
     >
       <label>
-        {label}
+        <span className="od-field-caption">{label}</span>
         <input
           type="number"
           value={draft}
@@ -99,7 +90,12 @@ export function DocxFormatCommands({
   state,
   editor,
   disabled,
-}: Props) {
+  section = "home",
+  portal,
+}: DocxPanelProps & {
+  section?: "home" | "advanced" | "insert";
+  portal?: HTMLElement;
+}) {
   const t = messages(state.locale),
     formatting = editor.getSnapshot().data.formatting;
   const character = formatting?.character;
@@ -111,16 +107,6 @@ export function DocxFormatCommands({
     controller.run(() => editor.formatting.setCharacterFormat(format));
   const paragraph = (format: ParagraphFormatPatch) =>
     controller.run(() => editor.formatting.setParagraphFormat(format));
-  const family =
-    character?.family.kind === "value" ? character.family.value : "";
-  const families = [
-    ...new Set([
-      family,
-      ...Object.keys(controller.options.resources.profile).filter(
-        (key) => !key.includes("|"),
-      ),
-    ]),
-  ].filter(Boolean);
   const currentColor =
     character?.color.kind === "value" && character.color.value !== "auto"
       ? character.color.value
@@ -130,655 +116,327 @@ export function DocxFormatCommands({
   useEffect(() => setCopied(undefined), [editor]);
   useEffect(() => setColor(currentColor), [currentColor]);
   const align = formatting?.paragraph.align;
-  return (
-    <>
-      <Group label={t.font}>
-        <Command
-          label={t.copyFormat}
+  if (section === "insert")
+    return !portal ? null : (
+      <>
+        <RibbonMenu
+          label={t.breaks}
+          portal={portal}
+          className="od-command"
           disabled={disabled}
-          action={() =>
-            controller.run(async () =>
-              setCopied(await editor.formatting.captureFormat()),
-            )
-          }
+          actions={[
+            {
+              label: t.pageBreak,
+              icon: "page-break",
+              run: () => controller.run(() => editor.paste(DOCX_PAGE_BREAK)),
+            },
+            {
+              label: t.columnBreak,
+              icon: "columns-2",
+              run: () => controller.run(() => editor.paste(DOCX_COLUMN_BREAK)),
+            },
+            {
+              label: t.softBreak,
+              icon: "wrap-text",
+              run: () =>
+                controller.run(() => editor.clipboard.insertSoftBreak()),
+            },
+            {
+              label: t.insertTab,
+              icon: "key-tab",
+              run: () => controller.run(() => editor.paste("\t")),
+            },
+          ]}
+        >
+          <Icon name="page-break" />
+          <span>{t.breaks}</span>
+          <Icon name="chevron-down" />
+        </RibbonMenu>
+        <DocxSymbols
+          controller={controller}
+          state={state}
+          editor={editor}
+          disabled={disabled}
+          portal={portal}
         />
-        <Command
-          label={t.applyFormat}
-          disabled={disabled || !copied}
-          action={() =>
-            controller.run(() =>
-              copied
-                ? editor.formatting.applyFormat(copied)
-                : Promise.resolve(),
-            )
-          }
-        />
-        <label>
-          {t.fontFamily}
-          <select
-            aria-label={t.fontFamily}
-            value={family}
+      </>
+    );
+  if (section === "advanced")
+    return (
+      <div className="od-format-options">
+        <Group label={t.font}>
+          <Command
+            label={t.copyFormat}
+            icon="copy"
+            disabled={disabled}
+            action={() =>
+              controller.run(async () =>
+                setCopied(await editor.formatting.captureFormat()),
+              )
+            }
+          />
+          <Command
+            label={t.applyFormat}
+            icon="check"
+            disabled={disabled || !copied}
+            action={() =>
+              controller.run(() =>
+                copied
+                  ? editor.formatting.applyFormat(copied)
+                  : Promise.resolve(),
+              )
+            }
+          />
+          <NumericFormat
+            label={t.characterSpacing}
+            value={character?.spacing}
+            min={-1584}
+            max={1584}
+            step={0.05}
+            disabled={disabled}
+            apply={t.apply}
+            mixed={t.mixed}
+            onApply={(spacing) => set({ spacing })}
+          />
+          <label>
+            {t.textColor}
+            {character?.color.kind === "mixed" && <span>{t.mixed}</span>}
+            <input
+              type="color"
+              aria-label={t.textColor}
+              aria-description={
+                character?.color.kind === "mixed" ? t.mixed : undefined
+              }
+              value={`#${color}`}
+              disabled={fontDisabled}
+              onChange={(event) => setColor(event.currentTarget.value.slice(1))}
+            />
+          </label>
+          <Command
+            label={t.applyColor}
+            icon="check"
             disabled={fontDisabled}
-            onChange={(event) => set({ family: event.currentTarget.value })}
-          >
-            <option value="" disabled>
-              {t.mixed}
-            </option>
-            {families.map((name) => (
-              <option key={name}>{name}</option>
-            ))}
-          </select>
-        </label>
-        <NumericFormat
-          label={t.fontSize}
-          value={character?.size}
-          min={0.5}
-          max={formatting?.reason ? 409 : 1024}
-          step={0.5}
-          disabled={fontDisabled}
-          apply={t.apply}
-          mixed={t.mixed}
-          onApply={(size) => set({ size })}
-        />
-        <NumericFormat
-          label={t.characterSpacing}
-          value={character?.spacing}
-          min={-1584}
-          max={1584}
-          step={0.05}
-          disabled={disabled}
-          apply={t.apply}
-          mixed={t.mixed}
-          onApply={(spacing) => set({ spacing })}
-        />
-        {(["bold", "italic", "underline", "strike"] as const).map((key) => {
-          const value = character?.[key];
-          return (
+            action={() => set({ color })}
+          />
+          <Command
+            label={t.clearFont}
+            icon="eraser"
+            disabled={disabled}
+            action={() =>
+              set({
+                family: null,
+                size: null,
+                color: null,
+                bold: null,
+                italic: null,
+                underline: null,
+                strike: null,
+                highlight: null,
+                vertAlign: null,
+                spacing: null,
+              })
+            }
+          />
+        </Group>
+        <Group label={t.textEffects}>
+          <label>
+            {t.highlightColor}
+            <select
+              aria-label={t.highlightColor}
+              disabled={disabled}
+              value={
+                character?.highlight.kind === "value"
+                  ? character.highlight.value
+                  : ""
+              }
+              onChange={(event) => {
+                const value = highlightColors.find(
+                  (value) => value === event.currentTarget.value,
+                );
+                if (value !== undefined) set({ highlight: value });
+              }}
+            >
+              <option value="" disabled>
+                {t.mixed}
+              </option>
+              {highlightColors.map((value) => (
+                <option key={value} value={value}>
+                  {t[`highlight_${value}`]}
+                </option>
+              ))}
+            </select>
+          </label>
+          {(["superscript", "subscript"] as const).map((value) => (
             <button
-              key={key}
+              key={value}
               type="button"
               disabled={disabled}
               aria-pressed={
-                value?.kind === "mixed"
+                character?.vertAlign.kind === "mixed"
                   ? "mixed"
-                  : value?.kind === "value" && value.value
+                  : character?.vertAlign.kind === "value" &&
+                    character.vertAlign.value === value
               }
               onClick={() =>
-                set({ [key]: !(value?.kind === "value" && value.value) })
+                set({
+                  vertAlign:
+                    character?.vertAlign.kind === "value" &&
+                    character.vertAlign.value === value
+                      ? "baseline"
+                      : value,
+                })
               }
             >
-              {t[key]}
+              {t[value]}
             </button>
-          );
-        })}
-        <label>
-          {t.textColor}
-          {character?.color.kind === "mixed" && <span>{t.mixed}</span>}
-          <input
-            type="color"
-            aria-label={t.textColor}
-            aria-description={
-              character?.color.kind === "mixed" ? t.mixed : undefined
-            }
-            value={`#${color}`}
-            disabled={fontDisabled}
-            onChange={(event) => setColor(event.currentTarget.value.slice(1))}
-          />
-        </label>
-        <Command
-          label={t.applyColor}
-          disabled={fontDisabled}
-          action={() => set({ color })}
-        />
-        <Command
-          label={t.clearFont}
-          disabled={disabled}
-          action={() =>
-            set({
-              family: null,
-              size: null,
-              color: null,
-              bold: null,
-              italic: null,
-              underline: null,
-              strike: null,
-              highlight: null,
-              vertAlign: null,
-              spacing: null,
-            })
-          }
-        />
-      </Group>
-      <Group label={t.textEffects}>
-        <label>
-          {t.highlightColor}
-          <select
-            aria-label={t.highlightColor}
-            disabled={disabled}
-            value={
-              character?.highlight.kind === "value"
-                ? character.highlight.value
-                : ""
-            }
-            onChange={(event) => {
-              const value = highlightColors.find(
-                (value) => value === event.currentTarget.value,
-              );
-              if (value !== undefined) set({ highlight: value });
-            }}
-          >
-            <option value="" disabled>
-              {t.mixed}
-            </option>
-            {highlightColors.map((value) => (
-              <option key={value} value={value}>
-                {t[`highlight_${value}`]}
-              </option>
-            ))}
-          </select>
-        </label>
-        {(["superscript", "subscript"] as const).map((value) => (
-          <button
-            key={value}
-            type="button"
-            disabled={disabled}
-            aria-pressed={
-              character?.vertAlign.kind === "mixed"
-                ? "mixed"
-                : character?.vertAlign.kind === "value" &&
-                  character.vertAlign.value === value
-            }
-            onClick={() =>
-              set({
-                vertAlign:
-                  character?.vertAlign.kind === "value" &&
-                  character.vertAlign.value === value
-                    ? "baseline"
-                    : value,
+          ))}
+        </Group>
+        <Group label={t.paragraph}>
+          <label>
+            <input
+              type="checkbox"
+              disabled={paragraphDisabled}
+              checked={
+                formatting?.paragraph.rtl.kind === "value" &&
+                formatting.paragraph.rtl.value
+              }
+              ref={(node) => {
+                if (node)
+                  node.indeterminate =
+                    formatting?.paragraph.rtl.kind === "mixed";
+              }}
+              onChange={(event) =>
+                paragraph({ rtl: event.currentTarget.checked })
+              }
+            />
+            {t.paragraphRtl}
+          </label>
+          <Command
+            label={t.clearParagraph}
+            icon="eraser"
+            disabled={paragraphDisabled}
+            action={() =>
+              paragraph({
+                align: null,
+                rtl: null,
+                before: null,
+                after: null,
+                left: null,
+                right: null,
+                first: null,
+                line: null,
+                tabs: null,
+                pageBreakBefore: null,
+                keepLines: null,
+                keepNext: null,
+                widowControl: null,
               })
             }
-          >
-            {t[value]}
-          </button>
-        ))}
-      </Group>
-      <DocxSymbols
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={disabled}
-      />
-      <Group label={t.paragraph}>
-        <Command
-          label={t.softBreak}
-          disabled={disabled}
-          action={() =>
-            controller.run(() => editor.clipboard.insertSoftBreak())
+          />
+        </Group>
+      </div>
+    );
+  return (
+    <>
+      <Group label={t.font}>
+        <EditorFontControls
+          commands={controller.commands}
+          locale={state.locale}
+          profile={controller.options.resources.profile}
+          family={
+            character?.family.kind === "value" ? character.family.value : null
+          }
+          size={
+            character?.size.kind === "value"
+              ? character.size.value
+              : character?.size.kind === "mixed"
+                ? null
+                : undefined
+          }
+          minSize={0.5}
+          maxSize={1024}
+          sizeStep={0.5}
+          disabled={fontDisabled}
+          apply={(change, target) =>
+            controller.run(() =>
+              editor.formatting.setCharacterFormat(change, () =>
+                controller.commands.assertTarget(target),
+              ),
+            )
           }
         />
-        <Command
-          label={t.pageBreak}
-          disabled={disabled}
-          action={() => controller.run(() => editor.paste(DOCX_PAGE_BREAK))}
-        />
-        <Command
-          label={t.columnBreak}
-          disabled={disabled}
-          action={() => controller.run(() => editor.paste(DOCX_COLUMN_BREAK))}
-        />
-        <Command
-          label={t.insertTab}
-          disabled={disabled}
-          action={() => controller.run(() => editor.paste("\t"))}
-        />
+        {(["bold", "italic", "underline", "strike"] as const).map((id) => (
+          <EditorCommandButton key={id} id={id} iconOnly />
+        ))}
+        {portal && (
+          <EditorColorPalette
+            commands={controller.commands}
+            label={t.textColor}
+            custom={t.customColor}
+            mixed={t.mixed}
+            value={character?.color.kind === "mixed" ? null : currentColor}
+            disabled={fontDisabled}
+            portal={portal}
+            apply={(color, target) =>
+              controller.run(() =>
+                editor.formatting.setCharacterFormat({ color }, () =>
+                  controller.commands.assertTarget(target),
+                ),
+              )
+            }
+          />
+        )}
+      </Group>
+      <Group label={t.paragraph}>
         {(["left", "center", "right", "both"] as const).map((value) => (
           <button
             key={value}
             type="button"
+            className="od-icon-command"
             disabled={paragraphDisabled}
             aria-pressed={
               align?.kind === "mixed"
                 ? "mixed"
                 : align?.kind === "value" && align.value === value
             }
-            onClick={() => paragraph({ align: value })}
-          >
-            {
+            aria-label={
               t[
-                value === "left"
-                  ? "alignLeft"
-                  : value === "center"
-                    ? "alignCenter"
-                    : value === "right"
-                      ? "alignRight"
-                      : "alignJustify"
+                value === "both"
+                  ? "alignJustify"
+                  : value === "left"
+                    ? "alignLeft"
+                    : value === "center"
+                      ? "alignCenter"
+                      : "alignRight"
               ]
             }
+            title={
+              t[
+                value === "both"
+                  ? "alignJustify"
+                  : value === "left"
+                    ? "alignLeft"
+                    : value === "center"
+                      ? "alignCenter"
+                      : "alignRight"
+              ]
+            }
+            onClick={() => paragraph({ align: value })}
+          >
+            <Icon
+              name={
+                value === "both"
+                  ? "align-justify"
+                  : value === "left"
+                    ? "align-left"
+                    : value === "center"
+                      ? "align-center"
+                      : "align-right"
+              }
+            />
           </button>
         ))}
-        <label>
-          <input
-            type="checkbox"
-            disabled={paragraphDisabled}
-            checked={
-              formatting?.paragraph.rtl.kind === "value" &&
-              formatting.paragraph.rtl.value
-            }
-            ref={(node) => {
-              if (node)
-                node.indeterminate = formatting?.paragraph.rtl.kind === "mixed";
-            }}
-            onChange={(event) =>
-              paragraph({ rtl: event.currentTarget.checked })
-            }
-          />
-          {t.paragraphRtl}
-        </label>
-        <Command
-          label={t.clearParagraph}
-          disabled={paragraphDisabled}
-          action={() =>
-            paragraph({
-              align: null,
-              rtl: null,
-              before: null,
-              after: null,
-              left: null,
-              right: null,
-              first: null,
-              line: null,
-              tabs: null,
-              pageBreakBefore: null,
-              keepLines: null,
-              keepNext: null,
-              widowControl: null,
-            })
-          }
-        />
       </Group>
     </>
-  );
-}
-
-export function DocxProperties({ controller, state, editor, disabled }: Props) {
-  const t = messages(state.locale),
-    formatting = editor.getSnapshot().data.formatting;
-  const stylesDisabled = disabled;
-  const inputDisabled = disabled || !formatting || !!formatting.inputReason;
-  const paragraphDisabled =
-    disabled || !formatting || !!formatting.paragraphReason;
-  disabled ||= !formatting || !!formatting.reason;
-  return (
-    <aside className="od-properties" aria-label={t.paragraph}>
-      <DocxRevisions
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={stylesDisabled}
-      />
-      <DocxOverview
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={stylesDisabled}
-      />
-      <DocxComments
-        key={`comments:${state.document?.documentId}`}
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={stylesDisabled}
-      />
-      <DocxHyperlink
-        key={`link:${state.document?.documentId}`}
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={disabled}
-      />
-      <DocxPage
-        key={`page:${editor.getSnapshot().documentId}`}
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={stylesDisabled}
-      />
-      <h2>{t.paragraph}</h2>
-      <DocxTheme
-        key={`theme:${editor.getSnapshot().documentId}`}
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={stylesDisabled}
-      />
-      <DocxThemeFontsPanel
-        key={editor.getSnapshot().documentId + "-fonts"}
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={stylesDisabled}
-      />
-      <DocxPictures
-        key={`pictures:${editor.getSnapshot().documentId}`}
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={stylesDisabled}
-      />
-      <DocxShapes
-        key={`shapes:${editor.getSnapshot().documentId}`}
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={stylesDisabled}
-      />
-      <DocxCharts
-        key={editor.getSnapshot().documentId + "-charts"}
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={stylesDisabled}
-        insertDisabled={inputDisabled}
-      />
-      <DocxMath
-        key={`math:${editor.getSnapshot().documentId}`}
-        kind="expression"
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={stylesDisabled}
-        insertDisabled={inputDisabled}
-      />
-      <DocxMath
-        key={editor.getSnapshot().documentId + "-fractions"}
-        kind="fraction"
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={stylesDisabled}
-        insertDisabled={inputDisabled}
-      />
-      <DocxMath
-        key={editor.getSnapshot().documentId + "-scripts"}
-        kind="script"
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={stylesDisabled}
-        insertDisabled={inputDisabled}
-      />
-      <DocxTables
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={stylesDisabled}
-      />
-      <p>{formatting?.reason}</p>
-      <LineSpacing
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={paragraphDisabled}
-      />
-      <DocxTabs
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={paragraphDisabled}
-      />
-      <DocxDefaultTab
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={stylesDisabled}
-      />
-      <DocxLists
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={stylesDisabled}
-      />
-      <DocxStyles
-        kind="paragraph"
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={stylesDisabled}
-      />
-      <DocxStyles
-        kind="character"
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={stylesDisabled}
-      />
-      {(["before", "after", "left", "right", "first"] as const).map((key) => (
-        <NumericFormat
-          key={key}
-          label={
-            t[
-              key === "before"
-                ? "spaceBefore"
-                : key === "after"
-                  ? "spaceAfter"
-                  : key === "left"
-                    ? "indentLeft"
-                    : key === "right"
-                      ? "indentRight"
-                      : "firstIndent"
-            ]
-          }
-          value={formatting?.paragraph[key]}
-          min={key === "first" ? -1584 : 0}
-          max={1584}
-          step={0.05}
-          disabled={paragraphDisabled}
-          apply={t.apply}
-          mixed={t.mixed}
-          onApply={(value) =>
-            controller.run(() =>
-              editor.formatting.setParagraphFormat({ [key]: value }),
-            )
-          }
-        />
-      ))}
-      {(
-        ["pageBreakBefore", "keepLines", "keepNext", "widowControl"] as const
-      ).map((key) => (
-        <label key={key}>
-          <input
-            type="checkbox"
-            ref={(node) => {
-              if (node)
-                node.indeterminate =
-                  formatting?.paragraph[key].kind === "mixed";
-            }}
-            disabled={paragraphDisabled}
-            checked={
-              formatting?.paragraph[key].kind === "value" &&
-              formatting.paragraph[key].value
-            }
-            onChange={(event) =>
-              controller.run(() =>
-                editor.formatting.setParagraphFormat({
-                  [key]: event.currentTarget.checked,
-                }),
-              )
-            }
-          />
-          {t[key]}
-        </label>
-      ))}
-      <DocxSearch
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={
-          !!state.document?.busy ||
-          !!state.document?.composition ||
-          !!state.document?.paused ||
-          state.loading
-        }
-      />
-    </aside>
-  );
-}
-
-function DocxHyperlink({ controller, state, editor, disabled }: Props) {
-  const t = messages(state.locale),
-    current = editor.getSnapshot().data,
-    link = current.formatting?.hyperlink,
-    selection = current.selection;
-  const [address, setAddress] = useState(link?.target ?? ""),
-    [text, setText] = useState("");
-  const source = useRef(link);
-  useEffect(() => {
-    if (
-      !link ||
-      (link.target === source.current?.target &&
-        link.mixed === source.current?.mixed)
-    )
-      return;
-    source.current = link;
-    setAddress(link.target ?? "");
-    setText("");
-  }, [link]);
-  const needsText =
-    !link?.target &&
-    !link?.mixed &&
-    selection?.anchor.paragraph === selection?.focus.paragraph &&
-    selection?.anchor.offset === selection?.focus.offset;
-  disabled ||= !link || !!link.reason;
-  return (
-    <section aria-label={t.textHyperlink}>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          controller.run(() => {
-            checkDocxHyperlink(address, text || undefined);
-            return editor.formatting.setHyperlink(address, text || undefined);
-          });
-        }}
-      >
-        <fieldset disabled={disabled}>
-          <legend>{t.textHyperlink}</legend>
-          <label>
-            {t.hyperlinkAddress}
-            <input
-              type="text"
-              inputMode="url"
-              required
-              maxLength={docxHyperlinkTargetUnits}
-              value={address}
-              onChange={(event) => setAddress(event.currentTarget.value)}
-            />
-          </label>
-          <p>{t.hyperlinkBookmark}</p>
-          <label>
-            {t.hyperlinkText}
-            <input
-              type="text"
-              required={needsText}
-              maxLength={65536}
-              value={text}
-              onChange={(event) => setText(event.currentTarget.value)}
-            />
-          </label>
-          <button type="submit">{t.hyperlinkApply}</button>
-          <button
-            type="button"
-            disabled={!link?.target && !link?.mixed}
-            onClick={() =>
-              controller.run(() => editor.formatting.setHyperlink(null))
-            }
-          >
-            {t.hyperlinkRemove}
-          </button>
-        </fieldset>
-      </form>
-      {link?.reason && <p>{link.reason}</p>}
-      {!disabled &&
-        link?.target &&
-        (link.target.startsWith("#") ? (
-          <button
-            type="button"
-            onClick={() =>
-              controller.run(() =>
-                editor.review.editBookmark({
-                  action: "goTo",
-                  name: link.target!.slice(1),
-                }),
-              )
-            }
-          >
-            {t.hyperlinkOpen}
-          </button>
-        ) : (
-          <a href={link.target} target="_blank" rel="noopener noreferrer">
-            {t.hyperlinkOpen}
-          </a>
-        ))}
-    </section>
-  );
-}
-
-function LineSpacing({ controller, state, editor, disabled }: Props) {
-  const t = messages(state.locale),
-    line = editor.getSnapshot().data.formatting?.paragraph.line;
-  const current = line?.kind === "value" ? line.value : undefined;
-  const [rule, setRule] = useState<"auto" | "exact" | "atLeast">(
-    current?.rule ?? "auto",
-  );
-  useEffect(() => {
-    setRule(current?.rule ?? "auto");
-  }, [current?.rule]);
-  const value: FormatValue<number> | undefined =
-    line?.kind === "value"
-      ? {
-          kind: "value",
-          value: line.value.value / (line.value.rule === "auto" ? 240 : 20),
-        }
-      : line;
-  return (
-    <fieldset disabled={disabled}>
-      <legend>{t.lineSpacing}</legend>
-      <label>
-        {t.lineRule}
-        <select
-          aria-label={t.lineRule}
-          value={rule}
-          onChange={(event) => {
-            const value = event.currentTarget.value;
-            if (value === "auto" || value === "exact" || value === "atLeast")
-              setRule(value);
-          }}
-        >
-          <option value="auto">{t.lineAuto}</option>
-          <option value="exact">{t.lineExact}</option>
-          <option value="atLeast">{t.lineAtLeast}</option>
-        </select>
-      </label>
-      {line?.kind === "mixed" && <p>{t.mixed}</p>}
-      <NumericFormat
-        label={rule === "auto" ? t.lineMultiple : t.linePoints}
-        value={value}
-        min={rule === "auto" ? 0.5 : 0.05}
-        max={rule === "auto" ? 10 : 1584}
-        step={rule === "auto" ? 0.1 : 0.05}
-        apply={t.apply}
-        mixed={t.mixed}
-        disabled={disabled}
-        onApply={(amount) =>
-          controller.run(() =>
-            editor.formatting.setParagraphFormat({
-              line: {
-                rule,
-                value: Math.round(amount * (rule === "auto" ? 240 : 20)),
-              },
-            }),
-          )
-        }
-      />
-    </fieldset>
   );
 }

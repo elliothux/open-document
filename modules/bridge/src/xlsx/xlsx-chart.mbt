@@ -12,6 +12,7 @@ impl @json.FromJson for ChartReferences with fn from_json(input, path) {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct ChartSettingsRequest {
   kind : String
   title : String
@@ -21,7 +22,7 @@ priv struct ChartSettingsRequest {
   categories : String
   names : ChartReferences
   values : ChartReferences
-} derive(@json.FromJson)
+}
 
 ///|
 priv struct ChartSettingsInput {
@@ -57,6 +58,7 @@ impl @json.FromJson for ChartSettingsInput with fn from_json(input, path) {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct InsertChartRequest {
   revision : @common.RequestInt
   sheet : String
@@ -64,18 +66,20 @@ priv struct InsertChartRequest {
   width : @common.RequestNumber
   height : @common.RequestNumber
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SetChartRequest {
   revision : @common.RequestInt
   sheet : String
   id : String
   settings : ChartSettingsInput
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct InsertRangeChartRequest {
   revision : @common.RequestInt
   sheet : String
@@ -85,16 +89,17 @@ priv struct InsertRangeChartRequest {
   width : @common.RequestNumber
   height : @common.RequestNumber
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ObjectFrameCommand {
   revision : @common.RequestInt
   sheet : String
   id : String
   settings : ObjectFrameRequest
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
 let chart_handlers : Map[

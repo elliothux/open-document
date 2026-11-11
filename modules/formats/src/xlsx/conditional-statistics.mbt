@@ -1,9 +1,10 @@
 ///|
+#derive(Eq, ToJson)
 pub(all) struct ConditionalRank {
   rank : Int32
   percent : Bool
   bottom : Bool
-} derive(Eq, ToJson)
+}
 
 ///|
 pub extend ConditionalRank with Eq::{equal, not_equal}
@@ -23,11 +24,12 @@ fn ConditionalRank::check(
 }
 
 ///|
+#derive(Eq, ToJson)
 pub(all) struct ConditionalAverage {
   above : Bool
   equal : Bool
   stdDev : Int32
-} derive(Eq, ToJson)
+}
 
 ///|
 pub extend ConditionalAverage with Eq::{equal, not_equal}

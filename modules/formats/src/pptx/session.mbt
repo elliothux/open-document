@@ -242,20 +242,23 @@ fn Slide::object(self : Slide, id : String) -> Object raise @failure.Failure {
 }
 
 ///|
+#derive(ToJson)
 priv struct QueryBackground {
   value : Json
   explicit : Bool
   reason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QuerySlide {
   id : String
   hidden : Bool
   title : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QueryState {
   revision : Int32
   editView : EditViewQuery
@@ -298,7 +301,7 @@ priv struct QueryState {
   candidateId : Json
   readOnlyReason : String
   diagnostics : Array[String]
-} derive(ToJson)
+}
 
 ///|
 pub fn Session::query(self : Session) -> Json raise @failure.Failure {
@@ -490,8 +493,19 @@ pub fn Session::select(
 pub fn Session::image_bytes(
   self : Session,
   key : String,
+  preview? : String,
 ) -> Bytes raise @failure.Failure {
   self.check()
+  if preview is Some(part) {
+    let slide = self.source_slide(part)
+    guard slide.image_keys().contains(key) else {
+      @failure.reject("invalid-image", "Unknown slide preview image")
+    }
+    if slide.shadow(key) is Some(shadow) {
+      return shadow.png()
+    }
+    return self.image_content(key)
+  }
   guard self.slides.any(slide => slide.image_keys().contains(key)) ||
     self.current().image_keys().contains(key) else {
     @failure.reject("invalid-image", "Unknown presentation image")
@@ -505,14 +519,17 @@ pub fn Session::prepare_image(
   self : Session,
   key : String,
   images : @layout.Images,
+  preview? : String,
 ) -> (Bytes, @layout.ImageResource?) raise @failure.Failure {
-  let source = self.image_bytes(key)
+  let source = self.image_bytes(key, preview?)
   guard @image.decode_plain_raster(source, exif_orientation=true)
     is Some((width, height, pixels)) else {
     return (source, None)
   }
   images.add(key, width, height, pixels)
-  self.invalidate_geometry()
+  if preview is None {
+    self.invalidate_geometry()
+  }
   (source, Some(images.get(key)))
 }
 

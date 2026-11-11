@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { SpreadsheetEditor } from "../web/spreadsheet-editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function XlsxClipboard({
   controller,
@@ -18,12 +19,16 @@ export function XlsxClipboard({
     [transpose, setTranspose] = useState(false);
   return (
     <fieldset disabled={disabled}>
-      <legend>{t.clipboard}</legend>
+      <legend>
+        <Icon name="paste" />
+        {t.clipboard}
+      </legend>
       <button
         type="button"
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => controller.run(() => editor.clipboard.pasteDrawing())}
       >
+        <Icon name="paste" />
         {t.pasteDrawing}
       </button>
       <button
@@ -31,6 +36,7 @@ export function XlsxClipboard({
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => controller.run(() => editor.clipboard.copyCells())}
       >
+        <Icon name="copy" />
         {t.copyCells}
       </button>
       <button
@@ -38,6 +44,7 @@ export function XlsxClipboard({
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => controller.run(() => editor.clipboard.copyCells(true))}
       >
+        <Icon name="cut" />
         {t.cutCells}
       </button>
       <label>

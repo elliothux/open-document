@@ -14,6 +14,7 @@ import {
   xlsxDrawingNameUnits,
   xlsxShapeTextUnits,
 } from "@open-document/wasm/engine-source";
+import { Icon } from "@open-document/ui/icons";
 
 export function XlsxShapes({
   controller,
@@ -66,7 +67,10 @@ export function XlsxShapes({
   if (draft) families.add(draft.font);
   return (
     <section aria-label={t.xlsxShapes}>
-      <h3>{t.xlsxShapes}</h3>
+      <h3>
+        <Icon name="shapes" />
+        {t.xlsxShapes}
+      </h3>
       <p>{t.xlsxShapeHint}</p>
       <form
         onSubmit={(event) => {
@@ -83,7 +87,10 @@ export function XlsxShapes({
         }}
       >
         <fieldset disabled={disabled}>
-          <legend>{t.xlsxShapeInsert}</legend>
+          <legend>
+            <Icon name="shapes" />
+            {t.xlsxShapeInsert}
+          </legend>
           <label>
             {t.objectKind}
             <select
@@ -138,6 +145,7 @@ export function XlsxShapes({
             type="submit"
             disabled={kind === "line" && size.width === 0 && size.height === 0}
           >
+            <Icon name="plus" />
             {t.xlsxShapeInsert}
           </button>
         </fieldset>
@@ -147,6 +155,7 @@ export function XlsxShapes({
         disabled={disabled}
         onClick={() => controller.run(() => load())}
       >
+        <Icon name="refresh" />
         {t.xlsxShapeLoad}
       </button>
       {catalog?.reason && <p>{catalog.reason}</p>}
@@ -183,7 +192,10 @@ export function XlsxShapes({
           }}
         >
           <fieldset disabled={disabled || stale || !!catalog?.reason}>
-            <legend>{t.xlsxShapeApply}</legend>
+            <legend>
+              <Icon name="shapes" />
+              {t.xlsxShapeApply}
+            </legend>
             <label>
               {t.xlsxShapeName}
               <input
@@ -466,6 +478,7 @@ export function XlsxShapes({
               </label>
             ))}
             <button type="submit" disabled={!valid}>
+              <Icon name="check" />
               {t.xlsxShapeApply}
             </button>
             {(
@@ -502,6 +515,7 @@ export function XlsxShapes({
                 })
               }
             >
+              <Icon name="trash" />
               {t.deleteObject}
             </button>
             <button
@@ -516,6 +530,7 @@ export function XlsxShapes({
                 })
               }
             >
+              <Icon name="copy" />
               {t.duplicateObject}
             </button>
             <button
@@ -524,6 +539,7 @@ export function XlsxShapes({
                 controller.run(() => editor.clipboard.cutDrawing(draft.id))
               }
             >
+              <Icon name="cut" />
               {t.cutDrawing}
             </button>
             <button
@@ -532,6 +548,7 @@ export function XlsxShapes({
                 controller.run(() => editor.clipboard.copyDrawing(draft.id))
               }
             >
+              <Icon name="copy" />
               {t.copyDrawing}
             </button>
           </fieldset>

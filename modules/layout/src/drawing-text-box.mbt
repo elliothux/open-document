@@ -1,10 +1,11 @@
 ///|
+#derive(ToJson)
 pub(all) struct DrawingTextBoxProperties {
   insets : Array[Double]
   anchor : String
   wrap : Bool
   clip : Bool
-} derive(ToJson)
+}
 
 ///|
 pub extend DrawingTextBoxProperties with ToJson::{to_json}

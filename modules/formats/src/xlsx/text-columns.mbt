@@ -154,6 +154,7 @@ fn Session::text_column_plan(
 }
 
 ///|
+#derive(ToJson)
 priv struct TextColumnPreview {
   revision : Int32
   sheet : String
@@ -167,7 +168,7 @@ priv struct TextColumnPreview {
   splitColumns : Int32
   delimiter : String?
   breaks : Array[Int32]?
-} derive(ToJson)
+}
 
 ///|
 /// Previews converted fields and occupied output cells without changing source or history.

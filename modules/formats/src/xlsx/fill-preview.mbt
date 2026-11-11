@@ -6,6 +6,7 @@ pub(all) enum FillTarget {
 }
 
 ///|
+#derive(ToJson)
 pub struct FillPreview {
   source : String
   range : String
@@ -13,7 +14,7 @@ pub struct FillPreview {
   mode : String
   geometry : SelectionGeometry
   end : SelectionGeometry
-} derive(ToJson)
+}
 
 ///|
 pub extend FillPreview with ToJson::{to_json}

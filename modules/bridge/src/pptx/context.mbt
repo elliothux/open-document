@@ -1,4 +1,5 @@
 ///|
+#derive(ToJson)
 priv struct PptxInputLimits {
   fontBytes : Int32
   exportBytes : Int32
@@ -9,7 +10,7 @@ priv struct PptxInputLimits {
   mediaBytes : Int32
   rgbaBytes : Int32
   showInkBatchPoints : Int32
-} derive(ToJson)
+}
 
 ///|
 let session_handlers : Map[
@@ -36,6 +37,7 @@ pub struct Context {
   mut pptx : @model.Session?
   mut closed : Bool
   images : @layout.Images
+  preview_images : @layout.Images
 }
 
 ///|
@@ -47,6 +49,7 @@ pub fn new_context() -> Context {
     pptx: None,
     closed: false,
     images: @layout.Images::new(),
+    preview_images: @layout.Images::new(),
   }
 }
 
@@ -107,6 +110,7 @@ pub fn close(context : Context) -> Unit {
   }
   context.pptx = None
   context.images.clear()
+  context.preview_images.clear()
 }
 
 ///|

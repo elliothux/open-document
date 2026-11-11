@@ -11,6 +11,7 @@ import { xlsxFormulaSourceUnits } from "@open-document/wasm/engine-source";
 import { XlsxFilter } from "./xlsx-filter.js";
 import { XlsxTableStyleForm } from "./xlsx-table-style.js";
 import { XlsxTableStyleDefinitions } from "./xlsx-table-style-definition.js";
+import { Icon } from "@open-document/ui/icons";
 
 export function selectedXlsxTable(query: SpreadsheetEditor["currentState"]) {
   return query.tables
@@ -67,7 +68,10 @@ export function XlsxTablesPanel(props: PanelProps) {
   const editor = props.file.editor;
   return (
     <fieldset disabled={props.disabled}>
-      <legend>{t.structuredTables}</legend>
+      <legend>
+        <Icon name="table-cells" />
+        {t.structuredTables}
+      </legend>
       <XlsxTableStyleDefinitions
         key={props.state.document?.documentId}
         {...props}
@@ -96,6 +100,7 @@ export function XlsxTablesPanel(props: PanelProps) {
           />
         </label>
         <button type="submit" disabled={!newName}>
+          <Icon name="plus" />
           {t.createStructuredTable}
         </button>
       </form>
@@ -191,6 +196,7 @@ function TableNames({ table, ...props }: PanelProps & { table: XlsxTable }) {
           />
         </label>
         <button type="submit" disabled={range === table.range}>
+          <Icon name="ruler" />
           {t.resizeStructuredTable}
         </button>
       </form>
@@ -216,6 +222,7 @@ function TableNames({ table, ...props }: PanelProps & { table: XlsxTable }) {
           />
         </label>
         <button type="submit" disabled={name === table.name}>
+          <Icon name="pen" />
           {t.renameTable}
         </button>
       </form>
@@ -260,6 +267,7 @@ function TableNames({ table, ...props }: PanelProps & { table: XlsxTable }) {
           type="submit"
           disabled={!table.headerRow || heading === item.name}
         >
+          <Icon name="pen" />
           {t.renameTableColumn}
         </button>
       </form>
@@ -287,6 +295,7 @@ function TableNames({ table, ...props }: PanelProps & { table: XlsxTable }) {
           />
         </label>
         <button type="submit" disabled={!formula.trim()}>
+          <Icon name="check" />
           {t.applyTableFormula}
         </button>
         <button
@@ -303,6 +312,7 @@ function TableNames({ table, ...props }: PanelProps & { table: XlsxTable }) {
             )
           }
         >
+          <Icon name="trash" />
           {t.removeTableFormula}
         </button>
       </form>
@@ -350,7 +360,10 @@ function TableNames({ table, ...props }: PanelProps & { table: XlsxTable }) {
         }}
       >
         <fieldset disabled={!table.totalRow}>
-          <legend>{t.tableColumnTotal}</legend>
+          <legend>
+            <Icon name="table-cells" />
+            {t.tableColumnTotal}
+          </legend>
           <label>
             {t.tableTotalKind}
             <select
@@ -396,6 +409,7 @@ function TableNames({ table, ...props }: PanelProps & { table: XlsxTable }) {
               )
             }
           >
+            <Icon name="check" />
             {t.applyTableTotal}
           </button>
         </fieldset>

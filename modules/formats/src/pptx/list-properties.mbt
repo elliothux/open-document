@@ -1,10 +1,11 @@
 ///|
+#derive(Eq)
 pub(all) enum ListFormat {
   NoList
   Bullet(String)
   Picture
   Numbered(String, Int32)
-} derive(Eq)
+}
 
 ///|
 pub extend ListFormat with Eq::{equal, not_equal}

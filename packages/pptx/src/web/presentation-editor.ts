@@ -3,13 +3,11 @@ import { pptxTextFrameUnits } from "@open-document/wasm/engine-source";
 import { createPresentationElements } from "./presentation-elements.js";
 import { presentationKey } from "./presentation-keyboard.js";
 import {
-  checkPresentationSearch,
+  presentationMatchSelection,
   findPresentation,
   replacePresentationMatches,
   type PresentationSearchResult,
 } from "./presentation-search.js";
-import type { PptxFindOptions } from "../core/pptx.js";
-export type { PresentationSearchResult } from "./presentation-search.js";
 import {
   presentationSnapshot,
   updatePresentationObjects,
@@ -18,12 +16,16 @@ import {
   objectSelection,
   exitTextSelection,
 } from "./presentation-selection.js";
-import { PresentationCanvas } from "./presentation-canvas.js";
+import {
+  PresentationCanvas,
+  type PreviewTarget,
+} from "./presentation-canvas.js";
 import { presentationOutputs } from "./presentation-output.js";
 import { PresentationInput } from "./presentation-input.js";
 import {
   PresentationPointer,
   PresentationGestures,
+  movePresentationSelection,
 } from "./presentation-pointer.js";
 import { PresentationShow } from "./presentation-show.js";
 export type { PresentationShowLabels } from "./presentation-show.js";
@@ -37,8 +39,9 @@ import {
   type EditorOutput,
 } from "@open-document/web-core/editor-state";
 import type { PptxClient } from "./pptx.js";
-import { documentFailure } from "@open-document/web-core/connection";
+import { DocumentError } from "@open-document/wasm";
 import type {
+  PptxFindOptions,
   PptxQuery,
   PptxLayout,
   PptxGeometry,
@@ -230,6 +233,17 @@ export class PresentationEditor {
     if (!this.drawing) throw new Error("Presentation layout is unavailable");
     return this.drawing;
   }
+  preview(target: PreviewTarget): Promise<Blob> {
+    return this.queue.barrier(async () => {
+      if (
+        this.closed ||
+        this.closing ||
+        this.state.revision !== target.revision
+      )
+        throw new Error("Slide preview is stale");
+      return PresentationCanvas.preview(this.client, this.profile, target);
+    });
+  }
   get query(): PptxQuery {
     return structuredClone(this.state);
   }
@@ -249,6 +263,12 @@ export class PresentationEditor {
     this.assertOpen();
     this.input.focus({ preventScroll: true });
   }
+  setReadOnly(readOnly: boolean): void {
+    if (readOnly === this.client.readOnly) return;
+    this.client.readOnly = readOnly;
+    this.input.readOnly = readOnly || this.paused || this.blocked;
+    this.publish();
+  }
   async setPaused(paused: boolean): Promise<void> {
     this.assertOpen();
     if (paused) await this.queue.whenIdle();
@@ -256,7 +276,7 @@ export class PresentationEditor {
     this.paused = paused;
     this.container.inert = paused;
     this.objectList.inert = paused;
-    this.input.readOnly = paused || this.blocked;
+    this.input.readOnly = this.client.readOnly || paused || this.blocked;
     this.publish();
     if (paused) await this.queue.whenIdle();
   }
@@ -284,8 +304,11 @@ export class PresentationEditor {
   }
   private fail(error: Error): void {
     if (this.closed) return;
-    this.blocked = true;
-    this.errorMessage = `${error.message}. Committed edits remain available. Refresh or undo to recover.`;
+    if (!(error instanceof DocumentError && error.code === "read-only-view"))
+      this.blocked = true;
+    this.errorMessage = this.blocked
+      ? `${error.message}. Committed edits remain available. Refresh or undo to recover.`
+      : error.message;
     this.publish();
   }
   private enqueue<T>(
@@ -344,19 +367,11 @@ export class PresentationEditor {
     }
   }
   private async present(): Promise<void> {
-    await this.surface.prepare(this.client).catch((error: unknown) => {
-      throw documentFailure("image", error);
-    });
-    const layout = await this.client.execute({
-      operation: "layoutPptx",
-      profile: this.profile,
-    });
-    if (
-      layout.revision !== this.state.revision ||
-      layout.slide !== this.state.slide
-    )
-      throw new Error("Slide changed while preparing layout");
-    this.drawing = layout;
+    this.drawing = await this.surface.prepareLayout(
+      this.client,
+      this.profile,
+      this.state,
+    );
     this.updateSemantics();
     await this.paint();
   }
@@ -467,29 +482,16 @@ export class PresentationEditor {
   }
   transform(dx: number, dy: number, handle = 0): Promise<void> {
     return this.enqueue(async () => {
-      const state = await this.client.execute({
-        operation: "beginPptx",
-        revision: this.state.revision,
-        kind: "transform",
-      });
-      if (state.candidateId === null)
-        throw new Error("Core did not begin move");
       try {
-        await this.client.execute({
-          operation: "dragPptx",
-          revision: state.revision,
-          candidateId: state.candidateId,
-          dx,
-          dy,
-          handle,
-        });
         await this.changed(
-          await this.client.execute({
-            operation: "finishPptx",
-            revision: state.revision,
-            candidateId: state.candidateId,
-            profile: this.profile,
-          }),
+          await movePresentationSelection(
+            this.client,
+            this.state.revision,
+            this.profile,
+            dx,
+            dy,
+            handle,
+          ),
         );
       } catch (error) {
         await this.cancelNow();
@@ -633,18 +635,11 @@ export class PresentationEditor {
     );
   }
   selectMatch(result: PresentationSearchResult, index: number): Promise<void> {
-    return this.enqueue(async () => {
-      checkPresentationSearch(result, this.getSnapshot(), index);
-      const match = result.matches[index]!;
-      await this.selectNow({
-        slide: match.slide,
-        object: match.object,
-        objects: [match.object],
-        mode: match.reason ? "object" : "text",
-        anchor: match.anchor,
-        focus: match.focus,
-      });
-    });
+    return this.enqueue(() =>
+      this.selectNow(
+        presentationMatchSelection(result, this.getSnapshot(), index),
+      ),
+    );
   }
   replaceMatches(
     result: PresentationSearchResult,
@@ -664,24 +659,28 @@ export class PresentationEditor {
       );
     });
   }
-  editObjects(change: PptxObjectEdit): Promise<void> {
-    return this.enqueue(async () =>
-      this.changed(
-        await this.client.execute({
-          operation: "editPptxObjects",
-          revision: this.state.revision,
-          change,
-          profile: this.profile,
-        }),
-      ),
-    );
+  editObjects(change: PptxObjectEdit, verify?: () => void): Promise<void> {
+    return this.enqueue(async () => {
+      verify?.();
+      const query = await this.client.execute({
+        operation: "editPptxObjects",
+        revision: this.state.revision,
+        change,
+        profile: this.profile,
+      });
+      await this.changed(query);
+    });
   }
-  editSlides(change: PptxSlideEdit, slide?: string): Promise<void> {
+  editSlides(
+    change: PptxSlideEdit,
+    slide?: string,
+    revision?: number,
+  ): Promise<void> {
     return this.enqueue(async () =>
       this.changed(
         await this.client.execute({
           operation: "editPptxSlides",
-          revision: this.state.revision,
+          revision: revision ?? this.state.revision,
           slide: slide ?? this.state.slide,
           change,
           profile: this.profile,
@@ -745,6 +744,7 @@ export class PresentationEditor {
       event,
       this,
       this.available,
+      this.client.readOnly,
       () =>
         this.enqueue(
           async () => {

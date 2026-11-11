@@ -31,6 +31,7 @@ pub struct Context {
   mut pptx : @open_document/formats/pptx.Session?
   mut closed : Bool
   images : @layout.Images
+  preview_images : @layout.Images
 }
 
 // Type aliases

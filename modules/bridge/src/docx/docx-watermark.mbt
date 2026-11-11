@@ -1,11 +1,13 @@
 ///|
+#derive(@json.FromJson)
 priv struct PictureWatermarkRequest {
   width : @common.RequestNumber
   height : @common.RequestNumber
   opacity : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TextWatermarkRequest {
   text : String
   font : String
@@ -15,7 +17,7 @@ priv struct TextWatermarkRequest {
   diagonal : Bool
   bold : Bool
   italic : Bool
-} derive(@json.FromJson)
+}
 
 ///|
 fn watermark_value(value : Json) -> @model.Watermark? raise @failure.Failure {

@@ -1,4 +1,5 @@
 ///|
+#derive(ToJson)
 priv struct DocxInputLimits {
   fontBytes : Int32
   exportBytes : Int32
@@ -9,7 +10,7 @@ priv struct DocxInputLimits {
   clipboardFragmentUnits : Int32
   textCommandUnits : Int32
   revisionEntries : Int32
-} derive(ToJson)
+}
 
 ///|
 let session_handlers : Map[

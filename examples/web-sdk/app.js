@@ -1,5 +1,7 @@
 import { loadEngine } from "@open-document/wasm";
 import { engineBuildId } from "@open-document/wasm/engine-source";
+import { loadDocumentAssets } from "@open-document/wasm/assets";
+import { loadSampleDocument } from "./sample.js";
 
 export async function mountEditor(container, options) {
   const { format } = options;
@@ -20,14 +22,18 @@ import { previewFonts } from "./fonts.js";
 
 const form = document.querySelector("#open-form");
 const status = document.querySelector("#host-status");
+const buttons = form.querySelectorAll("button");
+const styleNonce = document.querySelector("#example-script")?.nonce;
 let mounted;
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const button = form.querySelector('button[type="submit"]');
-  button.disabled = true;
+  buttons.forEach((button) => (button.disabled = true));
   try {
-    const file = document.querySelector("#document").files[0];
+    const file =
+      event.submitter?.id === "open-sample"
+        ? await loadSampleDocument()
+        : document.querySelector("#document").files[0];
     if (!file) return;
     const extension = file.name.split(".").at(-1).toLowerCase();
     const format = ["csv", "tsv"].includes(extension) ? "xlsx" : extension;
@@ -44,25 +50,25 @@ form.addEventListener("submit", async (event) => {
     const directory = document.querySelector("#host-save").checked
       ? await window.showDirectoryPicker({ mode: "readwrite" })
       : undefined;
-    if (mounted && !(await mounted.close())) return;
-    mounted = undefined;
     const { fonts, profile } = await previewFonts(
       document.querySelector("#fonts").files,
       overrides,
     );
     // Bundled substitutes are host resources; document font declarations remain unchanged.
-    const engine = await loadEngine({
-      url: new URL("./engine.wasm", import.meta.url),
-      build: engineBuildId,
-    });
-    const workerUrl = new URL(`./${format}-worker.js`, import.meta.url);
+    const assets = await loadDocumentAssets(
+      format,
+      new URL("./", import.meta.url),
+    );
+    if (mounted && !(await mounted.close())) return;
+    mounted = undefined;
     mounted = await mountEditor(document.querySelector("#editor"), {
       format,
       document: {
         name: file.name,
         bytes: new Uint8Array(await file.arrayBuffer()),
       },
-      resources: { engine, workerUrl, fonts, profile },
+      resources: { ...assets, fonts, profile },
+      ...(styleNonce ? { styleNonce } : {}),
       locale: "en-US",
       ...(directory
         ? {
@@ -89,7 +95,7 @@ form.addEventListener("submit", async (event) => {
   } catch (error) {
     status.textContent = error instanceof Error ? error.message : String(error);
   } finally {
-    button.disabled = false;
+    buttons.forEach((button) => (button.disabled = false));
   }
 });
 

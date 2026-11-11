@@ -1,19 +1,22 @@
 ///|
+#derive(@json.FromJson)
 priv struct SlideEditRequest {
   revision : @common.RequestInt
   slide : String
   change : Json
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ObjectEditRequest {
   revision : @common.RequestInt
   change : Json
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SelectRequest {
   revision : @common.RequestInt
   slide : String
@@ -22,42 +25,47 @@ priv struct SelectRequest {
   anchor : @common.RequestInt
   focus : @common.RequestInt
   objects : ObjectSelectionRequest
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ReplaceRequest {
   revision : @common.RequestInt
   text : String
   profile : @common.RequestProfile
   candidateId : @common.RequestInt?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct DeleteRequest {
   revision : @common.RequestInt
   backward : Bool
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct DateTimeRequest {
   revision : @common.RequestInt
   dateTime : String
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct FragmentRequest {
   revision : @common.RequestInt
   fragment : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PasteRequest {
   revision : @common.RequestInt
   fragment : String
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
 let edit_handlers : Map[

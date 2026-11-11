@@ -39,10 +39,8 @@ export function Thumbnail({
     };
   }, [editor, page, revision]);
   return (
-    <span ref={host} style={{ display: "block", minHeight: "24px" }}>
-      {url && (
-        <img src={url} alt="" style={{ width: "96px", height: "auto" }} />
-      )}
+    <span ref={host} className="od-page-thumb-image">
+      {url && <img src={url} alt="" />}
     </span>
   );
 }

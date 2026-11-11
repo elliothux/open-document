@@ -1,9 +1,10 @@
 ///|
+#derive(Eq, ToJson, @json.FromJson)
 pub(all) struct ConditionalIconThreshold {
   kind : String
   value : String
   greaterOrEqual : Bool
-} derive(Eq, ToJson, @json.FromJson)
+}
 
 ///|
 pub extend ConditionalIconThreshold with Eq::{equal, not_equal}
@@ -15,13 +16,14 @@ pub extend ConditionalIconThreshold with ToJson::{to_json}
 pub extend ConditionalIconThreshold with @json.FromJson::{from_json}
 
 ///|
+#derive(Eq, ToJson, @json.FromJson)
 pub(all) struct IconSet {
   kind : String
   reverse : Bool
   showValue : Bool
   percent : Bool
   thresholds : Array[ConditionalIconThreshold]
-} derive(Eq, ToJson, @json.FromJson)
+}
 
 ///|
 pub extend IconSet with Eq::{equal, not_equal}
@@ -33,11 +35,12 @@ pub extend IconSet with ToJson::{to_json}
 pub extend IconSet with @json.FromJson::{from_json}
 
 ///|
+#derive(Eq)
 priv struct ConditionalIcon {
   kind : String
   index : Int32
   showValue : Bool
-} derive(Eq)
+}
 
 ///|
 fn Session::cell_icon_matches(

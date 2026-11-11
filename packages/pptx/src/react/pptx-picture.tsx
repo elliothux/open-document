@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { PresentationEditor } from "../web/presentation-editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function ImageInsetsForm({
   controller,
@@ -47,7 +48,10 @@ export function ImageInsetsForm({
       }}
     >
       <fieldset disabled={disabled || !!reason} title={reason}>
-        <legend>{label ?? t.imageInsets}</legend>
+        <legend>
+          <Icon name="crop" />
+          {label ?? t.imageInsets}
+        </legend>
         {[
           t.imageInsetLeft,
           t.imageInsetTop,
@@ -73,6 +77,7 @@ export function ImageInsetsForm({
           </label>
         ))}
         <button type="button" onClick={() => setDraft([0, 0, 0, 0])}>
+          <Icon name="undo" />
           {t.resetImageInsets}
         </button>
         <button type="submit">
@@ -126,7 +131,10 @@ export function PptxPicture({
           disabled={blocked || !object || !!picture?.modeReason}
           title={picture?.modeReason}
         >
-          <legend>{t.pictureMode}</legend>
+          <legend>
+            <Icon name="image" />
+            {t.pictureMode}
+          </legend>
           <label>
             {t.imageFillMode}
             <select
@@ -142,16 +150,21 @@ export function PptxPicture({
             </select>
           </label>
           {mode === "tile" && <p>{t.tileCropHint}</p>}
-          <button type="submit">{t.applyImageFillMode}</button>
+          <button type="submit">
+            <Icon name="check" />
+            {t.applyImageFillMode}
+          </button>
         </fieldset>
       </form>
       <fieldset disabled={blocked || !object || !!picture?.replaceReason}>
         <legend>
+          <Icon name="image" />
           {object?.kind === "shape" && !picture?.replaceReason
             ? t.fillPicturePlaceholder
             : t.replaceImage}
         </legend>
         <label>
+          <Icon name="upload" />
           {t.replacementFile}
           <input
             type="file"
@@ -192,7 +205,10 @@ export function PptxPicture({
           disabled={blocked || !object || !!picture?.cropReason}
           title={picture?.cropReason}
         >
-          <legend>{t.pictureCrop}</legend>
+          <legend>
+            <Icon name="crop" />
+            {t.pictureCrop}
+          </legend>
           {(
             [
               ["left", t.cropLeft],
@@ -216,7 +232,10 @@ export function PptxPicture({
               />
             </label>
           ))}
-          <button type="submit">{t.applyCrop}</button>
+          <button type="submit">
+            <Icon name="check" />
+            {t.applyCrop}
+          </button>
           <button
             type="button"
             onClick={() =>
@@ -231,6 +250,7 @@ export function PptxPicture({
               )
             }
           >
+            <Icon name="undo" />
             {t.resetCrop}
           </button>
         </fieldset>
@@ -250,7 +270,10 @@ export function PptxPicture({
           disabled={blocked || !object || !!picture?.opacityReason}
           title={picture?.opacityReason}
         >
-          <legend>{t.pictureOpacity}</legend>
+          <legend>
+            <Icon name="eye" />
+            {t.pictureOpacity}
+          </legend>
           <label>
             {t.opacityPercent}
             <input
@@ -265,7 +288,10 @@ export function PptxPicture({
               }
             />
           </label>
-          <button type="submit">{t.applyOpacity}</button>
+          <button type="submit">
+            <Icon name="check" />
+            {t.applyOpacity}
+          </button>
         </fieldset>
       </form>
     </section>

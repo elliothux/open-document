@@ -4,6 +4,7 @@ import type { PptxObjectEdit } from "../web/pptx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { pptxDiagramTextUnits } from "@open-document/wasm/engine-source";
+import { Icon } from "@open-document/ui/icons";
 
 export function PptxDiagram({
   controller,
@@ -39,7 +40,10 @@ export function PptxDiagram({
       }}
     >
       <fieldset disabled={disabled || !!editor.query.readOnlyReason}>
-        <legend>{t.insertDiagram}</legend>
+        <legend>
+          <Icon name="shapes" />
+          {t.insertDiagram}
+        </legend>
         <label>
           {t.diagramTemplate}
           <select
@@ -68,7 +72,10 @@ export function PptxDiagram({
           />
         </label>
         <p>{t.diagramShapes}</p>
-        <button type="submit">{t.insertDiagram}</button>
+        <button type="submit">
+          <Icon name="plus" />
+          {t.insertDiagram}
+        </button>
       </fieldset>
     </form>
   );

@@ -58,6 +58,8 @@ PDF 使用最终对象框及原有 `URI`/`GoTo` 注释，按纸张和行内父�
 
 `FoundationSession/Client.execute({ operation: "overview", revision })` 的 `bookmarks` 返回 `{ name, selection, reason }[]`，最多 4096 项。支持正文、普通单元格及单层链接内的成对书签；空光标、文字范围、跨段和交叠范围均不占逻辑文字宽度。重复名称/身份、缺失或倒置标记、列书签和未知容器保留源，以 reason 说明保护原因，selection 为 null。
 
+存在跨段书签时，`bookmarkParagraphs` 按源顺序返回 `[paragraph, textBox]`。正文和单元格的 `textBox` 为 null，文本框段落使用所属绘图 ID。默认面板按选区活动端标记当前书签。重叠书签优先显示起点靠后的一项，起点相同时取终点靠前的一项。
+
 `editBookmark(revision, change)` 与宿主 `DocumentEditor.review.editBookmark(change)` 接受四种命令：`{ action: "create", name, selection }`、`{ action: "rename", name, replacement }`、`{ action: "remove", name }`、`{ action: "goTo", name }`。创建/改名使用 1–40 个 ASCII 字母、数字或下划线，首字符不能为数字。名称查找及去重忽略大小写；重复创建拒绝。goTo 将光标移到当前书签起点，不改 revision 或历史。默认概览面板提供创建、改名、删除及跳转，复用原生输入和编辑队列。
 
 `setHyperlink` 的 target 另接受 `#书签名`，必须对应当前可用书签。内部链接写入 `w:anchor`，不新增 OPC 关系；外部与内部目标可相互修改，保留原提示和直接格式。默认面板的“打开链接”执行核心定位。改名同时更新主文档及已知页眉页脚部件的 anchor 引用，包含共享和未启用变体；删除书签同时移除这些链接容器，保留文字、格式及命名空间。主文档已知简单 `PAGEREF` 随书签改名同步目标，删除目标后显示明确的缺失引用结果，缓存由显式字段刷新更新。其他 XML 部件、未关联页眉页脚中的 anchor，以及复杂或未知引用字段继续保护改名/删除；范围归[书签页码引用](docx-pages.md#书签页码引用)。
@@ -159,6 +161,10 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 `DocumentEditor.review.showRevision(catalog, id)` 定位目录中的普通文字或属性修订。它复用现有队列，请求当前布局的核心区域，显示首个区域所在页并滚动、高亮；跨页范围返回各页区域，定位时高亮首段所在页。定位不改变正文编辑选区、revision、历史、源或修改状态。高亮是临时覆盖层，其他编辑或页面操作会清除，也不进入导出。同步会话和 `FoundationClient` 提供 `execute({ operation: "revisionGeometry", revision, layoutId, id })`，返回既有 `{ layoutId, revision, rects }` 结构；底层 `docxRevisionGeometry` 命令使用 `revisionId` 字段，避免与 Worker 消息序号混用。
 
+修订目录的 `target` 与定位共用核心范围。文字或文字属性修订返回 `{ start, end }`，使用条目 `paragraph` 内的 UTF-16 偏移。行、表和单元格修订返回 `{ paragraphs }`，包含布局中的逻辑段落，合并格使用拥有者段落。范围不可用时返回 null。`DocumentEditor.review.getShownRevision()` 返回临时覆盖层对应的修订 ID，覆盖层清除后返回 undefined。
+
+默认审阅面板标记已定位的修订。随后移动正文光标时，面板根据选区活动端切换到匹配项，优先显示最窄的文字范围，其次是单元格、行和整表范围。面板将当前条目滚入可见范围，保留筛选条件和正文焦点。
+
 核心从可显示的源节点计算范围，再沿塑形后的字符边界向外对齐，处理跨页、单元格裁剪和空修订的 1.5 pt 定位线。单次最多 65536 个区域，继续受布局预算限制。旧文档目录、旧 revision/layout、未知目标、活动候选、无可见范围或不完整段落布局拒绝定位；只读定位失败保留后续编辑入口。Web 在绘制前校验布局身份和页面边界，不自行解释 OOXML 位置。
 
 当前处理正文直属段落及普通正文表格单元格内、直接包裹普通 run 的 `w:ins/w:del`，以及普通 run 的 `rPr/rPrChange` 和段落的 `pPr/pPrChange`；已知文字包装中的普通 run 也可含属性修订。属性修订必须含一份匹配的旧属性，当前与旧属性均沿已有结构属性校验；字符属性预览该 run 的文字，段落属性预览该段文字。接受移除修订记录并保留当前属性，拒绝恢复旧属性及其命名空间；拒绝段落属性保留当前段落标记的 `rPr`，不把标记格式当作旧段落属性覆盖。空旧属性恢复继承。属性和文字修订可在一个显式批次内处理，共用历史与预算。
@@ -210,6 +216,8 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 段末原生 Enter 使用当前段落样式的有效 `w:next`，新建标题因此切回 Normal。中间拆段和粘贴换行保持原样式；缺失、同名或非段落目标也继续当前样式。新段落沿既有样式应用规则清除段落直接属性，并保留直接段落方向。选择删除、换段和样式切换合为一次历史；目标样式或预算失败保持原包。规则依据 [ONLYOFFICE 的段末新段落处理](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L19490)。
 
 `DocumentEditor.review.selectHeading(result, index)` 定位到标题段落起点。结果绑定文档和修订；过期结果报 `stale-overview`，受保护标题带原因并禁止导航。默认属性面板展示标题和统计。
+
+默认引用面板将标题与书签放在统计和字段工具之前。正文光标进入标题段落时标记该标题。面板将当前条目滚入可见范围并保留正文焦点，标题和书签同时匹配时优先滚动到书签。
 
 统计只计算支持的正文逻辑文字。字符按 Unicode 标量计数；空白分隔单词，文字区段相连，段落分别计词。制表符计为空白；显式换行和分页符不计字符。图片、自动编号标记及页眉页脚等其他区域不计入；受保护或排除的正文结构提供原因，不能据此声称全文统计完整。
 

@@ -1,0 +1,163 @@
+.od-docx-reference-list {
+  padding-inline-start: 0;
+  list-style: none;
+}
+
+.od-docx-revisions > li,
+.od-docx-reference-list > li {
+  border-inline-start: 2px solid transparent;
+  padding-inline-start: 6px;
+}
+
+.od-docx-revisions > li[aria-current="true"],
+.od-docx-reference-list > li[aria-current="location"] {
+  border-color: var(--od-ui-accent);
+  background: var(--od-ui-hover);
+}
+
+.od-docx-style-preview {
+  display: grid;
+  gap: 4px;
+  margin-block: 8px;
+  padding: 10px;
+  border: 1px solid var(--od-ui-line);
+  border-radius: 5px;
+  background: #fff;
+  color: #202124;
+  overflow-wrap: anywhere;
+}
+
+.od-docx-style-preview small {
+  color: #555;
+}
+
+.od-docx-border-sides,
+.od-docx-border-sides::picker(select) {
+  appearance: base-select;
+}
+
+.od-docx-border-sides::picker(select) {
+  padding: 4px;
+  border: 1px solid var(--od-ui-line);
+  border-radius: 6px;
+  background: var(--od-ui-surface);
+  color: var(--od-ui-ink);
+}
+
+.od-docx-border-sides option {
+  align-items: center;
+  gap: 7px;
+  padding: 5px 7px;
+  border-radius: 3px;
+}
+
+.od-docx-border-sides option:is(:hover, :focus-visible) {
+  background: var(--od-ui-hover);
+  color: var(--od-ui-accent);
+}
+
+/* Ruler: one compact band; indent rows stack above the tab row. */
+.od-ruler {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 44px;
+  padding: 0 8px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--od-ui-line);
+  background: var(--od-ui-subtle);
+}
+.od-ruler-type {
+  position: relative;
+  z-index: 5;
+}
+.od-ruler-type select {
+  min-height: 24px;
+  padding: 0 4px;
+  font-size: var(--od-ui-tiny);
+  background: var(--od-ui-surface);
+}
+.od-ruler-empty {
+  padding-left: 10px;
+  color: var(--od-ui-faint);
+  font-size: var(--od-ui-small);
+}
+.od-ruler-track {
+  position: absolute;
+  top: 3px;
+  height: 38px;
+  border-radius: 3px;
+  background: var(--od-ui-surface);
+  box-shadow: inset 0 0 0 1px var(--od-ui-line);
+}
+.od-ruler-tick {
+  position: absolute;
+  top: 17px;
+  height: 4px;
+  border-left: 1px solid var(--od-ui-faint);
+  pointer-events: none;
+  color: var(--od-ui-faint);
+  font-size: 9px;
+  line-height: 1;
+}
+.od-ruler-tick.major {
+  top: 14px;
+  height: 10px;
+  padding: 1px 0 0 3px;
+  border-left-color: var(--od-ui-muted);
+}
+.od-ruler-marker {
+  position: absolute;
+  top: 27px;
+  z-index: 2;
+  width: 14px;
+  height: 10px;
+  min-height: 0;
+  padding: 0;
+  transform: translateX(-50%);
+  border: 0;
+  border-radius: 2px;
+  color: var(--od-ui-accent);
+  background: transparent;
+  font-size: 10px;
+  line-height: 10px;
+  touch-action: none;
+  cursor: ew-resize;
+}
+.od-ruler-marker:enabled:hover {
+  background: var(--od-ui-accent-soft);
+}
+.od-ruler-marker.first {
+  top: 1px;
+}
+.od-ruler-marker.hanging,
+.od-ruler-marker.right {
+  top: 9px;
+}
+.od-ruler-marker.left {
+  top: 19px;
+}
+.od-ruler-marker.marginLeft,
+.od-ruler-marker.marginRight {
+  top: 27px;
+  z-index: 1;
+  color: var(--od-ui-muted);
+}
+.od-ruler-marker.tab {
+  top: 27px;
+  color: var(--od-ui-ink);
+}
+.od-ruler-marker:focus-visible {
+  z-index: 3;
+  outline: 2px solid var(--od-ui-accent);
+  outline-offset: 1px;
+}
+.od-ruler-guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 4;
+  border-left: 1px dashed var(--od-ui-accent);
+  pointer-events: none;
+}

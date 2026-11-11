@@ -2,6 +2,8 @@
 
 状态：`research`。本文件依据 2026-10-14 的源码对照，并随阶段交付更新本项目状态；上游源码对照不代表运行验收。目标与职责归 [SDK 合同](references/sdk.md)，实施顺序归[路线图](references/roadmap.md)，当前支持范围归[格式合同](references/formats.md)。
 
+开发者集成、UI 组件与交互的调研和交付见 [G4](implemented/g4-office-sdk-productization.md)。下文“默认 UI 已接通”记录 G3 核对到的功能入口。
+
 P14 已完成选定范围，实际文件覆盖另见[兼容性矩阵](references/compatibility.md)。[C0](implemented/c0-real-file-compatibility.md) 已完成首批登记范围，下文更广文件变体仍需按 [C1](c1-corpus-and-producer-compatibility.md)补齐，不能因阶段完成而视为全部支持。
 
 ## 结论与对照口径

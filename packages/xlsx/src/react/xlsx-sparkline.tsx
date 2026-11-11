@@ -4,6 +4,7 @@ import type { XlsxSparklineKind } from "../web/xlsx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { xlsxSparklineSourceUnits } from "@open-document/wasm/engine-source";
+import { Icon } from "@open-document/ui/icons";
 
 export function XlsxSparkline({
   controller,
@@ -36,7 +37,10 @@ export function XlsxSparkline({
       }}
     >
       <fieldset disabled={blocked}>
-        <legend>{t.sparklines}</legend>
+        <legend>
+          <Icon name="chart" />
+          {t.sparklines}
+        </legend>
         <p>{t.sparklineHint}</p>
         <label>
           {t.sparklineSource}
@@ -64,9 +68,11 @@ export function XlsxSparkline({
           </select>
         </label>
         <button type="submit" disabled={!source}>
+          <Icon name="check" />
           {t.sparklineApply}
         </button>
         <button type="button" disabled={!current} onClick={() => apply(null)}>
+          <Icon name="trash" />
           {t.sparklineRemove}
         </button>
       </fieldset>

@@ -1,6 +1,7 @@
 import type { TabStop } from "../web/foundation.js";
 import type { UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxTabFields({
   draft,
@@ -93,6 +94,7 @@ export function DocxTabFields({
             aria-label={`${prefix}${t.removeTabStop} ${index + 1}`}
             onClick={() => setDraft(draft.filter((_, i) => i !== index))}
           >
+            <Icon name="trash" />
             {t.removeTabStop}
           </button>
         </div>
@@ -119,6 +121,7 @@ export function DocxTabFields({
           ])
         }
       >
+        <Icon name="plus" />
         {t.addTabStop}
       </button>
     </>

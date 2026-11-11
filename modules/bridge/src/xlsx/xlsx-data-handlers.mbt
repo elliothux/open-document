@@ -1,22 +1,25 @@
 ///|
+#derive(@json.FromJson)
 priv struct SheetRevisionRequest {
   revision : @common.RequestInt
   sheet : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct DataRequest[T] {
   revision : @common.RequestInt
   sheet : String
   settings : T
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PivotPreviewRequest {
   revision : @common.RequestInt
   settings : PivotSettingsRequest
   part : String?
-} derive(@json.FromJson)
+}
 
 ///|
 let data_handlers : Map[

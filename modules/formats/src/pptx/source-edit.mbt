@@ -101,6 +101,7 @@ fn Session::layout_deletion(
 }
 
 ///|
+#derive(ToJson)
 priv struct SourceOperationsQuery {
   rename : String
   addLayout : String
@@ -109,7 +110,7 @@ priv struct SourceOperationsQuery {
   deleteMaster : String
   addMaster : String
   copyMaster : String
-} derive(ToJson)
+}
 
 ///|
 fn Session::source_operations(

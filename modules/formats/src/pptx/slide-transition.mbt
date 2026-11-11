@@ -1,9 +1,10 @@
 ///|
+#derive(Eq, ToJson)
 pub(all) struct SlideTransition {
   kind : String
   duration : Int32
   direction : String
-} derive(Eq, ToJson)
+}
 
 ///|
 pub extend SlideTransition with Eq::{equal, not_equal}

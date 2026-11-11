@@ -28,17 +28,19 @@ fn cleared_table_cell(source : Ref) -> String? raise @failure.Failure {
 }
 
 ///|
+#derive(ToJson)
 priv struct TableStyleChoice {
   id : String
   name : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct TableStyleQuery {
   settings : TableStyleSettings
   choices : Array[TableStyleChoice]
   reason : String
-} derive(ToJson)
+}
 
 ///|
 fn table_style_query(table : DrawingTable, reason : String) -> TableStyleQuery {

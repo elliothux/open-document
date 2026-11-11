@@ -8,6 +8,7 @@ import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { DocxDrawingPosition } from "./docx-drawing-position.js";
 import { DocxDrawingLink } from "./docx-drawing-link.js";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxPictures({
   controller,
@@ -99,9 +100,11 @@ export function DocxPictures({
   };
   return (
     <section aria-label={t.pictureProperties}>
-      <h3>{t.pictureProperties}</h3>
       <fieldset disabled={disabled || !editor.getSnapshot().data.selection}>
-        <legend>{t.insertImage}</legend>
+        <legend>
+          <Icon name="image" />
+          {t.insertImage}
+        </legend>
         {(
           [
             ["width", t.insertPictureWidth],
@@ -123,6 +126,7 @@ export function DocxPictures({
           </label>
         ))}
         <label>
+          <Icon name="upload" />
           {t.pictureFile}
           <input
             type="file"
@@ -152,6 +156,7 @@ export function DocxPictures({
         disabled={disabled}
         onClick={() => controller.run(load)}
       >
+        <Icon name="refresh" />
         {t.loadPictures}
       </button>
       {catalog && catalog.images.length > 0 && (
@@ -219,6 +224,7 @@ export function DocxPictures({
             }}
           />
           <label>
+            <Icon name="upload" />
             {t.replacementFile}
             <input
               type="file"
@@ -259,6 +265,7 @@ export function DocxPictures({
               })
             }
           >
+            <Icon name="trash" />
             {t.deletePicture}
           </button>
           {image.deleteReason && image.deleteReason !== image.reason && (
@@ -329,6 +336,7 @@ export function DocxPictures({
                 draft.crop[1] + draft.crop[3] >= 1
               }
             >
+              <Icon name="check" />
               {t.applyPicture}
             </button>
             <button
@@ -346,6 +354,7 @@ export function DocxPictures({
                 )
               }
             >
+              <Icon name="undo" />
               {t.resetCrop}
             </button>
           </fieldset>

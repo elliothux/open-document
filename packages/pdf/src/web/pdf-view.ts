@@ -56,6 +56,7 @@ export class PdfView {
   private backgroundPending = 0;
   private searchId = 0;
   private matches: PdfMatch[] = [];
+  private searchQuery = "";
   private matchIndex = -1;
   private selection = { anchor: 0, focus: 0 };
   private gesture = 0;
@@ -164,6 +165,7 @@ export class PdfView {
       old.query === this.state &&
       old.readingMode === this.readingMode &&
       old.matches === this.matches &&
+      old.searchQuery === this.searchQuery &&
       old.matchIndex === this.matchIndex &&
       old.searching === this.searching &&
       old.searchPage === this.searchPage &&
@@ -175,6 +177,7 @@ export class PdfView {
             readingMode: this.readingMode,
             query: this.state,
             matches: this.matches,
+            searchQuery: this.searchQuery,
             matchIndex: this.matchIndex,
             searching: this.searching,
             searchPage: this.searchPage,
@@ -184,8 +187,8 @@ export class PdfView {
           };
     this.observable.update({
       revision: this.state.revision,
-      canUndo: this.state.canUndo,
-      canRedo: this.state.canRedo,
+      canUndo: this.state.canUndo && !input.draft && !input.applying,
+      canRedo: this.state.canRedo && !input.draft && !input.applying,
       page: this.state.pages.findIndex((page) => page.id === this.state.page),
       pageCount: this.state.pages.length,
       zoom: this.zoom,
@@ -197,7 +200,10 @@ export class PdfView {
       composition: input.composition,
       dragging: this.dragging || input.dragging === true,
       draft: input.draft,
-      busy: this.queue.pending - this.backgroundPending,
+      busy: Math.max(
+        this.queue.pending - this.backgroundPending,
+        input.applying ? 1 : 0,
+      ),
       paused: this.paused,
       stopped: this.stopped,
       closed: this.closed,
@@ -518,10 +524,11 @@ export class PdfView {
       pages = this.state.pages.map((page) => page.id);
     const matches: PdfMatch[] = [];
     this.matches = [];
+    this.searchQuery = query;
+    this.matchIndex = -1;
     this.searching = true;
     this.searchPage = 0;
     this.publish();
-    this.matchIndex = -1;
     let complete = true;
     try {
       for (const [index, page] of pages.entries()) {
@@ -573,16 +580,29 @@ export class PdfView {
     return { complete, matches: [...matches] };
   }
   async nextMatch(delta = 1): Promise<void> {
+    return this.navigateMatch(
+      () =>
+        (this.matchIndex + delta + this.matches.length) % this.matches.length,
+      true,
+    );
+  }
+  async showMatch(index: number): Promise<void> {
+    return this.navigateMatch(() => index, false);
+  }
+  private async navigateMatch(
+    index: () => number,
+    focus: boolean,
+  ): Promise<void> {
     this.checkDraft();
+    const search = this.searchId;
     return this.enqueue(async () => {
-      if (!this.matches.length) return;
-      this.matchIndex =
-        (this.matchIndex + delta + this.matches.length) % this.matches.length;
-      const match = this.matches[this.matchIndex];
-      if (!match) return;
+      const target = index();
+      const match = this.matches[target];
+      if (search !== this.searchId || !match) return;
+      this.matchIndex = target;
       if (match.page !== this.state.page) await this.paint(match.page);
       await this.updateSelection(match.start, match.end);
-      this.viewport.focus();
+      if (focus) this.viewport.focus();
     });
   }
   private point(event: PointerEvent) {

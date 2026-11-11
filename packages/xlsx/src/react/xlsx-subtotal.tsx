@@ -8,6 +8,7 @@ import {
 } from "../web/xlsx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function XlsxSubtotal({
   editor,
@@ -66,7 +67,10 @@ export function XlsxSubtotal({
   };
   return (
     <fieldset disabled={blocked}>
-      <legend>{t.subtotal}</legend>
+      <legend>
+        <Icon name="calculator" />
+        {t.subtotal}
+      </legend>
       <p>{settings.range}</p>
       <p>{t.subtotalNotice}</p>
       {!bounded && <p>{t.subtotalRangeNotice}</p>}
@@ -130,6 +134,7 @@ export function XlsxSubtotal({
           )
         }
       >
+        <Icon name="eye" />
         {t.subtotalPreview}
       </button>
       {preview && (
@@ -168,6 +173,7 @@ export function XlsxSubtotal({
               )
             }
           >
+            <Icon name="plus" />
             {t.subtotalCreate}
           </button>
         </>

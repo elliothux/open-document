@@ -95,6 +95,7 @@ fn Session::editable_chart(
 }
 
 ///|
+#derive(ToJson)
 priv struct ChartQuery {
   id : Int32
   width : Double
@@ -106,7 +107,7 @@ priv struct ChartQuery {
   deleteReason : String
   sizeReason : String
   positionReason : String
-} derive(ToJson)
+}
 
 ///|
 pub fn Session::charts(

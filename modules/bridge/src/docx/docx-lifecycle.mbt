@@ -1,16 +1,18 @@
 ///|
+#derive(@json.FromJson)
 priv struct OpenRequest {
   budget : @common.RequestArchiveBudget
   bytes : String
   password : String?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ShapeRequest {
   size : Json
   text : String
   language : String
-} derive(@json.FromJson)
+}
 
 ///|
 fn Context::require_unopened(

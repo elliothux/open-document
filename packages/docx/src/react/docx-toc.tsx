@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { DocumentEditor, DocumentTableOfContents } from "../web/editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxToc({
   controller,
@@ -43,7 +44,10 @@ export function DocxToc({
     source.revision !== snapshot.revision;
   return (
     <section aria-label={t.tableOfContents}>
-      <h3>{t.tableOfContents}</h3>
+      <h3>
+        <Icon name="table-of-contents" />
+        {t.tableOfContents}
+      </h3>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -116,6 +120,7 @@ export function DocxToc({
               )
             }
           >
+            <Icon name="refresh" />
             {t.updateToc}
           </button>
           <button
@@ -129,6 +134,7 @@ export function DocxToc({
               )
             }
           >
+            <Icon name="trash" />
             {t.deleteToc}
           </button>
           {item.reason && <p>{item.reason}</p>}

@@ -6,6 +6,7 @@ import {
   xlsxDefinedNameUnits,
   xlsxFormulaSourceUnits,
 } from "@open-document/wasm/engine-source";
+import { Icon } from "@open-document/ui/icons";
 
 interface NameProps {
   controller: EditorController;
@@ -37,7 +38,10 @@ export function XlsxNames({ controller, state, editor, disabled }: NameProps) {
   const reason = query.names.readOnlyReason || selected?.readOnlyReason || "";
   return (
     <section aria-label={t.definedNames}>
-      <h3>{t.definedNames}</h3>
+      <h3>
+        <Icon name="name-tag" />
+        {t.definedNames}
+      </h3>
       <label>
         {t.definedNameChoice}
         <select
@@ -80,6 +84,7 @@ export function XlsxNames({ controller, state, editor, disabled }: NameProps) {
             );
         }}
       >
+        <Icon name="arrow-right" />
         {t.goToDefinedName}
       </button>
       <form
@@ -97,7 +102,10 @@ export function XlsxNames({ controller, state, editor, disabled }: NameProps) {
         }}
       >
         <fieldset disabled={disabled || !!reason}>
-          <legend>{selected ? t.editDefinedName : t.newDefinedName}</legend>
+          <legend>
+            <Icon name="name-tag" />
+            {selected ? t.editDefinedName : t.newDefinedName}
+          </legend>
           <label>
             {t.definedNameText}
             <input
@@ -133,6 +141,7 @@ export function XlsxNames({ controller, state, editor, disabled }: NameProps) {
             />
           </label>
           <button type="button" onClick={() => setFormula(reference())}>
+            <Icon name="plus" />
             {t.nameFromSelection}
           </button>
           <button type="submit" disabled={!name || !formula}>
@@ -152,6 +161,7 @@ export function XlsxNames({ controller, state, editor, disabled }: NameProps) {
                 );
             }}
           >
+            <Icon name="trash" />
             {t.deleteDefinedName}
           </button>
         </fieldset>

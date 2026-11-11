@@ -1,4 +1,5 @@
 ///|
+#derive(ToJson)
 priv struct CircularLabels {
   text : @layout.TextStyle
   position : String
@@ -8,7 +9,7 @@ priv struct CircularLabels {
   percent : Bool
   separator : String
   leader : (String, Double)?
-} derive(ToJson)
+}
 
 ///|
 priv struct CircularPoint {

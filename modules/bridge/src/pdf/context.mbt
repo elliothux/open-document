@@ -1,4 +1,5 @@
 ///|
+#derive(ToJson)
 priv struct PdfInputLimits {
   fontBytes : Int32
   exportBytes : Int32
@@ -7,7 +8,7 @@ priv struct PdfInputLimits {
   inkStrokeCount : Int32
   inkCoordinates : Int32
   textUnits : Int32
-} derive(ToJson)
+}
 
 ///|
 let operation_handlers : Map[

@@ -9,12 +9,14 @@ import { mime } from "./types.js";
 import type {
   OfficeDocument,
   EditorOptions,
+  EditorMode,
   Locale,
   MountedSnapshot,
   OwnedFile,
   SavedDocument,
   Theme,
 } from "./types.js";
+import { EditorCommands } from "./commands.js";
 
 export type LeaveChoice = "save" | "discard" | "cancel";
 export interface LeaveDialog {
@@ -29,6 +31,7 @@ export interface UiSnapshot<E extends EditorHost = EditorHost> {
   readonly loading: boolean;
   readonly theme: Theme;
   readonly locale: Locale;
+  readonly mode: EditorMode;
   readonly message: string;
   readonly error: string;
   readonly dialog: LeaveDialog | undefined;
@@ -51,28 +54,61 @@ export class EditorController<E extends EditorHost = EditorHost> {
   private errorVersion = 0;
   private newDocumentId: string | undefined;
   private readonly printer: PdfPrinter;
+  readonly commands = new EditorCommands(this);
 
   constructor(
-    readonly options: EditorOptions,
+    private config: EditorOptions,
     readonly product: Product<E>,
     readonly host: HTMLElement,
     readonly surfaces: HTMLElement,
     private readonly releaseUi: () => void,
+    private readonly notifyError: (error: unknown) => void,
   ) {
     this.printer = new PdfPrinter(host.ownerDocument);
     this.value = {
       file: undefined,
       document: undefined,
-      name: options.document.name,
+      name: config.document.name,
       saving: false,
       loading: true,
-      theme: options.theme ?? "light",
-      locale: options.locale ?? "en-US",
+      theme: config.theme ?? "light",
+      locale: config.locale ?? "en-US",
+      mode: config.mode ?? "edit",
       message: "",
       error: "",
       dialog: undefined,
     };
     this.host.dataset.theme = this.value.theme;
+  }
+
+  get options(): EditorOptions {
+    return this.config;
+  }
+
+  updatePresentation(options: EditorOptions): void {
+    const { onSave, onOpen, commentAuthor, slots, ...initial } = this.config;
+    this.config = {
+      ...initial,
+      ...(options.onSave ? { onSave: options.onSave } : {}),
+      ...(options.onOpen ? { onOpen: options.onOpen } : {}),
+      ...(options.slots ? { slots: options.slots } : {}),
+      ...(options.commentAuthor
+        ? { commentAuthor: options.commentAuthor }
+        : {}),
+    };
+    if (options.theme && options.theme !== this.value.theme)
+      this.setTheme(options.theme);
+    if (options.locale && options.locale !== this.value.locale)
+      this.setLocale(options.locale);
+    if (options.mode && options.mode !== this.value.mode)
+      this.run(() => this.setMode(options.mode!));
+    if (
+      onSave !== options.onSave ||
+      onOpen !== options.onOpen ||
+      commentAuthor !== options.commentAuthor ||
+      slots !== options.slots
+    )
+      this.publish();
   }
 
   readonly getUiSnapshot = (): UiSnapshot<E> => this.value;
@@ -99,6 +135,7 @@ export class EditorController<E extends EditorHost = EditorHost> {
           snapshot.modified || snapshot.documentId === this.newDocumentId,
         error: value.error || snapshot.error,
         name: value.name,
+        mode: value.mode,
         saving: value.saving,
         loading: value.loading,
         message: value.message,
@@ -157,6 +194,7 @@ export class EditorController<E extends EditorHost = EditorHost> {
       document,
       this.surfaces,
       this.candidateAbort.signal,
+      this.value.locale,
     );
     try {
       const file = await this.candidate;
@@ -187,6 +225,7 @@ export class EditorController<E extends EditorHost = EditorHost> {
       : undefined;
     this.prepared = undefined;
     this.unsubscribe?.();
+    file.editor.setReadOnly(this.value.mode === "view");
     Object.assign(file.surface.style, {
       position: "relative",
       visibility: "visible",
@@ -424,8 +463,10 @@ export class EditorController<E extends EditorHost = EditorHost> {
   readonly open = (document: OfficeDocument): Promise<boolean> =>
     this.change(() => this.replace(document));
   create(document: { readonly name: string }): Promise<boolean> {
-    if (!this.product.canCreate)
-      return Promise.reject(new Error("Blank creation is unavailable for PDF"));
+    if (!this.product.canCreate || this.value.mode === "view")
+      return Promise.reject(
+        new Error(messages(this.value.locale).commandUnavailable),
+      );
     return this.open({ name: this.fileName(document.name), blank: true });
   }
   openFile(file: File, delimited?: DelimitedOptions): Promise<boolean> {
@@ -532,12 +573,29 @@ export class EditorController<E extends EditorHost = EditorHost> {
     this.assertOpen();
     this.publish({ locale });
   }
+  setMode(mode: EditorMode): void {
+    this.assertOpen();
+    if (mode === this.value.mode) return;
+    const active = this.value.document;
+    if (
+      mode === "view" &&
+      (active?.draft || active?.composition || active?.dragging || active?.busy)
+    )
+      throw new Error(messages(this.value.locale).finishEditBeforeMode);
+    this.value.file?.editor.setReadOnly(mode === "view");
+    this.publish({ mode });
+  }
   report(error: unknown): void {
     if (!this.disposed) {
       this.errorVersion++;
       this.publish({
         error: error instanceof Error ? error.message : String(error),
       });
+      try {
+        this.notifyError(error);
+      } catch {
+        /* Error observers do not own document operations. */
+      }
     }
   }
   run(operation: () => unknown | Promise<unknown>): void {

@@ -1,99 +1,115 @@
 ///|
+#derive(@json.FromJson)
 priv struct InsertTableRequest {
   revision : @common.RequestInt
   selection : SelectionRequest
   rows : @common.RequestInt
   columns : @common.RequestInt
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct EditTableRequest {
   revision : @common.RequestInt
   selection : SelectionRequest
   change : Json
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableAutoFitRequest {
   mode : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableSizeRequest {
   rows : @common.RequestInt
   columns : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableTextRequest {
   text : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableFragmentRequest {
   fragment : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableCountRequest {
   value : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableSplitRequest {
   value : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableAlignmentRequest {
   value : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableValueRequest {
   value : Json
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableFillRequest {
   value : Json
   themeColor : Json?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableBorderRequest {
   style : String
   width : @common.RequestNumber
   color : String
   themeColor : Json?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableMarginsRequest {
   top : @common.RequestNumber
   right : @common.RequestNumber
   bottom : @common.RequestNumber
   left : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TableWidthRequest {
   value : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ColumnWidthRequest {
   column : @common.RequestInt
   value : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct RowHeightRequest {
   rule : String
   value : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
 fn table_nullable_string(value : Json) -> String? raise @failure.Failure {

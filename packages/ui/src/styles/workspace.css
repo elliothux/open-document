@@ -1,0 +1,375 @@
+/* Workspace: canvas, navigation rail, task panels, and modal surfaces. */
+.od-workbench {
+  display: flex;
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+.od-workspace {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  background: var(--od-ui-workspace);
+  overflow: hidden;
+}
+.od-surfaces,
+.od-context-surface {
+  display: flex;
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+.od-surface {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.od-surface canvas {
+  color-scheme: light;
+}
+.od-surface:is(
+  [data-format="docx"],
+  [data-format="pptx"],
+  [data-format="pdf"]
+) {
+  padding: 24px;
+}
+.od-surface:is([data-format="docx"], [data-format="pptx"]) > [role="region"],
+.od-surface[data-format="pdf"] > section {
+  width: max-content;
+  max-width: 100%;
+  align-self: center;
+}
+.od-surface:not([data-format="xlsx"]) canvas:first-child {
+  border-radius: 2px;
+  box-shadow: var(--od-ui-page-shadow);
+}
+
+/* Navigation rail for pages, slides, and outline entries. */
+.od-sidebar {
+  width: 208px;
+  flex-shrink: 0;
+  overflow: auto;
+  padding: 10px 8px;
+  border-right: 1px solid var(--od-ui-line);
+  background: var(--od-ui-subtle);
+}
+.od-sidebar button {
+  display: block;
+  width: 100%;
+  min-height: var(--od-ui-control);
+  padding: 5px 8px;
+  text-align: left;
+  color: var(--od-ui-muted);
+}
+.od-sidebar button:enabled:hover {
+  color: var(--od-ui-ink);
+}
+.od-sidebar button[aria-current]:not([aria-current="false"]) {
+  color: var(--od-ui-ink);
+  background: var(--od-ui-active);
+  font-weight: 500;
+}
+.od-section-heading {
+  font-weight: 600;
+}
+.od-section-heading svg {
+  display: inline-block;
+  vertical-align: middle;
+  width: 14px;
+  height: 14px;
+  color: var(--od-ui-muted);
+}
+.od-section-pages {
+  padding-left: 8px;
+}
+
+@container od-editor (max-width: 1080px) {
+  .od-task-panel {
+    position: absolute;
+    z-index: 4;
+    inset: 0 0 0 auto;
+    box-shadow: var(--od-ui-shadow-lg);
+  }
+}
+@media (max-width: 700px) {
+  .od-sidebar {
+    width: 136px;
+  }
+  .od-properties {
+    width: 232px;
+  }
+}
+
+/* Spreadsheet chrome above and below the grid. */
+.od-formula {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+  min-height: calc(40 * var(--od-ui-space));
+  padding: 0 10px;
+  border-bottom: 1px solid var(--od-ui-line);
+  background: var(--od-ui-surface);
+}
+.od-formula form {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.od-formula form input {
+  width: 96px;
+  border-radius: var(--od-ui-radius) 0 0 var(--od-ui-radius);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+.od-formula form > button {
+  display: inline-grid;
+  place-items: center;
+  width: var(--od-ui-control);
+  min-height: var(--od-ui-control);
+  padding: 0;
+  margin-left: -1px;
+  border: 1px solid var(--od-ui-line-strong);
+  border-radius: 0 var(--od-ui-radius) var(--od-ui-radius) 0;
+  background: var(--od-ui-surface);
+}
+.od-formula svg {
+  width: 15px;
+  height: 15px;
+  color: var(--od-ui-muted);
+}
+.od-formula-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  padding-left: 8px;
+  border-left: 1px solid var(--od-ui-line);
+}
+.od-formula-entry > svg {
+  color: var(--od-ui-faint);
+}
+.od-formula-entry > div {
+  flex: 1;
+  min-width: 0;
+}
+.od-formula > [role="status"] {
+  color: var(--od-ui-muted);
+  font-size: var(--od-ui-small);
+  white-space: nowrap;
+}
+.od-formula > .od-icon-command {
+  flex: none;
+}
+.od-formula-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  color: var(--od-ui-muted);
+  font-size: var(--od-ui-small);
+  white-space: nowrap;
+}
+.od-sheets {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  min-height: calc(36 * var(--od-ui-space));
+  padding: 0 8px;
+  overflow-x: auto;
+  border-top: 1px solid var(--od-ui-line);
+  background: var(--od-ui-subtle);
+}
+.od-sheets button {
+  flex-shrink: 0;
+  min-height: 26px;
+  padding: 0 12px;
+  color: var(--od-ui-muted);
+}
+.od-sheets button:enabled:hover {
+  color: var(--od-ui-ink);
+}
+.od-sheets [aria-current="page"] {
+  color: var(--od-ui-ink);
+  background: var(--od-ui-surface);
+  box-shadow:
+    var(--od-ui-shadow-sm),
+    0 0 0 1px var(--od-ui-line);
+  font-weight: 500;
+}
+.od-sheets .od-icon-command {
+  width: 26px;
+  min-width: 26px;
+  min-height: 26px;
+  padding: 0;
+}
+.od-sheets-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 6px;
+  padding-left: 6px;
+  border-left: 1px solid var(--od-ui-line);
+}
+
+/* Modal surfaces. */
+.od-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgb(12 13 16 / 36%);
+  backdrop-filter: blur(2px);
+}
+.od-dialog {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 41;
+  width: min(440px, 90vw);
+  max-height: 86vh;
+  overflow: auto;
+  padding: 20px 20px 16px;
+  transform: translate(-50%, -50%);
+  border-radius: 12px;
+  background: var(--od-ui-surface);
+  color: var(--od-ui-ink);
+  box-shadow: var(--od-ui-shadow-lg);
+}
+.od-dialog-title {
+  margin-bottom: 6px;
+  font-size: calc(var(--od-ui-font-size) + 2px);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.od-dialog-title + p,
+.od-dialog > p {
+  color: var(--od-ui-muted);
+}
+.od-dialog label {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  color: var(--od-ui-muted);
+  font-size: var(--od-ui-small);
+  font-weight: 500;
+}
+.od-dialog label:has(> input:is([type="checkbox"], [type="radio"])) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--od-ui-ink);
+  font-weight: 400;
+}
+.od-dialog
+  label
+  > :is(input:not([type="checkbox"], [type="radio"]), select, textarea) {
+  color: var(--od-ui-ink);
+  font-size: var(--od-ui-font-size);
+  font-weight: 400;
+}
+.od-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 20px -20px -16px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--od-ui-line);
+  background: var(--od-ui-subtle);
+  border-radius: 0 0 12px 12px;
+}
+.od-dialog-actions button {
+  min-height: var(--od-ui-control);
+  padding: 0 14px;
+  border: 1px solid var(--od-ui-line-strong);
+  background: var(--od-ui-surface);
+  box-shadow: var(--od-ui-shadow-sm);
+  font-weight: 500;
+}
+.od-paste-label {
+  display: block;
+  margin-top: 12px;
+}
+.od-paste-label textarea {
+  display: block;
+  width: 100%;
+  min-height: 112px;
+}
+.od-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--od-ui-workspace) 92%, transparent);
+  color: var(--od-ui-muted);
+}
+.od-loading > div {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+}
+.od-loading > div::before {
+  content: "";
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--od-ui-line-strong);
+  border-top-color: var(--od-ui-accent);
+  border-radius: 50%;
+  animation: od-spin 0.8s linear infinite;
+}
+@keyframes od-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.od-loading button {
+  border: 1px solid var(--od-ui-line-strong);
+  background: var(--od-ui-surface);
+}
+
+/* Small shared pickers. */
+.od-filter-values {
+  max-height: 12rem;
+  overflow: auto;
+}
+.od-guide-list {
+  max-height: 8rem;
+  overflow: auto;
+}
+.od-table-picker {
+  width: max-content;
+  max-width: calc(100vw - 24px);
+}
+.od-table-grid {
+  display: grid;
+  gap: 3px;
+  margin-top: 8px;
+}
+.od-table-grid [role="row"] {
+  display: flex;
+  gap: 3px;
+}
+.od-table-grid button {
+  display: block;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--od-ui-line-strong);
+  border-radius: 4px;
+}
+.od-table-grid [aria-selected="true"] button {
+  border-color: var(--od-ui-accent);
+  background: var(--od-ui-accent-soft);
+}

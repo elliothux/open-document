@@ -73,12 +73,14 @@ fn WordTree::shape_locked(self : WordTree, id : Int32, name : String) -> Bool {
 }
 
 ///|
+#derive(ToJson)
 priv struct DrawingCatalog[T] {
   revision : Int32
   items : Array[T]
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct ShapeQuery {
   id : Int32
   selected : Bool
@@ -97,7 +99,7 @@ priv struct ShapeQuery {
   sizeReason : String
   deleteReason : String
   hyperlink : DrawingLinkQuery
-} derive(ToJson)
+}
 
 ///|
 pub fn Session::shapes(

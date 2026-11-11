@@ -6,6 +6,8 @@
 
 2026-10-14 重排后，先补四类编辑器的核心功能，再扩大兼容与性能，接入外围能力，最后完成跨宿主。**功能优先级 P0/P1/P2 与阶段编号分开**：P0–P14 已完成声明范围，后续阶段为 P15、P16。2026-10-30 根据真实文件不可用反馈，先实施 [C0 兼容补齐](../implemented/c0-real-file-compatibility.md)，再进入 P15。证据与未补齐项统一见[兼容性矩阵](compatibility.md)。
 
+2026-11-11，[G4](../implemented/g4-office-sdk-productization.md) 已交付四格式无 UI 入口、资源配置、可组合编辑器和主要交互。G4 核对并接通已支持能力的开发者入口与默认界面，不扩大 C0 文件资格。C1 中阻塞实际流程的问题随对应工作处理。
+
 | 功能优先级 | 范围 | 对应阶段 |
 | --- | --- | --- |
 | P0 核心功能 | 可嵌入 SDK、默认 UI、文档操作、必要布局/计算、保存及常用转换；普通文件打开/显示/保存的阻塞修复与分级降级 | P9–P13；C0 核心可用性修复；C1.1 分级降级基线 |
@@ -44,14 +46,14 @@
 | [P14 兼容与性能](../implemented/p14-compatibility-performance.md) | 扩大真实文件覆盖，使复杂/大文件操作可用 | P1 | `implemented`；七个兼容批次、真实文件编辑与输出，以及 DOCX 首次布局优化 |
 | [R2 架构精简、核心下沉与性能重构](../implemented/r2-architecture-and-performance.md) | 消除核心重算并缓存解析结果，统一命令协议与校验瘦身，渲染与图像逻辑下沉 MoonBit，响应合并与增量传输，排版/计算热点，单格式 Wasm 拆分与文档瘦身 | P0 / P1 | `implemented`。七个批次及登记兼容性复核已完成 |
 | [C0 真实文件可用性与兼容补齐](../implemented/c0-real-file-compatibility.md) | 首批 51 份候选文件能打开、主要内容可见，已支持操作可安全保存 | P0 / P1 | `implemented`；48 份正向与 3 份控制符合预期，128 条登记浏览器流程通过 |
-| [C1 兼容矩阵整合、开源语料引入与多生产工具覆盖](../c1-corpus-and-producer-compatibility.md) | 统一兼容账本、局部特性分级降级、接入 IronCalc/Calamine/Open-XML-SDK 等测试集及多生产工具/CJK 样本 | P0 / P1 | `planned`；承接 C0，系统化扩大真实文件与标准向量覆盖 |
+| [C1 兼容矩阵整合、开源语料引入与多生产工具覆盖](../c1-corpus-and-producer-compatibility.md) | 统一兼容账本、局部特性分级降级、接入 IronCalc/Calamine/Open-XML-SDK 等测试集及多生产工具/CJK 样本 | P0 / P1 | `planned`；账本已合并 11 份清单，C1.2 探针已记录部分公式与数字格式差异。分级降级与语料配额仍待完成 |
 | [P15 次要与外围能力](../p15-peripheral-capabilities.md) | 原生 Diff、AI 命令事务、OCR/校对 Provider、PDF 签名与协作原语接入 | P2 | `planned`；在 R2、C0/C1 及 P16.1 核心独立闭环后逐项接入 |
 | [P16 跨宿主与非浏览器运行时](../p16-cross-host-runtime.md) | 无浏览器核心闭环、CLI 和一个明确的非浏览器宿主复用同一核心 | P2 | P16.1 核心独立性探针已通过；P16.2–P16.3 `planned` |
 
 **分步推进顺序：**
 
 1. **第一步（消除重算与协议精简）**：[R2.1–R2.2](../implemented/r2-architecture-and-performance.md) 已交付核心缓存和命令协议。R2.7 完成文档拆分、历史迁移与证据索引。
-2. **第二步（分级降级基线）**：[C0](../implemented/c0-real-file-compatibility.md) 已完成首批登记范围，继续落地 [C1.1](../c1-corpus-and-producer-compatibility.md) 的局部不支持特性分级降级（Graceful Degradation）与历史测试账本去重归并。
+2. **第二步（分级降级基线）**：[C0](../implemented/c0-real-file-compatibility.md) 已完成首批登记范围。[C1.1](../c1-corpus-and-producer-compatibility.md) 已合并历史清单，继续落地局部不支持特性分级降级（Graceful Degradation）并补齐分操作资格。
 3. **第三步（开源语料扩充与核心性能攻坚）**：推进 [C1.2–C1.6](../c1-corpus-and-producer-compatibility.md)，接入公式向量、布局对照及多生产工具和 CJK 语料。[R2.4–R2.6](../implemented/r2-architecture-and-performance.md) 已交付增量传输、排版与计算缓存、单格式 Wasm 和字体共享。
 4. **第四步（无浏览器核心闭环探针）**：[P16.1](../p16-cross-host-runtime.md) 已在固定构建中通过。该探针覆盖无 DOM/Canvas 的四格式含图打开、编辑、重算、排版和输出。[R2.3](../implemented/r2-architecture-and-performance.md) 已交付核心渲染策略和图像处理。
 5. **第五步（外围能力与跨宿主交付）**：按 [P15.1–P15.5](../p15-peripheral-capabilities.md) 接入原生 Diff、AI 批量事务、OCR/校对 Provider、PDF 签名与协作原语，最后完成 [P16.2–P16.3](../p16-cross-host-runtime.md) 的 CLI 与非浏览器宿主绑定。

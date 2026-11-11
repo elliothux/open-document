@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { DrawingAnchor, DrawingAxis } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxDrawingPosition({
   controller,
@@ -35,7 +36,10 @@ export function DocxDrawingPosition({
       }}
     >
       <fieldset disabled={disabled || !!drawing.positionReason}>
-        <legend>{t.drawingPosition}</legend>
+        <legend>
+          <Icon name="move" />
+          {t.drawingPosition}
+        </legend>
         <label>
           {t.drawingPlacement}
           <select
@@ -257,7 +261,10 @@ export function DocxDrawingPosition({
             </label>
           </>
         )}
-        <button type="submit">{t.applyDrawingPosition}</button>
+        <button type="submit">
+          <Icon name="check" />
+          {t.applyDrawingPosition}
+        </button>
       </fieldset>
       {drawing.positionReason && <p>{drawing.positionReason}</p>}
     </form>

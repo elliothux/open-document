@@ -1,4 +1,5 @@
 ///|
+#derive(Eq)
 priv struct SheetShape {
   preset : String
   text_box : Bool
@@ -18,7 +19,7 @@ priv struct SheetShape {
   wrap : Bool
   align : String
   vertical : String
-} derive(Eq)
+}
 
 ///|
 pub(all) struct ShapeSettings {
@@ -96,23 +97,16 @@ fn SheetObject::shape_settings(
 }
 
 ///|
+#derive(ToJson(fields(insetLeft(rename="left"), insetTop(rename="top"), insetRight(rename="right"), insetBottom(rename="bottom"))))
 priv struct ShapeInsetsQuery {
   insetLeft : Double
   insetTop : Double
   insetRight : Double
   insetBottom : Double
-} derive (
-  ToJson(
-    fields(
-      insetLeft(rename="left"),
-      insetTop(rename="top"),
-      insetRight(rename="right"),
-      insetBottom(rename="bottom"),
-    ),
-  ),
-)
+}
 
 ///|
+#derive(ToJson)
 priv struct ShapeQuery {
   id : String
   kind : String
@@ -136,7 +130,7 @@ priv struct ShapeQuery {
   align : String
   vertical : String
   insets : ShapeInsetsQuery
-} derive(ToJson)
+}
 
 ///|
 fn SheetObject::shape_query(self : SheetObject) -> ShapeQuery {

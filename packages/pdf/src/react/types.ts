@@ -1,7 +1,7 @@
 import type { PdfEditor } from "../web/index.js";
 import type {
   CommonOptions,
-  MountedMethods,
+  MountedProduct,
   OfficeDocument,
 } from "@open-document/ui/types";
 import type { PdfBudget } from "../core/index.js";
@@ -14,13 +14,11 @@ export type {
   SavedDocument,
   Locale,
   Theme,
+  EditorMode,
+  EditorSlots,
 } from "@open-document/ui/types";
 export interface EditorOptions extends CommonOptions {
   readonly document: OfficeDocument;
   readonly budget?: PdfBudget;
 }
-export type MountedEditor = MountedMethods & {
-  create(document: { readonly name: string }): Promise<boolean>;
-  readonly format: "pdf";
-  readonly editor: PdfEditor;
-};
+export type MountedEditor = MountedProduct<PdfEditor, "pdf">;

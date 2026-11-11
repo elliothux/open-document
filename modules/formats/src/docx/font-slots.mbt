@@ -1,4 +1,5 @@
 ///|
+#derive(Eq)
 priv struct FontBindings {
   slots : Map[String, (String, Bool)]
   hint : String
@@ -8,7 +9,7 @@ priv struct FontBindings {
   bold : Bool
   italic : Bool
   size : Double
-} derive(Eq)
+}
 
 ///|
 fn font_bindings(

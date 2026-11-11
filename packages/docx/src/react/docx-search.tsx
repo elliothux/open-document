@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { DocumentEditor, DocumentSearchResult } from "../web/editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxSearch({
   controller,
@@ -36,7 +37,6 @@ export function DocxSearch({
     });
   return (
     <section aria-label={t.findReplace}>
-      <h2>{t.findReplace}</h2>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -81,53 +81,60 @@ export function DocxSearch({
           {t.wholeWord}
         </label>
         <button type="submit" disabled={disabled || !text}>
+          <Icon name="search" />
           {t.find}
         </button>
       </form>
-      <label>
-        {t.replaceWith}
-        <input
-          value={replacement}
-          maxLength={65536}
-          disabled={disabled}
-          onChange={(event) => setReplacement(event.currentTarget.value)}
-        />
-      </label>
-      <button
-        type="button"
-        disabled={
-          disabled ||
-          stale ||
-          !result?.matches[selected] ||
-          !!result.matches[selected]?.reason
-        }
-        onClick={() =>
-          result &&
-          controller.run(() =>
-            editor.search.replaceMatches(result, replacement, selected),
-          )
-        }
-      >
-        {t.replaceMatch}
-      </button>
-      <button
-        type="button"
-        disabled={
-          disabled ||
-          stale ||
-          !result?.matches.length ||
-          result.truncated ||
-          result.matches.some((item) => !!item.reason)
-        }
-        onClick={() =>
-          result &&
-          controller.run(() =>
-            editor.search.replaceMatches(result, replacement),
-          )
-        }
-      >
-        {t.replaceAll}
-      </button>
+      {state.mode === "edit" && (
+        <>
+          <label>
+            {t.replaceWith}
+            <input
+              value={replacement}
+              maxLength={65536}
+              disabled={disabled}
+              onChange={(event) => setReplacement(event.currentTarget.value)}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={
+              disabled ||
+              stale ||
+              !result?.matches[selected] ||
+              !!result.matches[selected]?.reason
+            }
+            onClick={() =>
+              result &&
+              controller.run(() =>
+                editor.search.replaceMatches(result, replacement, selected),
+              )
+            }
+          >
+            <Icon name="search" />
+            {t.replaceMatch}
+          </button>
+          <button
+            type="button"
+            disabled={
+              disabled ||
+              stale ||
+              !result?.matches.length ||
+              result.truncated ||
+              result.matches.some((item) => !!item.reason)
+            }
+            onClick={() =>
+              result &&
+              controller.run(() =>
+                editor.search.replaceMatches(result, replacement),
+              )
+            }
+          >
+            <Icon name="search" />
+            {t.replaceAll}
+          </button>
+        </>
+      )}
       <p role="status">
         {stale
           ? t.searchStale

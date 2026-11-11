@@ -1,25 +1,28 @@
 ///|
+#derive(@json.FromJson)
 priv struct OpenRequest {
   budget : @common.RequestArchiveBudget
   randomSeed : String
   date : String?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct DelimitedOptionsRequest {
   numbers : Bool
   dates : Bool
   formulas : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ImportRequest {
   budget : @common.RequestArchiveBudget
   randomSeed : String
   date : String?
   delimiter : String
   options : DelimitedOptionsRequest
-} derive(@json.FromJson)
+}
 
 ///|
 fn xlsx_open_request(

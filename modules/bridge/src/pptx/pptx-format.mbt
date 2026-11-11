@@ -1,14 +1,17 @@
 ///|
+#derive(@json.FromJson)
 priv struct TextFormatEditRequest[T] {
   format : T
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TextAlignmentRequest {
   alignment : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TextFormatRequest {
   font : String?
   size : @common.RequestNumber?
@@ -20,13 +23,14 @@ priv struct TextFormatRequest {
   highlight : String?
   script : String?
   spacing : @common.RequestNumber?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TextSpacingRequest {
   unit : String
   value : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
 fn TextSpacingRequest::spacing(
@@ -36,6 +40,7 @@ fn TextSpacingRequest::spacing(
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct ParagraphFormatRequest {
   left : @common.RequestNumber?
   right : @common.RequestNumber?
@@ -51,24 +56,27 @@ priv struct ParagraphFormatRequest {
   listFont : @common.RequiredNullable[String]?
   listSize : @common.RequiredNullable[TextSpacingRequest]?
   listColor : @common.RequiredNullable[String]?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ParagraphTabRequest {
   position : @common.RequestNumber
   align : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct BulletRequest {
   value : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct NumberedListRequest {
   value : String
   start : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
 priv struct TextFormatInput {
@@ -223,17 +231,19 @@ impl @json.FromJson for ListFormatInput with fn from_json(value, path) {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct GradientStopRequest {
   position : @common.RequestNumber
   color : String
   opacity : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct LinearGradientRequest {
   angle : @common.RequestNumber
   scaled : Bool
-} derive(@json.FromJson)
+}
 
 ///|
 fn pptx_gradient_stops(

@@ -9,6 +9,7 @@ import {
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { AnalysisFrameEditor } from "./xlsx-analysis-frame.js";
+import { Icon } from "@open-document/ui/icons";
 
 export function XlsxSlicersPanel({
   editor,
@@ -29,7 +30,10 @@ export function XlsxSlicersPanel({
   const load = async () => setCatalog(await editor.objects.slicers());
   return (
     <fieldset disabled={disabled}>
-      <legend>{t.slicers}</legend>
+      <legend>
+        <Icon name="filter" />
+        {t.slicers}
+      </legend>
       <CreateSlicer
         editor={editor}
         controller={controller}
@@ -38,6 +42,7 @@ export function XlsxSlicersPanel({
         created={load}
       />
       <button type="button" onClick={() => controller.run(load)}>
+        <Icon name="list-nested" />
         {t.slicerList}
       </button>
       {catalog && !current && <p>{t.pivotReload}</p>}
@@ -130,7 +135,10 @@ function CreateSlicer({
   }
   return (
     <fieldset disabled={disabled}>
-      <legend>{t.slicerCreate}</legend>
+      <legend>
+        <Icon name="filter" />
+        {t.slicerCreate}
+      </legend>
       <p>{t.slicerCreateHelp}</p>
       <button
         type="button"
@@ -143,6 +151,7 @@ function CreateSlicer({
           })
         }
       >
+        <Icon name="refresh" />
         {t.slicerLoadPivots}
       </button>
       <label>
@@ -221,6 +230,7 @@ function CreateSlicer({
           })
         }
       >
+        <Icon name="plus" />
         {t.slicerInsert}
       </button>
     </fieldset>
@@ -277,6 +287,7 @@ function SlicerMembers({
         type="button"
         onClick={() => setIndices(item.members.map((member) => member.index))}
       >
+        <Icon name="checkbox" />
         {t.slicerAll}
       </button>
       <button
@@ -284,10 +295,12 @@ function SlicerMembers({
         disabled={!indices.length}
         onClick={() => apply(indices)}
       >
+        <Icon name="check" />
         {t.slicerApply}
       </button>
       {!indices.length && <p>{t.pivotFilterEmpty}</p>}
       <button type="button" onClick={remove}>
+        <Icon name="trash" />
         {t.slicerDelete}
       </button>
       {children}

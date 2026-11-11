@@ -9,12 +9,13 @@ pub(all) enum BibliographyFieldEdit {
 pub const BibliographyHeadingUnits : Int32 = 255
 
 ///|
+#derive(ToJson)
 priv struct BibliographyField {
   paragraph : Int32
   endParagraph : Int32
   instruction : String
   reason : String
-} derive(ToJson)
+}
 
 ///|
 fn Session::bibliography_fields(

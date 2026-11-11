@@ -3,6 +3,7 @@ import type { SpreadsheetEditor } from "../web/spreadsheet-editor.js";
 import type { CopiedCellFormat } from "../web/xlsx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 function selection(editor: SpreadsheetEditor): string {
   const {
@@ -140,6 +141,7 @@ export function XlsxFormatPainter({
           });
         }}
       >
+        <Icon name="format-painter" />
         {t.formatPainter}
       </button>
       {mode !== "off" && (

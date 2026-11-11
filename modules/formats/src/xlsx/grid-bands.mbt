@@ -21,13 +21,14 @@ fn grid_rect(
 }
 
 ///|
+#derive(ToJson)
 pub struct SelectionGeometry {
   x : Double
   y : Double
   width : Double
   height : Double
   rects : Array[@layout.Border]
-} derive(ToJson)
+}
 
 ///|
 pub extend SelectionGeometry with ToJson::{to_json}
@@ -197,7 +198,7 @@ fn grid_commands_json(
       let bands = [(rect.y, rect.height, [(rect.x, rect.width)])]
       while commands.get(index)
             is Some(
-              StrokeRect(next, next_color, next_width, screen_fractional=false)
+              StrokeRect(next, next_color, next_width, screen_fractional=false),
             ) &&
             color == next_color &&
             width == next_width {
@@ -449,6 +450,16 @@ fn Session::paint_grid(
   let column_headers : Array[Json] = []
   if self.sheets[index].view.headings {
     for row in rows {
+      let band = grid_rect(
+        {
+          x: 0,
+          y: header_height + row.start,
+          width: header_width,
+          height: row.size,
+        },
+        width,
+        rtl,
+      )
       let page : PagePaint = {
         width,
         height,
@@ -464,36 +475,34 @@ fn Session::paint_grid(
           header_height -
           row.scroll
         let size = dimensions.rows.size(index)
-        grid_header(
-          page,
-          index.to_string(),
-          grid_rect(
-            { x: 0, y: position, width: header_width, height: size, },
-            width,
-            rtl,
-          ),
-          probe,
-          profile,
-          self.styles[0].font,
-        )
-        row_headers.push({ "index": index, "position": position, "size": size })
-      }
-      append_grid_paint(
-        primitives,
-        page,
-        grid_rect(
-          {
-            x: 0,
-            y: header_height + row.start,
-            width: header_width,
-            height: row.size,
-          },
+        let label = index.to_string()
+        let rect = grid_rect(
+          { x: 0, y: position, width: header_width, height: size, },
           width,
           rtl,
-        ),
-      )
+        )
+        grid_header(page, label, rect, probe, profile, self.styles[0].font)
+        row_headers.push({
+          "index": index,
+          "position": position,
+          "size": size,
+          "label": label,
+          "clip": Json(grid_intersection(rect, band)),
+        })
+      }
+      append_grid_paint(primitives, page, band)
     }
     for column in columns {
+      let band = grid_rect(
+        {
+          x: header_width + column.start,
+          y: 0,
+          width: column.size,
+          height: header_height,
+        },
+        width,
+        rtl,
+      )
       let page : PagePaint = {
         width,
         height,
@@ -512,34 +521,23 @@ fn Session::paint_grid(
         let position = if rtl { width - position - size } else { position }
         let address : Address = { row: 1, column: index, }
         let name = address.name()
-        grid_header(
-          page,
-          name[:name.length() - 1].to_owned(),
-          { x: position, y: 0, width: size, height: header_height, },
-          probe,
-          profile,
-          self.styles[0].font,
-        )
+        let label = name[:name.length() - 1].to_owned()
+        let rect : @layout.Border = {
+          x: position,
+          y: 0,
+          width: size,
+          height: header_height,
+        }
+        grid_header(page, label, rect, probe, profile, self.styles[0].font)
         column_headers.push({
           "index": index,
           "position": position,
           "size": size,
+          "label": label,
+          "clip": Json(grid_intersection(rect, band)),
         })
       }
-      append_grid_paint(
-        primitives,
-        page,
-        grid_rect(
-          {
-            x: header_width + column.start,
-            y: 0,
-            width: column.size,
-            height: header_height,
-          },
-          width,
-          rtl,
-        ),
-      )
+      append_grid_paint(primitives, page, band)
     }
     let corner : PagePaint = {
       width,

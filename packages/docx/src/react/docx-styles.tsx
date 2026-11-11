@@ -4,6 +4,7 @@ import type { DocxStyleCatalog } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { DocxStyleEdit } from "./docx-style-edit.js";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxStyles({
   controller,
@@ -23,12 +24,6 @@ export function DocxStyles({
   const current = formatting?.[kind].style;
   const cannotApply = !formatting || !!formatting.reason;
   const paragraph = kind === "paragraph";
-  const apply = (style: string | null) =>
-    controller.run(() =>
-      paragraph
-        ? editor.formatting.setParagraphFormat({ style })
-        : editor.formatting.setCharacterFormat({ style }),
-    );
   const currentId = current?.kind === "value" ? current.value : "";
   const [catalog, setCatalog] = useState<DocxStyleCatalog>();
   const [selected, setSelected] = useState(currentId);
@@ -37,6 +32,18 @@ export function DocxStyles({
   useEffect(() => setNewName(""), [editor, kind]);
   useEffect(() => setSelected(currentId), [currentId]);
   const choice = catalog?.styles.find((style) => style.id === selected);
+  const fresh = catalog?.revision === state.document?.revision;
+  const apply = (style: string | null) => {
+    const target = controller.commands.captureTarget();
+    if (!target) return;
+    const verify = () => controller.commands.assertTarget(target);
+    controller.run(async () => {
+      if (paragraph)
+        await editor.formatting.setParagraphFormat({ style }, verify);
+      else await editor.formatting.setCharacterFormat({ style }, verify);
+      if (catalog) setCatalog(await editor.formatting.styles(kind));
+    });
+  };
   const [replacement, setReplacement] = useState("");
   useEffect(
     () => setReplacement(choice?.basedOn ?? ""),
@@ -48,7 +55,10 @@ export function DocxStyles({
   const canReplace = replacements.some((style) => style.id === replacement);
   return (
     <fieldset disabled={disabled}>
-      <legend>{paragraph ? t.paragraphStyle : t.characterStyle}</legend>
+      <legend>
+        <Icon name="format-painter" />
+        {paragraph ? t.paragraphStyle : t.characterStyle}
+      </legend>
       <button
         type="button"
         onClick={() =>
@@ -77,6 +87,38 @@ export function DocxStyles({
           ))}
         </select>
       </label>
+      {choice?.preview &&
+        (fresh ? (
+          <div
+            className="od-docx-style-preview"
+            role="group"
+            aria-label={t.stylePreview}
+          >
+            <span
+              style={{
+                color: `#${choice.preview.color}`,
+                fontFamily: `${JSON.stringify(choice.preview.family)}, serif`,
+                fontSize: `${Math.max(9, Math.min(choice.preview.size, 28))}pt`,
+                fontWeight: choice.preview.bold ? 700 : 400,
+                fontStyle: choice.preview.italic ? "italic" : "normal",
+                textDecorationLine:
+                  [
+                    choice.preview.underline && "underline",
+                    choice.preview.strike && "line-through",
+                  ]
+                    .filter(Boolean)
+                    .join(" ") || "none",
+              }}
+            >
+              {choice.name}
+            </span>
+            <small>
+              {choice.preview.family} · {choice.preview.size} pt
+            </small>
+          </div>
+        ) : (
+          <p>{t.stylePreviewStale}</p>
+        ))}
       {catalog?.truncated && <p role="status">{t.styleLimit}</p>}
       <button
         type="button"
@@ -130,7 +172,10 @@ export function DocxStyles({
         }}
       >
         <fieldset disabled={!catalog || !!choice?.reason}>
-          <legend>{t.createBasedStyle}</legend>
+          <legend>
+            <Icon name="format-painter" />
+            {t.createBasedStyle}
+          </legend>
           <label>
             {t.newStyleName}
             <input

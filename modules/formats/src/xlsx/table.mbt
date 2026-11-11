@@ -1,4 +1,5 @@
 ///|
+#derive(Eq)
 priv struct TableColumn {
   id : Int32
   name : String
@@ -6,9 +7,10 @@ priv struct TableColumn {
   total_function : String?
   total_label : String?
   total_formula : String?
-} derive(Eq)
+}
 
 ///|
+#derive(Eq)
 priv struct StructuredTable {
   sheet : String
   part : String
@@ -28,7 +30,7 @@ priv struct StructuredTable {
   filter : AutoFilterState?
   sort : StoredSort?
   reason : String
-} derive(Eq)
+}
 
 ///|
 fn read_table(

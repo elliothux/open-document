@@ -16,6 +16,7 @@ import {
   latexSourceUnits,
   mathTextUnits,
 } from "@open-document/wasm/engine-source";
+import { Icon } from "@open-document/ui/icons";
 
 type Catalog =
   | (DocumentMathFractions & { kind: "fraction" })
@@ -185,7 +186,10 @@ export function DocxMath({
   return (
     <section aria-label={labels.group}>
       <fieldset disabled={disabled}>
-        <legend>{labels.group}</legend>
+        <legend>
+          <Icon name="function-fx" />
+          {labels.group}
+        </legend>
         <button type="button" onClick={() => controller.run(load)}>
           {labels.load}
         </button>

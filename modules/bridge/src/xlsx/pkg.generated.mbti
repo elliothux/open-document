@@ -2,6 +2,7 @@
 package "open_document/bridge/xlsx"
 
 import {
+  "moonbitlang/core/json",
   "open_document/bridge/common",
   "open_document/layout",
 }
@@ -28,7 +29,7 @@ pub struct Context {
   probe : @layout.TextProbe
   output : @common.OutputBytes
   outlines : @common.OutlineDelta
-  mut chart_tiles : Map[String, Json]
+  mut chart_tiles : Map[String, @json.Json]
   mut xlsx : @open_document/formats/xlsx.Session?
   mut closed : Bool
   images : @layout.Images

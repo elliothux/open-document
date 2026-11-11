@@ -1,7 +1,8 @@
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { SpreadsheetEditor } from "../web/spreadsheet-editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { NativeSlot } from "@open-document/ui/controls";
+import { Icon } from "@open-document/ui/icons";
 import { messages } from "@open-document/ui/messages";
 
 export function XlsxStatistics({
@@ -24,11 +25,16 @@ export function XlsxStatistics({
   return (
     <span
       role="group"
+      className="od-xlsx-statistics"
       aria-label={t.selectionStatistics}
       title={statistics.reason || undefined}
     >
       {rows.map(([label, value]) => (
-        <span key={label} aria-label={label}>
+        <span
+          key={label}
+          aria-label={label}
+          data-empty={value === null || value === 0 || undefined}
+        >
           {label}: {value ?? "—"}{" "}
         </span>
       ))}
@@ -58,6 +64,9 @@ export function XlsxFormula({
     value: string;
   }>();
   const snapshot = editor.getSnapshot();
+  useLayoutEffect(() => {
+    editor.formulaBar.lang = state.locale;
+  }, [editor, state.locale]);
   // A protected cell still permits navigation to another cell.
   const navigationDisabled =
     state.loading ||
@@ -101,23 +110,29 @@ export function XlsxFormula({
           required
           disabled={navigationDisabled}
         />
-        <button type="submit" disabled={navigationDisabled}>
-          {t.goToRange}
+        <button type="submit" title={t.goToRange} disabled={navigationDisabled}>
+          <Icon name="arrow-right" />
+          <span className="od-sr-only">{t.goToRange}</span>
         </button>
       </form>
-      <label>
-        <span>{t.formulaInput}</span>
+      <label className="od-formula-entry">
+        <Icon name="function-fx" />
+        <span className="od-sr-only">{t.formulaInput}</span>
         <NativeSlot node={editor.formulaBar} />
       </label>
       {calculationReason && <span role="status">{calculationReason}</span>}
       <button
         type="button"
+        className="od-icon-command"
+        title={t.calculateNow}
         disabled={disabled}
         onClick={() => controller.run(() => editor.data.recalculate())}
       >
-        {t.calculateNow}
+        <Icon name="calculator" />
+        <span className="od-sr-only">{t.calculateNow}</span>
       </button>
       <label
+        className="od-formula-option"
         onMouseDown={(event) => {
           if (event.button === 0) event.preventDefault();
         }}

@@ -9,6 +9,7 @@ import type {
 import { xlsxRelativeDatePeriods } from "../web/xlsx.js";
 import type { UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function XlsxDateFilterForm({
   criterion,
@@ -62,7 +63,10 @@ export function XlsxDateFilterForm({
         }}
       >
         <fieldset disabled={disabled}>
-          <legend>{t.filterDates}</legend>
+          <legend>
+            <Icon name="filter" />
+            {t.filterDates}
+          </legend>
           <p>{t.filterDateHelp}</p>
           <label>
             {t.filterDateGroups}
@@ -94,6 +98,7 @@ export function XlsxDateFilterForm({
             {t.filterBlank}
           </label>
           <button type="submit" disabled={!groups.trim()}>
+            <Icon name="check" />
             {t.filterDateApply}
           </button>
         </fieldset>
@@ -145,7 +150,10 @@ function RelativeFilter({
       }}
     >
       <fieldset disabled={disabled}>
-        <legend>{t.filterRelative}</legend>
+        <legend>
+          <Icon name="filter" />
+          {t.filterRelative}
+        </legend>
         <p>{t.filterRelativeHelp}</p>
         <label>
           {t.filterRelativePeriod}
@@ -166,7 +174,10 @@ function RelativeFilter({
             ))}
           </select>
         </label>
-        <button type="submit">{t.filterRelativeApply}</button>
+        <button type="submit">
+          <Icon name="check" />
+          {t.filterRelativeApply}
+        </button>
       </fieldset>
     </form>
   );
@@ -199,7 +210,10 @@ function CalendarFilter({
       }}
     >
       <fieldset disabled={disabled}>
-        <legend>{t.filterCalendar}</legend>
+        <legend>
+          <Icon name="filter" />
+          {t.filterCalendar}
+        </legend>
         <p>{t.filterCalendarHelp}</p>
         <label>
           {t.filterCalendarUnit}
@@ -231,7 +245,10 @@ function CalendarFilter({
             ))}
           </select>
         </label>
-        <button type="submit">{t.filterCalendarApply}</button>
+        <button type="submit">
+          <Icon name="check" />
+          {t.filterCalendarApply}
+        </button>
       </fieldset>
     </form>
   );

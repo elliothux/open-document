@@ -17,6 +17,7 @@ import { DocxDrawingLink } from "./docx-drawing-link.js";
 import { DocxTextBoxProperties } from "./docx-text-box-properties.js";
 import { WordArt } from "@open-document/ui/word-art";
 import { DocxInk } from "./docx-ink.js";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxShapes({
   controller,
@@ -92,7 +93,6 @@ export function DocxShapes({
   const stale = catalog?.revision !== state.document?.revision;
   return (
     <section aria-label={t.docxShapeProperties}>
-      <h3>{t.docxShapeProperties}</h3>
       <DocxInk
         key={editor.getSnapshot().documentId}
         controller={controller}
@@ -136,7 +136,10 @@ export function DocxShapes({
         }}
       >
         <fieldset disabled={disabled || !editor.getSnapshot().data.selection}>
-          <legend>{t.insertDocxShape}</legend>
+          <legend>
+            <Icon name="shapes" />
+            {t.insertDocxShape}
+          </legend>
           <label>
             {t.docxShapeKind}
             <select
@@ -212,6 +215,7 @@ export function DocxShapes({
         disabled={disabled}
         onClick={() => controller.run(load)}
       >
+        <Icon name="refresh" />
         {t.loadDocxShapes}
       </button>
       {catalog && catalog.items.length > 0 && (
@@ -371,7 +375,10 @@ export function DocxShapes({
                 </label>
               ))}
               <p>{t.docxShapeColorHint}</p>
-              <button type="submit">{t.applyDocxShape}</button>
+              <button type="submit">
+                <Icon name="check" />
+                {t.applyDocxShape}
+              </button>
             </fieldset>
           </form>
           {shape.sizeReason && shape.sizeReason !== shape.reason && (
@@ -392,6 +399,7 @@ export function DocxShapes({
               })
             }
           >
+            <Icon name="trash" />
             {t.deleteDocxShape}
           </button>
           {shape.deleteReason && shape.deleteReason !== shape.reason && (

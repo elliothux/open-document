@@ -1,20 +1,22 @@
 ///|
+#derive(ToJson)
 pub struct PdfRangePage {
   page : String
   start : Int32
   end : Int32
   quads : Array[Array[Double]]
-} derive(ToJson)
+}
 
 ///|
 pub extend PdfRangePage with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub struct PdfRangeSelection {
   revision : Int32
   text : String
   pages : Array[PdfRangePage]
-} derive(ToJson)
+}
 
 ///|
 pub extend PdfRangeSelection with ToJson::{to_json}

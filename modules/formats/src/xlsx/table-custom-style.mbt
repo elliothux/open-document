@@ -1,11 +1,12 @@
 ///|
+#derive(Eq)
 pub(all) struct TableStyleElement {
   kind : String
   size : Int32
   format : CellFormat
   vertical : CellBorder?
   horizontal : CellBorder?
-} derive(Eq)
+}
 
 ///|
 pub extend TableStyleElement with Eq::{equal, not_equal}

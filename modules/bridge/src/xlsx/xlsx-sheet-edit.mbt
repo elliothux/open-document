@@ -1,161 +1,186 @@
 ///|
+#derive(@json.FromJson)
 priv struct SheetEditRequest {
   revision : @common.RequestInt
   sheet : String
   change : Json
   date : String?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ConditionalRuleEditRequest {
   ranges : String
   priority : @common.RequiredNullable[@common.RequestInt]
   rule : @common.RequiredNullable[ConditionalSettingsRequest]
   sourceRevision : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ValidationEditRequest {
   range : String
   rule : Json
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct AxisEditRequest {
   first : @common.RequestInt
   count : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct AxisSizeRequest {
   first : @common.RequestInt
   last : @common.RequestInt
   size : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct FreezeRequest {
   rows : @common.RequestInt
   columns : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct RangeDirectionRequest {
   range : String
   direction : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct MoveCellsRequest {
   sourceSheet : String
   source : String
   destination : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SheetViewRequest {
   gridLines : Bool
   headings : Bool
   rtl : Bool
   formulas : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct DefineNameRequest {
   original : @common.RequiredNullable[String]
   name : String
   scope : @common.RequiredNullable[String]
   formula : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct NameTargetRequest {
   name : String
   scope : @common.RequiredNullable[String]
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct HyperlinkEditRequest {
   range : String
   target : @common.RequiredNullable[String]
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct OpenHyperlinkRequest {
   range : String
   sourceRevision : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SheetActionRequest {
   action : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SheetProtectionRequest {
   enabled : Bool
   password : String?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ConditionalPriorityRequest {
   priority : @common.RequestInt
   position : @common.RequestInt
   sourceRevision : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct CellNoteRequest {
   cell : String
   text : @common.RequiredNullable[String]
   author : String?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ValidationValueRequest {
   index : @common.RequestInt
   sourceRevision : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct MergeCellsRequest {
   range : String
   discard : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SheetRangeRequest {
   range : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SheetMoveRequest {
   index : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SheetVisibilityRequest {
   state : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SheetRenameRequest {
   name : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SeriesRequest {
   mode : String
   source : String
   range : String
   direction : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct DateSeriesRequest {
   unit : String
   step : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
 fn xlsx_sheet_edit(

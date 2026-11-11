@@ -1,0 +1,98 @@
+/* Motion: short, physical transitions that confirm where content came from. */
+@keyframes od-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes od-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+@keyframes od-drop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+/* A new tab's tools fade in; no transform, so row geometry stays exact. */
+.od-ribbon > * {
+  animation: od-fade-in 160ms var(--od-ui-ease) both;
+}
+
+/* Task panels slide in from the edge they attach to. */
+.od-task-panel {
+  animation: od-slide-in 220ms var(--od-ui-ease) both;
+}
+.od-properties > :not(.od-task-header) {
+  animation: od-fade-in 240ms 40ms var(--od-ui-ease) both;
+}
+
+/* Notices and messages drop in from the chrome above them. */
+.od-notice,
+.od-message {
+  animation: od-drop-in 200ms var(--od-ui-ease) both;
+}
+
+/* Dialogs scale up from their center; the backdrop fades. */
+.od-backdrop {
+  transition: opacity 180ms var(--od-ui-ease);
+}
+.od-backdrop:is([data-starting-style], [data-ending-style]) {
+  opacity: 0;
+}
+.od-dialog {
+  transition:
+    opacity 180ms var(--od-ui-ease),
+    transform 220ms var(--od-ui-ease);
+}
+.od-dialog:is([data-starting-style], [data-ending-style]) {
+  opacity: 0;
+  transform: translate(-50%, -48%) scale(0.97);
+}
+
+/* Loading covers fade so short opens do not flash. */
+.od-loading {
+  animation: od-fade-in 200ms 120ms var(--od-ui-ease) both;
+}
+
+/* Pressing a control gives brief tactile feedback. */
+:is(
+    .od-caption-command,
+    .od-slide-present,
+    .od-button,
+    .od-primary,
+    .od-dialog-actions button
+  ):enabled:active {
+  transform: translateY(0.5px);
+  box-shadow: none;
+}
+:is(
+    .od-command,
+    .od-icon-command,
+    .od-tabs button,
+    .od-sheets button
+  ):enabled:active {
+  background-color: var(--od-ui-active);
+}
+.od-save-state::before {
+  transition: background-color 240ms var(--od-ui-ease);
+}
+.od-sheets button {
+  transition:
+    background-color 140ms var(--od-ui-ease),
+    box-shadow 140ms var(--od-ui-ease),
+    color 140ms var(--od-ui-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
+  }
+}

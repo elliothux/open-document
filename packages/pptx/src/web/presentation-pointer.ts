@@ -53,6 +53,7 @@ export class PresentationGestures {
         text: text || state.selection.mode === "text",
       });
       if (
+        !this.client.readOnly &&
         !text &&
         !extend &&
         !handle &&
@@ -116,7 +117,7 @@ export class PresentationGestures {
             anchor: gesture.anchor,
             focus: hit.offset,
           });
-      } else {
+      } else if (!this.client.readOnly) {
         const dx = point.x - gesture.start.x,
           dy = point.y - gesture.start.y;
         if (!gesture.token && Math.hypot(dx, dy) < 2 / scale) return;
@@ -372,4 +373,34 @@ export class PresentationPointer {
 
 function centeredResize(event: MouseEvent): boolean {
   return event.altKey || (event.ctrlKey && !/mac/i.test(navigator.platform));
+}
+
+export async function movePresentationSelection(
+  client: PptxClient,
+  revision: number,
+  profile: Record<string, string>,
+  dx: number,
+  dy: number,
+  handle: number,
+): Promise<PptxQuery> {
+  const state = await client.execute({
+    operation: "beginPptx",
+    revision,
+    kind: "transform",
+  });
+  if (state.candidateId === null) throw new Error("Core did not begin move");
+  await client.execute({
+    operation: "dragPptx",
+    revision: state.revision,
+    candidateId: state.candidateId,
+    dx,
+    dy,
+    handle,
+  });
+  return client.execute({
+    operation: "finishPptx",
+    revision: state.revision,
+    candidateId: state.candidateId,
+    profile,
+  });
 }

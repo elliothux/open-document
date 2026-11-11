@@ -5,6 +5,7 @@ import { messages } from "@open-document/ui/messages";
 import { pptxMediaVolumeMax } from "@open-document/wasm/engine-source";
 import { useEffect, useRef, useState } from "react";
 import type { PptxMediaPlayback } from "../web/pptx.js";
+import { Icon } from "@open-document/ui/icons";
 
 const volumeUnitsPerPercent = pptxMediaVolumeMax / 100;
 
@@ -43,7 +44,10 @@ export function PptxMedia({
         disabled || !!query.readOnlyReason || query.editView.kind !== "slide"
       }
     >
-      <legend>{t.insertMedia}</legend>
+      <legend>
+        <Icon name="play" />
+        {t.insertMedia}
+      </legend>
       <label>
         <input
           type="checkbox"
@@ -54,6 +58,7 @@ export function PptxMedia({
       </label>
       {fill && fillReason && <p>{fillReason}</p>}
       <label>
+        <Icon name="upload" />
         {t.mediaFile}
         <input
           type="file"
@@ -178,7 +183,10 @@ function MediaPlayback({
         />
         {t.mediaMute}
       </label>
-      <button type="submit">{t.mediaPlaybackApply}</button>
+      <button type="submit">
+        <Icon name="check" />
+        {t.mediaPlaybackApply}
+      </button>
     </form>
   );
 }

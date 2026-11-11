@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { XlsxColorFilter, XlsxFilterColumn } from "../web/xlsx.js";
 import type { UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function XlsxColorFilterForm({
   criterion,
@@ -34,7 +35,10 @@ export function XlsxColorFilterForm({
       }}
     >
       <fieldset disabled={disabled}>
-        <legend>{t.filterColors}</legend>
+        <legend>
+          <Icon name="filter" />
+          {t.filterColors}
+        </legend>
         <label>
           {t.filterColorTarget}
           <select
@@ -65,7 +69,10 @@ export function XlsxColorFilterForm({
           />
           {cellColor ? t.filterNoFill : t.filterAutomaticFont}
         </label>
-        <button type="submit">{t.filterColorApply}</button>
+        <button type="submit">
+          <Icon name="check" />
+          {t.filterColorApply}
+        </button>
       </fieldset>
     </form>
   );

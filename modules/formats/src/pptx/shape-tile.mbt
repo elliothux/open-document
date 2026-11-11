@@ -1,4 +1,5 @@
 ///|
+#derive(Eq, Debug)
 pub struct ImageTile {
   sx : Double
   sy : Double
@@ -6,7 +7,7 @@ pub struct ImageTile {
   ty : Double
   align : String
   flip : String
-} derive(Eq, Debug)
+}
 
 ///|
 pub extend ImageTile with Eq::{equal, not_equal}

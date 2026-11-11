@@ -19,7 +19,7 @@
 | ONLYOFFICE sdkjs | `references/onlyoffice/DocumentServer/sdkjs/` | 首选编辑模型、交互与兼容行为 |
 | LibreOffice core | `references/libreoffice-core/` | 次选格式、布局与独立回归依据；另有 `references/core/`，revision 不同，不混用 |
 | [Collabora Online](https://github.com/CollaboraOnline/online.mirror) | `references/collabora-online/` | 浏览器集成与补充交互案例 |
-| BetterOffice | 本机未找到此前记录的 `references/betteroffice/` | SDK 架构与核心/宿主边界，使用下文固定来源 |
+| BetterOffice | `references/betteroffice/`（2026-11-11 按需检出） | SDK 架构、公开组件、命令状态与核心/宿主边界 |
 | Univer | `references/univer/` | API、公式与能力组织 |
 | Open XML SDK | `references/Open-XML-SDK/` | OPC、OOXML 与未知内容保留 |
 | Typst | `references/typst/` | 布局与核心/宿主边界 |
@@ -40,6 +40,8 @@
 这些副本只用于源码对比；子模块与 Git LFS 大文件按实际构建需求另行获取。`references/` 由根 `.gitignore` 管理，公开 SDK 构建继续使用固定生产依赖。
 
 ## BetterOffice：架构与核心/宿主边界
+
+2026-11-11 的 SDK/UI 研究使用 [revision `62605af397a309cb81c86aed8b8453a54a4edf22`](https://github.com/openooxml/betteroffice/tree/62605af397a309cb81c86aed8b8453a54a4edf22)。本地按需检出文档与相关 TypeScript 源码。公开 React 控件、命令与工具栏测试入口归 [G4](../implemented/g4-office-sdk-productization.md#9-固定源码依据)。下面保留早期引擎研究的固定来源。
 
 - [上游仓库](https://github.com/openooxml/betteroffice)
 - [固定源码快照](https://github.com/elliothux/betteroffice/tree/c10db4b848c1e74c920416986ec2e34bf95ee7f3/)，研究 revision：`c10db4b848c1e74c920416986ec2e34bf95ee7f3`。

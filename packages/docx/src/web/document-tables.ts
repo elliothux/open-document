@@ -9,20 +9,26 @@ export function createDocumentTables(
   host: DocumentHost,
 ) {
   return {
-    insertTable(rows: number, cols: number): Promise<void> {
-      return host.edit(() =>
-        client.execute({
+    insertTable(
+      rows: number,
+      cols: number,
+      verifyTarget?: () => void,
+    ): Promise<void> {
+      return host.edit(() => {
+        verifyTarget?.();
+        return client.execute({
           operation: "insertTable",
           revision: host.snapshot().revision,
           selection: host.selection(),
           rows: rows,
           columns: cols,
           profile: profile,
-        }),
-      );
+        });
+      });
     },
-    editTable(change: DocxTableEdit): Promise<void> {
+    editTable(change: DocxTableEdit, verifyTarget?: () => void): Promise<void> {
       return host.edit(() => {
+        verifyTarget?.();
         return client.execute({
           operation: "editTable",
           revision: host.snapshot().revision,

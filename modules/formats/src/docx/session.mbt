@@ -170,14 +170,16 @@ fn Session::document(self : Session) -> @xml.Document raise @failure.Failure {
 }
 
 ///|
+#derive(ToJson)
 priv struct QueryText {
   id : Int32
   paragraph : Int32
   run : Int32
   text : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QueryState {
   revision : Int32
   compositionId : Json
@@ -186,7 +188,7 @@ priv struct QueryState {
   relationships : ReadOnlyArray[@opc.Relationship]
   diagnostics : Array[String]
   decodedBytes : Int32
-} derive(ToJson)
+}
 
 ///|
 pub fn Session::query(self : Session) -> Json raise @failure.Failure {

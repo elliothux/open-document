@@ -3,6 +3,7 @@ import type { DocumentEditor } from "../web/editor.js";
 import type { DocxTextWatermark } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 const initial: DocxTextWatermark = {
   text: "CONFIDENTIAL",
@@ -59,12 +60,16 @@ export function DocxWatermark({
   };
   return (
     <section aria-label={t.watermark}>
-      <h4>{t.watermark}</h4>
+      <h4>
+        <Icon name="stamp" />
+        {t.watermark}
+      </h4>
       <button
         type="button"
         disabled={disabled}
         onClick={() => controller.run(load)}
       >
+        <Icon name="refresh" />
         {t.readTextWatermark}
       </button>
       {source && (
@@ -106,6 +111,7 @@ export function DocxWatermark({
             {kind === "picture" ? (
               <>
                 <label>
+                  <Icon name="upload" />
                   {t.pictureFile}
                   <input
                     type="file"
@@ -308,6 +314,7 @@ export function DocxWatermark({
               </>
             )}
             <button type="submit" disabled={kind === "picture" && !image}>
+              <Icon name="check" />
               {t.applyTextWatermark}
             </button>
             <button
@@ -320,6 +327,7 @@ export function DocxWatermark({
                 })
               }
             >
+              <Icon name="trash" />
               {t.removeTextWatermark}
             </button>
           </fieldset>

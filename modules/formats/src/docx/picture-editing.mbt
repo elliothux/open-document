@@ -195,6 +195,7 @@ fn WordTree::picture_content(
 }
 
 ///|
+#derive(ToJson)
 priv struct PictureQuery {
   id : Int32
   selected : Bool
@@ -208,13 +209,14 @@ priv struct PictureQuery {
   anchor : Json
   positionReason : String
   hyperlink : DrawingLinkQuery
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct PictureCatalog {
   revision : Int32
   images : Array[PictureQuery]
-} derive(ToJson)
+}
 
 ///|
 pub fn Session::pictures(

@@ -1,4 +1,5 @@
 ///|
+#derive(ToJson)
 pub(all) struct Matrix {
   a : Double
   b : Double
@@ -6,7 +7,7 @@ pub(all) struct Matrix {
   d : Double
   e : Double
   f : Double
-} derive(ToJson)
+}
 
 ///|
 pub extend Matrix with ToJson::{to_json}

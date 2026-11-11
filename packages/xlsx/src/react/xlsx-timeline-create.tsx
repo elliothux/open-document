@@ -3,6 +3,7 @@ import type { SpreadsheetEditor } from "../web/spreadsheet-editor.js";
 import { checkXlsxTimelineSettings, type XlsxPivots } from "../web/xlsx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function CreateTimeline({
   editor,
@@ -38,7 +39,10 @@ export function CreateTimeline({
   }
   return (
     <fieldset disabled={disabled || query.protection.protected}>
-      <legend>{t.timelineCreate}</legend>
+      <legend>
+        <Icon name="calendar" />
+        {t.timelineCreate}
+      </legend>
       <p>{t.timelineCreateHelp}</p>
       <button
         type="button"
@@ -51,6 +55,7 @@ export function CreateTimeline({
           })
         }
       >
+        <Icon name="refresh" />
         {t.timelineLoadPivots}
       </button>
       <label>
@@ -131,6 +136,7 @@ export function CreateTimeline({
           })
         }
       >
+        <Icon name="plus" />
         {t.timelineInsert}
       </button>
     </fieldset>

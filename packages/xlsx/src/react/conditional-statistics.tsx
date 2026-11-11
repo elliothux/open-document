@@ -1,6 +1,7 @@
 import type { XlsxConditionalFormat } from "../web/xlsx.js";
 import type { UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function ConditionalStatisticsFields({
   rule,
@@ -16,7 +17,10 @@ export function ConditionalStatisticsFields({
     const rank = rule.rank;
     return (
       <fieldset>
-        <legend>{t.conditionalRank}</legend>
+        <legend>
+          <Icon name="magic-wand" />
+          {t.conditionalRank}
+        </legend>
         <label>
           {t.conditionalRankCount}
           <input
@@ -66,7 +70,10 @@ export function ConditionalStatisticsFields({
     const average = rule.average;
     return (
       <fieldset>
-        <legend>{t.conditionalAverage}</legend>
+        <legend>
+          <Icon name="magic-wand" />
+          {t.conditionalAverage}
+        </legend>
         <label>
           <input
             type="checkbox"

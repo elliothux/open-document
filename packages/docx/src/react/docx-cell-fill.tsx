@@ -4,6 +4,7 @@ import type { DocxPageBorder } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { borderThemeOptions } from "./docx-border-themes.js";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxCellFill({
   controller,
@@ -65,6 +66,7 @@ export function DocxCellFill({
         </select>
       </label>
       <button type="submit" aria-label={`${t.apply} ${t.cellFill}`}>
+        <Icon name="check" />
         {t.apply}
       </button>
       <button
@@ -76,6 +78,7 @@ export function DocxCellFill({
           )
         }
       >
+        <Icon name="eraser" />
         {t.clearCellFill}
       </button>
     </form>

@@ -1,9 +1,10 @@
-///|
+----
 import {
   "moonbitlang/async@0.22.4",
   "moonbitlang/async@0.22.4/shell",
   "moonbitlang/async@0.22.4/fs",
 }
+----
 
 ///|
 async fn main {
@@ -13,8 +14,8 @@ async fn main {
     .check()
   }
   @shell.Cmd("bun", [
-    "build", "examples/web-sdk/app.js", "--target", "browser", "--splitting", "--format",
-    "esm", "--outdir", "examples/web-sdk/dist",
+    "build", "examples/web-sdk/app.js", "examples/web-sdk/headless.js", "examples/web-sdk/react.tsx",
+    "--target", "browser", "--splitting", "--format", "esm", "--outdir", "examples/web-sdk/dist",
   ])
   .output()
   .check()
@@ -24,6 +25,12 @@ async fn main {
   .output()
   .check()
   for name in ["docx", "xlsx", "pptx", "pdf"] {
+    @shell.Cmd("cp", [
+      "packages/wasm/dist/" + name + ".wasm",
+      "examples/web-sdk/dist/" + name + ".wasm",
+    ])
+    .output()
+    .check()
     @shell.Cmd("cp", [
       "packages/" + name + "/dist/worker/index.js",
       "examples/web-sdk/dist/" + name + "-worker.js",

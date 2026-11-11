@@ -1,8 +1,9 @@
 ///|
+#derive(@json.FromJson)
 priv struct OpenRequest {
   budget : @common.RequestArchiveBudget
   dateTime : String?
-} derive(@json.FromJson)
+}
 
 ///|
 fn pptx_open_request(

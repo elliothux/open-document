@@ -1,33 +1,37 @@
 ///|
+#derive(@json.FromJson)
 priv struct SubtotalRequest {
   range : String
   groupColumn : @common.RequestInt
   valueColumn : @common.RequestInt
   operation : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct DataEditRequest[T] {
   settings : T
   sourceRevision : @common.RequestInt
   overwrite : Bool?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TextColumnRequest {
   range : String
   delimiter : String?
   breaks : Array[@common.RequestInt]?
   types : Array[String]?
   formulas : Bool?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct DuplicateRequest {
   range : String
   header : Bool
   columns : Array[@common.RequestInt]
-} derive(@json.FromJson)
+}
 
 ///|
 priv struct SubtotalSettingsInput {

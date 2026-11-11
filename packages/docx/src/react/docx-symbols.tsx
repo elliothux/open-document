@@ -1,9 +1,7 @@
-import { useState } from "react";
 import type { DocumentEditor } from "../web/editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
-import { Group } from "@open-document/ui/controls";
+import { EditorSymbolPicker } from "@open-document/ui";
 import { messages } from "@open-document/ui/messages";
-
 const symbols = Array.from(
   "—…·§¶†©®™°±×÷≤≥≠≈∞√µ€£¥¢←→↑↓⇐⇒★☆✓✗●○■□◆◇①②③④⑤⑥⑦⑧⑨⑩",
 );
@@ -13,42 +11,29 @@ export function DocxSymbols({
   state,
   editor,
   disabled,
+  portal,
 }: {
   controller: EditorController;
   state: UiSnapshot;
   editor: DocumentEditor;
   disabled: boolean;
+  portal: HTMLElement;
 }) {
   const t = messages(state.locale);
-  const [symbol, setSymbol] = useState(symbols[0]!);
   return (
-    <Group label={t.symbols}>
-      <label>
-        {t.symbol}
-        <select
-          value={symbol}
-          disabled={disabled}
-          onChange={(event) => setSymbol(event.currentTarget.value)}
-        >
-          {symbols.map((value) => (
-            <option key={value} value={value}>
-              {value}
-            </option>
-          ))}
-        </select>
-      </label>
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() =>
-          controller.run(async () => {
-            await editor.paste(symbol);
-            editor.focus();
-          })
-        }
-      >
-        {t.insertSymbol}
-      </button>
-    </Group>
+    <EditorSymbolPicker
+      label={t.insertSymbol}
+      title={t.symbols}
+      gridLabel={t.symbol}
+      symbols={symbols}
+      disabled={disabled}
+      portal={portal}
+      insert={(symbol) =>
+        controller.run(async () => {
+          await editor.paste(symbol);
+          editor.focus();
+        })
+      }
+    />
   );
 }

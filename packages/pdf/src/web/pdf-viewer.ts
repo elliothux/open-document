@@ -27,6 +27,7 @@ export type PdfViewer = Pick<
   | "cancelSearch"
   | "search"
   | "nextMatch"
+  | "showMatch"
   | "close"
   | "copy"
   | "dispose"

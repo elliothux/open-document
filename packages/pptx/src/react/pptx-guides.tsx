@@ -7,6 +7,7 @@ import {
   pptxGridUnitsPerPoint,
   pptxGuideCount,
 } from "@open-document/wasm/engine-source";
+import { Icon } from "@open-document/ui/icons";
 
 export function PptxGuides({ controller, state, file, disabled }: PanelProps) {
   const query = file.format === "pptx" ? file.editor.query : undefined,
@@ -37,7 +38,10 @@ export function PptxGuides({ controller, state, file, disabled }: PanelProps) {
       }}
     >
       <fieldset disabled={disabled || !!query.guides.reason}>
-        <legend>{t.pptxGuides}</legend>
+        <legend>
+          <Icon name="ruler" />
+          {t.pptxGuides}
+        </legend>
         <label>
           <input
             type="checkbox"
@@ -52,6 +56,7 @@ export function PptxGuides({ controller, state, file, disabled }: PanelProps) {
           disabled={items.length >= pptxGuideCount}
           onClick={() => add("horz")}
         >
+          <Icon name="plus" />
           {t.pptxAddHorizontalGuide}
         </button>
         <button
@@ -59,6 +64,7 @@ export function PptxGuides({ controller, state, file, disabled }: PanelProps) {
           disabled={items.length >= pptxGuideCount}
           onClick={() => add("vert")}
         >
+          <Icon name="plus" />
           {t.pptxAddVerticalGuide}
         </button>
         <ol className="od-guide-list">
@@ -96,6 +102,7 @@ export function PptxGuides({ controller, state, file, disabled }: PanelProps) {
                 aria-label={`${t.pptxRemoveGuide} ${index + 1}`}
                 onClick={() => setItems(items.filter((_, i) => i !== index))}
               >
+                <Icon name="trash" />
                 {t.pptxRemoveGuide}
               </button>
             </li>
@@ -106,6 +113,7 @@ export function PptxGuides({ controller, state, file, disabled }: PanelProps) {
           disabled={!items.length}
           onClick={() => setItems([])}
         >
+          <Icon name="eraser" />
           {t.pptxClearGuides}
         </button>
         <button
@@ -115,6 +123,7 @@ export function PptxGuides({ controller, state, file, disabled }: PanelProps) {
             JSON.stringify(items) === JSON.stringify(query.guides.items)
           }
         >
+          <Icon name="check" />
           {t.pptxApplyGuides}
         </button>
       </fieldset>
@@ -174,7 +183,10 @@ export function PptxSnapping({
         {t.pptxShowGrid}
       </label>
       <fieldset disabled={disabled || !!value.reason}>
-        <legend>{t.pptxSnapping}</legend>
+        <legend>
+          <Icon name="grid" />
+          {t.pptxSnapping}
+        </legend>
         <label>
           <input
             type="checkbox"
@@ -212,6 +224,7 @@ export function PptxSnapping({
             Number(spacing) === value.spacing
           }
         >
+          <Icon name="check" />
           {t.pptxApplySnapping}
         </button>
       </fieldset>

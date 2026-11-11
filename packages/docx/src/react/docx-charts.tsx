@@ -5,6 +5,7 @@ import type { EditorController, UiSnapshot } from "./context.js";
 import { ChartFields, initialChart } from "@open-document/ui/chart-fields";
 import { messages } from "@open-document/ui/messages";
 import { DocxDrawingPosition } from "./docx-drawing-position.js";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxCharts({
   controller,
@@ -96,8 +97,12 @@ export function DocxCharts({
   return (
     <section aria-label={t.chart}>
       <fieldset disabled={disabled}>
-        <legend>{t.chart}</legend>
+        <legend>
+          <Icon name="chart" />
+          {t.chart}
+        </legend>
         <button type="button" onClick={() => controller.run(load)}>
+          <Icon name="refresh" />
           {t.chartLoad}
         </button>
         {!!catalog?.items.length && (
@@ -152,6 +157,7 @@ export function DocxCharts({
             })
           }
         >
+          <Icon name="plus" />
           {t.chartInsert}
         </button>
         <button
@@ -176,6 +182,7 @@ export function DocxCharts({
             })
           }
         >
+          <Icon name="check" />
           {t.chartApply}
         </button>
         <button
@@ -193,6 +200,7 @@ export function DocxCharts({
             })
           }
         >
+          <Icon name="ruler" />
           {t.chartResize}
         </button>
         <button
@@ -206,6 +214,7 @@ export function DocxCharts({
             })
           }
         >
+          <Icon name="trash" />
           {t.chartDelete}
         </button>
         {current?.reason && <p>{current.reason}</p>}

@@ -11,10 +11,11 @@ pub const FilterLabelUnits : Int32 = 32767
 pub const FilterTextUnits : Int32 = 1048576
 
 ///|
+#derive(Eq, ToJson, @json.FromJson)
 pub(all) struct FilterCondition {
   operator : String
   value : String
-} derive(Eq, ToJson, @json.FromJson)
+}
 
 ///|
 pub extend FilterCondition with ToJson::{to_json}
@@ -23,6 +24,7 @@ pub extend FilterCondition with ToJson::{to_json}
 pub extend FilterCondition with @json.FromJson::{from_json}
 
 ///|
+#derive(Eq)
 pub(all) enum FilterRule {
   Values(Array[String], blank~ : Bool)
   Custom(Array[FilterCondition], all~ : Bool)
@@ -34,19 +36,21 @@ pub(all) enum FilterRule {
   Color(String?, cell_color~ : Bool)
   ColorStyle(Int32, cell_color~ : Bool)
   Icon(String, Int32?)
-} derive(Eq)
+}
 
 ///|
+#derive(Eq)
 pub(all) struct FilterColumn {
   column : Int32
   rule : FilterRule
-} derive(Eq)
+}
 
 ///|
+#derive(Eq)
 pub(all) struct FilterSettings {
   range : String
   columns : Array[FilterColumn]
-} derive(Eq)
+}
 
 ///|
 pub extend FilterColumn with Eq::{equal, not_equal}
@@ -61,6 +65,7 @@ pub extend FilterRule with Eq::{equal, not_equal}
 pub extend FilterSettings with Eq::{equal, not_equal}
 
 ///|
+#derive(Eq)
 priv struct AutoFilterState {
   settings : FilterSettings
   bounds : Range
@@ -69,7 +74,7 @@ priv struct AutoFilterState {
   tracked : Bool
   flags : Map[Int32, Array[(String, String)]]
   sort : StoredSort?
-} derive(Eq)
+}
 
 ///|
 let filter_state_uri = "urn:open-document:xlsx:filter-state"

@@ -1,8 +1,9 @@
 ///|
+#derive(Eq, ToJson, @json.FromJson)
 pub(all) struct ConditionalThreshold {
   kind : String
   value : String
-} derive(Eq, ToJson, @json.FromJson)
+}
 
 ///|
 pub extend ConditionalThreshold with Eq::{equal, not_equal}
@@ -14,6 +15,7 @@ pub extend ConditionalThreshold with ToJson::{to_json}
 pub extend ConditionalThreshold with @json.FromJson::{from_json}
 
 ///|
+#derive(Eq, ToJson)
 pub(all) struct DataBar {
   minimum : ConditionalThreshold
   maximum : ConditionalThreshold
@@ -21,7 +23,7 @@ pub(all) struct DataBar {
   showValue : Bool
   minLength : Int32
   maxLength : Int32
-} derive(Eq, ToJson)
+}
 
 ///|
 pub extend DataBar with Eq::{equal, not_equal}
@@ -30,6 +32,7 @@ pub extend DataBar with Eq::{equal, not_equal}
 pub extend DataBar with ToJson::{to_json}
 
 ///|
+#derive(Eq)
 priv struct ConditionalBar {
   fraction : Double
   reverse : Bool
@@ -37,7 +40,7 @@ priv struct ConditionalBar {
   showValue : Bool
   minLength : Int32
   maxLength : Int32
-} derive(Eq)
+}
 
 ///|
 fn DataBar::check(

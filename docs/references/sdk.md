@@ -1,6 +1,6 @@
 # SDK 目标、技术选型与核心/宿主合同
 
-**当前目标（2026-10-14）：复刻 GenOffice 的文档、表格、PPT、PDF，交付全功能 SDK。** 本地 `references/genoffice` 源码用于核对功能与 UI 交互，App 仅用于视觉对比验收和交互参考。Office 能力、布局、算法与兼容行为仍优先参考 ONLYOFFICE，其次 LibreOffice。目标覆盖读取、呈现、交互编辑、程序化操作、保存及转换；P0–P9 是已交付的基础阶段，其限定范围不构成最终产品上限。
+**当前目标（2026-11-11）：复刻 GenOffice 的文档、表格、PPT、PDF，交付浏览器即插即用的全功能 SDK。** 同时提供可独立使用的无 UI 逻辑接口和完整、可组合的编辑组件。文档逻辑尽可能归 MoonBit/Wasm，便于脱离浏览器运行。本地 `references/genoffice` 源码用于核对功能与 UI 交互，App 仅用于视觉对比验收和交互参考。Office 能力、布局、算法与兼容行为仍优先参考 ONLYOFFICE，其次 LibreOffice。目标覆盖读取、呈现、交互编辑、程序化操作、保存及转换；已交付阶段的限定范围不构成最终产品上限。
 
 项目未发布，当前有 0 个用户。现有基础包括 [P0 文本 POC](../implemented/p0-project-foundation.md)、[P1 字体/塑形](../implemented/p1-sdk-foundation.md)、[P2 窄 DOCX 读写](../implemented/p2-format-foundation.md)、[P3 有限预览/PDF](../implemented/p3-docx-preview.md)及 [P4 限定 DOCX 编辑](../implemented/p4-docx-editing.md)。实际 API 与支持面见[开发说明](development.md)和[格式合同](formats.md)。未发布 API、模型和开发数据沿单一实现路径直接修改。
 
@@ -45,6 +45,8 @@
 
 首版不同时承诺四种格式的完整兼容。平台顺序仍是 Web 优先，CLI 与其他宿主后续接入；各格式和转换方向按功能清单推进，不承诺任意格式互转或与 Microsoft Office 完全一致。
 
+SDK 提供纯逻辑会话、浏览器 Worker 无 UI 会话和交互编辑组件。交互组件保留 Canvas、原生输入和无障碍节点。默认 UI 与宿主自定义控件共享命令及状态。资源加载、公开导出和消费示例见[开发说明](development.md)。上游对照和实施证据见 [G4](../implemented/g4-office-sdk-productization.md)。
+
 ### 次要平台：其他语言 + WASM runtime，以及 CLI
 
 - 复用 MoonBit 核心，提供无浏览器环境的程序化读写、计算及逐步完善的转换能力。
@@ -76,7 +78,7 @@ Rust、Zig、Go 不作为当前核心主语言。选择 MoonBit 不意味着为�
 
 各领域的 `react` 入口使用 React + open Shadow DOM + Tailwind CSS + [Base UI](https://base-ui.com/react/overview/quick-start)，接通本格式已有操作。`packages/ui` 提供共用外壳和控件；领域的 `web` 入口保持框架无关。`packages/web-core` 复用连接、原生输入、Renderer、Canvas 和快照，领域宿主保留各自的编辑队列。
 
-交付与检查边界见 [P9](../implemented/p9-web-sdk-ui.md)。挂载、状态、保存/关闭与资源所有权归[格式合同](formats/shared.md#默认-ui-与编辑宿主)，实际入口与普通 JS 示例归[开发说明](development.md#默认-web-ui)。新建和缺失格式操作继续按 P10–P13 实施。
+交付与检查边界见 [P9](../implemented/p9-web-sdk-ui.md)和 [G4](../implemented/g4-office-sdk-productization.md)。挂载、状态、保存/关闭与资源所有权归[格式合同](formats/shared.md#默认-ui-与编辑宿主)。新建和核心格式操作已由 P10–P13 在声明范围内交付。四个 `react` 入口提供编辑器组件，`mountEditor` 使用同一生命周期。组件、插槽和公开命令的用法见[开发说明](development.md#react-integration)。
 
 | 层 | 职责 |
 | --- | --- |
@@ -84,6 +86,8 @@ Rust、Zig、Go 不作为当前核心主语言。选择 MoonBit 不意味着为�
 | Shadow DOM | 每个编辑器实例一个 open ShadowRoot，容纳 UI、编辑表面、样式与弹层 |
 | Tailwind CSS | 构建期生成 UI 样式，按 GenOffice 的颜色、间距、尺寸和状态实现外观 |
 | Base UI | 提供菜单、弹层、选择器等控件的交互与无障碍基础，由 Tailwind 定义外观 |
+
+界面图标统一从 Icon MCP 获取，通过 `packages/ui` 以内联 SVG 渲染。图标按钮提供本地化的可访问名称。
 
 UI 与交互以 `references/genoffice` 源码为第一参考。GenOffice App 仅用于视觉对比验收和交互参考；出现差异时先检查源码与 App 的版本。复刻编辑区域布局、Ribbon 分组、控件状态、菜单与面板行为、状态栏和缩放操作。首批接通现有核心支持的操作；缺少的文档能力按具体用户操作补齐，不用空按钮宣称功能完成。这里的 UI 参考不改变 Office 布局与算法的参考顺序。桌面外壳、AI、账号与云服务沿用本合同的范围边界。
 

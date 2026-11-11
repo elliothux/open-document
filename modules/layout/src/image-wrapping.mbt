@@ -1,4 +1,5 @@
 ///|
+#derive(ToJson)
 priv struct WrappingRect {
   page : Int32
   paragraph : Int32
@@ -9,7 +10,7 @@ priv struct WrappingRect {
   bottom : Double
   wrapping : String
   side : String
-} derive(ToJson)
+}
 
 ///|
 fn wrapping_rects(

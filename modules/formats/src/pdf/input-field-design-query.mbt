@@ -1,4 +1,5 @@
 ///|
+#derive(Eq, ToJson)
 pub(all) struct PdfFieldWidgetDesign {
   id : String
   page : String
@@ -7,7 +8,7 @@ pub(all) struct PdfFieldWidgetDesign {
   borderColor : String
   background : String
   exportValue : String
-} derive(Eq, ToJson)
+}
 
 ///|
 pub extend PdfFieldWidgetDesign with Eq::{equal, not_equal}

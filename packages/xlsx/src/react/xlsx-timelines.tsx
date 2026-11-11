@@ -9,6 +9,7 @@ import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { CreateTimeline } from "./xlsx-timeline-create.js";
 import { AnalysisFrameEditor } from "./xlsx-analysis-frame.js";
+import { Icon } from "@open-document/ui/icons";
 
 export function XlsxTimelinesPanel({
   editor,
@@ -29,7 +30,10 @@ export function XlsxTimelinesPanel({
     catalog.sheet === editor.currentState.sheet;
   return (
     <fieldset disabled={disabled}>
-      <legend>{t.timelines}</legend>
+      <legend>
+        <Icon name="calendar" />
+        {t.timelines}
+      </legend>
       <CreateTimeline
         editor={editor}
         controller={controller}
@@ -38,6 +42,7 @@ export function XlsxTimelinesPanel({
         created={load}
       />
       <button type="button" onClick={() => controller.run(load)}>
+        <Icon name="list-nested" />
         {t.timelineList}
       </button>
       {catalog && !current && <p>{t.pivotReload}</p>}
@@ -123,6 +128,7 @@ export function XlsxTimelinesPanel({
                   })
                 }
               >
+                <Icon name="trash" />
                 {t.timelineDelete}
               </button>
               <TimelineRangeForm
@@ -193,7 +199,10 @@ function TimelineRangeForm({
   );
   return (
     <fieldset disabled={disabled}>
-      <legend>{t.timelineRange}</legend>
+      <legend>
+        <Icon name="calendar" />
+        {t.timelineRange}
+      </legend>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -233,8 +242,12 @@ function TimelineRangeForm({
             onChange={(event) => setEnd(event.currentTarget.value)}
           />
         </label>
-        <button type="submit">{t.timelineApply}</button>
+        <button type="submit">
+          <Icon name="check" />
+          {t.timelineApply}
+        </button>
         <button type="button" onClick={() => apply(null)}>
+          <Icon name="eraser" />
           {t.timelineClear}
         </button>
       </form>

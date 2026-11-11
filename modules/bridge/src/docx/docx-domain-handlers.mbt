@@ -1,14 +1,16 @@
 ///|
+#derive(@json.FromJson)
 priv struct TrackingRequest {
   revision : @common.RequestInt
   author : @common.RequiredNullable[String]
   date : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct RevisionGeometryRequest {
   revisionId : String
-} derive(@json.FromJson)
+}
 
 ///|
 let domain_handlers : Map[

@@ -3,6 +3,7 @@
 pub const ExportBytes : Int32 = 67108864
 
 ///|
+#derive(ToJson, Eq, Hash)
 pub(all) struct TextStyle {
   font : String
   size : Double
@@ -15,7 +16,7 @@ pub(all) struct TextStyle {
   spacing : Double
   kerning : String
   fontLeading : Bool
-} derive(ToJson, Eq, Hash)
+}
 
 ///|
 pub fn TextStyle::new(
@@ -134,6 +135,7 @@ pub impl ToJson for LineSpacing with fn to_json(self) {
 pub extend LineSpacing with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub(all) struct ParagraphMarker {
   text : String
   image : PlacedImage?
@@ -141,12 +143,13 @@ pub(all) struct ParagraphMarker {
   style : TextStyle
   align : String
   suffix : String
-} derive(ToJson)
+}
 
 ///|
 pub extend ParagraphMarker with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub(all) struct Paragraph {
   id : Int32
   container : Int32
@@ -172,7 +175,7 @@ pub(all) struct Paragraph {
   keepNext : Bool
   widowControl : Bool
   readOnlyReason : String
-} derive(ToJson)
+}
 
 ///|
 pub extend Paragraph with ToJson::{to_json}
@@ -211,6 +214,7 @@ pub fn NoteNumbering::text(
 }
 
 ///|
+#derive(ToJson)
 pub(all) struct Note {
   kind : String
   key : String
@@ -218,12 +222,13 @@ pub(all) struct Note {
   node : Int32
   numbering : NoteNumbering
   content : Array[Paragraph]
-} derive(ToJson)
+}
 
 ///|
 pub extend Note with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub(all) struct PageSetup {
   width : Double
   height : Double
@@ -231,12 +236,13 @@ pub(all) struct PageSetup {
   right : Double
   bottom : Double
   left : Double
-} derive(ToJson)
+}
 
 ///|
 pub extend PageSetup with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub(all) struct Flow {
   revision : Int32
   sectionBreaks : Array[SectionBreak]
@@ -260,12 +266,13 @@ pub(all) struct Flow {
   differentFirst : Bool
   differentEven : Bool
   additiveSpacing : Bool
-} derive(ToJson)
+}
 
 ///|
 pub extend Flow with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub(all) struct PlacedRun {
   start : Int32
   sources : Array[SourceRange]
@@ -279,16 +286,17 @@ pub(all) struct PlacedRun {
   nominalSize : Double
   rise : Double
   decorations : Array[TextDecoration]
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 pub(all) struct TextDecoration {
   x : Double
   width : Double
   underline : Bool
   strike : Bool
   highlight : String
-} derive(ToJson)
+}
 
 ///|
 pub extend TextDecoration with ToJson::{to_json}
@@ -297,17 +305,19 @@ pub extend TextDecoration with ToJson::{to_json}
 pub extend PlacedRun with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub(all) struct SourceRange {
   node : Int32
   start : Int32
   end : Int32
   offset : Int32
-} derive(ToJson)
+}
 
 ///|
 pub extend SourceRange with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub(all) struct Line {
   paragraph : Int32
   container : Int32
@@ -335,24 +345,26 @@ pub(all) struct Line {
   carets : Array[Caret]
   caretPortions : Array[CaretPortion]
   readOnlyReason : String
-} derive(ToJson)
+}
 
 ///|
 pub extend Line with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub(all) struct CellArea {
   x : Double
   y : Double
   width : Double
   height : Double
   paragraphs : Array[Int32]
-} derive(ToJson)
+}
 
 ///|
 pub extend CellArea with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub(all) struct PageFrame {
   width : Double
   height : Double
@@ -361,12 +373,13 @@ pub(all) struct PageFrame {
   fills : Array[Fill]
   pageBorders : Array[Fill]
   cellAreas : Array[CellArea]
-} derive(ToJson)
+}
 
 ///|
 pub extend PageFrame with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub(all) struct Layout {
   background : String
   revision : Int32
@@ -383,7 +396,7 @@ pub(all) struct Layout {
   diagnostics : Array[String]
   outlines : Array[Outline]
   fonts : Array[FontInfo]
-} derive(ToJson)
+}
 
 ///|
 pub extend Layout with ToJson::{to_json}
@@ -437,35 +450,38 @@ pub impl ToJson for PlacedImage with fn to_json(self) {
 pub extend PlacedImage with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub(all) struct Border {
   x : Double
   y : Double
   width : Double
   height : Double
-} derive(ToJson)
+}
 
 ///|
 pub extend Border with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub(all) struct Fill {
   x : Double
   y : Double
   width : Double
   height : Double
   color : String
-} derive(ToJson)
+}
 
 ///|
 pub extend Fill with ToJson::{to_json}
 
 ///|
+#derive(ToJson, Eq)
 pub(all) struct CellMargins {
   top : Double
   right : Double
   bottom : Double
   left : Double
-} derive(ToJson, Eq)
+}
 
 ///|
 pub extend CellMargins with ToJson::{to_json}
@@ -474,11 +490,12 @@ pub extend CellMargins with ToJson::{to_json}
 pub extend CellMargins with Eq::{not_equal, equal}
 
 ///|
+#derive(ToJson, Eq, Debug)
 pub(all) struct BorderStyle {
   style : String
   width : Double
   color : String
-} derive(ToJson, Eq, Debug)
+}
 
 ///|
 pub extend BorderStyle with ToJson::{to_json}
@@ -490,35 +507,39 @@ pub extend BorderStyle with Eq::{equal, not_equal}
 pub extend BorderStyle with Debug::{to_repr}
 
 ///|
+#derive(ToJson)
 pub(all) struct TableBorders {
   horizontal : Array[Array[BorderStyle]]
   vertical : Array[Array[BorderStyle]]
-} derive(ToJson)
+}
 
 ///|
 pub extend TableBorders with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub(all) struct TableStroke {
   rect : Border
   color : String
   width : Double
-} derive(ToJson)
+}
 
 ///|
 pub extend TableStroke with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub(all) struct NestedTable {
   row : Int32
   column : Int32
   table : Table
-} derive(ToJson)
+}
 
 ///|
 pub extend NestedTable with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub(all) struct Table {
   id : Int32
   autoFit : Bool
@@ -540,7 +561,7 @@ pub(all) struct Table {
   splitRows : Array[Bool]
   fills : Array[Array[String]]
   verticalAligns : Array[Array[String]]
-} derive(ToJson)
+}
 
 ///|
 pub extend Table with ToJson::{to_json}

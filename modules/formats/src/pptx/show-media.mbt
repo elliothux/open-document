@@ -33,6 +33,7 @@ fn show_media_visible(object : Object, show : ShowState) -> Bool {
 }
 
 ///|
+#derive(ToJson)
 priv struct ShowMediaQuery {
   object : String
   label : String
@@ -44,7 +45,7 @@ priv struct ShowMediaQuery {
   reason : String
   visible : Bool
   playback : MediaPlaybackSettings
-} derive(ToJson)
+}
 
 ///|
 fn Session::show_media_query(

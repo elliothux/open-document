@@ -2,6 +2,17 @@ import { useEffect, useRef, useState } from "react";
 import type { EditorOptions, MountedEditor } from "./formats.js";
 import { EditorHost } from "./editor-host.js";
 import { previewResources } from "./resources.js";
+import {
+  AccentIcon,
+  type AccentIconName,
+} from "@open-document/ui/accent-icons";
+
+const formats: readonly (readonly [string, AccentIconName])[] = [
+  ["docx", "file-text"],
+  ["xlsx", "file-spreadsheet"],
+  ["pptx", "presentation"],
+  ["pdf", "file"],
+];
 
 export function App() {
   const input = useRef<HTMLInputElement>(null);
@@ -9,6 +20,7 @@ export function App() {
   const [editor, setEditor] = useState<MountedEditor>();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
     if (!editor) return;
@@ -105,10 +117,46 @@ export function App() {
         <EditorHost options={options} onReady={setEditor} onError={setError} />
       )}
       {!editor && (
-        <div className="empty">
-          <button type="button" disabled={opening} onClick={chooseFile}>
-            {opening ? "正在打开…" : "打开文件"}
-          </button>
+        <div
+          className="empty"
+          data-dragging={dragging || undefined}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDragging(false);
+            const file = event.dataTransfer.files[0];
+            if (file) void open(file);
+          }}
+        >
+          <section className="empty-card">
+            <div className="empty-mark" aria-hidden="true">
+              {dragging ? (
+                <span data-kind="upload">
+                  <AccentIcon name="cloud-upload" />
+                </span>
+              ) : (
+                formats.map(([kind, icon]) => (
+                  <span key={kind} data-kind={kind}>
+                    <AccentIcon name={icon} />
+                  </span>
+                ))
+              )}
+            </div>
+            <h1>Open Document</h1>
+            <p>拖入文件，或从本地选择一个文档开始编辑。</p>
+            <button type="button" disabled={opening} onClick={chooseFile}>
+              {opening ? "正在打开…" : "打开文件"}
+            </button>
+            <ul aria-label="支持的格式">
+              {["DOCX", "XLSX", "CSV", "PPTX", "PDF"].map((format) => (
+                <li key={format}>{format}</li>
+              ))}
+            </ul>
+          </section>
         </div>
       )}
       {error && (

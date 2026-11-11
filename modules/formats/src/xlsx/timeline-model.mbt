@@ -1,8 +1,9 @@
 ///|
+#derive(ToJson)
 priv struct TimelineRange {
   start : String
   end : String
-} derive(ToJson)
+}
 
 ///|
 priv struct TimelineState {

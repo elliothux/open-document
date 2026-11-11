@@ -12,12 +12,13 @@ fn WordTree::has_review_markup(self : WordTree, paragraph : Int32) -> Bool {
 }
 
 ///|
+#derive(ToJson)
 priv struct TrackingState {
   revision : Int32
   enabled : Bool
   author : String
   reason : String
-} derive(ToJson)
+}
 
 ///|
 /// Returns this session's recording mode; author identity is supplied by the host.

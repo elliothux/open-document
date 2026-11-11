@@ -15,59 +15,83 @@ export {
 } from "../core/foundation.js";
 
 import type { EngineHandle } from "@open-document/wasm";
-import { engineModule } from "@open-document/wasm/loader";
-import type { Budget } from "@open-document/wasm/abi/session";
-import type { Connection } from "@open-document/web-core/connection";
-import type {
-  OfficeCommand,
-  WorkerOperation,
-} from "@open-document/web-core/protocol";
-import { openWorkerConnection } from "@open-document/web-core/worker-connection";
 import type { DocxCommand, DocxResult } from "../core/docx-command.js";
 export type { DocxCommand, DocxResult } from "../core/docx-command.js";
 import {
   prepareDocxFragmentImages,
   prepareDocxImages,
 } from "./document-fragment-images.js";
-import {
-  checkDocxInput,
-  checkDocxByteInput,
-  type DocxInputLimits,
-} from "../core/docx-input.js";
 export type { DocxInputLimits } from "../core/docx-input.js";
+import { DocxWorkerSession } from "../headless.js";
 
-export type DocxOperation = WorkerOperation<OfficeCommand<DocxCommand>>;
+import { checkViewCommand } from "@open-document/web-core/view-mode";
 
-/** One Worker owns the document; the client prepares platform images before pasting. */
-export class FoundationClient {
-  private constructor(
-    private readonly connection: Connection<DocxOperation, DocxInputLimits>,
-  ) {}
-  static async open(
+const viewCommands = new Set<DocxCommand["operation"]>([
+  "layout",
+  "editState",
+  "docxSelectionView",
+  "hitTest",
+  "selectDocx",
+  "selectAllDocx",
+  "navigateDocx",
+  "clipboard",
+  "tableClipboard",
+  "findDocx",
+  "overview",
+  "revisions",
+  "revisionGeometry",
+  "comments",
+  "navigateComment",
+  "styles",
+  "lists",
+  "charts",
+  "pictures",
+  "shapes",
+  "mathExpressions",
+  "mathFractions",
+  "mathScripts",
+  "indexes",
+  "pageSetup",
+  "ruler",
+  "runningArea",
+  "notes",
+  "noteNumbering",
+  "bodyPageField",
+  "sources",
+  "tableOfContents",
+  "tracking",
+  "themeColors",
+  "themeFonts",
+  "watermark",
+  "documentProtection",
+  "exportPdf",
+  "exportMarkup",
+  "saveDocx",
+  "imagePixels",
+  "imageSource",
+  "cancelComposition",
+  "addImage",
+]);
+
+export class FoundationClient extends DocxWorkerSession {
+  readOnly = false;
+
+  protected override checkCommand(command: DocxCommand): void {
+    checkViewCommand(this.readOnly, viewCommands, command.operation);
+    super.checkCommand(command);
+  }
+
+  static override async open(
     engine: EngineHandle,
     workerUrl: URL,
     signal?: AbortSignal,
   ): Promise<FoundationClient> {
-    return new FoundationClient(
-      await openWorkerConnection<DocxOperation, DocxInputLimits>(
-        engineModule(engine),
-        workerUrl,
-        signal,
-      ),
-    );
+    return new FoundationClient(await this.connect(engine, workerUrl, signal));
   }
-  async defaultBudget(): Promise<Budget> {
-    return (await this.connection.request({ operation: "budget" })) as Budget;
-  }
-  async addFont(bytes: Uint8Array, identity: string): Promise<void> {
-    await this.connection.request({ operation: "font", bytes, identity });
-  }
-  inputLimits(): DocxInputLimits {
-    return this.connection.inputLimits();
-  }
-  async execute<C extends DocxCommand>(command: C): Promise<DocxResult<C>> {
-    checkDocxInput(command, () => this.inputLimits());
-    checkDocxByteInput(command, this.inputLimits());
+  override async execute<C extends DocxCommand>(
+    command: C,
+  ): Promise<DocxResult<C>> {
+    this.checkCommand(command);
     if (
       command.operation === "pasteHtml" ||
       command.operation === "pasteMarkdown"
@@ -101,9 +125,6 @@ export class FoundationClient {
         command.change.fragment,
       );
     }
-    return (await this.connection.request(command)) as DocxResult<C>;
-  }
-  dispose(): void {
-    this.connection.dispose();
+    return super.execute(command);
   }
 }

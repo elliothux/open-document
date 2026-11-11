@@ -1,21 +1,24 @@
 ///|
+#derive(@json.FromJson)
 priv struct ObjectFrameRequest {
   x : @common.RequestNumber
   y : @common.RequestNumber
   width : @common.RequestNumber
   height : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct HyperlinkEditRequest {
   link : @common.RequiredNullable[HyperlinkTargetRequest]
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct HyperlinkTargetRequest {
   kind : String
   target : String
-} derive(@json.FromJson)
+}
 
 ///|
 fn pptx_object_edit(change : Json) -> @model.ObjectEdit raise @failure.Failure {

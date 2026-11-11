@@ -2,26 +2,29 @@
 pub const SlideImportBytes : Int32 = 33554432
 
 ///|
+#derive(ToJson)
 priv struct ImportSlide {
   index : Int32
   title : String
   hidden : Bool
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct ImportMedia {
   kind : String
   contentType : String
   bytes : Json
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct ImportInfo {
   slides : Array[ImportSlide]
   fonts : Array[String]
   images : Array[Json]
   media : Array[ImportMedia]
-} derive(ToJson)
+}
 
 ///|
 fn imported_slide_paths(

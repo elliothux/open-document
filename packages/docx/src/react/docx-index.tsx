@@ -3,6 +3,7 @@ import type { DocumentEditor, DocumentIndexes } from "../web/editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { docxIndexLabelUnits } from "@open-document/wasm/engine-source";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxIndex({
   controller,
@@ -40,7 +41,10 @@ export function DocxIndex({
     source.revision !== snapshot.revision;
   return (
     <section aria-label={t.indexes}>
-      <h3>{t.indexes}</h3>
+      <h3>
+        <Icon name="book" />
+        {t.indexes}
+      </h3>
       <p>{t.indexHelp}</p>
       <form
         onSubmit={(event) => {
@@ -58,11 +62,15 @@ export function DocxIndex({
               onChange={(event) => setLabel(event.currentTarget.value)}
             />
           </label>
-          <button type="submit">{t.markIndexEntry}</button>
+          <button type="submit">
+            <Icon name="plus" />
+            {t.markIndexEntry}
+          </button>
           <button
             type="button"
             onClick={() => controller.run(() => editor.pages.insertIndex())}
           >
+            <Icon name="plus" />
             {t.insertIndex}
           </button>
         </fieldset>
@@ -93,7 +101,10 @@ export function DocxIndex({
                 defaultValue={entry.label}
               />
             </label>
-            <button type="submit">{t.updateIndexEntry}</button>
+            <button type="submit">
+              <Icon name="refresh" />
+              {t.updateIndexEntry}
+            </button>
             <button
               type="button"
               onClick={() =>
@@ -105,6 +116,7 @@ export function DocxIndex({
                 )
               }
             >
+              <Icon name="trash" />
               {t.deleteIndexEntry}
             </button>
             {entry.reason && <p>{entry.reason}</p>}
@@ -128,6 +140,7 @@ export function DocxIndex({
               )
             }
           >
+            <Icon name="refresh" />
             {t.updateIndex}
           </button>
           <button
@@ -141,6 +154,7 @@ export function DocxIndex({
               )
             }
           >
+            <Icon name="trash" />
             {t.deleteIndex}
           </button>
           {index.reason && <p>{index.reason}</p>}

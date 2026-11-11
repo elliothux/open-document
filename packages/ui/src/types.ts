@@ -7,9 +7,28 @@ import type {
 } from "@open-document/web-core/editor-state";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import type { MessageKey } from "./messages.js";
+import type { RibbonAction } from "./ribbon.js";
+import type { CommandDefinition, EditorCommandApi } from "./commands.js";
 
 export type Locale = "en-US" | "zh-CN";
 export type Theme = "light" | "dark";
+export type EditorMode = "edit" | "view";
+export interface EditorSlotContext {
+  readonly commands: EditorCommandApi;
+  readonly snapshot: MountedSnapshot;
+  readonly mode: EditorMode;
+  /** Instance-local container for popup content. */
+  readonly portal: HTMLElement;
+  focus(): void;
+}
+type EditorSlot = null | ((context: EditorSlotContext) => ReactNode);
+export interface EditorSlots {
+  readonly toolbar?: EditorSlot;
+  readonly navigation?: EditorSlot;
+  readonly properties?: EditorSlot;
+  readonly status?: EditorSlot;
+  readonly actions?: EditorSlot;
+}
 export interface DelimitedOptions {
   numbers?: boolean;
   dates?: boolean;
@@ -45,11 +64,19 @@ export interface CommonOptions {
   readonly resources: EditorResources;
   readonly theme?: Theme;
   readonly locale?: Locale;
+  readonly mode?: EditorMode;
+  readonly slots?: EditorSlots;
   readonly onSave?: (document: SavedDocument) => Promise<void> | void;
   readonly onOpen?: () => Promise<void> | void;
   readonly signal?: AbortSignal;
   readonly styleNonce?: string;
   readonly commentAuthor?: { name: string; initials: string };
+}
+
+export interface EditorEvents<Instance> {
+  readonly onReady?: ((instance: Instance) => void) | undefined;
+  readonly onChange?: ((snapshot: MountedSnapshot) => void) | undefined;
+  readonly onError?: ((error: unknown) => void) | undefined;
 }
 /** Internal shell options; each domain owns its public options and budget. */
 export interface EditorOptions extends CommonOptions {
@@ -61,6 +88,7 @@ export type MountedSnapshot = EditorSnapshot & {
   readonly loading: boolean;
   readonly message: string;
   readonly newDocument: boolean;
+  readonly mode: EditorMode;
 };
 export interface MountedMethods {
   getSnapshot(): MountedSnapshot;
@@ -73,11 +101,22 @@ export interface MountedMethods {
   dispose(): Promise<void>;
   setTheme(theme: Theme): void;
   setLocale(locale: Locale): void;
+  setMode(mode: EditorMode): void;
 }
+export type MountedProduct<
+  E extends EditorHost,
+  F extends EditorFormat,
+> = MountedMethods & {
+  readonly format: F;
+  readonly editor: E;
+  readonly commands: EditorCommandApi;
+  create(document: { readonly name: string }): Promise<boolean>;
+};
 export interface EditorHost {
   getSnapshot(): EditorSnapshot;
   subscribe(listener: () => void): () => void;
   setPaused(paused: boolean): Promise<void>;
+  setReadOnly(readOnly: boolean): void;
   setZoom(zoom: number): Promise<void>;
   undo(): Promise<unknown>;
   redo(): Promise<unknown>;
@@ -122,18 +161,45 @@ export interface PanelProps<E extends EditorHost = EditorHost> {
   state: UiSnapshot<E>;
   file: OwnedFile<E>;
   disabled: boolean;
+  workspace?: {
+    readonly task: string | undefined;
+    readonly portal: HTMLElement;
+    showTask(task?: string): void;
+  };
 }
 export type PanelSlot =
   | "edit"
   | "view"
+  | "insert"
+  | "layout"
+  | "data"
+  | "design"
+  | "transitions"
+  | "animations"
+  | "object"
+  | "actions"
+  | "below-surface"
+  | "references"
+  | "review"
+  | "table"
+  | "picture"
+  | "header-footer"
   | "pages"
   | "annotations"
+  | "forms"
   | "navigation"
   | "pages-list"
   | "properties"
   | "before-surface"
   | "after-surface"
   | "status";
+export interface RibbonTab {
+  readonly id: PanelSlot;
+  readonly label: MessageKey;
+  readonly readOnly?: boolean;
+  /** Shown only for the current selection, such as a picture or table. */
+  readonly contextual?: boolean;
+}
 export interface Product<E extends EditorHost> {
   readonly format: EditorFormat;
   readonly canCreate: boolean;
@@ -152,8 +218,14 @@ export interface Product<E extends EditorHost> {
     document: OfficeDocument,
     parent: HTMLElement,
     signal: AbortSignal,
+    locale: Locale,
   ): Promise<OwnedFile<E>>;
   render(slot: PanelSlot, props: PanelProps<E>): ReactNode;
+  selectionKey?(editor: E): string;
+  tabs?(props?: PanelProps<E>): readonly RibbonTab[];
+  contextActions?(props: PanelProps<E>): readonly RibbonAction[];
+  fileActions?(props: PanelProps<E>): readonly RibbonAction[];
+  commands?(props: PanelProps<E>): readonly CommandDefinition[];
 }
 export const mime: Record<EditorOutput["format"], string> = {
   png: "image/png",

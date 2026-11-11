@@ -68,19 +68,21 @@ fn Session::layout_choices(
 }
 
 ///|
+#derive(ToJson)
 priv struct LayoutChoiceQuery {
   id : String
   name : String
   master : String
   masterName : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct SlideLayoutQuery {
   current : String
   choices : Array[LayoutChoiceQuery]
   reason : String
-} derive(ToJson)
+}
 
 ///|
 fn Session::layout_query(self : Session, slide : Slide) -> SlideLayoutQuery {

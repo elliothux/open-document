@@ -8,6 +8,7 @@ import {
 import type { UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { conditionalIconLabels } from "./conditional-icons.js";
+import { Icon } from "@open-document/ui/icons";
 
 export function XlsxIconFilterForm({
   criterion,
@@ -39,7 +40,10 @@ export function XlsxIconFilterForm({
       }}
     >
       <fieldset disabled={disabled}>
-        <legend>{t.filterIcons}</legend>
+        <legend>
+          <Icon name="filter" />
+          {t.filterIcons}
+        </legend>
         <label>
           {t.filterIconSet}
           <select
@@ -90,7 +94,10 @@ export function XlsxIconFilterForm({
           {t.sortNoIcon}
         </label>
         <p>{t.sortIconHelp}</p>
-        <button type="submit">{t.filterIconApply}</button>
+        <button type="submit">
+          <Icon name="check" />
+          {t.filterIconApply}
+        </button>
       </fieldset>
     </form>
   );

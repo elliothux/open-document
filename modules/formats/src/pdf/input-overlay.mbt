@@ -1,11 +1,12 @@
 ///|
+#derive(Eq, ToJson)
 pub(all) struct PdfPlacement {
   x : Double
   y : Double
   width : Double
   height : Double
   rotation : Double
-} derive(Eq, ToJson)
+}
 
 ///|
 pub extend PdfPlacement with Eq::{equal, not_equal}
@@ -14,6 +15,7 @@ pub extend PdfPlacement with Eq::{equal, not_equal}
 pub extend PdfPlacement with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub(all) struct PdfTextSpec {
   placement : PdfPlacement
   text : String
@@ -22,7 +24,7 @@ pub(all) struct PdfTextSpec {
   color : String
   role : String
   foreground : Bool
-} derive(ToJson)
+}
 
 ///|
 pub extend PdfTextSpec with ToJson::{to_json}

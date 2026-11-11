@@ -1,15 +1,17 @@
 ///|
+#derive(@json.FromJson)
 priv struct CommentAuthorRequest {
   text : String
   author : String
   initials : String
   date : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct CommentIdentityRequest {
   id : String
-} derive(@json.FromJson)
+}
 
 ///|
 fn docx_comment_edit(

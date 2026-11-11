@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+import { Icon } from "./icons.js";
 
 export function WordArt({
   apply,
@@ -36,7 +37,10 @@ export function WordArt({
       }}
     >
       <fieldset disabled={disabled}>
-        <legend>{t.insertWordArt}</legend>
+        <legend>
+          <Icon name="text" />
+          {t.insertWordArt}
+        </legend>
         <label>
           {t.wordArtPreset}
           <select

@@ -1,4 +1,5 @@
 ///|
+#derive(ToJson)
 priv struct PdfQueryPage {
   id : String
   object : Int32
@@ -6,18 +7,20 @@ priv struct PdfQueryPage {
   width : Double
   height : Double
   rotate : Int32
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct PdfQueryAnnotation {
   id : String
   page : String
   kind : String
   text : String
   readOnlyReason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct PdfQueryState {
   revision : Int32
   page : String
@@ -31,7 +34,7 @@ priv struct PdfQueryState {
   historyBytes : Int32
   modified : Bool
   diagnostics : Array[String]
-} derive(ToJson)
+}
 
 ///|
 pub fn PdfSession::query(self : PdfSession) -> Json raise @failure.Failure {

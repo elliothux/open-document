@@ -115,10 +115,11 @@ fn Session::editable_drawing_link(
 }
 
 ///|
+#derive(ToJson)
 priv struct DrawingLinkQuery {
   target : Json
   reason : String
-} derive(ToJson)
+}
 
 ///|
 fn Session::drawing_link_summary(

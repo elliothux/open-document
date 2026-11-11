@@ -1,4 +1,5 @@
 ///|
+#derive(Eq, ToJson)
 pub(all) struct HeaderFooter {
   oddHeader : String
   oddFooter : String
@@ -12,7 +13,7 @@ pub(all) struct HeaderFooter {
   alignWithMargins : Bool
   headerMargin : Double
   footerMargin : Double
-} derive(Eq, ToJson)
+}
 
 ///|
 pub extend HeaderFooter with Eq::{equal, not_equal}

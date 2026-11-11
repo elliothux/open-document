@@ -1,9 +1,10 @@
 ///|
+#derive(@json.FromJson)
 priv struct BodyPageFieldCommandRequest {
   revision : @common.RequestInt
   field : BodyPageFieldRequest
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
 priv struct BodyPageFieldRequest {
@@ -11,21 +12,24 @@ priv struct BodyPageFieldRequest {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct BodyFieldKindRequest {
   field : String
   format : String?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SequenceFieldRequest {
   sequence : String
   restart : @common.RequestInt?
   repeat : Bool?
   headingLevel : @common.RequestInt?
   hidden : Bool?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ReferenceFieldRequest {
   bookmark : String
   hyperlink : Bool?
@@ -33,7 +37,7 @@ priv struct ReferenceFieldRequest {
   superscript : Bool?
   numbering : String?
   separator : String?
-} derive(@json.FromJson)
+}
 
 ///|
 fn sequence_field_code(

@@ -1,25 +1,28 @@
 ///|
+#derive(Eq)
 priv struct AxisSpan {
   first : Int32
   last : Int32
   size : Double
-} derive(Eq)
+}
 
 ///|
+#derive(Eq)
 priv struct Axis {
   default_size : Double
   spans : Array[AxisSpan]
   limit : Int32
-} derive(Eq)
+}
 
 ///|
+#derive(Eq)
 priv struct Dimensions {
   rows : Axis
   columns : Axis
   base_column_width : Double?
   automatic_rows : Map[Int32, Bool]
   automatic_columns : Array[(Int32, Int32)]
-} derive(Eq)
+}
 
 ///|
 fn dimension(value : String, max : Double) -> Double raise @failure.Failure {

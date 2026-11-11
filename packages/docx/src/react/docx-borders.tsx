@@ -10,7 +10,18 @@ import type {
 } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon, type IconName } from "@open-document/ui/icons";
 import { borderThemeOptions } from "./docx-border-themes.js";
+
+const borderIcons = {
+  all: "border-all",
+  top: "border-top",
+  right: "border-right",
+  bottom: "border-bottom",
+  left: "border-left",
+  insideH: "border-inside-horizontal",
+  insideV: "border-inside-vertical",
+} as const satisfies Record<DocxBorderSide | "all", IconName>;
 
 export function DocxBorders({
   controller,
@@ -58,6 +69,8 @@ export function DocxBorders({
   const selected =
     side === "all" ? sides : sides.filter((value) => value === side);
   const apply = (kind: "set" | "clear" | "inherit") => {
+    const target = controller.commands.captureTarget();
+    if (!target) return;
     const value: DocxBorderPatch = {};
     for (const side of selected)
       value[side] =
@@ -69,7 +82,11 @@ export function DocxBorders({
               color: color.slice(1),
               ...(kind === "set" && themeColor ? { themeColor } : {}),
             };
-    controller.run(() => editor.tables.editTable({ action: scope, value }));
+    controller.run(() =>
+      editor.tables.editTable({ action: scope, value }, () =>
+        controller.commands.assertTarget(target),
+      ),
+    );
   };
   const labels = {
     top: t.topCellBorder,
@@ -81,7 +98,10 @@ export function DocxBorders({
   };
   return (
     <fieldset disabled={disabled}>
-      <legend>{table ? t.tableBorders : t.cellBorders}</legend>
+      <legend>
+        <Icon name="border-all" />
+        {table ? t.tableBorders : t.cellBorders}
+      </legend>
       {table && (
         <label>
           {t.borderTarget}
@@ -106,6 +126,7 @@ export function DocxBorders({
       <label>
         {t.borderSide}
         <select
+          className="od-docx-border-sides"
           aria-label={t.borderSide}
           value={side}
           onChange={(event) => {
@@ -115,9 +136,13 @@ export function DocxBorders({
             else if (found) setSide(found);
           }}
         >
-          <option value="all">{t.allBorders}</option>
+          <option value="all">
+            <Icon name={borderIcons.all} />
+            {t.allBorders}
+          </option>
           {sides.map((side) => (
             <option key={side} value={side}>
+              <Icon name={borderIcons[side]} />
               {labels[side]}
             </option>
           ))}
@@ -202,6 +227,7 @@ export function DocxBorders({
           type="submit"
           aria-label={`${t.apply} ${table ? t.tableBorders : t.cellBorders}`}
         >
+          <Icon name="check" />
           {t.apply}
         </button>
         <button
@@ -209,6 +235,7 @@ export function DocxBorders({
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => apply("clear")}
         >
+          <Icon name="eraser" />
           {t.noTableBorder}
         </button>
         <button
@@ -216,6 +243,7 @@ export function DocxBorders({
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => apply("inherit")}
         >
+          <Icon name="format-painter" />
           {t.inheritStyleProperty}
         </button>
       </form>

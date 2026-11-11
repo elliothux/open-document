@@ -336,12 +336,36 @@ export function createPdfOperations(
       }, true);
     },
 
-    async movePage(delta: number): Promise<PdfQuery> {
+    async movePage(
+      delta: number,
+      selected?: readonly string[],
+    ): Promise<PdfQuery> {
       host.checkDraft();
       host.cancelSearch();
       return host.commit((revision) => {
-        const pages = host.state().pages.map((page) => page.id),
-          index = pages.indexOf(host.state().page),
+        const pages = host.state().pages.map((page) => page.id);
+        if (selected) {
+          const targets = new Set(selected);
+          const indices = pages.flatMap((page, index) =>
+            targets.has(page) ? [index] : [],
+          );
+          const boundary = delta < 0 ? indices[0] : indices.at(-1);
+          if (
+            indices.length !== selected.length ||
+            boundary === undefined ||
+            Math.abs(delta) !== 1 ||
+            boundary + delta < 0 ||
+            boundary + delta >= pages.length
+          )
+            throw new Error("PDF pages cannot move further");
+          if (delta > 0) indices.reverse();
+          for (const index of indices) {
+            const next = index + delta;
+            [pages[index], pages[next]] = [pages[next]!, pages[index]!];
+          }
+          return { operation: "reorderPdfPages", revision, pages };
+        }
+        const index = pages.indexOf(host.state().page),
           next = index + delta;
         if (!Number.isInteger(delta) || next < 0 || next >= pages.length)
           throw new Error("PDF page cannot move further");
@@ -350,13 +374,13 @@ export function createPdfOperations(
       });
     },
 
-    async rotate(degrees: number): Promise<PdfQuery> {
+    async rotate(degrees: number, selected?: string[]): Promise<PdfQuery> {
       host.checkDraft();
       host.cancelSearch();
       return host.commit((revision) => ({
         operation: "rotatePdfPages",
         revision,
-        pages: [host.state().page],
+        pages: selected ?? [host.state().page],
         degrees,
       }));
     },
@@ -457,13 +481,13 @@ export function createPdfOperations(
       }, true);
     },
 
-    async deletePage(): Promise<PdfQuery> {
+    async deletePage(selected?: string[]): Promise<PdfQuery> {
       host.checkDraft();
       host.cancelSearch();
       return host.commit((revision) => ({
         operation: "deletePdfPages",
         revision,
-        pages: [host.state().page],
+        pages: selected ?? [host.state().page],
       }));
     },
 

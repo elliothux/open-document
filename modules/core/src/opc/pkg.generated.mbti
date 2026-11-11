@@ -2,6 +2,7 @@
 package "open_document/core/opc"
 
 import {
+  "moonbitlang/core/json",
   "open_document/core/archive",
   "open_document/core/failure",
   "open_document/core/xml",
@@ -37,14 +38,15 @@ pub fn Package::validate_changes(Self, Map[String, Bytes], removed? : Array[Stri
 pub fn Package::verify_output(Self, Bytes, Map[String, Bytes]) -> Unit raise @failure.Failure
 pub fn Package::xml(Self, String) -> @xml.Document raise @failure.Failure
 
+#derive(@json.ToJson)
 pub(all) struct Relationship {
   owner : String
   id : String
   kind : String
   target : String
   external : Bool
-} derive(ToJson)
-pub fn Relationship::to_json(Self) -> Json
+}
+pub fn Relationship::to_json(Self) -> @json.Json
 
 // Type aliases
 

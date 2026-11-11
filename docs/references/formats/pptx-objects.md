@@ -152,6 +152,8 @@ DrawingML `cap=all/none` 沿字符属性继承，缺省为 `none`。共享 `Text
 
 对齐与分布要求对象模式，沿用 256 成员、同一父容器中的本地对象及现有锁定/继承/未知资源保护。只改成员位置，保留顺序、活动对象、尺寸、旋转、翻转、文字、裁剪和关系；位置舍入为整数 EMU。成员越界、输出或历史预算失败不提交任何成员，成功只新增一项历史，重复操作或对齐到自身的零位移不写源、不新增历史。默认面板提供参考范围、六种对齐和两种分布，活动对象参考下禁用分布。接口复用 `editPptxObjects` / `PresentationEditor.editObjects`。
 
+默认对象排列面板为对齐、分布和四种层级操作提供带文字标签的图标。选择对象后从上下文功能区或画布菜单进入。旋转角度、翻转与位置参数仍在同一面板。
+
 组合使用 `{ action: "group" }`，至少选择两个同一父容器中的可编辑本地对象。核心分配新组身份，保留成员身份、相对顺序、格式及关系，转换局部坐标；新组在原父容器中放到所选最上层对象的位置，选择切到新组。原组也可参与嵌套组合。顶层组沿用整体移动、缩放（含非等比例）、旋转、翻转、层次、对齐和删除事务；候选同步派生成员世界矩阵，不写已提交源。多选集合的独立宽高缩放沿上文同一候选路径执行。
 
 组的 `cNvPr` 可包含标准 `a16:creationId` 创建标识。核心验证扩展 UUID、命名空间、单一 GUID 属性及无额外子节点；此元数据不影响绘制，普通变换保留原 XML。未知扩展和非法 GUID 继续保护。原件的读取、组拖动、精确历史和独立保存重开范围见[测试说明](../testing.md#当前兼容证据入口)。
@@ -299,6 +301,10 @@ DrawingML `tint/shade` 先把 sRGB 转为线性 RGB，混色后再转回；`tint
 无变化不增加历史。形状边长沿用 0.1–14400 pt，尺寸向上取整到 EMU；预设内框求逆不重复测字，最多 16 次文字重排。超限、无可用内框、不收敛、变换锁、缺字体、未知适配内容或输出/历史预算失败均原子拒绝。候选和旧 revision 保持既有保护。组内/继承对象及独立保持直立的旋转文字仍待对应编辑支持；普通水平文字沿用已有裁剪、Canvas 与 PDF 路径。
 
 `editPptxObjects` / `PresentationEditor.editObjects` 支持 `{ action: "textFormat", format }`，其中 `PptxTextFormat` 可包含 `font/size/spacing/bold/italic/color/underline/strike/highlight/script`。至少提供一项，省略项保持；不接受 null 清除或未知字段。font 为不超过 200 UTF-16 单元的实际字体族，不能包含 `|`、换行或以 `+` 开头；主题字体编辑见[主题字体](pptx-editing.md#主题字体)。size 为 1–1024 pt，核心舍入到 0.01 pt。color 为六位 RGB 十六进制，查询和保存规范为小写。字体族同时写入 latin/ea/cs，授权字体与样式仍通过宿主 profile 供应。
+
+对象工具功能区、文字格式面板和宿主控件共用 `bold`、`italic`、`underline`、`strike` 命令。`commands.getSnapshot(id)` 从核心格式查询取得按下、混合和禁用状态。编辑表面的 Ctrl/Cmd+B、I、U 执行同一组命令。每项修改进入同一原生撤销历史。
+
+对象工具功能区也提供字体和字号。字号写入 DrawingML 时保留百分之一点精度。核心按导入规则将查询和绘制字号舍入到半点，功能区与属性面板显示这一有效值。
 
 `spacing` 为以 pt 表示的字符间距，正值扩展、负值紧缩、0 恢复正常间距。编辑范围为 −1584–1584 pt，核心舍入到 0.01 pt，读写 DrawingML `spc` 的整数百分之一点；无本地定义时沿段落、列表、版式和母版继承。普通范围、折叠光标后续输入、空段尾、多框、母版分级默认格式及字符清除共用现有事务、适配与公共塑形，Canvas/PDF 使用同一组位置。默认文本与母版面板提供同名控件。单位依据 [ONLYOFFICE 字符间距读取](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L9051-L9052)；本 SDK 使用共享塑形的 ±1584 pt 资源上限，未覆盖原生格式更大的完整数值范围，越界源保留并诊断。实现归 [`text-read.mbt`](../../../modules/formats/src/pptx/text-read.mbt)及 [`text-format-properties.mbt`](../../../modules/formats/src/pptx/text-format-properties.mbt)。
 

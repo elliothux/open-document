@@ -1,4 +1,5 @@
 ///|
+#derive(ToJson(fields(flip_x(rename="flipX"), flip_y(rename="flipY"))))
 priv struct Geometry {
   x : Double
   y : Double
@@ -8,7 +9,7 @@ priv struct Geometry {
   flip_x : Bool
   flip_y : Bool
   matrix : @layout.Matrix
-} derive(ToJson(fields(flip_x(rename="flipX"), flip_y(rename="flipY"))))
+}
 
 ///|
 priv struct TextRun {
@@ -171,6 +172,7 @@ priv struct Slide {
 }
 
 ///|
+#derive(ToJson)
 priv struct Selection {
   slide : String
   object : String
@@ -178,7 +180,7 @@ priv struct Selection {
   mode : String
   anchor : Int32
   focus : Int32
-} derive(ToJson)
+}
 
 ///|
 priv struct History {

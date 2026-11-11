@@ -8,6 +8,7 @@ import {
   pptxTableRowCount,
 } from "@open-document/wasm/engine-source";
 import { PptxDashFields } from "./pptx-dash.js";
+import { Icon } from "@open-document/ui/icons";
 
 export function PptxTableStyle({
   controller,
@@ -33,7 +34,10 @@ export function PptxTableStyle({
       }}
     >
       <fieldset disabled={disabled || !!query.reason}>
-        <legend>{t.tableStyle}</legend>
+        <legend>
+          <Icon name="table-cells" />
+          {t.tableStyle}
+        </legend>
         <label>
           {t.tableStyleName}
           <select
@@ -77,6 +81,7 @@ export function PptxTableStyle({
           </label>
         ))}
         <button type="submit" disabled={!style.id}>
+          <Icon name="check" />
           {t.applyTableStyle}
         </button>
         {query.reason && <p>{query.reason}</p>}
@@ -201,7 +206,10 @@ export function PptxSplitCell({
       }}
     >
       <fieldset disabled={disabled || !!table.splitReason}>
-        <legend>{t.splitCell}</legend>
+        <legend>
+          <Icon name="grid" />
+          {t.splitCell}
+        </legend>
         <label>
           {t.splitCellRows}
           <input
@@ -227,6 +235,7 @@ export function PptxSplitCell({
           />
         </label>
         <button type="submit" disabled={!valid}>
+          <Icon name="table-cells" />
           {t.splitCell}
         </button>
         {table.splitReason && <p>{table.splitReason}</p>}
@@ -268,7 +277,10 @@ export function PptxCells({
     <fieldset
       disabled={disabled || !!format.reason || !!editor.query.readOnlyReason}
     >
-      <legend>{t.cellFormat}</legend>
+      <legend>
+        <Icon name="format-painter" />
+        {t.cellFormat}
+      </legend>
       <p>
         {editor.query.selection.mode === "object"
           ? t.wholeTable
@@ -303,6 +315,7 @@ export function PptxCells({
           )
         }
       >
+        <Icon name="eraser" />
         {t.noCellFill}
       </button>
       <form
@@ -335,7 +348,10 @@ export function PptxCells({
         </button>
       </form>
       <fieldset disabled={!!format.borderReason}>
-        <legend>{t.cellBorders}</legend>
+        <legend>
+          <Icon name="border-all" />
+          {t.cellBorders}
+        </legend>
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -381,6 +397,7 @@ export function PptxCells({
               )
             }
           >
+            <Icon name="eraser" />
             {t.noTableBorder}
           </button>
         </form>
@@ -436,7 +453,10 @@ export function PptxCells({
         }}
       >
         <fieldset>
-          <legend>{t.cellMargins}</legend>
+          <legend>
+            <Icon name="ruler" />
+            {t.cellMargins}
+          </legend>
           {(
             [
               ["left", t.textInsetLeft],

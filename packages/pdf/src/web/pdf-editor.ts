@@ -1,3 +1,4 @@
+import { viewOnlyReason } from "@open-document/web-core/view-mode";
 import { propertyDraft, renderPdfPropertyDraft } from "./pdf-property-draft.js";
 import {
   textDraft,
@@ -46,6 +47,12 @@ export class PdfEditor {
     this.view.focus(...args);
   readonly setPaused = (...args: Parameters<PdfViewer["setPaused"]>) =>
     this.view.setPaused(...args);
+  setReadOnly(readOnly: boolean): void {
+    if (readOnly === this.client.readOnly) return;
+    this.client.readOnly = readOnly;
+    this.showDraft();
+    this.view.publish();
+  }
   get snapshot() {
     return this.view.snapshot;
   }
@@ -79,6 +86,12 @@ export class PdfEditor {
     this.view.search(...args);
   readonly nextMatch = (...args: Parameters<PdfViewer["nextMatch"]>) =>
     this.view.nextMatch(...args);
+  readonly showMatch = (index: number) => this.view.showMatch(index);
+  metadata() {
+    return this.view.enqueue(() =>
+      this.client.execute({ operation: "pdfMetadata" }),
+    );
+  }
   readonly copy = (...args: Parameters<PdfViewer["copy"]>) =>
     this.view.copy(...args);
 
@@ -249,7 +262,7 @@ export class PdfEditor {
     };
   }
   private pauseChanged(): void {
-    this.propertyInput.inert = this.view.paused;
+    this.propertyInput.inert = this.view.paused || this.client.readOnly;
     this.showDraft();
   }
   chooseProperty(value: string): Promise<void> {
@@ -595,6 +608,7 @@ export class PdfEditor {
         ? this.view.state.annotations.find((item) => item.id === draft.id)
         : undefined;
     this.propertyReason =
+      (this.client.readOnly ? viewOnlyReason : "") ||
       this.view.state.readOnlyReason ||
       field?.readOnlyReason ||
       annotation?.readOnlyReason ||

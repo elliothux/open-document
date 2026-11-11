@@ -1,10 +1,11 @@
 ///|
+#derive(Eq, Debug)
 pub(all) enum BackgroundFill {
   Solid(String)
   Linear(Array[@layout.GradientStop], Double, Bool)
   Radial(Array[@layout.GradientStop])
   Picture(String, Array[Double], Double, ImageTile?, Array[Double])
-} derive(Eq, Debug)
+}
 
 ///|
 pub extend BackgroundFill with Eq::{equal, not_equal}

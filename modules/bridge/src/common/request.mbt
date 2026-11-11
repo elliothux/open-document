@@ -88,9 +88,10 @@ pub fn[T : @json.FromJson] request(input : Json) -> T raise @failure.Failure {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct RevisionRequest {
   revision : RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
 pub fn request_revision(input : Json) -> Int32 raise @failure.Failure {
@@ -99,25 +100,28 @@ pub fn request_revision(input : Json) -> Int32 raise @failure.Failure {
 }
 
 ///|
+#derive(@json.FromJson)
 pub struct OperationRequest {
   operation : String
-} derive(@json.FromJson)
+}
 
 ///|
 pub extend OperationRequest with @json.FromJson::{from_json}
 
 ///|
+#derive(@json.FromJson)
 pub struct ActionRequest {
   action : String
-} derive(@json.FromJson)
+}
 
 ///|
 pub extend ActionRequest with @json.FromJson::{from_json}
 
 ///|
+#derive(@json.FromJson)
 pub struct BytesRequest {
   bytes : String
-} derive(@json.FromJson)
+}
 
 ///|
 pub extend BytesRequest with @json.FromJson::{from_json}

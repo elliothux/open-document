@@ -15,6 +15,7 @@ import {
   xlsxDrawingDescriptionUnits,
   xlsxDrawingNameUnits,
 } from "@open-document/wasm/engine-source";
+import { Icon } from "@open-document/ui/icons";
 
 function settings(value: XlsxChart): XlsxChartSettings {
   if (value.kind === "bubble" || value.kind === "surface")
@@ -91,7 +92,10 @@ export function XlsxCharts({
       : undefined;
   return (
     <section aria-label={t.worksheetCharts}>
-      <h3>{t.worksheetCharts}</h3>
+      <h3>
+        <Icon name="chart" />
+        {t.worksheetCharts}
+      </h3>
       <p>{t.chartRangeHint}</p>
       <form
         onSubmit={(event) => {
@@ -109,7 +113,10 @@ export function XlsxCharts({
         }}
       >
         <fieldset disabled={disabled}>
-          <legend>{t.chartInsert}</legend>
+          <legend>
+            <Icon name="chart" />
+            {t.chartInsert}
+          </legend>
           <label>
             {t.cellRange}
             <input
@@ -124,6 +131,7 @@ export function XlsxCharts({
             type="button"
             onClick={() => setRange(editor.currentState.selection.address)}
           >
+            <Icon name="plus" />
             {t.nameFromSelection}
           </button>
           <label>
@@ -173,7 +181,10 @@ export function XlsxCharts({
               />
             </label>
           ))}
-          <button type="submit">{t.chartInsert}</button>
+          <button type="submit">
+            <Icon name="plus" />
+            {t.chartInsert}
+          </button>
         </fieldset>
       </form>
       <button
@@ -181,6 +192,7 @@ export function XlsxCharts({
         disabled={disabled}
         onClick={() => controller.run(() => load())}
       >
+        <Icon name="refresh" />
         {t.chartLoad}
       </button>
       {catalog?.reason && <p>{catalog.reason}</p>}
@@ -220,7 +232,10 @@ export function XlsxCharts({
               }}
             >
               <fieldset disabled={disabled || stale || !!catalog?.reason}>
-                <legend>{t.chartApply}</legend>
+                <legend>
+                  <Icon name="chart" />
+                  {t.chartApply}
+                </legend>
                 <ChartFields
                   draft={appearance}
                   t={t}
@@ -291,7 +306,10 @@ export function XlsxCharts({
                     />
                   </label>
                 </ChartFields>
-                <button type="submit">{t.chartApply}</button>
+                <button type="submit">
+                  <Icon name="check" />
+                  {t.chartApply}
+                </button>
               </fieldset>
             </form>
           )}
@@ -305,7 +323,10 @@ export function XlsxCharts({
             }}
           >
             <fieldset disabled={disabled || stale || !!catalog?.reason}>
-              <legend>{t.chartResize}</legend>
+              <legend>
+                <Icon name="chart" />
+                {t.chartResize}
+              </legend>
               <label>
                 {t.xlsxShapeName}
                 <input
@@ -382,7 +403,10 @@ export function XlsxCharts({
                   />
                 </label>
               ))}
-              <button type="submit">{t.chartResize}</button>
+              <button type="submit">
+                <Icon name="ruler" />
+                {t.chartResize}
+              </button>
               <button
                 type="button"
                 onClick={() =>
@@ -392,6 +416,7 @@ export function XlsxCharts({
                   })
                 }
               >
+                <Icon name="trash" />
                 {t.chartDelete}
               </button>
               <button
@@ -406,6 +431,7 @@ export function XlsxCharts({
                   })
                 }
               >
+                <Icon name="copy" />
                 {t.duplicateObject}
               </button>
               <button
@@ -414,6 +440,7 @@ export function XlsxCharts({
                   controller.run(() => editor.clipboard.copyDrawing(draft.id))
                 }
               >
+                <Icon name="copy" />
                 {t.copyDrawing}
               </button>
               <button
@@ -422,6 +449,7 @@ export function XlsxCharts({
                   controller.run(() => editor.clipboard.cutDrawing(draft.id))
                 }
               >
+                <Icon name="cut" />
                 {t.cutDrawing}
               </button>
             </fieldset>

@@ -29,21 +29,24 @@ fn drawing_viewport(
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct MoveDrawingRequest {
   sourceSheet : String
   objectId : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct DuplicateDrawingRequest {
   objectId : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct DrawingOrderRequest {
   objectId : String
   direction : String
-} derive(@json.FromJson)
+}
 
 ///|
 fn xlsx_move_drawing(change : Json) -> @model.SheetEdit raise @failure.Failure {

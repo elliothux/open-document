@@ -1,11 +1,12 @@
 ///|
+#derive(@json.FromJson)
 priv struct RedactionRegionRequest {
   page : String
   x : @common.RequestNumber
   y : @common.RequestNumber
   width : @common.RequestNumber
   height : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
 fn RedactionRegionRequest::region(
@@ -21,10 +22,11 @@ fn RedactionRegionRequest::region(
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct RedactionRequest {
   regions : Array[RedactionRegionRequest]
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
 fn redaction_request(

@@ -1,22 +1,8 @@
 import type { EngineHandle } from "@open-document/wasm";
-import { engineModule } from "@open-document/wasm/loader";
-import type {
-  OfficeCommand,
-  WorkerOperation,
-} from "@open-document/web-core/protocol";
-import type { Connection } from "@open-document/web-core/connection";
-import { openWorkerConnection } from "@open-document/web-core/worker-connection";
 import { verifyEncodedImage } from "@open-document/web-core/image";
 import { verifyPresentationMedia } from "./presentation-media.js";
 export { preparePresentationMedia } from "./presentation-media.js";
-import {
-  preparePptxSearch,
-  checkPptxInput,
-  type PptxInputLimits,
-  type PptxCommand,
-  type PptxResult,
-} from "../core/pptx.js";
-import type { Budget } from "@open-document/wasm/abi/session";
+import { type PptxCommand, type PptxResult } from "../core/pptx.js";
 export type {
   PptxInputLimits,
   MathFormat,
@@ -91,39 +77,57 @@ export {
   pptxPlaceholderTypes,
   pptxInsertKinds,
 } from "../core/pptx.js";
+import { PptxWorkerSession } from "../headless.js";
 
-type Operation = WorkerOperation<OfficeCommand<PptxCommand>>;
+import { checkViewCommand } from "@open-document/web-core/view-mode";
 
-/** A Worker owns presentation state, layout, history and source bytes. */
-export class PptxClient {
+const viewCommands = new Set<PptxCommand["operation"]>([
+  "queryPptx",
+  "layoutPptx",
+  "selectionPptx",
+  "selectPptx",
+  "navigatePptx",
+  "hitPptx",
+  "findPptx",
+  "copyPptx",
+  "savePptx",
+  "exportPptxPdf",
+  "printLayoutPptx",
+  "previewKeysPptx",
+  "previewPptx",
+  "imageKeysPptx",
+  "imagePptx",
+  "prepareImagePptx",
+  "mediaBytesPptx",
+  "followPptxHyperlink",
+  "rasterHeaderPptx",
+  "layoutShowPptx",
+  "imageKeysShowPptx",
+  "mediaShowPptx",
+  "controlShowPptx",
+  "cancelPptx",
+]);
+
+export class PptxClient extends PptxWorkerSession {
+  readOnly = false;
+
+  protected override checkCommand(command: PptxCommand): void {
+    checkViewCommand(this.readOnly, viewCommands, command.operation);
+    super.checkCommand(command);
+  }
+
   private readonly events = new AbortController();
-  private constructor(
-    private readonly connection: Connection<Operation, PptxInputLimits>,
-  ) {}
-  static async open(
+  static override async open(
     engine: EngineHandle,
     workerUrl: URL,
     signal?: AbortSignal,
   ): Promise<PptxClient> {
-    return new PptxClient(
-      await openWorkerConnection<Operation, PptxInputLimits>(
-        engineModule(engine),
-        workerUrl,
-        signal,
-      ),
-    );
+    return new PptxClient(await this.connect(engine, workerUrl, signal));
   }
-  inputLimits(): PptxInputLimits {
-    return this.connection.inputLimits();
-  }
-  async defaultBudget(): Promise<Budget> {
-    return (await this.connection.request({ operation: "budget" })) as Budget;
-  }
-  async addFont(bytes: Uint8Array, identity: string): Promise<void> {
-    await this.connection.request({ operation: "font", bytes, identity });
-  }
-  async execute<C extends PptxCommand>(command: C): Promise<PptxResult<C>> {
-    checkPptxInput(command, this.inputLimits());
+  override async execute<C extends PptxCommand>(
+    command: C,
+  ): Promise<PptxResult<C>> {
+    this.checkCommand(command);
     if (
       command.operation === "inspectPptxSlides" ||
       command.operation === "importPptxSlides"
@@ -226,12 +230,7 @@ export class PptxClient {
       await this.verifyRaster(bytes);
       command = { ...command, change: { ...command.change, bytes } };
     }
-    const request =
-      command.operation === "findPptx" ||
-      command.operation === "replacePptxMatches"
-        ? preparePptxSearch(command)
-        : command;
-    return (await this.connection.request(request)) as PptxResult<C>;
+    return super.execute(command);
   }
   private async verifyRaster(bytes: Uint8Array): Promise<void> {
     const header = await this.execute({
@@ -241,8 +240,8 @@ export class PptxClient {
     });
     await verifyEncodedImage(bytes, header, this.events.signal);
   }
-  dispose(): void {
+  override dispose(): void {
     this.events.abort();
-    this.connection.dispose();
+    super.dispose();
   }
 }

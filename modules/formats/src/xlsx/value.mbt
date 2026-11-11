@@ -2,13 +2,14 @@
 pub const CellTextUnits : Int32 = 32767
 
 ///|
+#derive(Eq)
 pub(all) enum Value {
   Blank
   Text(String)
   Number(Double)
   Boolean(Bool)
   Error(String)
-} derive(Eq)
+}
 
 ///|
 pub extend Value with Eq::{equal, not_equal}

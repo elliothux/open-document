@@ -35,6 +35,10 @@
       "types": "./dist/types/react/*.d.ts",
       "default": "./dist/react/*.js"
     },
+    "./headless": {
+      "types": "./dist/types/headless.d.ts",
+      "default": "./dist/headless.js"
+    },
     "./worker": "./dist/worker/index.js"
   },
   "dependencies": {

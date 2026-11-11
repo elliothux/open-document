@@ -1,9 +1,10 @@
 ///|
+#derive(ToJson)
 pub struct PdfMetadata {
   revision : Int32
   fields : Map[String, String]
   readOnlyReason : String
-} derive(ToJson)
+}
 
 ///|
 pub extend PdfMetadata with ToJson::{to_json}

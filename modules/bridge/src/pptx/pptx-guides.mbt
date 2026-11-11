@@ -1,20 +1,23 @@
 ///|
+#derive(@json.FromJson)
 priv struct GuideVisibilityRequest {
   visible : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct GuideItemRequest {
   orientation : String
   position : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SnappingRequest {
   grid : Bool
   objects : Bool
   spacing : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
 fn pptx_guide_edit(change : Json) -> @model.SlideEdit raise @failure.Failure {

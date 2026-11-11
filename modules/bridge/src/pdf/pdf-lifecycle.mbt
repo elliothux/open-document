@@ -1,4 +1,5 @@
 ///|
+#derive(@json.FromJson)
 priv struct BudgetRequest {
   fileBytes : @common.RequestInt
   objects : @common.RequestInt
@@ -10,7 +11,7 @@ priv struct BudgetRequest {
   decodedBytes : @common.RequestInt
   steps : @common.RequestInt
   outputBytes : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
 fn BudgetRequest::budget(self : BudgetRequest) -> @model.PdfBudget {
@@ -29,26 +30,29 @@ fn BudgetRequest::budget(self : BudgetRequest) -> @model.PdfBudget {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct OpenPdfRequest {
   bytes : String
   budget : BudgetRequest
   password : String?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct CreatePdfRequest {
   width : @common.RequestNumber
   height : @common.RequestNumber
   budget : BudgetRequest
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct RasterHeaderRequest {
   bytes : String
   offset : @common.RequestNumber
   total : @common.RequestNumber
   decode : Bool?
-} derive(@json.FromJson)
+}
 
 ///|
 fn Context::replace_pdf(

@@ -1,20 +1,22 @@
 ///|
+#derive(ToJson)
 pub(all) struct Caret {
   offset : Int32
   before : Double
   after : Double
-} derive(ToJson)
+}
 
 ///|
 pub extend Caret with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub(all) struct CaretPortion {
   start : Int32
   end : Int32
   y : Double
   height : Double
-} derive(ToJson)
+}
 
 ///|
 pub extend CaretPortion with ToJson::{to_json}

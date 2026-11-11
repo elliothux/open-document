@@ -1,5 +1,6 @@
 ///|
 /// Page properties take effect after the preceding body paragraph and table counts.
+#derive(ToJson)
 pub(all) struct SectionBreak {
   beforeParagraph : Int32
   beforeTable : Int32
@@ -16,7 +17,7 @@ pub(all) struct SectionBreak {
   footerDistance : Double
   differentFirst : Bool
   differentEven : Bool
-} derive(ToJson)
+}
 
 ///|
 pub extend SectionBreak with ToJson::{to_json}

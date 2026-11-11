@@ -1,4 +1,5 @@
 ///|
+#derive(ToJson)
 pub(all) struct BasicShape {
   preset : String
   fill : String
@@ -6,7 +7,7 @@ pub(all) struct BasicShape {
   lineWidth : Double
   points : Array[(Double, Double)]
   strokeAlpha : Double
-} derive(ToJson)
+}
 
 ///|
 pub extend BasicShape with ToJson::{to_json}
@@ -194,6 +195,7 @@ pub fn DrawingFrame::validate(
 }
 
 ///|
+#derive(ToJson)
 pub(all) struct PlacedDrawingFrame {
   start : Int32
   level : Int32
@@ -204,7 +206,7 @@ pub(all) struct PlacedDrawingFrame {
   effectExtent : (Double, Double, Double, Double)
   anchor : DrawingAnchor?
   content : DrawingContent
-} derive(ToJson)
+}
 
 ///|
 pub extend PlacedDrawingFrame with ToJson::{to_json}

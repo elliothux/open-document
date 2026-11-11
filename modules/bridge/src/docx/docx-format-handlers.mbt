@@ -1,72 +1,82 @@
 ///|
+#derive(@json.FromJson)
 priv struct CatalogRequest {
   revision : @common.RequestInt
   kind : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ThemeColorRequest {
   revision : @common.RequestInt
   slot : String
   color : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ListLevelRequest {
   revision : @common.RequestInt
   listId : @common.RequestInt
   level : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TabIntervalRequest {
   revision : @common.RequestInt
   interval : Json
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct CreateStyleRequest {
   revision : @common.RequestInt
   name : String
   kind : String
   basedOn : String?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct DeleteStyleRequest {
   revision : @common.RequestInt
   key : String
   replacement : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct FormatSelectionRequest {
   revision : @common.RequestInt
   selection : SelectionRequest
   profile : @common.RequestProfile
   format : Json?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct RevisionChangeRequest {
   revision : @common.RequestInt
   change : Json
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ListEditRequest {
   revision : @common.RequestInt
   selection : SelectionRequest
   change : Json
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct HyperlinkEditRequest {
   revision : @common.RequestInt
   selection : SelectionRequest
   target : @common.RequiredNullable[String]
   text : String?
-} derive(@json.FromJson)
+}
 
 ///|
 let format_handlers : Map[

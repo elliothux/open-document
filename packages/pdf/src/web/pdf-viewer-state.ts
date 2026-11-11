@@ -13,6 +13,7 @@ export interface PdfEditorData {
   readonly matches: readonly PdfMatch[];
   readonly matchIndex: number;
   readonly searching: boolean;
+  readonly searchQuery: string;
   readonly searchPage: number;
   readonly property: string;
   readonly propertyReason: string;
@@ -52,6 +53,7 @@ export function createPdfEditorState(
       matches: [],
       matchIndex: -1,
       searching: false,
+      searchQuery: "",
       searchPage: 0,
       property: "",
       propertyReason: "",

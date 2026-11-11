@@ -189,7 +189,9 @@ await editor.dispose();
 client.dispose();
 ```
 
-viewer 提供 `snapshot`、`displayedPage`、`refresh`、`goToPage`、`navigatePage`、`setZoom`、`setReadingMode`、`selectText`、`selectRange`、`selectedText`、`copy`、`extractText`、`navigation`、`search`、`cancelSearch` 和 `nextMatch`。editor 另外提供对象、页面编排、字段、批注、脱敏、转换及输出操作；`thumbnail(page)` 生成独立缩略图，`setReadingMode` 接受 single/continuous/double；`chooseProperty`、各 `begin…` 入口、`applyDraft` 和 `cancelDraft` 共用属性草稿。自定义 UI 可以挂入稳定的 `propertyInput`，不另存一份属性草稿；切页/换文档/刷新/输出前应用或取消，组合期间禁止提交。默认 UI 的文件替换使用前述 `MountedEditor.open`。
+viewer 提供 `snapshot`、`displayedPage`、`refresh`、`goToPage`、`navigatePage`、`setZoom`、`setReadingMode`、`selectText`、`selectRange`、`selectedText`、`copy`、`extractText`、`navigation`、`search`、`cancelSearch`、`nextMatch` 和 `showMatch(index)`。`showMatch` 使用从零开始的结果索引，定位并高亮命中，保留结果控件的焦点。editor 另外提供对象、页面编排、字段、批注、脱敏、转换及输出操作。`thumbnail(page)` 生成独立缩略图。`setReadingMode` 接受 single/continuous/double。`chooseProperty`、各 `begin…` 入口、`applyDraft` 和 `cancelDraft` 共用属性草稿。自定义 UI 可挂入稳定的 `propertyInput`。切页、换文档、刷新和输出前应用或取消草稿。组合期间禁止提交。默认 UI 的文件替换使用 `MountedEditor.open`。
+
+默认 React 组件和 `mountEditor` 共用阅读、编辑内容、批注、页面、表单和视图标签。阅读标签提供搜索结果定位。文件菜单的文件属性读取标题、作者、主题和关键词。页面任务可以按稳定页面标识选择多页，批量移动、旋转和移除各提交一项历史。提取所选页面生成派生文件。表单和批注任务沿用原生草稿。脱敏副本在独立任务中标记、预览并确认导出。
 
 文档操作使用 `editor.operations`：页面移动/旋转/增删/替换/拆分/N-up、字段创建/改名/复制/移除/赋值、便笺/印章/文字标记/批注修改、脱敏预览与输出、Office 转换及派生图片/文字/分文件输出。它们共用 Editor 的草稿检查、队列和提交屏障，执行时读取当前状态与页面表面。原格式 `save()`、`undo()`、`redo()`、属性草稿与阅读操作仍直接归 Editor。
 

@@ -3,7 +3,6 @@ import { DocxBodyField } from "./docx-body-field.js";
 import { DocxCaption } from "./docx-caption.js";
 import { DocxNotes } from "./docx-notes.js";
 import { DocxNoteNumbering } from "./docx-note-numbering.js";
-import { DocxProtection } from "./docx-protection.js";
 import { DocxCover } from "./docx-cover.js";
 import { DocxWatermark } from "./docx-watermark.js";
 import { useState } from "react";
@@ -23,17 +22,20 @@ import {
 } from "@open-document/wasm/engine-source";
 import { DocxPageBordersForm } from "./docx-page-borders.js";
 import { listFormats } from "../web/foundation.js";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxPage({
   controller,
   state,
   editor,
   disabled,
+  task = "layout",
 }: {
   controller: EditorController;
   state: UiSnapshot;
   editor: DocumentEditor;
   disabled: boolean;
+  task?: "layout" | "running" | "notes";
 }) {
   const t = messages(state.locale);
   const [settings, setSettings] = useState<DocxPageSettings>();
@@ -98,9 +100,251 @@ export function DocxPage({
           gap: columns.gap,
         },
     );
+  const sectionChooser = (
+    <>
+      {settings && settings.sectionCount > 1 && (
+        <label>
+          {t.pageSection}
+          <select
+            aria-label={t.pageSection}
+            value={section}
+            disabled={disabled}
+            onChange={(event) => {
+              const index = Number(event.currentTarget.value);
+              setSection(index);
+              controller.run(() => load(index));
+            }}
+          >
+            {Array.from({ length: settings.sectionCount }, (_, index) => (
+              <option key={index} value={index}>
+                {t.pageSectionLabel} {index + 1}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+    </>
+  );
+  if (task !== "layout")
+    return (
+      <section
+        aria-label={task === "running" ? t.headerFooterTab : t.noteNumbering}
+      >
+        {sectionChooser}
+        {!settings && (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => controller.run(load)}
+          >
+            <Icon name="refresh" />
+            {t.loadPageSetup}
+          </button>
+        )}
+        {task === "running" ? (
+          <DocxRunning
+            key={`running:${section}`}
+            section={section}
+            controller={controller}
+            state={state}
+            editor={editor}
+            disabled={disabled}
+          />
+        ) : (
+          <>
+            <DocxCaption
+              controller={controller}
+              state={state}
+              editor={editor}
+              disabled={disabled}
+            />
+            <DocxNotes
+              controller={controller}
+              state={state}
+              editor={editor}
+              disabled={disabled}
+            />
+            <DocxNoteNumbering
+              key={`note-numbering:${section}`}
+              section={section}
+              controller={controller}
+              state={state}
+              editor={editor}
+              disabled={disabled}
+            />
+          </>
+        )}
+      </section>
+    );
   return (
     <section aria-label={t.pageSetup}>
-      <h3>{t.pageSetup}</h3>
+      <h3>
+        <Icon name="ruler" />
+        {t.pageSetup}
+      </h3>
+      {sectionChooser}
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => controller.run(load)}
+      >
+        <Icon name="refresh" />
+        {t.loadPageSetup}
+      </button>
+      {settings?.reason && <p>{settings.reason}</p>}
+      {draft && (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            controller.run(async () => {
+              await editor.pages.setPageSetup({ ...draft, orientation });
+              await load();
+            });
+          }}
+        >
+          <fieldset disabled={disabled || stale || draft.section !== section}>
+            <label>
+              {t.footnotesPosition}
+              <select
+                aria-label={t.footnotesPosition}
+                value={draft.footnotesAt}
+                onChange={(event) =>
+                  setDraft({
+                    ...draft,
+                    footnotesAt:
+                      event.currentTarget.value === "beneathText"
+                        ? "beneathText"
+                        : "pageBottom",
+                  })
+                }
+              >
+                <option value="pageBottom">{t.footnotesPageBottom}</option>
+                <option value="beneathText">{t.footnotesBeneathText}</option>
+              </select>
+            </label>
+            <label>
+              {t.sectionStartType}
+              <select
+                aria-label={t.sectionStartType}
+                value={draft.startType}
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+                  setDraft({
+                    ...draft,
+                    startType:
+                      value === "continuous" ||
+                      value === "oddPage" ||
+                      value === "evenPage"
+                        ? value
+                        : "nextPage",
+                  });
+                }}
+              >
+                <option value="nextPage">{t.sectionBreakNext}</option>
+                <option value="continuous">{t.sectionBreakContinuous}</option>
+                <option value="oddPage">{t.sectionBreakOdd}</option>
+                <option value="evenPage">{t.sectionBreakEven}</option>
+              </select>
+            </label>
+            <label>
+              {t.pageOrientation}
+              <select
+                aria-label={t.pageOrientation}
+                value={orientation}
+                onChange={(event) => {
+                  setOrientation(
+                    event.currentTarget.value === "landscape"
+                      ? "landscape"
+                      : "portrait",
+                  );
+                }}
+              >
+                <option value="portrait">{t.portrait}</option>
+                <option value="landscape">{t.landscape}</option>
+              </select>
+            </label>
+            <label>
+              {t.marginPresets}
+              <select
+                aria-label={t.marginPresets}
+                value={
+                  draft.top === 72 &&
+                  draft.bottom === 72 &&
+                  draft.left === 72 &&
+                  draft.right === 72
+                    ? "72"
+                    : draft.top === 36 &&
+                        draft.bottom === 36 &&
+                        draft.left === 36 &&
+                        draft.right === 36
+                      ? "36"
+                      : ""
+                }
+                onChange={(event) => {
+                  const margin = Number(event.currentTarget.value);
+                  setDraft({
+                    ...draft,
+                    top: margin,
+                    right: margin,
+                    bottom: margin,
+                    left: margin,
+                  });
+                }}
+              >
+                <option value="" disabled>
+                  {t.customMargins}
+                </option>
+                <option value="72">{t.normalMargins}</option>
+                <option value="36">{t.narrowMargins}</option>
+              </select>
+            </label>
+            {(
+              [
+                ["width", t.pageWidth],
+                ["height", t.pageHeight],
+                ["top", t.pageTop],
+                ["right", t.pageRight],
+                ["bottom", t.pageBottom],
+                ["left", t.pageLeft],
+              ] as const
+            ).map(([key, label]) => (
+              <label key={key}>
+                {label}
+                <input
+                  type="number"
+                  min={key === "width" || key === "height" ? 36 : 0}
+                  max={14400}
+                  step={0.05}
+                  required
+                  value={Number.isFinite(draft[key]) ? draft[key] : ""}
+                  onChange={(event) => {
+                    const value = {
+                      ...draft,
+                      [key]: event.currentTarget.valueAsNumber,
+                    };
+                    setDraft(value);
+                    if (key === "width" || key === "height")
+                      setOrientation(
+                        value.width > value.height ? "landscape" : "portrait",
+                      );
+                  }}
+                />
+              </label>
+            ))}
+            <button
+              type="submit"
+              disabled={
+                draft.width - draft.left - draft.right < 12 ||
+                draft.height - draft.top - draft.bottom < 12
+              }
+            >
+              <Icon name="check" />
+              {t.applyPageSetup}
+            </button>
+          </fieldset>
+          {stale && <p>{t.reloadPageSetup}</p>}
+        </form>
+      )}
       <label>
         {t.sectionBreakType}
         <select
@@ -134,29 +378,9 @@ export function DocxPage({
           })
         }
       >
+        <Icon name="plus" />
         {t.insertSectionBreak}
       </button>
-      {settings && settings.sectionCount > 1 && (
-        <label>
-          {t.pageSection}
-          <select
-            aria-label={t.pageSection}
-            value={section}
-            disabled={disabled}
-            onChange={(event) => {
-              const index = Number(event.currentTarget.value);
-              setSection(index);
-              controller.run(() => load(index));
-            }}
-          >
-            {Array.from({ length: settings.sectionCount }, (_, index) => (
-              <option key={index} value={index}>
-                {t.pageSectionLabel} {index + 1}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
       <button
         type="button"
         disabled={disabled || !editor.getSnapshot().data.selection}
@@ -166,6 +390,7 @@ export function DocxPage({
           )
         }
       >
+        <Icon name="plus" />
         {t.insertBodyPageNumber}
       </button>
       <button
@@ -177,6 +402,7 @@ export function DocxPage({
           )
         }
       >
+        <Icon name="plus" />
         {t.insertBodyPageCount}
       </button>
       <button
@@ -186,37 +412,10 @@ export function DocxPage({
           controller.run(() => editor.pages.updateBodyPageFields())
         }
       >
+        <Icon name="refresh" />
         {t.updateBodyPageFields}
       </button>
-      <DocxRunning
-        key={`running:${section}`}
-        section={section}
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={disabled}
-      />
       <DocxBodyField
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={disabled}
-      />
-      <DocxCaption
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={disabled}
-      />
-      <DocxNotes
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={disabled}
-      />
-      <DocxNoteNumbering
-        key={`note-numbering:${section}`}
-        section={section}
         controller={controller}
         state={state}
         editor={editor}
@@ -236,20 +435,6 @@ export function DocxPage({
         editor={editor}
         disabled={disabled}
       />
-      <DocxProtection
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={disabled}
-      />
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => controller.run(load)}
-      >
-        {t.loadPageSetup}
-      </button>
-      {settings?.reason && <p>{settings.reason}</p>}
       {settings && (
         <form
           onSubmit={(event) => {
@@ -275,7 +460,10 @@ export function DocxPage({
               settings.page?.section !== section
             }
           >
-            <legend>{t.pageColumns}</legend>
+            <legend>
+              <Icon name="columns-2" />
+              {t.pageColumns}
+            </legend>
             <label>
               {t.columnCount}
               <input
@@ -416,7 +604,10 @@ export function DocxPage({
               />
               {t.columnSeparator}
             </label>
-            <button type="submit">{t.applyPageColumns}</button>
+            <button type="submit">
+              <Icon name="check" />
+              {t.applyPageColumns}
+            </button>
             <button
               type="button"
               onClick={() =>
@@ -426,6 +617,7 @@ export function DocxPage({
                 })
               }
             >
+              <Icon name="undo" />
               {t.resetPageColumns}
             </button>
           </fieldset>
@@ -450,7 +642,10 @@ export function DocxPage({
               settings.page?.section !== section
             }
           >
-            <legend>{t.pageNumbering}</legend>
+            <legend>
+              <Icon name="number-format" />
+              {t.pageNumbering}
+            </legend>
             <label>
               <input
                 type="checkbox"
@@ -509,7 +704,10 @@ export function DocxPage({
                   ))}
               </select>
             </label>
-            <button type="submit">{t.applyPageNumbering}</button>
+            <button type="submit">
+              <Icon name="check" />
+              {t.applyPageNumbering}
+            </button>
             <button
               type="button"
               onClick={() =>
@@ -519,6 +717,7 @@ export function DocxPage({
                 })
               }
             >
+              <Icon name="undo" />
               {t.resetPageNumbering}
             </button>
           </fieldset>
@@ -553,7 +752,10 @@ export function DocxPage({
           <fieldset
             disabled={disabled || stale || !!settings.background.reason}
           >
-            <legend>{t.pageBackground}</legend>
+            <legend>
+              <Icon name="paint-bucket" />
+              {t.pageBackground}
+            </legend>
             <label>
               {t.pageBackground}
               <input
@@ -562,7 +764,10 @@ export function DocxPage({
                 onChange={(event) => setColor(event.currentTarget.value)}
               />
             </label>
-            <button type="submit">{t.applyPageBackground}</button>
+            <button type="submit">
+              <Icon name="check" />
+              {t.applyPageBackground}
+            </button>
             <button
               type="button"
               onClick={() =>
@@ -572,127 +777,11 @@ export function DocxPage({
                 })
               }
             >
+              <Icon name="undo" />
               {t.resetPageBackground}
             </button>
           </fieldset>
           {settings.background.reason && <p>{settings.background.reason}</p>}
-        </form>
-      )}
-      {draft && (
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            controller.run(async () => {
-              await editor.pages.setPageSetup({ ...draft, orientation });
-              await load();
-            });
-          }}
-        >
-          <fieldset disabled={disabled || stale || draft.section !== section}>
-            <label>
-              {t.footnotesPosition}
-              <select
-                aria-label={t.footnotesPosition}
-                value={draft.footnotesAt}
-                onChange={(event) =>
-                  setDraft({
-                    ...draft,
-                    footnotesAt:
-                      event.currentTarget.value === "beneathText"
-                        ? "beneathText"
-                        : "pageBottom",
-                  })
-                }
-              >
-                <option value="pageBottom">{t.footnotesPageBottom}</option>
-                <option value="beneathText">{t.footnotesBeneathText}</option>
-              </select>
-            </label>
-            <label>
-              {t.sectionStartType}
-              <select
-                aria-label={t.sectionStartType}
-                value={draft.startType}
-                onChange={(event) => {
-                  const value = event.currentTarget.value;
-                  setDraft({
-                    ...draft,
-                    startType:
-                      value === "continuous" ||
-                      value === "oddPage" ||
-                      value === "evenPage"
-                        ? value
-                        : "nextPage",
-                  });
-                }}
-              >
-                <option value="nextPage">{t.sectionBreakNext}</option>
-                <option value="continuous">{t.sectionBreakContinuous}</option>
-                <option value="oddPage">{t.sectionBreakOdd}</option>
-                <option value="evenPage">{t.sectionBreakEven}</option>
-              </select>
-            </label>
-            <label>
-              {t.pageOrientation}
-              <select
-                aria-label={t.pageOrientation}
-                value={orientation}
-                onChange={(event) => {
-                  setOrientation(
-                    event.currentTarget.value === "landscape"
-                      ? "landscape"
-                      : "portrait",
-                  );
-                }}
-              >
-                <option value="portrait">{t.portrait}</option>
-                <option value="landscape">{t.landscape}</option>
-              </select>
-            </label>
-            {(
-              [
-                ["width", t.pageWidth],
-                ["height", t.pageHeight],
-                ["top", t.pageTop],
-                ["right", t.pageRight],
-                ["bottom", t.pageBottom],
-                ["left", t.pageLeft],
-              ] as const
-            ).map(([key, label]) => (
-              <label key={key}>
-                {label}
-                <input
-                  type="number"
-                  min={key === "width" || key === "height" ? 36 : 0}
-                  max={14400}
-                  step={0.05}
-                  required
-                  value={Number.isFinite(draft[key]) ? draft[key] : ""}
-                  onChange={(event) => {
-                    const value = {
-                      ...draft,
-                      [key]: event.currentTarget.valueAsNumber,
-                    };
-                    setDraft(value);
-                    if (key === "width" || key === "height")
-                      setOrientation(
-                        value.width > value.height ? "landscape" : "portrait",
-                      );
-                  }}
-                />
-              </label>
-            ))}
-            <button
-              type="submit"
-              disabled={
-                draft.width - draft.left - draft.right < 12 ||
-                draft.height - draft.top - draft.bottom < 12
-              }
-            >
-              {t.applyPageSetup}
-            </button>
-          </fieldset>
-          {stale && <p>{t.reloadPageSetup}</p>}
         </form>
       )}
     </section>

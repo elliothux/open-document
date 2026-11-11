@@ -139,14 +139,16 @@ fn Session::source_slide(
 }
 
 ///|
+#derive(ToJson)
 priv struct SourceChoiceQuery {
   id : String
   name : String
   kind : String
   master : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct EditViewQuery {
   kind : String
   slide : String
@@ -154,7 +156,7 @@ priv struct EditViewQuery {
   reason : String
   operations : SourceOperationsQuery
   textStyles : MasterTextStylesQuery
-} derive(ToJson)
+}
 
 ///|
 fn Session::edit_view_query(self : Session, current : Slide) -> EditViewQuery {

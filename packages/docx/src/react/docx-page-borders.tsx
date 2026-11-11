@@ -3,6 +3,7 @@ import type { DocxPageBorders, DocxPageBorder } from "../web/foundation.js";
 import type { UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { borderThemeOptions } from "./docx-border-themes.js";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxPageBordersForm({
   value,
@@ -34,7 +35,10 @@ export function DocxPageBordersForm({
       }}
     >
       <fieldset disabled={disabled || !!reason}>
-        <legend>{t.pageBorders}</legend>
+        <legend>
+          <Icon name="border-all" />
+          {t.pageBorders}
+        </legend>
         <label>
           {t.pageBorderOffset}
           <select
@@ -211,8 +215,12 @@ export function DocxPageBordersForm({
             </fieldset>
           );
         })}
-        <button type="submit">{t.applyPageBorders}</button>
+        <button type="submit">
+          <Icon name="check" />
+          {t.applyPageBorders}
+        </button>
         <button type="button" onClick={() => apply(null)}>
+          <Icon name="trash" />
           {t.removePageBorders}
         </button>
       </fieldset>

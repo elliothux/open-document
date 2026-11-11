@@ -2,13 +2,14 @@
 pub const RedactionRegionCount : Int32 = 4096
 
 ///|
+#derive(ToJson)
 pub(all) struct PdfRedactionRegion {
   page : String
   x : Double
   y : Double
   width : Double
   height : Double
-} derive(ToJson)
+}
 
 ///|
 pub extend PdfRedactionRegion with ToJson::{to_json}

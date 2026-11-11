@@ -1,9 +1,10 @@
 ///|
+#derive(Eq, ToJson)
 pub(all) struct LineEnd {
   kind : String
   width : String
   length : String
-} derive(Eq, ToJson)
+}
 
 ///|
 pub extend LineEnd with Eq::{equal, not_equal}

@@ -1,54 +1,62 @@
 ///|
+#derive(@json.FromJson)
 priv struct ThreadsRequest {
   revision : @common.RequestInt
   sheet : String
   cell : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ThreadEditRequest {
   revision : @common.RequestInt
   sheet : String
   change : Json
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ThreadActionRequest {
   action : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ThreadCreateRequest {
   cell : String
   text : String
   author : String
   date : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ThreadReplyRequest {
   id : String
   text : String
   author : String
   date : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ThreadUpdateRequest {
   id : String
   text : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ThreadResolveRequest {
   id : String
   resolved : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ThreadDeleteRequest {
   id : String
-} derive(@json.FromJson)
+}
 
 ///|
 fn xlsx_thread_edit(input : Json) -> @model.ThreadEdit raise @failure.Failure {

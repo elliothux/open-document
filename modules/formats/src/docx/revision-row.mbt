@@ -96,21 +96,19 @@ fn WordTree::check_row_revision(
 }
 
 ///|
-fn Session::row_revision_rects(
-  self : Session,
+fn WordTree::revision_table_paragraphs(
   tree : WordTree,
+  flow : @layout.Flow,
   id : Int32,
-  layout : @layout.Layout,
-) -> Array[@layout.SelectionRect] raise @failure.Failure {
+) -> Set[Int32] raise @failure.Failure {
   let row = tree.nodes[tree.nodes[id].parent].parent
   let whole = tree.nodes[id].name == "tblPrChange"
   let cell = tree.nodes[id].name == "tcPrChange"
   let row = if cell { tree.nodes[row].parent } else { row }
   let table = if whole { row } else { tree.nodes[row].parent }
-  let model = self.flow().tables
-    .iter()
-    .find_first(model => model.id == table)
-    .unwrap()
+  guard flow.tables.iter().find_first(model => model.id == table) is Some(model) else {
+    @failure.reject("protected-content", "Revision table has no layout content")
+  }
   let grid = read_table_grid(
     tree,
     model,
@@ -143,6 +141,14 @@ fn Session::row_revision_rects(
       paragraphs.add(paragraph.id)
     }
   }
+  paragraphs
+}
+
+///|
+fn row_revision_rects(
+  paragraphs : Set[Int32],
+  layout : @layout.Layout,
+) -> Array[@layout.SelectionRect] raise @failure.Failure {
   let rects : Array[@layout.SelectionRect] = []
   for page_index, page in layout.pages {
     for area in page.cellAreas {

@@ -361,14 +361,16 @@ fn Session::subtotal_plan(
 }
 
 ///|
+#derive(ToJson)
 priv struct SubtotalPreviewGroup {
   label : String
   firstRow : Int32
   lastRow : Int32
   totalRow : Int32
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct SubtotalPreview {
   revision : Int32
   sheet : String
@@ -380,7 +382,7 @@ priv struct SubtotalPreview {
   grandTotalRow : Int32
   groups : Array[SubtotalPreviewGroup]
   preview : Array[Array[String]]
-} derive(ToJson)
+}
 
 ///|
 /// Previews adjacent-group subtotal rows, a grand total and outlines without changing source.

@@ -14,6 +14,7 @@ import { XlsxRankFilterForm } from "./xlsx-rank-filter.js";
 import { XlsxDateFilterForm } from "./xlsx-date-filter.js";
 import { XlsxColorFilterForm } from "./xlsx-color-filter.js";
 import { XlsxIconFilterForm } from "./xlsx-icon-filter.js";
+import { Icon } from "@open-document/ui/icons";
 
 function FilterColumn({
   column,
@@ -40,7 +41,10 @@ function FilterColumn({
       }}
     >
       <fieldset disabled={disabled}>
-        <legend>{t.filterValues}</legend>
+        <legend>
+          <Icon name="filter" />
+          {t.filterValues}
+        </legend>
         <label>
           <input
             type="checkbox"
@@ -80,7 +84,10 @@ function FilterColumn({
             {`${t.filterBlank} (${column.blank})`}
           </label>
         </div>
-        <button type="submit">{t.filterApply}</button>
+        <button type="submit">
+          <Icon name="check" />
+          {t.filterApply}
+        </button>
       </fieldset>
     </form>
   );
@@ -121,7 +128,10 @@ function CustomFilter({
       }}
     >
       <fieldset disabled={disabled}>
-        <legend>{t.filterCustom}</legend>
+        <legend>
+          <Icon name="filter" />
+          {t.filterCustom}
+        </legend>
         <p>{t.filterPattern}</p>
         {conditions.slice(0, second ? 2 : 1).map((condition, index) => (
           <div key={index}>
@@ -187,7 +197,10 @@ function CustomFilter({
             </select>
           </label>
         )}
-        <button type="submit">{t.filterCustomApply}</button>
+        <button type="submit">
+          <Icon name="check" />
+          {t.filterCustomApply}
+        </button>
       </fieldset>
     </form>
   );
@@ -235,7 +248,10 @@ export function XlsxFilter({
   const blocked = disabled || !!filter.reason || !!table?.readOnlyReason;
   return (
     <fieldset disabled={blocked}>
-      <legend>{t.filterCells}</legend>
+      <legend>
+        <Icon name="filter" />
+        {t.filterCells}
+      </legend>
       {filter.reason && <p>{filter.reason}</p>}
       <button
         type="button"
@@ -427,7 +443,10 @@ export function XlsxFilter({
                 }
               />
               <fieldset disabled={blocked}>
-                <legend>{t.filterAverage}</legend>
+                <legend>
+                  <Icon name="filter" />
+                  {t.filterAverage}
+                </legend>
                 <p>{t.filterAverageHelp}</p>
                 {[true, false].map((above) => (
                   <button
@@ -467,6 +486,7 @@ export function XlsxFilter({
               controller.run(() => edit({ action: "filterClear" }))
             }
           >
+            <Icon name="eraser" />
             {t.filterClear}
           </button>
           <button
@@ -476,6 +496,7 @@ export function XlsxFilter({
               controller.run(() => edit({ action: "filterReapply" }))
             }
           >
+            <Icon name="refresh" />
             {t.filterReapply}
           </button>
           <button
@@ -484,6 +505,7 @@ export function XlsxFilter({
               controller.run(() => edit({ action: "filterRemove" }))
             }
           >
+            <Icon name="trash" />
             {t.filterRemove}
           </button>
         </>

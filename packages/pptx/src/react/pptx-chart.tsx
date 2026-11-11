@@ -4,6 +4,7 @@ import type { PresentationEditor } from "../web/presentation-editor.js";
 import type { PptxChart } from "../web/pptx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function PptxCharts({
   controller,
@@ -54,7 +55,10 @@ export function PptxCharts({
           (!!chart && !!selected?.chartDataReason)
         }
       >
-        <legend>{t.chart}</legend>
+        <legend>
+          <Icon name="chart" />
+          {t.chart}
+        </legend>
         <ChartFields draft={draft} setDraft={setDraft} t={t} />
         <button type="submit" disabled={!draft.data}>
           {chart ? t.chartApply : fill ? t.chartFill : t.chartInsert}

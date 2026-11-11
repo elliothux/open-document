@@ -2,11 +2,12 @@
 pub const TabStopCount : Int32 = 64
 
 ///|
+#derive(Eq, ToJson)
 pub(all) struct TabStop {
   position : Double
   align : String
   leader : String
-} derive(Eq, ToJson)
+}
 
 ///|
 pub extend TabStop with Eq::{equal, not_equal}

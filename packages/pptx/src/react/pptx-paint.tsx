@@ -6,6 +6,7 @@ import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { PptxLineEnds } from "./pptx-line-ends.js";
 import { PptxDashFields } from "./pptx-dash.js";
+import { Icon } from "@open-document/ui/icons";
 
 type Stops = Extract<PptxBackgroundFill, { kind: "linear" }>["stops"];
 
@@ -25,7 +26,10 @@ export function GradientStops({
   const t = messages(state.locale);
   return (
     <fieldset disabled={disabled}>
-      <legend>{t.gradientStops}</legend>
+      <legend>
+        <Icon name="adjust" />
+        {t.gradientStops}
+      </legend>
       {stops.map((stop, index) => (
         <div key={index}>
           <label>
@@ -100,6 +104,7 @@ export function GradientStops({
             aria-label={`${t.removeGradientStop} ${index + 1}`}
             onClick={() => onChange(stops.filter((_, i) => i !== index))}
           >
+            <Icon name="trash" />
             {t.removeGradientStop}
           </button>
         </div>
@@ -121,6 +126,7 @@ export function GradientStops({
           ]);
         }}
       >
+        <Icon name="plus" />
         {t.addGradientStop}
       </button>
     </fieldset>
@@ -224,7 +230,10 @@ export function PptxPaint({
         !!reason
       }
     >
-      <legend>{t.shapeAppearance}</legend>
+      <legend>
+        <Icon name="paint-bucket" />
+        {t.shapeAppearance}
+      </legend>
       {mixed && <p>{t.mixed}</p>}
       {([false, true] as const).map((border) => {
         const label = border ? t.strokeOpacity : t.fillOpacity;
@@ -364,9 +373,11 @@ export function PptxPaint({
                 )
               }
             >
+              <Icon name="check" />
               {t.applyImageFillMode}
             </button>
             <label>
+              <Icon name="upload" />
               {t.shapeFillImage}
               <input
                 type="file"
@@ -505,7 +516,10 @@ export function PptxPaint({
         reason={dashReason ?? ""}
       />
       <fieldset disabled={!!penReason}>
-        <legend>{t.shapeLinePen}</legend>
+        <legend>
+          <Icon name="pen" />
+          {t.shapeLinePen}
+        </legend>
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -544,6 +558,7 @@ export function PptxPaint({
               )
             }
           >
+            <Icon name="undo" />
             {t.resetLineCap}
           </button>
         </form>
@@ -602,6 +617,7 @@ export function PptxPaint({
               )
             }
           >
+            <Icon name="undo" />
             {t.resetLineJoin}
           </button>
         </form>

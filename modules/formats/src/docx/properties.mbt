@@ -106,6 +106,7 @@ fn WordTree::number(
 }
 
 ///|
+#derive(Eq)
 priv struct RunStyle {
   family : String
   fonts : FontBindings
@@ -120,7 +121,7 @@ priv struct RunStyle {
   caps : Bool
   highlight : String
   vertAlign : String
-} derive(Eq)
+}
 
 ///|
 fn RunStyle::key(self : RunStyle) -> String {

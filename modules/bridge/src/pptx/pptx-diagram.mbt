@@ -1,4 +1,5 @@
 ///|
+#derive(@json.FromJson)
 priv struct DiagramRequest {
   template : String
   items : Array[String]
@@ -6,7 +7,7 @@ priv struct DiagramRequest {
   y : @common.RequestNumber
   width : @common.RequestNumber
   height : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
 fn pptx_diagram_edit(value : Json) -> @model.ObjectEdit raise @failure.Failure {

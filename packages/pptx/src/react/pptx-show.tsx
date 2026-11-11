@@ -10,21 +10,12 @@ import type {
 } from "../web/presentation-editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
+import type { PanelProps } from "./context.js";
 import { PptxShowSettings } from "./pptx-show-settings.js";
 
-export function PptxShow({
-  editor,
-  controller,
-  state,
-  disabled,
-}: {
-  editor: PresentationEditor;
-  controller: EditorController;
-  state: UiSnapshot;
-  disabled: boolean;
-}) {
-  const t = messages(state.locale);
-  const labels = {
+function showLabels(t: ReturnType<typeof messages>): PresentationShowLabels {
+  return {
     title: t.showTitle,
     current: t.showCurrent,
     next: t.showNext,
@@ -48,6 +39,39 @@ export function PptxShow({
     mediaPause: t.showMediaPause,
     mediaStop: t.showMediaStop,
   };
+}
+
+export function PptxPresent({ controller, file, state, disabled }: PanelProps) {
+  const t = messages(state.locale);
+  const { editor } = file;
+  return (
+    <button
+      type="button"
+      className="od-slide-present"
+      disabled={disabled || editor.query.editView.kind !== "slide"}
+      onClick={() =>
+        controller.run(() => editor.slideshow.start("current", showLabels(t)))
+      }
+    >
+      <Icon name="play" />
+      <span>{t.present}</span>
+    </button>
+  );
+}
+
+export function PptxShow({
+  editor,
+  controller,
+  state,
+  disabled,
+}: {
+  editor: PresentationEditor;
+  controller: EditorController;
+  state: UiSnapshot;
+  disabled: boolean;
+}) {
+  const t = messages(state.locale);
+  const labels = showLabels(t);
   return (
     <div>
       <PptxShowSettings
@@ -65,6 +89,7 @@ export function PptxShow({
           controller.run(() => editor.slideshow.start("first", labels))
         }
       >
+        <Icon name="play" />
         {t.showFromFirst}
       </button>
       <button
@@ -74,6 +99,7 @@ export function PptxShow({
           controller.run(() => editor.slideshow.start("current", labels))
         }
       >
+        <Icon name="play" />
         {t.showFromCurrent}
       </button>
       <CustomShows
@@ -121,7 +147,10 @@ function CustomShows({
   };
   return (
     <fieldset disabled={disabled}>
-      <legend>{t.customShows}</legend>
+      <legend>
+        <Icon name="play" />
+        {t.customShows}
+      </legend>
       <label>
         {t.customShowSelect}
         <select
@@ -177,6 +206,7 @@ function CustomShows({
                   disabled={index === 0}
                   onClick={() => move(index, -1)}
                 >
+                  <Icon name="chevron-up" />
                   {t.customShowEarlier}
                 </button>
                 <button
@@ -184,6 +214,7 @@ function CustomShows({
                   disabled={index === slides.length - 1}
                   onClick={() => move(index, 1)}
                 >
+                  <Icon name="chevron-down" />
                   {t.customShowLater}
                 </button>
                 <button
@@ -192,6 +223,7 @@ function CustomShows({
                     setSlides(slides.filter((_, i) => i !== index))
                   }
                 >
+                  <Icon name="trash" />
                   {t.customShowRemoveSlide}
                 </button>
               </li>
@@ -216,6 +248,7 @@ function CustomShows({
             disabled={slides.length >= pptxCustomShowSlides}
             onClick={() => setSlides([...slides, target])}
           >
+            <Icon name="plus" />
             {t.customShowAddSlide}
           </button>
           <button
@@ -225,6 +258,7 @@ function CustomShows({
               (!item && current.items.length >= pptxCustomShowCount)
             }
           >
+            <Icon name="check" />
             {t.customShowApply}
           </button>
         </form>
@@ -236,6 +270,7 @@ function CustomShows({
             setName(name + " (2)");
           }}
         >
+          <Icon name="copy" />
           {t.customShowCopy}
         </button>
         <button
@@ -243,6 +278,7 @@ function CustomShows({
           disabled={!item}
           onClick={() => apply(current.items.filter((item) => item.id !== id))}
         >
+          <Icon name="trash" />
           {t.customShowDelete}
         </button>
       </fieldset>
@@ -258,6 +294,7 @@ function CustomShows({
           controller.run(() => editor.slideshow.start({ show: id }, labels))
         }
       >
+        <Icon name="play" />
         {t.customShowStart}
       </button>
       {current.reason && <p>{current.reason}</p>}

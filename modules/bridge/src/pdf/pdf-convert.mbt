@@ -1,4 +1,5 @@
 ///|
+#derive(@json.FromJson)
 priv struct ConvertRequest {
   revision : @common.RequestInt
   pages : PdfPages
@@ -6,15 +7,17 @@ priv struct ConvertRequest {
   acceptLoss : Bool
   budget : @common.RequestArchiveBudget
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct ConvertedPage {
   source : String
   target : Int32
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct ConversionResponse {
   revision : Int32
   format : String
@@ -23,7 +26,7 @@ priv struct ConversionResponse {
   warnings : Array[String]
   pages : Array[ConvertedPage]
   bytes : Json
-} derive(ToJson)
+}
 
 ///|
 let conversion_handlers : Map[

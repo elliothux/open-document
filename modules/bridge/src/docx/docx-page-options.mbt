@@ -1,4 +1,5 @@
 ///|
+#derive(@json.FromJson)
 priv struct PageSetupInput {
   section : @common.RequestInt
   width : @common.RequestNumber
@@ -10,7 +11,7 @@ priv struct PageSetupInput {
   orientation : String?
   startType : String?
   footnotesAt : String?
-} derive(@json.FromJson)
+}
 
 ///|
 fn check_page_setup_fields(value : Json) -> Unit raise @failure.Failure {
@@ -30,6 +31,7 @@ fn check_page_setup_fields(value : Json) -> Unit raise @failure.Failure {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct PageBorderInput {
   side : String
   style : String
@@ -37,15 +39,16 @@ priv struct PageBorderInput {
   themeColor : @common.RequiredNullable[String]
   width : @common.RequestNumber
   space : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PageBordersInput {
   offsetFrom : String
   display : String
   zOrder : String
   sides : Array[PageBorderInput]
-} derive(@json.FromJson)
+}
 
 ///|
 fn check_page_border_fields(value : Json) -> Unit raise @failure.Failure {
@@ -76,18 +79,20 @@ fn PageBordersInput::borders(input : PageBordersInput) -> @layout.PageBorders {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct ColumnInput {
   width : @common.RequestNumber
   gap : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PageColumnsInput {
   count : @common.RequestInt
   gap : @common.RequestNumber
   separator : Bool
   custom : Array[ColumnInput]
-} derive(@json.FromJson)
+}
 
 ///|
 fn check_page_columns_fields(value : Json) -> Unit raise @failure.Failure {
@@ -114,10 +119,11 @@ fn PageColumnsInput::columns(input : PageColumnsInput) -> @layout.Columns {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct PageNumberingInput {
   start : @common.RequiredNullable[@common.RequestNumber]
   format : String
-} derive(@json.FromJson)
+}
 
 ///|
 fn PageNumberingInput::numbering(

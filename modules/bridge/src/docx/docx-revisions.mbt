@@ -1,14 +1,16 @@
 ///|
+#derive(@json.FromJson)
 priv struct ResolveRevisionRequest {
   action : String
   ids : Array[String]
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ResolveRevisionEnvelope {
   revision : @common.RequestInt
   change : ResolveRevisionRequest
-} derive(@json.FromJson)
+}
 
 ///|
 fn Context::resolve_revision_command(

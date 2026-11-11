@@ -5,10 +5,11 @@ pub const ConsolidationSources : Int32 = 32
 pub const ConsolidationSourceCells : Int32 = 65536
 
 ///|
+#derive(ToJson, @json.FromJson)
 pub(all) struct ConsolidateSource {
   sheet : String
   range : String
-} derive(ToJson, @json.FromJson)
+}
 
 ///|
 pub extend ConsolidateSource with ToJson::{to_json}
@@ -17,12 +18,13 @@ pub extend ConsolidateSource with ToJson::{to_json}
 pub extend ConsolidateSource with @json.FromJson::{from_json}
 
 ///|
+#derive(@json.FromJson)
 pub(all) struct ConsolidateSettings {
   sources : Array[ConsolidateSource]
   target : String
   operation : String
   leftLabels : Bool
-} derive(@json.FromJson)
+}
 
 ///|
 pub extend ConsolidateSettings with @json.FromJson::{from_json}
@@ -230,6 +232,7 @@ fn Session::consolidate_plan(
 }
 
 ///|
+#derive(ToJson)
 priv struct ConsolidatePreview {
   revision : Int32
   sheet : String
@@ -240,7 +243,7 @@ priv struct ConsolidatePreview {
   resultRange : String
   overwrittenCells : Int32
   preview : Array[Array[String]]
-} derive(ToJson)
+}
 
 ///|
 /// Previews linked consolidation output and occupied cells without changing source or history.

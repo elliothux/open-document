@@ -83,27 +83,29 @@ pub fn verifies_upload_raster(Bytes) -> Bool
 // Errors
 
 // Types and methods
+#derive(Eq, @debug.Debug)
 pub(all) enum BackgroundFill {
   Solid(String)
   Linear(Array[@layout.GradientStop], Double, Bool)
   Radial(Array[@layout.GradientStop])
   Picture(String, Array[Double], Double, ImageTile?, Array[Double])
-} derive(Eq, @debug.Debug)
+}
 pub fn BackgroundFill::equal(Self, Self) -> Bool
 pub fn BackgroundFill::not_equal(Self, Self) -> Bool
-pub fn BackgroundFill::to_json(Self) -> Json
+pub fn BackgroundFill::to_json(Self) -> @json.Json
 pub fn BackgroundFill::to_repr(Self) -> @debug.Repr
-pub impl ToJson for BackgroundFill
+pub impl @json.ToJson for BackgroundFill
 
+#derive(Eq, @json.ToJson)
 pub(all) struct ConnectorEnd {
   x : Double
   y : Double
   target : String
   site : Int32
-} derive(Eq, ToJson)
+}
 pub fn ConnectorEnd::equal(Self, Self) -> Bool
 pub fn ConnectorEnd::not_equal(Self, Self) -> Bool
-pub fn ConnectorEnd::to_json(Self) -> Json
+pub fn ConnectorEnd::to_json(Self) -> @json.Json
 
 pub(all) struct ContentPicture {
   bytes : Bytes
@@ -168,15 +170,16 @@ pub(all) struct ContentText {
   rotation : Double
 }
 
+#derive(Eq, @json.FromJson, @json.ToJson)
 pub(all) struct CustomShow {
   id : String
   name : String
   slides : Array[String]
-} derive(Eq, ToJson, @json.FromJson)
+}
 pub fn CustomShow::equal(Self, Self) -> Bool
-pub fn CustomShow::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
+pub fn CustomShow::from_json(@json.Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
 pub fn CustomShow::not_equal(Self, Self) -> Bool
-pub fn CustomShow::to_json(Self) -> Json
+pub fn CustomShow::to_json(Self) -> @json.Json
 
 pub(all) struct DiagramSettings {
   template : String
@@ -200,21 +203,24 @@ pub(all) struct FooterContent {
   number : Bool
 }
 
+#derive(Eq)
 pub(all) enum FooterDate {
   Fixed(String)
   Automatic(Int32, String)
-} derive(Eq)
+}
 pub fn FooterDate::equal(Self, Self) -> Bool
 pub fn FooterDate::not_equal(Self, Self) -> Bool
 
+#derive(Eq, @json.ToJson)
 pub(all) struct Guide {
   orientation : String
   position : Double
-} derive(Eq, ToJson)
+}
 pub fn Guide::equal(Self, Self) -> Bool
 pub fn Guide::not_equal(Self, Self) -> Bool
-pub fn Guide::to_json(Self) -> Json
+pub fn Guide::to_json(Self) -> @json.Json
 
+#derive(Eq, @debug.Debug)
 pub struct ImageTile {
   sx : Double
   sy : Double
@@ -222,26 +228,28 @@ pub struct ImageTile {
   ty : Double
   align : String
   flip : String
-} derive(Eq, @debug.Debug)
+}
 pub fn ImageTile::equal(Self, Self) -> Bool
 pub fn ImageTile::not_equal(Self, Self) -> Bool
 pub fn ImageTile::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @json.ToJson)
 pub(all) struct LineEnd {
   kind : String
   width : String
   length : String
-} derive(Eq, ToJson)
+}
 pub fn LineEnd::equal(Self, Self) -> Bool
 pub fn LineEnd::not_equal(Self, Self) -> Bool
-pub fn LineEnd::to_json(Self) -> Json
+pub fn LineEnd::to_json(Self) -> @json.Json
 
+#derive(Eq)
 pub(all) enum ListFormat {
   NoList
   Bullet(String)
   Picture
   Numbered(String, Int32)
-} derive(Eq)
+}
 pub fn ListFormat::equal(Self, Self) -> Bool
 pub fn ListFormat::not_equal(Self, Self) -> Bool
 
@@ -251,14 +259,15 @@ pub(all) struct MathTarget {
   node : Int32
 }
 
+#derive(Eq, @json.ToJson)
 pub(all) struct MediaPlaybackSettings {
   cycling : Bool
   volume : Int32
   mute : Bool
-} derive(Eq, ToJson)
+}
 pub fn MediaPlaybackSettings::equal(Self, Self) -> Bool
 pub fn MediaPlaybackSettings::not_equal(Self, Self) -> Bool
-pub fn MediaPlaybackSettings::to_json(Self) -> Json
+pub fn MediaPlaybackSettings::to_json(Self) -> @json.Json
 
 pub(all) enum ObjectEdit {
   InsertMath(String, @layout.TextStyle, Double, Double, Double, Double)
@@ -349,64 +358,67 @@ pub(all) struct ParagraphFormat {
 }
 pub fn ParagraphFormat::new(left? : Double, right? : Double, first? : Double, before? : TextSpacing, after? : TextSpacing, line? : TextSpacing, list? : ListFormat, level? : Int32, rtl? : Bool, list_font? : String?, list_size? : TextSpacing?, list_color? : String?, tabs? : Array[ParagraphTab]?, default_tab? : Double?) -> Self
 
+#derive(Eq, @json.ToJson)
 pub(all) struct ParagraphTab {
   position : Double
   align : String
-} derive(Eq, ToJson)
+}
 pub fn ParagraphTab::equal(Self, Self) -> Bool
 pub fn ParagraphTab::not_equal(Self, Self) -> Bool
-pub fn ParagraphTab::to_json(Self) -> Json
+pub fn ParagraphTab::to_json(Self) -> @json.Json
 
 pub struct Session {
   // private fields
 }
-pub fn Session::begin(Self, Int32, String) -> Json raise @failure.Failure
-pub fn Session::begin_guide(Self, Int32, Double, Double, Double) -> Json raise @failure.Failure
-pub fn Session::cancel(Self, Int32, Int32) -> Json raise @failure.Failure
+pub fn Session::begin(Self, Int32, String) -> @json.Json raise @failure.Failure
+pub fn Session::begin_guide(Self, Int32, Double, Double, Double) -> @json.Json raise @failure.Failure
+pub fn Session::cancel(Self, Int32, Int32) -> @json.Json raise @failure.Failure
 pub fn Session::check_idle(Self) -> Unit raise @failure.Failure
 pub fn Session::close(Self) -> Unit
-pub fn Session::control_show(Self, Int32, String, String, Double, custom? : String?, layout? : Int32?, point? : (Double, Double)?) -> Json raise @failure.Failure
-pub fn Session::copy(Self, Int32) -> Json raise @failure.Failure
+pub fn Session::control_show(Self, Int32, String, String, Double, custom? : String?, layout? : Int32?, point? : (Double, Double)?) -> @json.Json raise @failure.Failure
+pub fn Session::copy(Self, Int32) -> @json.Json raise @failure.Failure
 pub fn Session::create(@archive.Budget, date_time? : String) -> Self raise @failure.Failure
 pub fn Session::create_content(Array[ContentSlide], Double, Double, @archive.Budget, @layout.TextProbe, Map[String, String]) -> Self raise @failure.Failure
-pub fn Session::delete(Self, Int32, Bool, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
-pub fn Session::drag(Self, Int32, Int32, Double, Double, Int32, tolerance? : Double, shift? : Bool, center? : Bool) -> Json raise @failure.Failure
-pub fn Session::edit_objects(Self, Int32, ObjectEdit, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
-pub fn Session::edit_slides(Self, Int32, String, SlideEdit, probe? : @layout.TextProbe, profile? : Map[String, String]) -> Json raise @failure.Failure
-pub fn Session::find(Self, Int32, String, String, FindOptions) -> Json raise @failure.Failure
-pub fn Session::finish(Self, Int32, Int32, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
-pub fn Session::follow_hyperlink(Self, Int32) -> Json raise @failure.Failure
-pub fn Session::hit(Self, Int32, Double, Double, Double, text? : Bool) -> Json raise @failure.Failure
-pub fn Session::image_bytes(Self, String) -> Bytes raise @failure.Failure
+pub fn Session::delete(Self, Int32, Bool, @layout.TextProbe, Map[String, String]) -> @json.Json raise @failure.Failure
+pub fn Session::drag(Self, Int32, Int32, Double, Double, Int32, tolerance? : Double, shift? : Bool, center? : Bool) -> @json.Json raise @failure.Failure
+pub fn Session::edit_objects(Self, Int32, ObjectEdit, @layout.TextProbe, Map[String, String]) -> @json.Json raise @failure.Failure
+pub fn Session::edit_slides(Self, Int32, String, SlideEdit, probe? : @layout.TextProbe, profile? : Map[String, String]) -> @json.Json raise @failure.Failure
+pub fn Session::find(Self, Int32, String, String, FindOptions) -> @json.Json raise @failure.Failure
+pub fn Session::finish(Self, Int32, Int32, @layout.TextProbe, Map[String, String]) -> @json.Json raise @failure.Failure
+pub fn Session::follow_hyperlink(Self, Int32) -> @json.Json raise @failure.Failure
+pub fn Session::hit(Self, Int32, Double, Double, Double, text? : Bool) -> @json.Json raise @failure.Failure
+pub fn Session::image_bytes(Self, String, preview? : String) -> Bytes raise @failure.Failure
 pub fn Session::image_keys(Self, Bool, Bool) -> Array[String] raise @failure.Failure
-pub fn Session::import_slide_info(Self, Int32, Bytes, Array[Int32], encode_image? : (Bytes) -> Json, encode_media? : (Bytes) -> Json) -> Json raise @failure.Failure
-pub fn Session::import_slides(Self, Int32, Bytes, Array[Int32], String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
-pub fn Session::ink_show(Self, Int32, Int32, Double, ShowInkChange) -> Json raise @failure.Failure
+pub fn Session::import_slide_info(Self, Int32, Bytes, Array[Int32], encode_image? : (Bytes) -> @json.Json, encode_media? : (Bytes) -> @json.Json) -> @json.Json raise @failure.Failure
+pub fn Session::import_slides(Self, Int32, Bytes, Array[Int32], String, @layout.TextProbe, Map[String, String]) -> @json.Json raise @failure.Failure
+pub fn Session::ink_show(Self, Int32, Int32, Double, ShowInkChange) -> @json.Json raise @failure.Failure
 pub fn Session::invalidate_geometry(Self) -> Unit
-pub fn Session::layout(Self, @layout.TextProbe, Map[String, String], @layout.Images) -> Json raise @failure.Failure
+pub fn Session::layout(Self, @layout.TextProbe, Map[String, String], @layout.Images) -> @json.Json raise @failure.Failure
 pub fn Session::media_bytes(Self, String) -> Bytes raise @failure.Failure
-pub fn Session::media_show(Self, Int32, Int32?, Double, ShowMediaChange) -> Json raise @failure.Failure
-pub fn Session::navigate(Self, Int32, Int32, String, Bool) -> Json raise @failure.Failure
+pub fn Session::media_show(Self, Int32, Int32?, Double, ShowMediaChange) -> @json.Json raise @failure.Failure
+pub fn Session::navigate(Self, Int32, Int32, String, Bool) -> @json.Json raise @failure.Failure
 pub fn Session::object_fragment_images(Self, Int32, String) -> Array[Bytes] raise @failure.Failure
-pub fn Session::object_fragment_media(Self, Int32, String, encode_media? : (Bytes) -> Json) -> Array[Json] raise @failure.Failure
-pub fn Session::object_fragment_resources(Self, Int32, String, (Bytes) -> Json, (Bytes) -> Json) -> Json raise @failure.Failure
+pub fn Session::object_fragment_media(Self, Int32, String, encode_media? : (Bytes) -> @json.Json) -> Array[@json.Json] raise @failure.Failure
+pub fn Session::object_fragment_resources(Self, Int32, String, (Bytes) -> @json.Json, (Bytes) -> @json.Json) -> @json.Json raise @failure.Failure
 pub fn Session::open(Bytes, @archive.Budget, date_time? : String) -> Self raise @failure.Failure
-pub fn Session::paste_object_fragment(Self, Int32, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
-pub fn Session::paste_text_fragment(Self, Int32, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
-pub fn Session::prepare_image(Self, String, @layout.Images) -> (Bytes, @layout.ImageResource?) raise @failure.Failure
-pub fn Session::print_drawing(Self, Int32, Bool, Bool, @layout.TextProbe, Map[String, String], @layout.Images) -> Json raise @failure.Failure
+pub fn Session::paste_object_fragment(Self, Int32, String, @layout.TextProbe, Map[String, String]) -> @json.Json raise @failure.Failure
+pub fn Session::paste_text_fragment(Self, Int32, String, @layout.TextProbe, Map[String, String]) -> @json.Json raise @failure.Failure
+pub fn Session::prepare_image(Self, String, @layout.Images, preview? : String) -> (Bytes, @layout.ImageResource?) raise @failure.Failure
+pub fn Session::preview_drawing(Self, Int32, String, @layout.TextProbe, Map[String, String], @layout.Images) -> @json.Json raise @failure.Failure
+pub fn Session::preview_keys(Self, Int32, String) -> Array[String] raise @failure.Failure
+pub fn Session::print_drawing(Self, Int32, Bool, Bool, @layout.TextProbe, Map[String, String], @layout.Images) -> @json.Json raise @failure.Failure
 pub fn Session::print_layout(Self, Int32, Bool, Bool, @layout.TextProbe, Map[String, String]) -> @layout.PositionedDocument raise @failure.Failure
-pub fn Session::query(Self) -> Json raise @failure.Failure
-pub fn Session::replace(Self, Int32, String, @layout.TextProbe, Map[String, String], candidate_id? : Int32?) -> Json raise @failure.Failure
-pub fn Session::replace_matches(Self, Int32, String, String, FindOptions, String, Int32?, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
+pub fn Session::query(Self) -> @json.Json raise @failure.Failure
+pub fn Session::replace(Self, Int32, String, @layout.TextProbe, Map[String, String], candidate_id? : Int32?) -> @json.Json raise @failure.Failure
+pub fn Session::replace_matches(Self, Int32, String, String, FindOptions, String, Int32?, @layout.TextProbe, Map[String, String]) -> @json.Json raise @failure.Failure
 pub fn Session::save(Self, Int32) -> Bytes raise @failure.Failure
-pub fn Session::select(Self, Int32, String, String, String, Int32, Int32, objects? : Array[String]?) -> Json raise @failure.Failure
-pub fn Session::selection_geometry(Self, Int32, grid_scale? : Double?) -> Json raise @failure.Failure
-pub fn Session::set_date_time(Self, Int32, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
+pub fn Session::select(Self, Int32, String, String, String, Int32, Int32, objects? : Array[String]?) -> @json.Json raise @failure.Failure
+pub fn Session::selection_geometry(Self, Int32, grid_scale? : Double?) -> @json.Json raise @failure.Failure
+pub fn Session::set_date_time(Self, Int32, String, @layout.TextProbe, Map[String, String]) -> @json.Json raise @failure.Failure
 pub fn Session::show_image_keys(Self) -> Array[String] raise @failure.Failure
-pub fn Session::show_layout(Self, Int32, Double, @layout.TextProbe, Map[String, String], @layout.Images) -> Json raise @failure.Failure
-pub fn Session::transform(Self, Int32, Int32, Double, Double, Double, Double) -> Json raise @failure.Failure
-pub fn Session::undo(Self, Int32, redo? : Bool) -> Json raise @failure.Failure
+pub fn Session::show_layout(Self, Int32, Double, @layout.TextProbe, Map[String, String], @layout.Images) -> @json.Json raise @failure.Failure
+pub fn Session::transform(Self, Int32, Int32, Double, Double, Double, Double) -> @json.Json raise @failure.Failure
+pub fn Session::undo(Self, Int32, redo? : Bool) -> @json.Json raise @failure.Failure
 
 pub(all) enum ShowInkChange {
   BeginInk(String, Double, Array[(Double, Double)])
@@ -423,31 +435,35 @@ pub(all) struct ShowMediaChange {
   message : String
 }
 
+#derive(Eq)
 pub(all) enum ShowRange {
   ShowAll
   ShowRange(Int32, Int32)
   ShowCustom(String)
-} derive(Eq)
+}
 pub fn ShowRange::equal(Self, Self) -> Bool
 pub fn ShowRange::not_equal(Self, Self) -> Bool
 
+#derive(Eq)
 pub(all) struct ShowSettings {
   slides : ShowRange
   timings : Bool
   animations : Bool
   cycling : Bool
-} derive(Eq)
+}
 pub fn ShowSettings::default() -> Self
 pub fn ShowSettings::equal(Self, Self) -> Bool
 pub fn ShowSettings::not_equal(Self, Self) -> Bool
 
+#derive(Eq)
 pub(all) struct SlideAdvance {
   click : Bool
   after : Int32?
-} derive(Eq)
+}
 pub fn SlideAdvance::equal(Self, Self) -> Bool
 pub fn SlideAdvance::not_equal(Self, Self) -> Bool
 
+#derive(Eq, @json.ToJson)
 pub(all) struct SlideAnimation {
   object : String
   kind : String
@@ -456,10 +472,10 @@ pub(all) struct SlideAnimation {
   duration : Int32
   repeat : Int32
   params : Array[Double]
-} derive(Eq, ToJson)
+}
 pub fn SlideAnimation::equal(Self, Self) -> Bool
 pub fn SlideAnimation::not_equal(Self, Self) -> Bool
-pub fn SlideAnimation::to_json(Self) -> Json
+pub fn SlideAnimation::to_json(Self) -> @json.Json
 
 pub(all) enum SlideEdit {
   AddSlide
@@ -507,23 +523,26 @@ pub(all) enum SlideEdit {
   MoveSection(String, Int32)
 }
 
+#derive(Eq, @json.ToJson)
 pub(all) struct SlideTransition {
   kind : String
   duration : Int32
   direction : String
-} derive(Eq, ToJson)
+}
 pub fn SlideTransition::equal(Self, Self) -> Bool
 pub fn SlideTransition::not_equal(Self, Self) -> Bool
-pub fn SlideTransition::to_json(Self) -> Json
+pub fn SlideTransition::to_json(Self) -> @json.Json
 
+#derive(Eq)
 pub(all) struct SnapSettings {
   grid : Bool
   objects : Bool
   spacing : Double
-} derive(Eq)
+}
 pub fn SnapSettings::equal(Self, Self) -> Bool
 pub fn SnapSettings::not_equal(Self, Self) -> Bool
 
+#derive(Eq, @json.FromJson, @json.ToJson)
 pub(all) struct TableStyleSettings {
   id : String
   first_row : Bool
@@ -532,11 +551,11 @@ pub(all) struct TableStyleSettings {
   last_column : Bool
   band_rows : Bool
   band_columns : Bool
-} derive(Eq, ToJson, @json.FromJson)
+}
 pub fn TableStyleSettings::equal(Self, Self) -> Bool
-pub fn TableStyleSettings::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
+pub fn TableStyleSettings::from_json(@json.Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
 pub fn TableStyleSettings::not_equal(Self, Self) -> Bool
-pub fn TableStyleSettings::to_json(Self) -> Json
+pub fn TableStyleSettings::to_json(Self) -> @json.Json
 
 pub(all) struct TextFormat {
   font : String?
@@ -552,13 +571,14 @@ pub(all) struct TextFormat {
 }
 pub fn TextFormat::new(font? : String, size? : Double, spacing? : Double, bold? : Bool, italic? : Bool, color? : String, underline? : Bool, strike? : Bool, highlight? : String, script? : String) -> Self
 
+#derive(Eq, @json.ToJson)
 pub(all) struct TextSpacing {
   unit : String
   value : Double
-} derive(Eq, ToJson)
+}
 pub fn TextSpacing::equal(Self, Self) -> Bool
 pub fn TextSpacing::not_equal(Self, Self) -> Bool
-pub fn TextSpacing::to_json(Self) -> Json
+pub fn TextSpacing::to_json(Self) -> @json.Json
 
 // Type aliases
 

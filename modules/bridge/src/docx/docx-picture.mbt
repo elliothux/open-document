@@ -85,47 +85,53 @@ fn Context::docx_image_keys(
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct DrawingGestureBeginRequest {
   drawing : @common.RequestInt
   handle : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct DrawingGestureMoveRequest {
   id : @common.RequestInt
   dx : @common.RequestNumber
   dy : @common.RequestNumber
   page : @common.RequestInt?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PictureInsertRequest {
   width : @common.RequestNumber
   height : @common.RequestNumber
   bytes : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PictureReplaceRequest {
   id : @common.RequestInt
   bytes : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PictureResizeRequest {
   id : @common.RequestInt
   width : @common.RequestNumber
   height : @common.RequestNumber
   crop : Array[@common.RequestNumber]
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PictureCommandRequest {
   revision : @common.RequestInt
   picture : Json?
   change : Json?
   profile : Json?
-} derive(@json.FromJson)
+}
 
 ///|
 fn drawing_profile(
@@ -243,22 +249,25 @@ fn Context::edit_picture_command(
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct DrawingIdRequest {
   id : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct DrawingHyperlinkRequest {
   id : @common.RequestInt
   target : @common.RequiredNullable[String]
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct DrawingPositionRequest {
   id : @common.RequestInt
   anchor : @common.RequiredNullable[DrawingAnchorRequest]
   target : PositionRequest?
-} derive(@json.FromJson)
+}
 
 ///|
 fn Context::position_drawing(
@@ -299,11 +308,12 @@ fn drawing_hyperlink(
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct DrawingAxisRequest {
   relativeTo : String
   offset : Json
   align : Json
-} derive(@json.FromJson)
+}
 
 ///|
 fn DrawingAxisRequest::axis(
@@ -317,14 +327,16 @@ fn DrawingAxisRequest::axis(
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct DrawingDistanceRequest {
   top : @common.RequestNumber
   right : @common.RequestNumber
   bottom : @common.RequestNumber
   left : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct DrawingAnchorRequest {
   horizontal : DrawingAxisRequest
   vertical : DrawingAxisRequest
@@ -333,7 +345,7 @@ priv struct DrawingAnchorRequest {
   wrapping : String
   wrapSide : String
   distance : DrawingDistanceRequest
-} derive(@json.FromJson)
+}
 
 ///|
 fn DrawingAnchorRequest::anchor(

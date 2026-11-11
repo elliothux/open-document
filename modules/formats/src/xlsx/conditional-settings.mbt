@@ -1,4 +1,5 @@
 ///|
+#derive(Eq)
 pub(all) struct ConditionalFormat {
   kind : String
   operator : String
@@ -13,7 +14,7 @@ pub(all) struct ConditionalFormat {
   average : ConditionalAverage?
   text : String?
   timePeriod : String?
-} derive(Eq)
+}
 
 ///|
 pub extend ConditionalFormat with Eq::{equal, not_equal}

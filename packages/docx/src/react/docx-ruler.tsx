@@ -205,8 +205,8 @@ export function DocxRuler({
       : { kind: marker.kind, position, snap };
   return (
     <div className="od-ruler" ref={root} role="group" aria-label={t.ruler}>
-      <label className="od-ruler-type">
-        {t.type}
+      <label className="od-ruler-type" title={t.type}>
+        <span className="od-sr-only">{t.type}</span>
         <select
           aria-label={t.type}
           value={align}

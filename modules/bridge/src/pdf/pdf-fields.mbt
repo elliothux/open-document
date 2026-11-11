@@ -1,8 +1,9 @@
 ///|
+#derive(@json.FromJson)
 priv struct FieldOptionRequest {
   value : String
   label : String
-} derive(@json.FromJson)
+}
 
 ///|
 priv struct FieldOptions {
@@ -22,6 +23,7 @@ impl @json.FromJson for FieldOptions with fn from_json(input, path) {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct FieldSpecRequest {
   name : String
   tooltip : String
@@ -40,7 +42,7 @@ priv struct FieldSpecRequest {
   color : String
   background : String
   border : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
 fn FieldSpecRequest::spec(self : FieldSpecRequest) -> @model.PdfFieldDesign {
@@ -66,6 +68,7 @@ fn FieldSpecRequest::spec(self : FieldSpecRequest) -> @model.PdfFieldDesign {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct FieldWidgetRequest {
   id : String
   page : String
@@ -74,7 +77,7 @@ priv struct FieldWidgetRequest {
   borderColor : String
   background : String
   exportValue : String
-} derive(@json.FromJson)
+}
 
 ///|
 fn FieldWidgetRequest::widget(
@@ -109,51 +112,57 @@ impl @json.FromJson for FieldWidgets with fn from_json(input, path) {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct FieldRequest {
   revision : @common.RequestInt
   field : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct FieldNameRequest {
   revision : @common.RequestInt
   field : String
   name : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct DuplicateFieldRequest {
   revision : @common.RequestInt
   field : String
   name : String
   dx : @common.RequestNumber
   dy : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct CreateFieldRequest {
   revision : @common.RequestInt
   page : String
   spec : FieldSpecRequest
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct UpdateFieldRequest {
   revision : @common.RequestInt
   field : String
   spec : FieldSpecRequest
   widgets : FieldWidgets
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct FieldValueRequest {
   revision : @common.RequestInt
   field : String
   value : Json
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
 let field_handlers : Map[

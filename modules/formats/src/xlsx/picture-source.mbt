@@ -187,14 +187,16 @@ pub fn Session::picture_resource(
 }
 
 ///|
+#derive(ToJson)
 priv struct DrawingQuery[T] {
   revision : Int32
   sheet : String
   reason : String
   items : Array[T]
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct PictureQuery {
   id : String
   name : String
@@ -206,7 +208,7 @@ priv struct PictureQuery {
   height : Double
   crop : Array[Double]
   key : String
-} derive(ToJson)
+}
 
 ///|
 pub fn Session::pictures(

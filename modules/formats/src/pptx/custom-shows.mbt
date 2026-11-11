@@ -11,17 +11,19 @@ pub const CustomShowTotalSlides : Int32 = 4096
 pub const CustomShowNameUnits : Int32 = 255
 
 ///|
+#derive(ToJson)
 priv struct SlideCollectionQuery[T] {
   items : Array[T]
   reason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(Eq, ToJson, @json.FromJson)
 pub(all) struct CustomShow {
   id : String
   name : String
   slides : Array[String]
-} derive(Eq, ToJson, @json.FromJson)
+}
 
 ///|
 pub extend CustomShow with Eq::{equal, not_equal}

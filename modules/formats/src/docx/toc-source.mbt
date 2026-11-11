@@ -1,9 +1,10 @@
 ///|
+#derive(Eq)
 priv struct TocEntry {
   level : Int32
   text : String
   bookmarks : Array[String]
-} derive(Eq)
+}
 
 ///|
 fn Session::toc_entries(

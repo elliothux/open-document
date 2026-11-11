@@ -17,7 +17,7 @@ pub(all) enum MathExpression {
   Matrix(
     String,
     ReadOnlyArray[String],
-    ReadOnlyArray[ReadOnlyArray[MathExpression?]]
+    ReadOnlyArray[ReadOnlyArray[MathExpression?]],
   )
 }
 

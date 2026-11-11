@@ -1,62 +1,72 @@
 ///|
+#derive(@json.FromJson)
 priv struct FilterColumnRequest {
   kind : String
   column : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct IconFilterRequest {
   iconSet : String
   iconId : @common.RequiredNullable[@common.RequestInt]
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct RelativeDateFilterRequest {
   period : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct CalendarFilterRequest {
   unit : String
   value : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ColorFilterRequest {
   color : @common.RequiredNullable[String]
   cellColor : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct DateGroupFilterRequest {
   groups : Array[String]
   values : Array[String]
   blank : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct AverageFilterRequest {
   above : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct RankFilterRequest {
   value : @common.RequestInt
   top : Bool
   percent : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ValueFilterRequest {
   values : Array[String]
   blank : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct CustomFilterRequest {
   conditions : Array[@model.FilterCondition]
   all : Bool
-} derive(@json.FromJson)
+}
 
 ///|
 fn xlsx_filter(change : Json) -> @model.SheetEdit raise @failure.Failure {

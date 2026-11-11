@@ -197,7 +197,8 @@ let drawing_handlers : Map[
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct PictureResourceRequest {
   bytes : String
   preparePixels : Bool?
-} derive(@json.FromJson)
+}

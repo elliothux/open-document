@@ -13,6 +13,7 @@ import { DocxMargins } from "./docx-margins.js";
 import { DocxBorders } from "./docx-borders.js";
 import { DocxCellFill } from "./docx-cell-fill.js";
 import { DocxCellSelection, DocxRowHeight } from "./docx-cell-selection.js";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxTables({
   controller,
@@ -59,7 +60,10 @@ export function DocxTables({
       : Number(mergeColumns);
   return (
     <section aria-label={t.insertTable}>
-      <h3>{t.insertTable}</h3>
+      <h3>
+        <Icon name="table-plus" />
+        {t.insertTable}
+      </h3>
       {selected && (
         <DocxCellSelection
           key={`${snapshot.documentId}:${snapshot.revision}:${JSON.stringify(snapshot.data.selection)}`}
@@ -72,7 +76,10 @@ export function DocxTables({
       )}
       {size && (
         <fieldset disabled={disabled || !!snapshot.data.formatting?.reason}>
-          <legend>{t.tableAutoFit}</legend>
+          <legend>
+            <Icon name="table-cells" />
+            {t.tableAutoFit}
+          </legend>
           {size.autoFit && <p>{t.tableAutomaticWidths}</p>}
           {(
             [
@@ -171,12 +178,14 @@ export function DocxTables({
               rowCount * columnCount > docxTableGridCells
             }
           >
+            <Icon name="plus" />
             {t.insertTable}
           </button>
         </fieldset>
       </form>
       <fieldset disabled={disabled || (!cell && !selected)}>
         <legend>
+          <Icon name="table-cells" />
           {t.tableRows} / {t.tableColumns}
         </legend>
         {([false, true] as const).map((cut) => (
@@ -194,6 +203,7 @@ export function DocxTables({
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => controller.run(() => pasteDocxCells(editor))}
         >
+          <Icon name="paste" />
           {t.pasteCells}
         </button>
         {(
@@ -234,7 +244,10 @@ export function DocxTables({
         }}
       >
         <fieldset disabled={disabled || (!cell && !selected)}>
-          <legend>{t.mergeCells}</legend>
+          <legend>
+            <Icon name="grid" />
+            {t.mergeCells}
+          </legend>
           <label>
             {t.mergeRows}
             <input
@@ -266,6 +279,7 @@ export function DocxTables({
               mergeRowCount * mergeColumnCount > docxTableGridCells
             }
           >
+            <Icon name="table-cells" />
             {t.mergeCells}
           </button>
         </fieldset>
@@ -283,7 +297,10 @@ export function DocxTables({
         }}
       >
         <fieldset disabled={disabled || (!cell && !selected)}>
-          <legend>{t.splitCell}</legend>
+          <legend>
+            <Icon name="grid" />
+            {t.splitCell}
+          </legend>
           <label>
             {t.splitCellRows}
             <input
@@ -313,6 +330,7 @@ export function DocxTables({
               Number(splitRows) * Number(splitColumns) > docxTableGridCells
             }
           >
+            <Icon name="table-cells" />
             {t.splitCell}
           </button>
         </fieldset>
@@ -374,7 +392,10 @@ function TableProperties({
   const maximumColumnWidth = maxWidth - width + columnWidths[columnIndex]!;
   return (
     <fieldset disabled={disabled}>
-      <legend>{t.tableProperties}</legend>
+      <legend>
+        <Icon name="table-cells" />
+        {t.tableProperties}
+      </legend>
       <label>
         <input
           type="checkbox"
@@ -434,6 +455,7 @@ function TableProperties({
             />
           </label>
           <button type="submit" aria-label={`${t.apply} ${t.tableColumnWidth}`}>
+            <Icon name="check" />
             {t.apply}
           </button>
         </form>
@@ -462,11 +484,15 @@ function TableProperties({
           />
         </label>
         <button type="submit" aria-label={`${t.apply} ${t.tableHeaderRows}`}>
+          <Icon name="check" />
           {t.apply}
         </button>
       </form>
       <fieldset>
-        <legend>{t.tableAlignment}</legend>
+        <legend>
+          <Icon name="table-cells" />
+          {t.tableAlignment}
+        </legend>
         {(
           [
             ["left", t.alignLeft],
@@ -507,7 +533,10 @@ function TableProperties({
         />
       ))}
       <fieldset>
-        <legend>{t.cellVerticalAlign}</legend>
+        <legend>
+          <Icon name="align-objects-center" />
+          {t.cellVerticalAlign}
+        </legend>
         {(
           [
             ["top", t.alignTop],
@@ -579,6 +608,7 @@ function TableProperties({
               Number(tableWidth) > maxWidth
             }
           >
+            <Icon name="check" />
             {t.apply}
           </button>
         </form>

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { checkXlsxDrawingFrame, type XlsxDrawingFrame } from "../web/xlsx.js";
 import type { UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function AnalysisFrameEditor({
   frame,
@@ -26,7 +27,10 @@ export function AnalysisFrameEditor({
   }
   return (
     <fieldset disabled={disabled}>
-      <legend>{kind === "timeline" ? t.timelineFrame : t.slicerFrame}</legend>
+      <legend>
+        <Icon name="filter" />
+        {kind === "timeline" ? t.timelineFrame : t.slicerFrame}
+      </legend>
       <label>
         {kind === "timeline" ? t.timelineAnchor : t.slicerAnchor}
         <select

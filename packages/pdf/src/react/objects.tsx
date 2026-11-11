@@ -3,15 +3,26 @@ import { Command, Group } from "@open-document/ui/controls";
 import type { PdfObject, PdfTextSpec } from "../core/pdf.js";
 import type { PdfEditor } from "../web/index.js";
 import type { PanelProps } from "./context.js";
+import { Icon } from "@open-document/ui/icons";
+
+const contentIcons = [
+  "text-box",
+  "stamp",
+  "layout-header",
+  "layout-header",
+  "number-format",
+] as const;
 
 export function usePdfObjects(
   editor: PdfEditor,
   revision: number,
   page: string,
+  enabled: boolean,
 ) {
   const [objects, setObjects] = useState<PdfObject[]>([]);
   const [error, setError] = useState("");
   useLayoutEffect(() => {
+    if (!enabled) return;
     let active = true;
     void editor.objects().then(
       (result) => {
@@ -34,7 +45,7 @@ export function usePdfObjects(
     return () => {
       active = false;
     };
-  }, [editor, revision, page]);
+  }, [editor, revision, page, enabled]);
   return { objects, error };
 }
 
@@ -47,6 +58,7 @@ export function ImageInput({
 }: PanelProps & { replace?: boolean }) {
   return (
     <label className="od-command">
+      <Icon name="upload" />
       {state.locale === "zh-CN"
         ? replace
           ? "替换图片"
@@ -101,11 +113,15 @@ export function ObjectCommands(props: PanelProps) {
           "Set or update page numbers (all pages)",
         ];
   return (
-    <Group label={props.state.locale === "zh-CN" ? "内容" : "Content"}>
+    <Group
+      label={props.state.locale === "zh-CN" ? "内容" : "Content"}
+      icon="text-box"
+    >
       {roles.map((role, index) => (
         <Command
           key={role}
           label={labels[index]!}
+          icon={contentIcons[index] ?? "text-box"}
           disabled={props.disabled || !!props.state.document?.draft}
           action={() =>
             props.controller.run(() => props.file.editor.beginText(role))

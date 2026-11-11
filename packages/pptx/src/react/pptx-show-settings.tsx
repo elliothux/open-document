@@ -5,6 +5,7 @@ import type {
 } from "../web/presentation-editor.js";
 import type { PptxQuery } from "../web/pptx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
+import { Icon } from "@open-document/ui/icons";
 
 const en = {
   title: "Slideshow settings",
@@ -62,7 +63,10 @@ export function PptxShowSettings({
   );
   return (
     <fieldset disabled={disabled}>
-      <legend>{t.title}</legend>
+      <legend>
+        <Icon name="text" />
+        {t.title}
+      </legend>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -185,7 +189,10 @@ export function PptxShowSettings({
               {t[key]}
             </label>
           ))}
-          <button type="submit">{t.apply}</button>
+          <button type="submit">
+            <Icon name="check" />
+            {t.apply}
+          </button>
         </fieldset>
       </form>
       <button
@@ -195,6 +202,7 @@ export function PptxShowSettings({
           controller.run(() => editor.slideshow.start("settings", labels))
         }
       >
+        <Icon name="play" />
         {t.start}
       </button>
       {current.reason && <p>{current.reason}</p>}

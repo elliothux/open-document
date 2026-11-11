@@ -1,48 +1,55 @@
 ///|
+#derive(@json.FromJson)
 priv struct SheetProfileRequest {
   revision : @common.RequestInt
   sheet : String
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ObjectIdRequest {
   revision : @common.RequestInt
   sheet : String
   id : String
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct CaptureDrawingRequest {
   revision : @common.RequestInt
   sheet : String
   objectId : String
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct DrawingFragmentRequest {
   revision : @common.RequestInt
   fragment : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PasteDrawingRequest {
   revision : @common.RequestInt
   sheet : String
   fragment : String
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SelectDrawingRequest {
   revision : @common.RequestInt
   layout : @common.RequestInt
   objectId : @common.RequiredNullable[String]
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct DrawingGestureRequest {
   revision : @common.RequestInt
   layout : @common.RequestInt
@@ -51,17 +58,19 @@ priv struct DrawingGestureRequest {
   dy : @common.RequestNumber
   commit : Bool
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct DrawingViewportRequest {
   originX : @common.RequestNumber
   originY : @common.RequestNumber
   scrollX : @common.RequestNumber
   scrollY : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SlicerGestureRequest {
   revision : @common.RequestInt
   layout : @common.RequestInt
@@ -73,9 +82,10 @@ priv struct SlicerGestureRequest {
   additive : Bool
   commit : Bool
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TimelineGestureRequest {
   revision : @common.RequestInt
   layout : @common.RequestInt
@@ -87,24 +97,27 @@ priv struct TimelineGestureRequest {
   y : @common.RequestNumber
   commit : Bool
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ImageKeyRequest {
   revision : @common.RequestInt
   key : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ImagePixelsRequest {
   revision : @common.RequestInt
   key : String
   width : @common.RequestInt
   height : @common.RequestInt
   bytes : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct InsertPictureRequest {
   revision : @common.RequestInt
   sheet : String
@@ -114,16 +127,17 @@ priv struct InsertPictureRequest {
   description : String
   bytes : String
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ReplacePictureRequest {
   revision : @common.RequestInt
   sheet : String
   id : String
   bytes : String
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
 priv struct PictureCrop {
@@ -145,6 +159,7 @@ impl @json.FromJson for PictureCrop with fn from_json(input, path) {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct ObjectFrameRequest {
   anchor : String
   x : @common.RequestNumber
@@ -153,7 +168,7 @@ priv struct ObjectFrameRequest {
   height : @common.RequestNumber
   name : String
   description : String
-} derive(@json.FromJson)
+}
 
 ///|
 fn ObjectFrameRequest::rect(self : ObjectFrameRequest) -> @layout.Border {
@@ -166,6 +181,7 @@ fn ObjectFrameRequest::rect(self : ObjectFrameRequest) -> @layout.Border {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct PictureSettingsRequest {
   anchor : String
   x : @common.RequestNumber
@@ -175,13 +191,14 @@ priv struct PictureSettingsRequest {
   name : String
   description : String
   crop : PictureCrop
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SetPictureRequest {
   revision : @common.RequestInt
   sheet : String
   id : String
   settings : PictureSettingsRequest
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}

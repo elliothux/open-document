@@ -8,6 +8,7 @@ import {
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { docxNumberingStartMax } from "@open-document/wasm/engine-source";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxNoteNumbering({
   controller,
@@ -43,7 +44,10 @@ export function DocxNoteNumbering({
     source.kind !== kind;
   return (
     <section aria-label={t.noteNumbering}>
-      <h4>{t.noteNumbering}</h4>
+      <h4>
+        <Icon name="number-format" />
+        {t.noteNumbering}
+      </h4>
       <p>
         {t.noteNumberingSection} {section + 1}
       </p>
@@ -70,6 +74,7 @@ export function DocxNoteNumbering({
         disabled={disabled}
         onClick={() => controller.run(load)}
       >
+        <Icon name="refresh" />
         {t.readNoteNumbering}
       </button>
       {source && (
@@ -154,6 +159,7 @@ export function DocxNoteNumbering({
                 draft.start > docxNumberingStartMax
               }
             >
+              <Icon name="check" />
               {t.applyNoteNumbering}
             </button>
           </fieldset>

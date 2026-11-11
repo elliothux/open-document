@@ -5,5 +5,10 @@
     "jsx": "react-jsx",
     "types": ["vite/client", "node"]
   },
-  "include": ["**/*.ts", "**/*.tsx", "../web-sdk/fonts.ts"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "../web-sdk/fonts.ts",
+    "../web-sdk/react.tsx"
+  ]
 }

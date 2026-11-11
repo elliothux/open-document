@@ -1,4 +1,5 @@
 ///|
+#derive(Eq)
 priv struct CellStyle {
   font : String
   size : Double
@@ -21,7 +22,7 @@ priv struct CellStyle {
   icon : ConditionalIcon?
   formula_hidden : Bool
   locked : Bool
-} derive(Eq)
+}
 
 ///|
 fn default_style() -> CellStyle {

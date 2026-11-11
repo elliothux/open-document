@@ -1,8 +1,43 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { DocxPosition } from "../core/docx-hit.js";
 import type { DocumentEditor, DocumentRevisions } from "../web/editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { DocxTracking } from "./docx-tracking.js";
+import { Icon } from "@open-document/ui/icons";
+
+function revisionAtPosition(
+  items: DocumentRevisions["items"],
+  focus: DocxPosition,
+): string | undefined {
+  let text: string | undefined,
+    table: string | undefined,
+    textLength = Infinity,
+    tableScope = Infinity;
+  for (const { id, kind, paragraph, target } of items) {
+    if (!target) continue;
+    if ("paragraphs" in target) {
+      const scope = kind === "cellFormat" ? 0 : kind === "tableFormat" ? 2 : 1;
+      if (scope < tableScope && target.paragraphs.includes(focus.paragraph)) {
+        table = id;
+        tableScope = scope;
+      }
+      continue;
+    }
+    if (paragraph !== focus.paragraph) continue;
+    const { start, end } = target;
+    const inside =
+      (focus.offset > start && focus.offset < end) ||
+      (focus.offset === start &&
+        (start === end || focus.affinity === "after")) ||
+      (focus.offset === end && focus.affinity === "before");
+    if (inside && end - start < textLength) {
+      text = id;
+      textLength = end - start;
+    }
+  }
+  return text ?? table;
+}
 
 export function DocxRevisions({
   controller,
@@ -21,6 +56,7 @@ export function DocxRevisions({
     [author, setAuthor] = useState<string | null>(null),
     [kind, setKind] = useState("all"),
     [error, setError] = useState("");
+  const currentItem = useRef<HTMLLIElement>(null);
   const blocked =
     !!snapshot.composition ||
     snapshot.dragging ||
@@ -66,6 +102,21 @@ export function DocxRevisions({
         (author === null || item.author === author) &&
         (kind === "all" || item.kind === kind),
     ) ?? [];
+  const focus = snapshot.data.selection?.focus;
+  const revealed = editor.review.getShownRevision();
+  const current =
+    stale || blocked
+      ? undefined
+      : revealed
+        ? shown.find((item) => item.id === revealed)?.id
+        : focus && revisionAtPosition(shown, focus);
+  useEffect(() => {
+    const options: ScrollIntoViewOptions & { container: "nearest" } = {
+      block: "nearest",
+      container: "nearest",
+    };
+    currentItem.current?.scrollIntoView(options);
+  }, [current]);
   const kinds = {
     insert: t.revisionInsertion,
     delete: t.revisionDeletion,
@@ -80,7 +131,10 @@ export function DocxRevisions({
   };
   return (
     <section aria-label={t.docxRevisions}>
-      <h3>{t.docxRevisions}</h3>
+      <h3>
+        <Icon name="pen" />
+        {t.docxRevisions}
+      </h3>
       <DocxTracking
         key={snapshot.documentId}
         controller={controller}
@@ -156,10 +210,14 @@ export function DocxRevisions({
           {action === "accept" ? t.revisionAcceptShown : t.revisionRejectShown}
         </button>
       ))}
-      <ol>
+      <ol className="od-docx-revisions">
         {result &&
           shown.map((item) => (
-            <li key={item.id}>
+            <li
+              key={item.id}
+              ref={current === item.id ? currentItem : undefined}
+              aria-current={current === item.id ? "true" : undefined}
+            >
               <p>
                 {kinds[item.kind]}: {item.author || t.revisionAnonymous}{" "}
                 {item.date}
@@ -175,6 +233,7 @@ export function DocxRevisions({
                   )
                 }
               >
+                <Icon name="eye" />
                 {t.revisionShow}
               </button>
               {(["accept", "reject"] as const).map((action) => (

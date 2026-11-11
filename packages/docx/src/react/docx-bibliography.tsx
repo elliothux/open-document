@@ -3,6 +3,7 @@ import { docxBibliographyHeadingUnits } from "@open-document/wasm/engine-source"
 import type { DocumentEditor, DocumentSources } from "../web/editor.js";
 import type { EditorController } from "./context.js";
 import type { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxBibliography({
   controller,
@@ -20,7 +21,10 @@ export function DocxBibliography({
   const [title, setTitle] = useState(t.bibliography);
   return (
     <section aria-label={t.bibliography}>
-      <h4>{t.bibliography}</h4>
+      <h4>
+        <Icon name="book" />
+        {t.bibliography}
+      </h4>
       <p>{t.bibliographyHelp}</p>
       <form
         onSubmit={(event) => {
@@ -43,7 +47,10 @@ export function DocxBibliography({
               onChange={(event) => setTitle(event.currentTarget.value)}
             />
           </label>
-          <button type="submit">{t.insertBibliography}</button>
+          <button type="submit">
+            <Icon name="plus" />
+            {t.insertBibliography}
+          </button>
         </fieldset>
       </form>
       {source?.bibliographies.map((item, index) => (
@@ -63,6 +70,7 @@ export function DocxBibliography({
               )
             }
           >
+            <Icon name="refresh" />
             {t.updateBibliography}
           </button>
           <button
@@ -77,6 +85,7 @@ export function DocxBibliography({
               )
             }
           >
+            <Icon name="trash" />
             {t.deleteBibliography}
           </button>
           {item.reason && <p>{item.reason}</p>}

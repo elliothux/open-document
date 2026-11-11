@@ -8,6 +8,12 @@ const domains = ["docx", "xlsx", "pptx", "pdf"];
 export default defineConfig({
   root: path("./"),
   plugins: [react(), tailwindcss()],
+  optimizeDeps: {
+    include: [
+      "@open-document/ui > @base-ui/react/context-menu",
+      "@open-document/ui > @base-ui/react/popover",
+    ],
+  },
   resolve: {
     dedupe: [
       "react",

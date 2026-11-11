@@ -44,6 +44,7 @@ export function PageArrangeControls({
     <Group label={zh ? "页面拼拆" : "Page arrangement"}>
       <Command
         label={zh ? "左右拆成两页" : "Split into left and right pages"}
+        icon="columns-2"
         disabled={blocked}
         action={() =>
           controller.run(() => editor.operations.splitPageGrid(2, 1))
@@ -51,6 +52,7 @@ export function PageArrangeControls({
       />
       <Command
         label={zh ? "上下拆成两页" : "Split into top and bottom pages"}
+        icon="columns-2"
         disabled={blocked}
         action={() =>
           controller.run(() => editor.operations.splitPageGrid(1, 2))
@@ -124,6 +126,7 @@ export function PageArrangeControls({
         </p>
         <Command
           label={zh ? "应用多页合一" : "Apply N-up"}
+          icon="check"
           disabled={blocked}
           action={() =>
             controller.run(() =>

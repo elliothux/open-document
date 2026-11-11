@@ -240,6 +240,8 @@ HTML 输入支持 `table`、`caption`、`thead/tbody/tfoot` 行组、`tr`、`td/
 
 ### 表格边框
 
+表格工具的边框选择器用图示标记每条边及内部横线和竖线。图示与文字标签一起显示，支持原生键盘选择。确认后在编辑队列中核对目标选区，边框继续使用同一原生表格事务。
+
 `editTable({ action: "tableBorders" | "cellBorders", value })` 修改整表默认边框或当前逻辑格的直接边框。`value` 为非空部分属性集：四边使用 `top/right/bottom/left`，整表另支持 `insideH/insideV`。每边 `DocxBorderEdit = { style, width, color, themeColor? }` 设置源属性，必填 style 为 `single/double/dashed/dotted/dashSmallGap/dotDash/dotDotDash`，`width: 0` 显式关闭，null 删除该边直接属性并恢复继承；省略的边保持。非零线宽为 0.25–12 pt，须为 1/8 pt 的整数倍；color 为六位 RGB。`themeColor` 省略或为 null 时使用固定 RGB，指定时使用与[页边框](docx-pages.md#页面边框)相同的原生 Word 主题槽，且线宽须大于零。默认 UI 提供表格/当前格、各边/全部、实线/双线/虚线/点线/小间隔虚线/点划线/双点划线、线宽、固定/主题颜色、移除及恢复继承。纵向合并起始与延续节点共同修改，内部合并边不绘制。
 
 核心沿表格样式链与直接属性求有效值。单元格声明优先于表格默认；相邻单元格先取非空边，再取总占宽较大的边框；总占宽相同时，单条描边优先于双线，其余按 RGB 亮度规则求值。规则依据 [ONLYOFFICE 边框冲突](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L15267-L15342)。当前读取 `single/double/dashed/dotted/dashSmallGap/dotDash/dotDotDash/nil/none`、RGB/auto 和左右的 start/end 别名；auto 为黑色。主题边框支持原生 `themeColor/themeShade/themeTint`，沿[主题颜色](docx-content.md#docx-主题颜色)的槽映射和 HSL 明暗规则求值；样式、整表及单格共用解析。主题修改保留源槽、变换及缓存 RGB，仅更新派生边框颜色。未知主题槽、缺失主题色、非法变换、阴影、非零间隔及未知属性继续保护。

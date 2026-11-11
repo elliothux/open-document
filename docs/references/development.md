@@ -35,32 +35,80 @@ PDF 渲染在核心缓存最近一份编码主体，保留原有页面状态更�
 
 包构建用固定工具链的 `moon-wasm-opt -Oz` 优化全格式和四个单格式引擎，并按分发字节生成 SHA-256 构建身份。任一优化产物超过 8 MiB 时，构建在写入包文件前失败。
 
-`@open-document/wasm/engine.wasm` 是全格式入口，示例默认使用它。只接入一种格式时，可由宿主提供同一包下的 `docx.wasm`、`xlsx.wasm`、`pptx.wasm` 或 `pdf.wasm`。调用 `loadEngine` 时传入该资产的绝对 URL，并从 `@open-document/wasm/engine-source` 读取对应的 `engineBuildIds` 字段。现有全格式入口继续使用 `engineBuildId`。核心和 Worker 使用相同的编译模块。
+`@open-document/wasm/engine.wasm` 是全格式入口。普通 JS 示例使用单格式 Wasm。宿主也可以显式提供同一包下的 `docx.wasm`、`xlsx.wasm`、`pptx.wasm` 或 `pdf.wasm`。调用 `loadEngine` 时传入该资产的绝对 URL，并从 `@open-document/wasm/engine-source` 读取对应的 `engineBuildIds` 字段。全格式入口使用 `engineBuildId`。核心和 Worker 使用相同的编译模块。
 
 一个 Bun workspace 管理 `packages/*`，公开依赖由根 `bun.lock` 固定。领域包对 wasm/web-core 使用精确版本；React、React DOM 和公共 UI 是领域 React 入口的可选 peer。消费 React 入口时显式安装这些固定版本。`core`、`web` 不需要 React。
 
 ## 公开入口与共享加载
 
-四个领域包提供 `core`、`web`、`react`、`worker` 子路径：
+四个领域包提供 `core`、`headless`、`web`、`react`、`worker` 子路径。
 
 | 入口 | 内容 |
 | --- | --- |
 | `@open-document/<format>/core` | 格式类型、校验和同步会话；`openDocx`、`openXlsx`、`openPptx` 或 `openPdf` |
+| `@open-document/<format>/headless` | 异步 Worker 会话；`DocxWorkerSession`、`XlsxWorkerSession`、`PptxWorkerSession` 或 `PdfWorkerSession` |
 | `@open-document/<format>/web` | Client 与框架无关的编辑宿主 |
-| `@open-document/<format>/react` | 本格式的 `mountEditor`、options 与产品 UI |
+| `@open-document/<format>/react` | `DocxEditor`、`XlsxEditor`、`PptxEditor` 或 `PdfEditor`，以及命令式 `mountEditor` |
 | `@open-document/<format>/worker` | 本格式的独立 Worker 资源 |
 | `@open-document/wasm` | `loadEngine`、不透明 `EngineHandle` 与公共错误 |
 | `@open-document/wasm/engine.wasm` | 全格式引擎 |
 | `@open-document/wasm/<format>.wasm` | 单格式引擎 |
 | `@open-document/wasm/engine-source` | 按产物生成的 `engineBuildId` 和 `engineBuildIds` |
+| `@open-document/wasm/assets` | `documentAssets` 解析静态资源位置，`loadDocumentAssets` 加载对应格式引擎 |
 
-`loadEngine({ url, build }, signal?)` 接受绝对 URL 和构建身份。相同身份复用获取和编译结果，缓存最多五个来源。加载失败后可重试。取消只结束当前等待者，其他调用方继续等待。
+`loadEngine(source, signal?)` 接受 `{ url, build }`、`Uint8Array` 或已编译的 `WebAssembly.Module`。相同 URL 和构建身份复用获取和编译结果，缓存最多五个来源。加载失败后可重试。取消只结束当前等待者，其他调用方继续等待。Node 从文件读取 Wasm 字节后调用 Loader。
 
 句柄持有编译结果。Client 首次将 `WebAssembly.Module` 结构化克隆到 Worker，由 Worker 实例化。同一运行环境中的同一 Module 复用一个 Wasm 实例，每个文档各有上下文。实例共享已解析字体和基础字形轮廓。字体别名、回退顺序和资源预算按文档计算。
 
 每个打开的 Client 独占一个 Worker。随包提供的 Worker 确认释放上下文后，可由相同模块和脚本 URL 的后续 Client 复用。浏览器页面最多保留一个空闲 Worker，最长 15 秒。取消在途请求或通信失败时直接终止 Worker。
 
 低层同步调用使用 `openDocx(engine)` 等格式工厂；浏览器使用 `FoundationClient.open(engine, workerUrl, signal?)`、`XlsxClient.open`、`PptxClient.open` 或 `PdfClient.open`。DOCX 的 `FoundationSession`/`FoundationClient` 名称仅表示 DOCX 绑定。每会话只拥有一种格式，公共连接通过类型参数接受该格式协议。
+
+无 UI 的浏览器接入使用 `*WorkerSession.open(engine, workerUrl, signal?)`。会话接收同一格式的 `execute(command)` 调用。先执行打开或新建命令，再查询、编辑和生成输出。一次只发送一个在途请求。用 `dispose()` 取消在途请求或释放会话。重开文件时创建新会话。同步核心用 `close()` 释放。
+
+无 UI 入口由核心处理支持的文件内容，调用方提供文件与字体字节。布局、渲染数据和输出分别按格式合同使用。剪贴板、平台位图解码、浏览器媒体探测与下载由交互宿主或显式适配器负责。交互客户端复用 Worker 会话，并保留既有资源准备流程。
+
+### 无 UI 示例与静态资源
+
+构建后，将对应格式的 Wasm 和 Worker 放在同一静态目录。Wasm 使用 `<format>.wasm` 和 `application/wasm`。Worker 使用 `<format>-worker.js` 和 JavaScript MIME 类型。`loadDocumentAssets` 接收格式和以 `/` 结尾的目录 URL，只加载所选格式的引擎。部署时发布同一构建的模块、Worker、Wasm 和字体。未带版本的入口应重新验证缓存，带内容哈希的分块可长期缓存。离线部署缓存同一版本的资源。
+
+在仓库根目录执行 `bun run build`，再执行 `python3 -m http.server 4174 --bind 127.0.0.1 --directory examples/web-sdk`。Chrome 打开 `http://127.0.0.1:4174/`，用 **Open sample** 打开默认编辑器。打开 `http://127.0.0.1:4174/headless.html` 后，用 **Edit sample** 在 Worker 中添加前缀并下载结果。两个页面也接受宿主文件。部署时保留三个 HTML 页面、`example.css`、`sample.docx` 和完整的 `dist/` 目录。[可分发 DOCX 样本](../../examples/web-sdk/sample.docx)
+
+Node 示例从已安装的包读取 Wasm。复制示例和样本到消费项目后，使用 Node 26 执行 `node headless-node.mjs sample.docx reviewed.docx`。输出文件名必须可新建。[浏览器 Worker 示例](../../examples/web-sdk/headless.js) · [Node 示例](../../examples/web-sdk/headless-node.mjs)
+
+### CSP 与资源错误
+
+同源部署已在 Chrome 下验证以下策略。服务端为每个 HTML 响应生成新的 nonce，将同一个值用于 `style-src` 和示例入口 `<script id="example-script">` 的 `nonce` 属性。示例把该值传给编辑器 `styleNonce`，供 Shadow DOM 样式和 Base UI 弹层使用。宿主自行挂载时也传入响应的 nonce。
+
+```http
+Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'nonce-<per-response-nonce>'; connect-src 'self'; worker-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; font-src 'self'
+```
+
+Wasm 编译失败提供 `engine` 阶段。Worker 创建或启动失败提供 `worker` 阶段。字体读取或注册失败提供 `font` 阶段。`DocumentError` 提供 `code`、`stage`、`resource` 和 `cause`。`resource` 为引擎或 Worker 的 URL、字体 URL，或注册时的字体标识。Worker 构造器抛出的 `DOMException` 保留异常名称，并附带同样的阶段、资源和原因。加载失败后可重试，已取消的调用继续返回其原取消原因。
+
+### React integration
+
+Import the editor from its format's `react` entry. Pass `document` and `resources` at mount. Keep the component mounted when changing the toolbar, theme, locale or mode. Use `onReady` to receive the instance and call `open(document)` to replace a file with the normal save and discard prompt. Unmounting releases the instance. Call `close()` before unmounting when the user should be offered the save prompt.
+
+Use `slots.toolbar`, `navigation`, `properties`, `status` and `actions` to compose the shell. An omitted slot uses the default, a function renders the host's content, and `null` hides it. Use `EditorCommandButton` inside a slot or give it the instance's `commands` outside the editor. Save, undo, redo and copy are shared across formats. DOCX, XLSX and PPTX also expose `bold`, `italic`, `underline` and `strike`. The Save button, File menu and save shortcut use the same command.
+
+`commands.getSnapshot(id)` returns the command state, including pressed, mixed and disabled states. Use `captureTarget()` before opening host controls that act on the current selection. Pass the returned target to `execute(id, target)`. Text format commands check it again in the edit queue before writing, so an earlier queued selection change invalidates the action. An instance in `view` mode guards changes at the browser command boundary. Complete any active draft, composition or gesture before switching modes.
+
+Import `EditorFontControls` from `@open-document/ui` to reuse the font family selector and point-size field. Pass the current selection's family and size, the font profile, and the format's size limits. Use `null` for mixed values. The family selector includes the current family and the named base entries in the profile. The `apply(change, target)` callback receives a family or size change and the captured target. Use `commands.assertTarget(target)` inside the format method's queued verification callback before applying the change.
+
+Use `EditorPanel` in a properties slot for the same panel frame, initial focus and Escape behavior as the default editor. Its `close` callback owns visibility and can call the slot's `focus()` to return to the document. `EditorColorPalette` and `EditorTablePicker` use the slot's `portal` for instance-local popups. Both capture a command target when the popup opens. Use `commands.assertTarget(target)` inside the queued format or insert callback. The palette accepts six RGB hex digits and uses `null` for mixed colors. The table picker uses an 8×8 grid with pointer and keyboard input. `EditorSymbolPicker` opens a symbol grid from a ribbon trigger, closes on choice and calls `insert(symbol)`; return focus to the document inside that callback. Pass `iconOnly` to `EditorCommandButton` for frequent toggles; the label stays the accessible name and tooltip. `AccentIcon` renders the decorative multi-shade icons used for format badges and notices, tinted by the CSS `color` of its container. Pass `icon` to `EditorPanel` and `EditorToolbarGroup` to title a panel or panel section. Inside a panel, unclassed sections, fieldsets and forms lay fields out on full rows and wrap actions inline; a heading that repeats the panel title is kept for assistive technology only.
+
+Set the `--od-editor-*` CSS properties on the editor host or an ancestor. The supported color suffixes are `surface`, `subtle`, `workspace`, `ink`, `muted`, `line`, `hover`, `accent`, and `danger`. Use `radius` for button corners, `font-size` for UI text size, and `density` for control spacing. The defaults are `13px` for text and `1` for density. Density is limited to `0.8`–`1.25`. The active light or dark theme supplies values for properties the host leaves unset. These settings apply to the shell and its popups, with document zoom controlled independently. Shell motion stays under 250 ms and collapses to instant changes when the user enables reduced motion.
+
+```css
+.editor {
+  --od-editor-accent: #0f766e;
+  --od-editor-font-size: 15px;
+  --od-editor-density: 1.2;
+}
+```
+
+After building the example and starting the static server above, open `http://127.0.0.1:4174/react.html` in Chrome and choose **Open sample**. The example mounts the editor in React Strict Mode and shares bold between the editor and an external host control. Choose **Custom toolbar** and **Formatting panel** to open the host panel and apply text color. Toggle **Spacious UI** to apply host CSS settings to the mounted editor. **Close editor** runs the normal save prompt before React unmounts the editor. Open the sample again to create a fresh session. [React example](../../examples/web-sdk/react.tsx)
 
 XLSX 的 `XlsxSession` 与 `XlsxClient` 统一使用 `execute(command)`。命令联合类型和返回类型从 core 的无状态处理函数推导，Worker 直接转发。连接使用 `{ id, command }` 区分请求编号与原生对象身份。宿主的查找组合流程位于 `SpreadsheetEditor.search`，共享既有草稿和编辑屏障。
 
@@ -123,13 +171,13 @@ URL、字体、profile、容器和保存回调由宿主供应。四种格式入�
 
 `mountEditor` 追加实例自己的 open ShadowRoot，不替换宿主 DOM。领域包拥有文件准备、面板和输出动作；共用外壳处理候选替换、保存回调、确认与释放。输入、组合、拖拽和保存屏障仍归编辑宿主。`onSave` 成功后只确认该输出的 revision，浏览器下载不表示宿主已持久化。`close()` 保留未保存和草稿确认，`dispose()` 等待已接受工作后释放。具体合同见[默认 UI 与编辑宿主](formats/shared.md#默认-ui-与编辑宿主)。
 
-Tailwind 在构建时扫描共用控件及领域面板，省略 Preflight。生成的 CSS 作为 ESM 字符串进入实例样式；Base UI Portal 和 `styleNonce` 归实例。主题不改变文档颜色。
+Tailwind 在构建时扫描共用控件及领域面板，省略 Preflight。生成的 CSS 作为 ESM 字符串进入实例样式。Base UI Portal 和 `styleNonce` 归实例。标题栏的 Settings 菜单切换当前编辑器的界面主题和语言，宿主可用 `setTheme` 与 `setLocale` 切换同一状态。主题只作用于界面。
 
 普通 JS 示例见 [`examples/web-sdk`](../../examples/web-sdk/app.js)。示例按扩展名动态导入领域 React 入口，共用一个 Loader；四个 Worker 使用各自资源地址。
 
 ## 命令与开发预览
 
-使用 `moon-toolchain` 固定的 MoonBit 0.1.20261023 和 `.bun-version` 固定的 Bun 1.4.2。MoonBit 的官方安装归档版本为 `0.10.17+d971670cd`。运行 `moon version --all` 核对 CLI 和编译器。MoonBit 升级后，用 `bun run format` 和 `bun run api` 同步官方格式及生成接口：
+使用 `moon-toolchain` 固定的 Moon CLI 0.1.20261104 和 `.bun-version` 固定的 Bun 1.4.2。对应的官方稳定归档版本为 `0.10.20+65efd5b93`。运行 `moon version --all` 核对 CLI 和编译器。升级后使用 `bun run format` 和 `bun run api` 更新源文件格式和生成接口。
 
 ```sh
 bun install --frozen-lockfile

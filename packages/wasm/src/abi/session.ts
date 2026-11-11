@@ -3,6 +3,7 @@ import type { Budget } from "./validation.js";
 import { OutlineDelta } from "./outline-delta.js";
 
 export type DocumentStage =
+  | "engine"
   | "worker"
   | "input"
   | "container"
@@ -14,16 +15,19 @@ export type DocumentStage =
   | "save";
 
 export class DocumentError extends Error {
+  readonly resource: string | undefined;
+
   constructor(
     readonly code: string,
     message: string,
     readonly part: string,
     readonly offset: number,
     readonly stage?: DocumentStage,
-    options?: ErrorOptions,
+    options?: ErrorOptions & { readonly resource?: string | undefined },
   ) {
     super(message, options);
     this.name = "DocumentError";
+    this.resource = options?.resource;
   }
 }
 

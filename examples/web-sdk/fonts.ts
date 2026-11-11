@@ -1,4 +1,5 @@
 import type { EditorResources } from "@open-document/ui";
+import { DocumentError } from "@open-document/wasm";
 
 const defaults = [
   ["LiberationSans-Regular.ttf", "preview-sans"],
@@ -15,15 +16,24 @@ export async function previewFonts(
 ): Promise<Pick<EditorResources, "fonts" | "profile">> {
   const fonts: { identity: string; bytes: Uint8Array }[] = await Promise.all(
     defaults.map(async ([file, identity]) => {
-      const response = await fetch(
-        new URL(`./fonts/${file}`, import.meta.url),
-        { cache: "no-store" },
-      );
-      if (!response.ok)
-        throw new Error(
-          `Cannot load preview font: ${file} (${response.status})`,
+      const url = new URL(`./fonts/${file}`, import.meta.url);
+      try {
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return {
+          identity,
+          bytes: new Uint8Array(await response.arrayBuffer()),
+        };
+      } catch (cause) {
+        throw new DocumentError(
+          "font-load",
+          `Cannot load preview font ${file}: ${cause instanceof Error ? cause.message : String(cause)}`,
+          "",
+          -1,
+          "font",
+          { cause, resource: url.href },
         );
-      return { identity, bytes: new Uint8Array(await response.arrayBuffer()) };
+      }
     }),
   );
   for (const file of files)
@@ -39,6 +49,11 @@ export async function previewFonts(
       "*|bold": "preview-bold",
       "*|italic": "preview-italic",
       "*|bold|italic": "preview-bold-italic",
+      "Liberation Sans": "preview-sans",
+      "Liberation Sans|bold": "preview-bold",
+      "Liberation Sans|italic": "preview-italic",
+      "Liberation Sans|bold|italic": "preview-bold-italic",
+      "Noto Sans SC": "preview-cjk",
       "Cambria Math": "preview-math",
       "Cambria Math|bold": "preview-math",
       "Cambria Math|italic": "preview-math",

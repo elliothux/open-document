@@ -1,13 +1,15 @@
 ///|
+#derive(@json.FromJson)
 priv struct BookmarkNameRequest {
   name : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct BookmarkRenameRequest {
   name : String
   replacement : String
-} derive(@json.FromJson)
+}
 
 ///|
 fn bookmark_edit(change : Json) -> @model.BookmarkEdit raise @failure.Failure {
@@ -51,27 +53,32 @@ fn format_fields(
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct ListCreateRequest {
   format : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ListApplyRequest {
   id : @common.RequestInt
   level : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ListDirectionRequest {
   increase : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ListRestartRequest {
   start : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ListLevelFormatRequest {
   format : String
   pattern : String
@@ -79,7 +86,7 @@ priv struct ListLevelFormatRequest {
   restart : @common.RequiredNullable[@common.RequestInt]
   align : String
   suffix : String
-} derive(@json.FromJson)
+}
 
 ///|
 fn list_edit(change : Json) -> @model.ListEdit raise @failure.Failure {
@@ -301,10 +308,11 @@ fn paragraph_format(
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct UpdateStyleRequest {
   revision : @common.RequestInt
   key : String
-} derive(@json.FromJson)
+}
 
 ///|
 fn Context::edit_docx_style(

@@ -1,62 +1,80 @@
 ///|
+#derive(@json.FromJson)
 priv struct ProfileRequest {
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PrintRequest {
   revision : @common.RequestInt
   all : Bool
   hidden : Bool
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PdfExportRequest {
   outputBytes : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct HitRequest {
   layoutId : @common.RequestInt
   x : @common.RequestNumber
   y : @common.RequestNumber
   tolerance : @common.RequestNumber
   text : Bool?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct GeometryRequest {
   layoutId : @common.RequestInt
   gridScale : @common.RequestNumber?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson(fields(extend_flag(rename="extend"))))
 priv struct NavigateRequest {
   revision : @common.RequestInt
   layoutId : @common.RequestInt
   direction : String
   extend_flag : Bool
-} derive(@json.FromJson(fields(extend_flag(rename="extend"))))
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ResourceKeyRequest {
   key : String
-} derive(@json.FromJson)
+  preview : String?
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ImageRequest {
   bytes : String
   key : String
   width : @common.RequestInt
   height : @common.RequestInt
-} derive(@json.FromJson)
+  preview : String?
+}
 
 ///|
+#derive(@json.FromJson)
+priv struct PreviewTargetRequest {
+  revision : @common.RequestInt
+  slide : String
+}
+
+///|
+#derive(@json.FromJson)
 priv struct ImageKeysRequest {
   all : Bool
   hidden : Bool
-} derive(@json.FromJson)
+}
 
 ///|
 fn Context::retain_image_keys(
@@ -156,20 +174,51 @@ let view_handlers : Map[
   },
   "prepareImagePptx": (context, session, input) => {
     let command : ResourceKeyRequest = @common.request(input)
-    let (source, image) = session.prepare_image(command.key, context.images)
+    let preview = command.preview
+    let images = if preview is Some(_) {
+      context.preview_images
+    } else {
+      context.images
+    }
+    let (source, image) = session.prepare_image(command.key, images, preview?)
     @common.image_response(context.output, source, image)
   },
   "imagePptx": (context, session, input) => {
     let command : ImageRequest = @common.request(input)
-    ignore(session.image_bytes(command.key))
-    context.images.add(
+    let preview = command.preview
+    let images = if preview is Some(_) {
+      context.preview_images
+    } else {
+      context.images
+    }
+    ignore(session.image_bytes(command.key, preview?))
+    images.add(
       command.key,
       command.width.value,
       command.height.value,
       @common.byte_input(command.bytes, @layout.ImageBytes),
     )
-    session.invalidate_geometry()
-    { "key": context.images.get(command.key).identity }
+    if preview is None {
+      session.invalidate_geometry()
+    }
+    { "key": images.get(command.key).identity }
+  },
+  "previewKeysPptx": (context, session, input) => {
+    let target : PreviewTargetRequest = @common.request(input)
+    context.preview_images.clear()
+    Json(session.preview_keys(target.revision.value, target.slide))
+  },
+  "previewPptx": (context, session, input) => {
+    let target : PreviewTargetRequest = @common.request(input)
+    let command : ProfileRequest = @common.request(input)
+    defer context.preview_images.clear()
+    session.preview_drawing(
+      target.revision.value,
+      target.slide,
+      context.probe,
+      command.profile.value,
+      context.preview_images,
+    )
   },
   "imageKeysPptx": (context, session, input) => {
     let command : ImageKeysRequest = @common.request(input)

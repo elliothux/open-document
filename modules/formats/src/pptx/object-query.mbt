@@ -9,6 +9,7 @@ impl[T : ToJson] ToJson for QueryNullable[T] with fn to_json(self) {
 }
 
 ///|
+#derive(ToJson)
 priv struct QueryPicture {
   mode : String
   modeReason : String
@@ -20,9 +21,10 @@ priv struct QueryPicture {
   bottom : Double
   replaceReason : String
   cropReason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QueryAppearance {
   imageFill : QueryNullable[String]
   imageFillReason : String
@@ -45,9 +47,10 @@ priv struct QueryAppearance {
   tailEnd : LineEnd
   lineEndReason : String
   reason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QueryTextFrame {
   left : Double
   top : Double
@@ -63,9 +66,10 @@ priv struct QueryTextFrame {
   rotation : Double
   upright : Bool
   reason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct QueryObject {
   id : String
   parent : String
@@ -98,7 +102,7 @@ priv struct QueryObject {
   appearance : QueryAppearance
   textFrame : QueryTextFrame
   geometry : QueryNullable[Geometry]
-} derive(ToJson)
+}
 
 ///|
 fn Session::query_object(

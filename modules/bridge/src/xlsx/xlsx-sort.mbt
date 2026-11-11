@@ -1,13 +1,15 @@
 ///|
+#derive(@json.FromJson)
 priv struct SortRequest {
   range : String
   rows : Bool
   header : Bool
   caseSensitive : Bool
   keys : Array[SortKeyRequest]
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SortKeyRequest {
   index : @common.RequestInt
   descending : Bool
@@ -16,7 +18,7 @@ priv struct SortKeyRequest {
   color : String?
   iconSet : String?
   iconId : @common.RequestInt?
-} derive(@json.FromJson)
+}
 
 ///|
 fn xlsx_sort(change : Json) -> @model.SheetEdit raise @failure.Failure {

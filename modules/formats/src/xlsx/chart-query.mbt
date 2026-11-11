@@ -1,4 +1,5 @@
 ///|
+#derive(ToJson)
 priv struct ChartQuery {
   id : String
   anchor : String
@@ -18,7 +19,7 @@ priv struct ChartQuery {
   values : Array[String]
   data : String
   bindingReason : String
-} derive(ToJson)
+}
 
 ///|
 pub fn Session::charts(

@@ -1,4 +1,5 @@
 ///|
+#derive(ToJson)
 priv struct XlsxInputLimits {
   fontBytes : Int32
   exportBytes : Int32
@@ -6,7 +7,7 @@ priv struct XlsxInputLimits {
   imageBytes : Int32
   rgbaBytes : Int32
   delimitedBytes : Int32
-} derive(ToJson)
+}
 
 ///|
 let session_handlers : Map[

@@ -5,6 +5,7 @@ import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 
 import { DocxTabFields } from "./docx-tab-fields.js";
+import { Icon } from "@open-document/ui/icons";
 
 interface Props {
   controller: EditorController;
@@ -31,14 +32,20 @@ export function DocxTabs({ controller, state, editor, disabled }: Props) {
       }}
     >
       <fieldset disabled={disabled}>
-        <legend>{t.tabStops}</legend>
+        <legend>
+          <Icon name="key-tab" />
+          {t.tabStops}
+        </legend>
         {current?.kind === "mixed" && <p>{t.mixed}</p>}
         <DocxTabFields
           draft={draft}
           setDraft={setDraft}
           locale={state.locale}
         />
-        <button type="submit">{t.applyTabStops}</button>
+        <button type="submit">
+          <Icon name="check" />
+          {t.applyTabStops}
+        </button>
         <button
           type="button"
           onClick={() =>
@@ -47,6 +54,7 @@ export function DocxTabs({ controller, state, editor, disabled }: Props) {
             )
           }
         >
+          <Icon name="eraser" />
           {t.clearTabStops}
         </button>
         <button
@@ -57,6 +65,7 @@ export function DocxTabs({ controller, state, editor, disabled }: Props) {
             )
           }
         >
+          <Icon name="undo" />
           {t.restoreTabStops}
         </button>
       </fieldset>
@@ -79,7 +88,10 @@ export function DocxDefaultTab({ controller, state, editor, disabled }: Props) {
       }}
     >
       <fieldset disabled={disabled}>
-        <legend>{t.defaultTabStop}</legend>
+        <legend>
+          <Icon name="key-tab" />
+          {t.defaultTabStop}
+        </legend>
         <label>
           {t.defaultTabInterval}
           <input
@@ -93,13 +105,17 @@ export function DocxDefaultTab({ controller, state, editor, disabled }: Props) {
             onChange={(event) => setDraft(event.currentTarget.value)}
           />
         </label>
-        <button type="submit">{t.applyDefaultTab}</button>
+        <button type="submit">
+          <Icon name="check" />
+          {t.applyDefaultTab}
+        </button>
         <button
           type="button"
           onClick={() =>
             controller.run(() => editor.formatting.setDefaultTabStop(null))
           }
         >
+          <Icon name="undo" />
           {t.restoreDefaultTab}
         </button>
       </fieldset>

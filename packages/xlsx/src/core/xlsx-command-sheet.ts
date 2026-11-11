@@ -1,4 +1,8 @@
 import { type XlsxQuery } from "./xlsx-query.js";
+import type {
+  XlsxFormulaAssistance,
+  XlsxFormulaDraft,
+} from "./xlsx-formula.js";
 import {
   checkXlsxSubtotalSettings,
   type XlsxSubtotals,
@@ -625,6 +629,24 @@ export const xlsxSheetCommands = {
     return session.call<XlsxSelectionGeometry>({
       operation: "selectionXlsx",
       layoutId,
+    });
+  },
+  formulaAssistXlsx(
+    session: XlsxRuntime,
+    draft: XlsxFormulaDraft,
+  ): XlsxFormulaAssistance {
+    return session.call<XlsxFormulaAssistance>({
+      operation: "formulaAssistXlsx",
+      ...draft,
+    });
+  },
+  numberFormatSamplesXlsx(
+    session: XlsxRuntime,
+    { formats }: { formats: readonly string[] },
+  ): string[] {
+    return session.call<string[]>({
+      operation: "numberFormatSamplesXlsx",
+      formats,
     });
   },
   fillPreviewXlsx(

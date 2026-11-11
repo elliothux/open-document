@@ -67,6 +67,7 @@ fn master_text_properties(paragraph : Ref?) -> Ref? raise @failure.Failure {
 }
 
 ///|
+#derive(ToJson)
 priv struct MasterTextFormatQuery {
   font : String
   size : Double
@@ -78,22 +79,24 @@ priv struct MasterTextFormatQuery {
   strike : Bool
   highlight : String
   script : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct MasterTextStyleQuery {
   kind : String
   level : Int32
   format : Json
   reason : String
   paragraph : Json
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct MasterTextStylesQuery {
   items : Array[MasterTextStyleQuery]
   reason : String
-} derive(ToJson)
+}
 
 ///|
 fn Session::master_text_styles(

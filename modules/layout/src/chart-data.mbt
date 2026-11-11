@@ -28,15 +28,17 @@ pub fn horizontal_bar_chart(kind : String) -> Bool {
 }
 
 ///|
+#derive(Eq)
 pub(all) struct ChartSeries {
   name : String
   values : Array[Double?]
-} derive(Eq)
+}
 
 ///|
 pub extend ChartSeries with Eq::{equal, not_equal}
 
 ///|
+#derive(Eq)
 pub(all) struct ChartData {
   kind : String
   hole_size : Int32?
@@ -45,7 +47,7 @@ pub(all) struct ChartData {
   label : String
   categories : Array[String]
   series : Array[ChartSeries]
-} derive(Eq)
+}
 
 ///|
 pub extend ChartData with Eq::{equal, not_equal}

@@ -4,6 +4,15 @@ fn Styles::validate_style(
   key : String,
   kind : String,
 ) -> Unit raise @failure.Failure {
+  ignore(self.checked_style_appearance(key, kind))
+}
+
+///|
+fn Styles::checked_style_appearance(
+  self : Styles,
+  key : String,
+  kind : String,
+) -> RunStyle raise @failure.Failure {
   guard !key.is_empty() &&
     key.length() <= 200 &&
     @xml.valid_text(key) &&
@@ -63,6 +72,7 @@ fn Styles::validate_style(
     highlight=Set(character.highlight),
     vertAlign=Set(character.vertAlign),
   ).validate()
+  character
 }
 
 ///|
@@ -113,11 +123,22 @@ pub fn Session::style_catalog(
         truncated = true
         break
       }
-      let reason = try {
-        styles.validate_style(key, kind)
-        ""
+      let (reason, preview) : (String, Json) = try {
+        let character = styles.checked_style_appearance(key, kind)
+        (
+          "",
+          {
+            "family": character.family,
+            "size": character.size,
+            "color": character.text_color("ffffff"),
+            "bold": character.bold,
+            "italic": character.italic,
+            "underline": character.underline,
+            "strike": character.strike,
+          },
+        )
       } catch {
-        @failure.Failure(message~, ..) => message
+        @failure.Failure(message~, ..) => (message, Json::null())
       }
       result.push({
         "id": key,
@@ -127,6 +148,7 @@ pub fn Session::style_catalog(
         "canDelete": reason.is_empty() && styles.can_delete(key),
         "canReset": reason.is_empty() && styles.reset_profile(key) is Some(_),
         "linked": styles.is_linked(key),
+        "preview": preview,
       })
     }
   }

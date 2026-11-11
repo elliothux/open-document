@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { XlsxPivotFilter, XlsxPivotPreview } from "../web/xlsx.js";
 import type { UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function PivotFilters({
   filters,
@@ -151,6 +152,7 @@ export function PivotFilters({
             setFilters([...filters, { field, report: true, values: null }]);
         }}
       >
+        <Icon name="plus" />
         {t.pivotAddFilter}
       </button>
       <button
@@ -169,6 +171,7 @@ export function PivotFilters({
             setFilters([...filters, { field, report: false, values: null }]);
         }}
       >
+        <Icon name="plus" />
         {t.pivotAddAxisFilter}
       </button>
     </>

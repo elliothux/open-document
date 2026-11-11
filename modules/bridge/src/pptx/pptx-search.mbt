@@ -1,19 +1,22 @@
 ///|
+#derive(@json.FromJson)
 priv struct SearchOptionsRequest {
   matchCase : Bool?
   wholeWord : Bool?
   all : Bool?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct FindRequest {
   revision : @common.RequestInt
   slide : String
   text : String
   options : FindOptionsRequest
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ReplaceMatchesRequest {
   revision : @common.RequestInt
   slide : String
@@ -22,7 +25,7 @@ priv struct ReplaceMatchesRequest {
   replacement : String
   index : @common.RequiredNullable[@common.RequestInt]?
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
 priv struct FindOptionsRequest {

@@ -1,18 +1,5 @@
 import type { EngineHandle } from "@open-document/wasm";
-import { engineModule } from "@open-document/wasm/loader";
-import { type Budget } from "@open-document/wasm/abi/session";
-import type { Connection } from "@open-document/web-core/connection";
-import type {
-  OfficeCommand,
-  WorkerOperation,
-} from "@open-document/web-core/protocol";
-import { openWorkerConnection } from "@open-document/web-core/worker-connection";
-import {
-  decodeXlsxResult,
-  type XlsxCommand,
-  type XlsxResult,
-} from "../core/xlsx-command.js";
-import { spreadsheetDate } from "../core/xlsx-filter.js";
+import { type XlsxCommand, type XlsxResult } from "../core/xlsx-command.js";
 import { resetCellClipboard } from "./spreadsheet-clipboard.js";
 
 export * from "../core/xlsx-comments.js";
@@ -202,56 +189,63 @@ export type {
   CopiedCellFormat,
   XlsxSelectionGeometry,
 } from "../core/xlsx.js";
+export type { XlsxInputLimits } from "../core/xlsx.js";
+import { XlsxWorkerSession } from "../headless.js";
 
-export type XlsxOperation = WorkerOperation<OfficeCommand<XlsxCommand>>;
+import { checkViewCommand } from "@open-document/web-core/view-mode";
 
-/** Browser workbook transport; one Worker owns the complete core session. */
-export class XlsxClient {
-  private constructor(
-    private readonly connection: Connection<XlsxOperation, XlsxInputLimits>,
-  ) {}
-  static async open(
+const viewCommands = new Set<XlsxCommand["operation"]>([
+  "queryXlsx",
+  "viewportXlsx",
+  "hitXlsx",
+  "copyXlsx",
+  "navigateXlsx",
+  "selectXlsx",
+  "selectionXlsx",
+  "formulaAssistXlsx",
+  "numberFormatSamplesXlsx",
+  "selectDrawingXlsx",
+  "findXlsx",
+  "saveXlsx",
+  "exportXlsxCsv",
+  "exportXlsxPdf",
+  "printXlsx",
+  "picturesXlsx",
+  "prepareImageXlsx",
+  "imageXlsx",
+  "shapesXlsx",
+  "getXlsxChart",
+  "pivotsXlsx",
+  "slicersXlsx",
+  "timelinesXlsx",
+  "threadsXlsx",
+]);
+
+export class XlsxClient extends XlsxWorkerSession {
+  readOnly = false;
+
+  protected override checkCommand(command: XlsxCommand): void {
+    checkViewCommand(this.readOnly, viewCommands, command.operation);
+    super.checkCommand(command);
+  }
+
+  static override async open(
     engine: EngineHandle,
     workerUrl: URL,
     signal?: AbortSignal,
   ): Promise<XlsxClient> {
-    return new XlsxClient(
-      await openWorkerConnection<XlsxOperation, XlsxInputLimits>(
-        engineModule(engine),
-        workerUrl,
-        signal,
-      ),
-    );
+    return new XlsxClient(await this.connect(engine, workerUrl, signal));
   }
-  async defaultBudget(): Promise<Budget> {
-    return (await this.connection.request({ operation: "budget" })) as Budget;
-  }
-  async addFont(bytes: Uint8Array, identity: string): Promise<void> {
-    await this.connection.request({ operation: "font", bytes, identity });
-  }
-  inputLimits(): XlsxInputLimits {
-    return this.connection.inputLimits();
-  }
-  async execute<C extends XlsxCommand>(command: C): Promise<XlsxResult<C>> {
-    checkXlsxByteInput(command, this.connection.inputLimits());
+  override async execute<C extends XlsxCommand>(
+    command: C,
+  ): Promise<XlsxResult<C>> {
+    this.checkCommand(command);
     if (
       command.operation === "openXlsx" ||
       command.operation === "createXlsx" ||
       command.operation === "importXlsxDelimited"
     )
       resetCellClipboard(this);
-    const request =
-      command.operation === "openXlsx" ||
-      command.operation === "createXlsx" ||
-      command.operation === "importXlsxDelimited" ||
-      command.operation === "editXlsxSheet"
-        ? { ...command, date: spreadsheetDate(command.date) }
-        : command;
-    return decodeXlsxResult(command, await this.connection.request(request));
-  }
-  dispose(): void {
-    this.connection.dispose();
+    return super.execute(command);
   }
 }
-import { checkXlsxByteInput, type XlsxInputLimits } from "../core/xlsx.js";
-export type { XlsxInputLimits } from "../core/xlsx.js";

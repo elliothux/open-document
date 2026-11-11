@@ -4,6 +4,7 @@ import { checkDocxComment, type DocxCommentEdit } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { docxCommentTextUnits } from "@open-document/wasm/engine-source";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxComments({
   controller,
@@ -86,13 +87,15 @@ export function DocxComments({
   const author = controller.options.commentAuthor;
   return (
     <section ref={panel} aria-label={t.docxComments}>
-      <h2>{t.docxComments}</h2>
       {editor.layout.comments.reason &&
         editor.layout.comments.reason !== result?.reason && (
           <p>{editor.layout.comments.reason}</p>
         )}
       <fieldset disabled={disabled || blocked || stale || !!result?.reason}>
-        <legend>{t.docxComments}</legend>
+        <legend>
+          <Icon name="comment-count" />
+          {t.docxComments}
+        </legend>
         {result?.reason && <p>{result.reason}</p>}
         {(["previous", "next"] as const).map((direction) => (
           <button
@@ -149,6 +152,7 @@ export function DocxComments({
             <p>
               {result?.items.find((item) => item.id === parent)?.text}
               <button type="button" onClick={() => setParent(null)}>
+                <Icon name="close" />
                 {t.cancel}
               </button>
             </p>
@@ -193,6 +197,7 @@ export function DocxComments({
                   disabled={!author || !!comment.reason}
                   onClick={() => setParent(comment.id)}
                 >
+                  <Icon name="check" />
                   {t.commentReply}
                 </button>
                 <button
@@ -277,12 +282,14 @@ function CommentEntry({
             type="submit"
             disabled={!text.trim() || text === comment.text}
           >
+            <Icon name="check" />
             {t.commentUpdate}
           </button>
           <button
             type="button"
             onClick={() => apply({ action: "goTo", id: comment.id })}
           >
+            <Icon name="arrow-right" />
             {t.commentGoTo}
           </button>
           <button

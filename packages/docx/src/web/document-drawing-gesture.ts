@@ -28,6 +28,11 @@ export class DocxDrawingGesture {
   private scale = 1;
   private ending = false;
   private pageTime = 0;
+  get pictureSelected(): boolean {
+    return (
+      !!this.image && !("preset" in this.image) && !("settings" in this.image)
+    );
+  }
   constructor(
     private readonly canvas: HTMLCanvasElement,
     viewport: HTMLElement,
@@ -77,7 +82,7 @@ export class DocxDrawingGesture {
             this.origin = handle === 0 ? this.local(point) : point;
             this.scale = host.current().scale;
             this.pageTime = performance.now();
-            if (handle === 0) host.input();
+            host.input();
             const drawing = this.image?.id;
             if (drawing === undefined)
               throw new Error("Select a drawing before starting a gesture");

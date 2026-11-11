@@ -1,0 +1,191 @@
+.od-xlsx-formula-entry {
+  position: relative;
+}
+
+.od-xlsx-formula-hints {
+  position: absolute;
+  z-index: 6;
+  width: max-content;
+  min-width: 150px;
+  max-width: min(360px, 92cqw);
+  padding: 4px;
+  color: var(--od-ui-ink);
+  background: var(--od-ui-surface);
+  border: 1px solid var(--od-ui-line);
+  border-radius: 5px;
+  box-shadow: 0 4px 12px #0002;
+  font-size: 12px;
+  text-align: left;
+}
+
+.od-formula:has(.od-xlsx-formula-hints:not([hidden])) {
+  z-index: 6;
+}
+
+.od-xlsx-formula-hints [role="option"] {
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.od-xlsx-formula-hints [role="option"][aria-selected="true"],
+.od-xlsx-formula-hints [role="option"]:hover {
+  background: var(--od-ui-hover);
+  color: var(--od-ui-accent);
+}
+
+.od-xlsx-formula-hints [role="status"]:not(:empty),
+.od-xlsx-reference-labels:not(:empty) {
+  padding: 3px 7px;
+}
+
+.od-xlsx-reference-labels:not(:empty) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.od-xlsx-reference-labels span {
+  padding: 0 4px;
+  border-bottom: 2px solid var(--od-xlsx-reference-color);
+  overflow-wrap: anywhere;
+}
+
+.od-xlsx-reference-outlines {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.od-xlsx-reference-outlines span {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px dashed;
+}
+
+.od-ribbon select.od-xlsx-number-format {
+  width: min(200px, 44cqw);
+  max-width: none;
+}
+
+.od-xlsx-font-toggles {
+  display: flex;
+  gap: 2px;
+}
+
+/* The cell-format group is wider, so XLSX folds its tools earlier. */
+@container od-editor (max-width: 1320px) {
+  .od-ribbon[data-format="xlsx"] .od-ribbon-secondary {
+    display: none;
+  }
+  .od-ribbon[data-format="xlsx"] .od-ribbon-more {
+    display: flex;
+  }
+}
+
+@container od-editor (max-width: 1080px) {
+  [data-format="xlsx"] .od-font-family {
+    width: min(128px, 42cqw);
+  }
+  .od-ribbon-compact[data-format="xlsx"] select.od-xlsx-number-format {
+    width: min(176px, 44cqw);
+  }
+}
+
+.od-xlsx-axis-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.od-xlsx-axis-layer .od-xlsx-axis-button {
+  position: absolute;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  pointer-events: auto;
+  cursor: context-menu;
+}
+
+.od-xlsx-axis-layer .od-xlsx-axis-button:is(:hover, [aria-expanded="true"]) {
+  background: color-mix(in srgb, var(--od-ui-accent) 12%, transparent);
+}
+
+.od-xlsx-axis-layer .od-xlsx-axis-button:focus-visible {
+  outline: 2px solid var(--od-ui-accent);
+  outline-offset: -2px;
+}
+
+.od-menu.od-xlsx-axis-menu {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+}
+
+.od-xlsx-axis-menu > button {
+  display: block;
+  width: 100%;
+  text-align: start;
+}
+
+.od-xlsx-axis-menu > button:enabled:is(:focus-visible, :hover) {
+  background: var(--od-ui-hover);
+  color: var(--od-ui-accent);
+  outline: none;
+}
+
+.od-xlsx-axis-menu > p {
+  padding: 4px 8px;
+}
+
+.od-xlsx-axis-caption {
+  display: block;
+  padding: 4px 8px;
+  color: var(--od-ui-muted);
+  font-weight: 600;
+}
+
+.od-xlsx-axis-dialog {
+  width: min(310px, calc(100vw - 32px));
+  padding: 16px;
+  border: 1px solid var(--od-ui-line);
+  border-radius: 8px;
+  background: var(--od-ui-surface);
+  color: var(--od-ui-ink);
+}
+
+.od-xlsx-axis-dialog::backdrop {
+  background: rgb(0 0 0 / 28%);
+}
+
+.od-xlsx-axis-dialog h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.od-xlsx-axis-dialog label {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.od-xlsx-axis-dialog button + button {
+  margin-inline-start: 4px;
+}
+
+.od-xlsx-statistics {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+}
+
+.od-xlsx-statistics [data-empty] {
+  color: var(--od-ui-faint);
+}
+
+/* The cell editor's draft border is its focus indicator. */
+.od-surface[data-format="xlsx"] textarea:focus {
+  outline: none;
+}

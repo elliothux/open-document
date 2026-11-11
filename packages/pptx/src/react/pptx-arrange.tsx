@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { PresentationEditor } from "../web/presentation-editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
+import { Icon } from "@open-document/ui/icons";
 import { messages } from "@open-document/ui/messages";
 
 type Props = {
@@ -30,7 +31,10 @@ export function PptxTransform({ controller, state, editor, disabled }: Props) {
         )
       }
     >
-      <legend>{t.transform}</legend>
+      <legend>
+        <Icon name="move" />
+        {t.transform}
+      </legend>
       <label>
         {t.deltaX}
         <input
@@ -53,6 +57,7 @@ export function PptxTransform({ controller, state, editor, disabled }: Props) {
           controller.run(() => editor.transform(Number(dx), Number(dy)))
         }
       >
+        <Icon name="move" />
         {t.move}
       </button>
       <button
@@ -61,6 +66,7 @@ export function PptxTransform({ controller, state, editor, disabled }: Props) {
           controller.run(() => editor.transform(Number(dx), Number(dy), 3))
         }
       >
+        <Icon name="ruler" />
         {t.resize}
       </button>
     </fieldset>
@@ -98,7 +104,36 @@ export function PptxArrange({ controller, state, editor, disabled }: Props) {
     objects.some((item) => item.parent !== object.parent);
   return (
     <fieldset disabled={unavailable}>
-      <legend>{t.arrangeObjects}</legend>
+      <legend>
+        <Icon name="layers" />
+        {t.arrangeObjects}
+      </legend>
+      <div className="od-pptx-arrange-actions">
+        {(
+          [
+            ["front", t.bringFront, "bring-to-front"],
+            ["back", t.sendBack, "send-to-back"],
+            ["forward", t.bringForward, "bring-forward"],
+            ["backward", t.sendBackward, "send-backward"],
+          ] as const
+        ).map(([order, label, icon]) => (
+          <button
+            key={order}
+            type="button"
+            disabled={!!reason}
+            title={reason}
+            onClick={() =>
+              controller.run(() =>
+                editor.editObjects({ action: "layer", order }),
+              )
+            }
+          >
+            <Icon name={icon} />
+            <span>{label}</span>
+          </button>
+        ))}
+      </div>
+      {reason && <p>{reason}</p>}
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -122,6 +157,7 @@ export function PptxArrange({ controller, state, editor, disabled }: Props) {
           />
         </label>
         <button type="submit" disabled={!!rotateReason}>
+          <Icon name="check" />
           {t.applyRotation}
         </button>
       </form>
@@ -143,6 +179,7 @@ export function PptxArrange({ controller, state, editor, disabled }: Props) {
           )
         }
       >
+        <Icon name="move" />
         {t.flipHorizontal}
       </button>
       <button
@@ -162,29 +199,9 @@ export function PptxArrange({ controller, state, editor, disabled }: Props) {
           )
         }
       >
+        <Icon name="move" />
         {t.flipVertical}
       </button>
-      {(
-        [
-          ["front", t.bringFront],
-          ["back", t.sendBack],
-          ["forward", t.bringForward],
-          ["backward", t.sendBackward],
-        ] as const
-      ).map(([order, label]) => (
-        <button
-          key={order}
-          type="button"
-          disabled={!!reason}
-          title={reason}
-          onClick={() =>
-            controller.run(() => editor.editObjects({ action: "layer", order }))
-          }
-        >
-          {label}
-        </button>
-      ))}
-      {reason && <p>{reason}</p>}
     </fieldset>
   );
 }

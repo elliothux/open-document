@@ -324,27 +324,30 @@ fn WordTree::read_index_entries(
 }
 
 ///|
+#derive(ToJson)
 priv struct IndexEntrySummary {
   id : Int32
   paragraph : Int32
   label : String
   reason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct IndexFieldSummary {
   paragraph : Int32
   endParagraph : Int32
   instruction : String
   reason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct IndexCatalog {
   revision : Int32
   entries : Array[IndexEntrySummary]
   indexes : Array[IndexFieldSummary]
-} derive(ToJson)
+}
 
 ///|
 /// Lists native index entry fields and generated indexes without changing document history.

@@ -1,4 +1,5 @@
 ///|
+#derive(@json.FromJson)
 priv struct ConditionalRuleRequest {
   kind : String
   operator : String
@@ -11,23 +12,26 @@ priv struct ConditionalRuleRequest {
   icons : @model.IconSet?
   rank : ConditionalRankRequest?
   average : ConditionalAverageRequest?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ConditionalRankRequest {
   rank : @common.RequestInt
   percent : Bool
   bottom : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ConditionalAverageRequest {
   above : Bool
   equal : Bool
   stdDev : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct DataBarRequest {
   minimum : @model.ConditionalThreshold
   maximum : @model.ConditionalThreshold
@@ -35,7 +39,7 @@ priv struct DataBarRequest {
   showValue : Bool
   minLength : @common.RequestInt
   maxLength : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
 priv struct ConditionalSettingsRequest {

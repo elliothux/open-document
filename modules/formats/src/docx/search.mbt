@@ -23,18 +23,20 @@ priv struct SearchGroup {
 }
 
 ///|
+#derive(ToJson)
 priv struct SearchMatch {
   selection : Selection
   snippet : String
   reason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct SearchResult {
   revision : Int32
   truncated : Bool
   matches : Array[SearchMatch]
-} derive(ToJson)
+}
 
 ///|
 fn SearchGroup::position(

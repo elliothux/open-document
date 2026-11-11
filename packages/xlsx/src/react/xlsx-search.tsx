@@ -5,6 +5,7 @@ import type {
 } from "../web/spreadsheet-editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function XlsxSearch({
   controller,
@@ -34,9 +35,9 @@ export function XlsxSearch({
     !!result &&
     (result.documentId !== snapshot.documentId ||
       result.revision !== snapshot.revision);
+  const readOnly = state.mode === "view";
   return (
     <section aria-label={t.findReplace}>
-      <h2>{t.findReplace}</h2>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -82,53 +83,60 @@ export function XlsxSearch({
           </label>
         ))}
         <button type="submit" disabled={disabled || !text}>
+          <Icon name="search" />
           {t.find}
         </button>
       </form>
-      <label>
-        {t.replaceWith}
-        <input
-          value={replacement}
-          maxLength={32767}
-          disabled={disabled}
-          onChange={(event) => setReplacement(event.currentTarget.value)}
-        />
-      </label>
-      <button
-        type="button"
-        disabled={
-          disabled ||
-          stale ||
-          !result?.matches[selected] ||
-          !!result.matches[selected]?.reason
-        }
-        onClick={() =>
-          result &&
-          controller.run(() =>
-            editor.search.replaceMatches(result, replacement, selected),
-          )
-        }
-      >
-        {t.replaceMatch}
-      </button>
-      <button
-        type="button"
-        disabled={
-          disabled ||
-          stale ||
-          !result?.matches.length ||
-          result.truncated ||
-          result.matches.some((item) => !!item.reason)
-        }
-        onClick={() =>
-          result &&
-          controller.run(() =>
-            editor.search.replaceMatches(result, replacement),
-          )
-        }
-      >
-        {t.replaceAll}
-      </button>
+      {!readOnly && (
+        <>
+          <label>
+            {t.replaceWith}
+            <input
+              value={replacement}
+              maxLength={32767}
+              disabled={disabled}
+              onChange={(event) => setReplacement(event.currentTarget.value)}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={
+              disabled ||
+              stale ||
+              !result?.matches[selected] ||
+              !!result.matches[selected]?.reason
+            }
+            onClick={() =>
+              result &&
+              controller.run(() =>
+                editor.search.replaceMatches(result, replacement, selected),
+              )
+            }
+          >
+            <Icon name="search" />
+            {t.replaceMatch}
+          </button>
+          <button
+            type="button"
+            disabled={
+              disabled ||
+              stale ||
+              !result?.matches.length ||
+              result.truncated ||
+              result.matches.some((item) => !!item.reason)
+            }
+            onClick={() =>
+              result &&
+              controller.run(() =>
+                editor.search.replaceMatches(result, replacement),
+              )
+            }
+          >
+            <Icon name="search" />
+            {t.replaceAll}
+          </button>
+        </>
+      )}
       <p role="status">
         {stale
           ? t.searchStale

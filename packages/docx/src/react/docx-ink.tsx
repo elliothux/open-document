@@ -3,6 +3,7 @@ import type { DocumentEditor } from "../web/editor.js";
 import type { DocxInkTool } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxInk({
   controller,
@@ -27,7 +28,10 @@ export function DocxInk({
   };
   return (
     <fieldset disabled={disabled}>
-      <legend>{t.docxInk}</legend>
+      <legend>
+        <Icon name="pen" />
+        {t.docxInk}
+      </legend>
       {(
         [
           ["select", t.docxInkSelect],

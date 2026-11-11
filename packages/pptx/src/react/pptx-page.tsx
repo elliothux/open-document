@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { pptxNotesTextUnits } from "@open-document/wasm/engine-source";
 import type { PanelProps } from "./panels.js";
 import { messages } from "@open-document/ui/messages";
 import { ImageInsetsForm } from "./pptx-picture.js";
 import { GradientStops } from "./pptx-paint.js";
 import type { PptxBackgroundFill } from "../web/pptx.js";
+import { PptxPreview } from "./pptx-preview.js";
+import { Icon } from "@open-document/ui/icons";
 
 export function PptxSlideLayout({
   controller,
@@ -15,6 +17,7 @@ export function PptxSlideLayout({
   const layout =
     file.format === "pptx" ? file.editor.query.slideLayout : undefined;
   const [chosen, setChosen] = useState(layout?.current ?? "");
+  const group = useId();
   if (file.format !== "pptx" || !layout) return null;
   const editor = file.editor,
     t = messages(state.locale);
@@ -29,24 +32,41 @@ export function PptxSlideLayout({
       }}
     >
       <fieldset disabled={disabled || !!layout.reason}>
-        <legend>{t.slideLayout}</legend>
-        <label>
-          {t.chooseSlideLayout}
-          <select
-            aria-label={t.chooseSlideLayout}
-            value={chosen}
-            onChange={(event) => setChosen(event.currentTarget.value)}
-          >
-            {layout.choices.map((choice, index) => (
-              <option key={choice.id} value={choice.id}>
+        <legend>
+          <Icon name="presentation" />
+          {t.slideLayout}
+        </legend>
+        <div
+          className="od-slide-gallery"
+          role="radiogroup"
+          aria-label={t.chooseSlideLayout}
+        >
+          {layout.choices.map((choice, index) => (
+            <label key={choice.id}>
+              <input
+                type="radio"
+                name={group}
+                value={choice.id}
+                checked={chosen === choice.id}
+                onChange={() => setChosen(choice.id)}
+              />
+              <PptxPreview
+                editor={editor}
+                slide={choice.id}
+                revision={editor.query.revision}
+                width={editor.query.width}
+                height={editor.query.height}
+              />
+              <span>
                 {choice.name || `${t.slideLayout} ${index + 1}`} /{" "}
                 {choice.masterName ||
                   `${t.slideMaster} ${masters.indexOf(choice.master) + 1}`}
-              </option>
-            ))}
-          </select>
-        </label>
+              </span>
+            </label>
+          ))}
+        </div>
         <button type="submit" disabled={!chosen || chosen === layout.current}>
+          <Icon name="check" />
           {t.applySlideLayout}
         </button>
         <button
@@ -55,6 +75,7 @@ export function PptxSlideLayout({
             controller.run(() => editor.editSlides({ action: "resetLayout" }))
           }
         >
+          <Icon name="undo" />
           {t.resetSlideLayout}
         </button>
       </fieldset>
@@ -77,17 +98,14 @@ export function PptxNotes({ controller, state, file, disabled }: PanelProps) {
       }}
     >
       <fieldset disabled={disabled || !!notes.reason}>
-        <legend>{t.speakerNotes}</legend>
-        <label>
-          {t.speakerNotes}
-          <textarea
-            aria-label={t.speakerNotes}
-            maxLength={pptxNotesTextUnits}
-            value={text}
-            onChange={(e) => setText(e.currentTarget.value)}
-          />
-        </label>
+        <textarea
+          aria-label={t.speakerNotes}
+          maxLength={pptxNotesTextUnits}
+          value={text}
+          onChange={(e) => setText(e.currentTarget.value)}
+        />
         <button type="submit" disabled={text === notes.text}>
+          <Icon name="check" />
           {t.applyNotes}
         </button>
         <button
@@ -99,11 +117,24 @@ export function PptxNotes({ controller, state, file, disabled }: PanelProps) {
             )
           }
         >
+          <Icon name="eraser" />
           {t.clearNotes}
         </button>
       </fieldset>
       {notes.reason && <p>{notes.reason}</p>}
     </form>
+  );
+}
+
+export function PptxNotesBar(props: PanelProps) {
+  const { file, state } = props;
+  const query = file.editor.query;
+  if (query.editView.kind !== "slide") return null;
+  return (
+    <details className="od-slide-notes" key={state.document?.documentId}>
+      <summary>{messages(state.locale).speakerNotes}</summary>
+      <PptxNotes key={query.slide + ":" + query.notes.text} {...props} />
+    </details>
   );
 }
 
@@ -193,7 +224,10 @@ export function PptxBackground({
         }}
       >
         <fieldset disabled={disabled || !!background.reason}>
-          <legend>{t.slideBackground}</legend>
+          <legend>
+            <Icon name="paint-bucket" />
+            {t.slideBackground}
+          </legend>
           <label>
             {t.backgroundType}
             <select
@@ -238,7 +272,10 @@ export function PptxBackground({
                 </select>
               </label>
               <fieldset disabled={fill?.kind !== "image"}>
-                <legend>{t.pictureCrop}</legend>
+                <legend>
+                  <Icon name="crop" />
+                  {t.pictureCrop}
+                </legend>
                 {(
                   [
                     ["left", t.cropLeft],
@@ -271,6 +308,7 @@ export function PptxBackground({
                     setCrop({ left: 0, top: 0, right: 0, bottom: 0 })
                   }
                 >
+                  <Icon name="undo" />
                   {t.resetCrop}
                 </button>
               </fieldset>
@@ -291,6 +329,7 @@ export function PptxBackground({
                 />
               </label>
               <label>
+                <Icon name="upload" />
                 {t.slideBackgroundPicture}
                 <input
                   type="file"
@@ -367,6 +406,7 @@ export function PptxBackground({
             onMouseDown={(event) => event.preventDefault()}
             aria-label={`${t.apply} ${t.slideBackground}`}
           >
+            <Icon name="check" />
             {t.apply}
           </button>
           <button
@@ -379,6 +419,7 @@ export function PptxBackground({
               )
             }
           >
+            <Icon name="format-painter" />
             {t.inheritStyleProperty}
           </button>
         </fieldset>
@@ -425,7 +466,10 @@ export function PptxSize({ controller, state, file, disabled }: PanelProps) {
       }}
     >
       <fieldset disabled={disabled || !!editor.query.slideSizeReason}>
-        <legend>{t.slideSize}</legend>
+        <legend>
+          <Icon name="ruler" />
+          {t.slideSize}
+        </legend>
         <p>{t.scaleSlideContents}</p>
         <label>
           {t.pageWidth}
@@ -470,6 +514,7 @@ export function PptxSize({ controller, state, file, disabled }: PanelProps) {
           4:3
         </button>
         <button type="submit" aria-label={`${t.apply} ${t.slideSize}`}>
+          <Icon name="check" />
           {t.apply}
         </button>
       </fieldset>

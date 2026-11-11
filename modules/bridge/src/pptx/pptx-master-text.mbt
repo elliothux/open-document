@@ -1,9 +1,10 @@
 ///|
+#derive(@json.FromJson)
 priv struct MasterTextStyleRequest {
   kind : String
   level : @common.RequestInt
   format : Json
-} derive(@json.FromJson)
+}
 
 ///|
 fn pptx_master_text_style(

@@ -3,6 +3,7 @@ package "open_document/layout"
 
 import {
   "moonbitlang/core/debug",
+  "moonbitlang/core/json",
   "open_document/core/failure",
 }
 
@@ -80,6 +81,7 @@ pub fn word_range_at(String, Int32) -> (Int32, Int32)?
 // Errors
 
 // Types and methods
+#derive(@json.ToJson)
 pub(all) struct AxialClip {
   transforms : Array[Matrix]
   startX : Double
@@ -87,9 +89,10 @@ pub(all) struct AxialClip {
   y : Double
   startBounded : Bool
   endBounded : Bool
-} derive(ToJson)
-pub fn AxialClip::to_json(Self) -> Json
+}
+pub fn AxialClip::to_json(Self) -> @json.Json
 
+#derive(@json.ToJson)
 pub(all) struct BasicShape {
   preset : String
   fill : String
@@ -97,65 +100,72 @@ pub(all) struct BasicShape {
   lineWidth : Double
   points : Array[(Double, Double)]
   strokeAlpha : Double
-} derive(ToJson)
+}
 pub fn BasicShape::path(Self, Double, Double) -> Array[PathSegment]
-pub fn BasicShape::to_json(Self) -> Json
+pub fn BasicShape::to_json(Self) -> @json.Json
 
+#derive(@json.ToJson)
 pub(all) struct Border {
   x : Double
   y : Double
   width : Double
   height : Double
-} derive(ToJson)
-pub fn Border::to_json(Self) -> Json
+}
+pub fn Border::to_json(Self) -> @json.Json
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub(all) struct BorderStyle {
   style : String
   width : Double
   color : String
-} derive(Eq, ToJson, @debug.Debug)
+}
 pub fn BorderStyle::equal(Self, Self) -> Bool
 pub fn BorderStyle::extent(Self) -> Double
 pub fn BorderStyle::not_equal(Self, Self) -> Bool
-pub fn BorderStyle::to_json(Self) -> Json
+pub fn BorderStyle::to_json(Self) -> @json.Json
 pub fn BorderStyle::to_repr(Self) -> @debug.Repr
 
 type CachedParagraph
 
+#derive(@json.ToJson)
 pub(all) struct Caret {
   offset : Int32
   before : Double
   after : Double
-} derive(ToJson)
-pub fn Caret::to_json(Self) -> Json
+}
+pub fn Caret::to_json(Self) -> @json.Json
 
+#derive(@json.ToJson)
 pub(all) struct CaretPortion {
   start : Int32
   end : Int32
   y : Double
   height : Double
-} derive(ToJson)
-pub fn CaretPortion::to_json(Self) -> Json
+}
+pub fn CaretPortion::to_json(Self) -> @json.Json
 
+#derive(@json.ToJson)
 pub(all) struct CellArea {
   x : Double
   y : Double
   width : Double
   height : Double
   paragraphs : Array[Int32]
-} derive(ToJson)
-pub fn CellArea::to_json(Self) -> Json
+}
+pub fn CellArea::to_json(Self) -> @json.Json
 
+#derive(Eq, @json.ToJson)
 pub(all) struct CellMargins {
   top : Double
   right : Double
   bottom : Double
   left : Double
-} derive(Eq, ToJson)
+}
 pub fn CellMargins::equal(Self, Self) -> Bool
 pub fn CellMargins::not_equal(Self, Self) -> Bool
-pub fn CellMargins::to_json(Self) -> Json
+pub fn CellMargins::to_json(Self) -> @json.Json
 
+#derive(Eq)
 pub(all) struct ChartData {
   kind : String
   hole_size : Int32?
@@ -164,7 +174,7 @@ pub(all) struct ChartData {
   label : String
   categories : Array[String]
   series : Array[ChartSeries]
-} derive(Eq)
+}
 pub fn ChartData::axis(Self) -> (Double, Double, Double) raise @failure.Failure
 pub fn ChartData::bar_values(Self, Int32) -> Array[Double?]
 pub fn ChartData::equal(Self, Self) -> Bool
@@ -173,7 +183,7 @@ pub fn ChartData::paint(Self, Double, Double, TextProbe, Map[String, String], vi
 pub fn ChartData::paint_native_pie(Self, Double, Double, Array[Array[(String, Double)]], Array[(Double, Array[Double])], Double) -> Array[PositionedPrimitive] raise @failure.Failure
 pub fn ChartData::paint_radar(Self, Double, Double, TextProbe, Map[String, String]) -> Array[PositionedPrimitive] raise @failure.Failure
 pub fn ChartData::pie_slices(Self, series? : Int32) -> Array[(Double, Double)]
-pub fn ChartData::query(Self) -> Json
+pub fn ChartData::query(Self) -> @json.Json
 pub fn ChartData::scatter_axis(Self) -> (Double, Double, Double) raise @failure.Failure
 pub fn ChartData::scatter_values(Self) -> Array[Double?] raise @failure.Failure
 pub fn ChartData::tsv(Self) -> String
@@ -185,13 +195,14 @@ pub struct ChartFrame {
   primitives : Array[PositionedPrimitive]
 }
 pub fn ChartFrame::new(ChartData) -> Self
-pub fn ChartFrame::to_json(Self) -> Json
-pub impl ToJson for ChartFrame
+pub fn ChartFrame::to_json(Self) -> @json.Json
+pub impl @json.ToJson for ChartFrame
 
+#derive(Eq)
 pub(all) struct ChartSeries {
   name : String
   values : Array[Double?]
-} derive(Eq)
+}
 pub fn ChartSeries::equal(Self, Self) -> Bool
 pub fn ChartSeries::not_equal(Self, Self) -> Bool
 
@@ -201,32 +212,35 @@ pub(all) struct ChartVisibility {
   colors : Array[String]
 }
 
+#derive(@json.ToJson)
 pub(all) struct Column {
   width : Double
   gap : Double
-} derive(ToJson)
-pub fn Column::to_json(Self) -> Json
+}
+pub fn Column::to_json(Self) -> @json.Json
 
+#derive(@json.ToJson)
 pub(all) struct Columns {
   count : Int32
   gap : Double
   separator : Bool
   custom : Array[Column]
-} derive(ToJson)
+}
 pub fn Columns::new(count? : Int32, gap? : Double, separator? : Bool, custom? : Array[Column]) -> Self
-pub fn Columns::to_json(Self) -> Json
+pub fn Columns::to_json(Self) -> @json.Json
 pub fn Columns::width(Self, PageSetup) -> Double raise @failure.Failure
 pub fn Columns::width_at(Self, PageSetup, Double) -> Double raise @failure.Failure
 
+#derive(Eq)
 pub(all) enum DrawBlend {
   Normal
   Multiply
   Difference
-} derive(Eq)
+}
 pub fn DrawBlend::equal(Self, Self) -> Bool
 pub fn DrawBlend::not_equal(Self, Self) -> Bool
-pub fn DrawBlend::to_json(Self) -> Json
-pub impl ToJson for DrawBlend
+pub fn DrawBlend::to_json(Self) -> @json.Json
+pub impl @json.ToJson for DrawBlend
 
 pub(all) enum DrawCommand {
   FillRect(Fill, screen_fractional~ : Bool)
@@ -254,12 +268,12 @@ pub(all) enum DrawCommand {
   Layer(Double, Array[DrawCommand])
   Mask(Array[DrawCommand], Array[DrawCommand])
   Tile(Double, Double, Int32, Int32, Matrix, Double, Double, Array[DrawCommand])
-  CachedDrawing(String, Json)
+  CachedDrawing(String, @json.Json)
 }
 pub fn DrawCommand::linear_path(Array[PathSegment], String, String, Double, DrawStyle, Int32) -> Self
 pub fn DrawCommand::prepare_fill_outline(Self, DrawStyle) -> Self
-pub fn DrawCommand::to_json(Self) -> Json
-pub impl ToJson for DrawCommand
+pub fn DrawCommand::to_json(Self) -> @json.Json
+pub impl @json.ToJson for DrawCommand
 
 pub(all) struct DrawGlyph {
   outline : String
@@ -272,6 +286,7 @@ pub(all) struct DrawGlyph {
   scaleY : Double
 }
 
+#derive(Eq, @json.ToJson)
 pub(all) struct DrawStyle {
   fillAlpha : Double
   strokeAlpha : Double
@@ -282,11 +297,11 @@ pub(all) struct DrawStyle {
   dash : Array[Double]
   dashOffset : Double
   blend : DrawBlend
-} derive(Eq, ToJson)
+}
 pub fn DrawStyle::default() -> Self
 pub fn DrawStyle::equal(Self, Self) -> Bool
 pub fn DrawStyle::not_equal(Self, Self) -> Bool
-pub fn DrawStyle::to_json(Self) -> Json
+pub fn DrawStyle::to_json(Self) -> @json.Json
 
 pub(all) struct DrawingAnchor {
   horizontal : DrawingAxis
@@ -297,16 +312,16 @@ pub(all) struct DrawingAnchor {
   wrapSide : String
   distance : CellMargins
 }
-pub fn DrawingAnchor::to_json(Self) -> Json
+pub fn DrawingAnchor::to_json(Self) -> @json.Json
 pub fn DrawingAnchor::validate(Self) -> Unit raise @failure.Failure
-pub impl ToJson for DrawingAnchor
+pub impl @json.ToJson for DrawingAnchor
 
 pub(all) enum DrawingAxis {
   Offset(String, Double)
   Aligned(String, String)
 }
-pub fn DrawingAxis::to_json(Self) -> Json
-pub impl ToJson for DrawingAxis
+pub fn DrawingAxis::to_json(Self) -> @json.Json
+pub impl @json.ToJson for DrawingAxis
 
 pub(all) enum DrawingContent {
   Picture(String, Array[Double])
@@ -317,8 +332,8 @@ pub(all) enum DrawingContent {
   Metafile(Metafile)
 }
 pub fn DrawingContent::alternative_text(Self) -> String?
-pub fn DrawingContent::to_json(Self) -> Json
-pub impl ToJson for DrawingContent
+pub fn DrawingContent::to_json(Self) -> @json.Json
+pub impl @json.ToJson for DrawingContent
 
 pub(all) struct DrawingFrame {
   width : Double
@@ -328,9 +343,9 @@ pub(all) struct DrawingFrame {
   content : DrawingContent
 }
 pub fn DrawingFrame::text_box_rect(Self, BasicShape, DrawingTextBox) -> Border raise @failure.Failure
-pub fn DrawingFrame::to_json(Self) -> Json
+pub fn DrawingFrame::to_json(Self) -> @json.Json
 pub fn DrawingFrame::validate(Self) -> Unit raise @failure.Failure
-pub impl ToJson for DrawingFrame
+pub impl @json.ToJson for DrawingFrame
 
 pub(all) struct DrawingRegion {
   width : Double
@@ -339,9 +354,9 @@ pub(all) struct DrawingRegion {
   glyphRaster : GlyphRaster
   commands : Array[DrawCommand]
 }
-pub fn DrawingRegion::encode(Self, Json) -> Json
-pub fn DrawingRegion::to_json(Self) -> Json
-pub impl ToJson for DrawingRegion
+pub fn DrawingRegion::encode(Self, @json.Json) -> @json.Json
+pub fn DrawingRegion::to_json(Self) -> @json.Json
+pub impl @json.ToJson for DrawingRegion
 
 pub struct DrawingTextBox {
   paragraphs : Array[Paragraph]
@@ -357,26 +372,29 @@ pub struct DrawingTextBox {
 pub fn DrawingTextBox::new(Array[Paragraph], Array[Double], String, Bool, Bool, bottomBorders? : Map[Int32, (Double, BorderStyle)], flowFrames? : Array[(Double, Double)]) -> Self
 pub fn DrawingTextBox::paragraphs(Self) -> Array[Paragraph]
 pub fn DrawingTextBox::properties(Self) -> DrawingTextBoxProperties
-pub fn DrawingTextBox::to_json(Self) -> Json
-pub impl ToJson for DrawingTextBox
+pub fn DrawingTextBox::to_json(Self) -> @json.Json
+pub impl @json.ToJson for DrawingTextBox
 
+#derive(@json.ToJson)
 pub(all) struct DrawingTextBoxProperties {
   insets : Array[Double]
   anchor : String
   wrap : Bool
   clip : Bool
-} derive(ToJson)
-pub fn DrawingTextBoxProperties::to_json(Self) -> Json
+}
+pub fn DrawingTextBoxProperties::to_json(Self) -> @json.Json
 
+#derive(@json.ToJson)
 pub(all) struct Fill {
   x : Double
   y : Double
   width : Double
   height : Double
   color : String
-} derive(ToJson)
-pub fn Fill::to_json(Self) -> Json
+}
+pub fn Fill::to_json(Self) -> @json.Json
 
+#derive(@json.ToJson)
 pub(all) struct Flow {
   revision : Int32
   sectionBreaks : Array[SectionBreak]
@@ -400,11 +418,12 @@ pub(all) struct Flow {
   differentFirst : Bool
   differentEven : Bool
   additiveSpacing : Bool
-} derive(ToJson)
-pub fn Flow::to_json(Self) -> Json
+}
+pub fn Flow::to_json(Self) -> @json.Json
 
 type Font
 
+#derive(Eq, @json.ToJson)
 pub(all) struct FontInfo {
   identity : String
   face : Int32
@@ -416,11 +435,12 @@ pub(all) struct FontInfo {
   bbox : Array[Int32]
   capHeight : Int32
   italicAngle : Double
-} derive(Eq, ToJson)
+}
 pub fn FontInfo::equal(Self, Self) -> Bool
 pub fn FontInfo::not_equal(Self, Self) -> Bool
-pub fn FontInfo::to_json(Self) -> Json
+pub fn FontInfo::to_json(Self) -> @json.Json
 
+#derive(@json.ToJson)
 pub(all) struct Glyph {
   id : UInt32
   cluster : Int32
@@ -434,15 +454,16 @@ pub(all) struct Glyph {
   yAdvance : Int32
   xOffset : Int32
   yOffset : Int32
-} derive(ToJson)
-pub fn Glyph::to_json(Self) -> Json
+}
+pub fn Glyph::to_json(Self) -> @json.Json
 
+#derive(@json.ToJson)
 pub(all) struct GlyphDiagnostic {
   code : String
   cluster : Int32
   codepoint : Int32
-} derive(ToJson)
-pub fn GlyphDiagnostic::to_json(Self) -> Json
+}
+pub fn GlyphDiagnostic::to_json(Self) -> @json.Json
 
 pub(all) enum GlyphRaster {
   IntegerGlyphs
@@ -450,6 +471,7 @@ pub(all) enum GlyphRaster {
   CoverageGlyphs
 }
 
+#derive(@json.ToJson)
 pub(all) struct GlyphRun {
   start : Int32
   end : Int32
@@ -457,24 +479,27 @@ pub(all) struct GlyphRun {
   font : Int32
   script : String
   language : String
-} derive(ToJson)
-pub fn GlyphRun::to_json(Self) -> Json
+}
+pub fn GlyphRun::to_json(Self) -> @json.Json
 
+#derive(@json.ToJson)
 pub(all) struct GradientClip {
   axial : AxialClip?
-} derive(ToJson)
-pub fn GradientClip::to_json(Self) -> Json
+}
+pub fn GradientClip::to_json(Self) -> @json.Json
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub(all) struct GradientStop {
   position : Double
   color : String
   opacity : Double
-} derive(Eq, ToJson, @debug.Debug)
+}
 pub fn GradientStop::equal(Self, Self) -> Bool
 pub fn GradientStop::not_equal(Self, Self) -> Bool
-pub fn GradientStop::to_json(Self) -> Json
+pub fn GradientStop::to_json(Self) -> @json.Json
 pub fn GradientStop::to_repr(Self) -> @debug.Repr
 
+#derive(@json.ToJson)
 pub(all) struct Hit {
   paragraph : Int32
   offset : Int32
@@ -488,8 +513,8 @@ pub(all) struct Hit {
   y : Double
   height : Double
   reason : String
-} derive(ToJson)
-pub fn Hit::to_json(Self) -> Json
+}
+pub fn Hit::to_json(Self) -> @json.Json
 
 pub(all) struct ImageResource {
   identity : String
@@ -509,6 +534,7 @@ pub fn Images::get_by_identity(Self, String) -> ImageResource?
 pub fn Images::new() -> Self
 pub fn Images::retain(Self, Array[String]) -> Unit
 
+#derive(@json.ToJson)
 pub(all) struct Layout {
   background : String
   revision : Int32
@@ -524,7 +550,7 @@ pub(all) struct Layout {
   diagnostics : Array[String]
   outlines : Array[Outline]
   fonts : Array[FontInfo]
-} derive(ToJson)
+}
 pub fn Layout::caret(Self, Int32, Int32, String, bidi_level? : Int32, frame_start? : Int32) -> Hit raise @failure.Failure
 pub fn Layout::compare_positions(Self, (Int32, Int32), (Int32, Int32)) -> Int32 raise @failure.Failure
 pub fn Layout::drawing(Self, Images) -> Array[DrawingRegion] raise @failure.Failure
@@ -536,8 +562,9 @@ pub fn Layout::move_drawing(Self, PageSetup, Int32, Int32, Double, Double, Int32
 pub fn Layout::positioned(Self) -> PositionedDocument
 pub fn Layout::selection_rects(Self, (Int32, Int32, String), (Int32, Int32, String)) -> Array[SelectionRect] raise @failure.Failure
 pub fn Layout::semantics(Self) -> Array[SemanticPage]
-pub fn Layout::to_json(Self) -> Json
+pub fn Layout::to_json(Self) -> @json.Json
 
+#derive(@json.ToJson)
 pub(all) struct Line {
   paragraph : Int32
   container : Int32
@@ -565,19 +592,19 @@ pub(all) struct Line {
   carets : Array[Caret]
   caretPortions : Array[CaretPortion]
   readOnlyReason : String
-} derive(ToJson)
+}
 pub fn Line::content_width(Self) -> Double
 pub fn Line::link_rects(Self, Int32, Int32) -> Array[Border]
 pub fn Line::positioned(Self, Array[FontInfo], Double, underline_descent? : Double, align_text_rules? : Bool) -> Array[PositionedPrimitive]
-pub fn Line::to_json(Self) -> Json
+pub fn Line::to_json(Self) -> @json.Json
 
 pub(all) enum LineSpacing {
   Auto(Double)
   Exact(Double)
   AtLeast(Double)
 }
-pub fn LineSpacing::to_json(Self) -> Json
-pub impl ToJson for LineSpacing
+pub fn LineSpacing::to_json(Self) -> @json.Json
+pub impl @json.ToJson for LineSpacing
 
 pub(all) enum LinkTarget {
   External(String)
@@ -602,8 +629,8 @@ pub(all) enum MathExpression {
   Matrix(String, ReadOnlyArray[String], ReadOnlyArray[ReadOnlyArray[MathExpression?]])
 }
 pub fn MathExpression::linear_text(Self) -> String
-pub fn MathExpression::to_json(Self) -> Json
-pub impl ToJson for MathExpression
+pub fn MathExpression::to_json(Self) -> @json.Json
+pub impl @json.ToJson for MathExpression
 
 pub struct MathFormula {
   expression : MathExpression
@@ -613,9 +640,10 @@ pub struct MathFormula {
   primitives : Array[PositionedPrimitive]
 }
 pub fn MathFormula::new(MathExpression, TextStyle, display? : Bool) -> Self
-pub fn MathFormula::to_json(Self) -> Json
-pub impl ToJson for MathFormula
+pub fn MathFormula::to_json(Self) -> @json.Json
+pub impl @json.ToJson for MathFormula
 
+#derive(@json.ToJson)
 pub(all) struct Matrix {
   a : Double
   b : Double
@@ -623,12 +651,12 @@ pub(all) struct Matrix {
   d : Double
   e : Double
   f : Double
-} derive(ToJson)
+}
 pub fn Matrix::identity() -> Self
 pub fn Matrix::inverse(Self) -> Self raise @failure.Failure
 pub fn Matrix::point(Self, Double, Double) -> (Double, Double)
 pub fn Matrix::then(Self, Self) -> Self
-pub fn Matrix::to_json(Self) -> Json
+pub fn Matrix::to_json(Self) -> @json.Json
 
 type MeasuredShape
 
@@ -643,8 +671,8 @@ pub fn Metafile::image_keys(Self) -> Array[String]
 pub fn Metafile::new(Border, Array[MetafileCommand]) -> Self raise @failure.Failure
 pub fn Metafile::positioned(Self, Double, Double, TextProbe, Map[String, String]) -> Array[PositionedPrimitive] raise @failure.Failure
 pub fn Metafile::text(Self) -> String
-pub fn Metafile::to_json(Self) -> Json
-pub impl ToJson for Metafile
+pub fn Metafile::to_json(Self) -> @json.Json
+pub impl @json.ToJson for Metafile
 
 pub(all) enum MetafileCommand {
   Bitmap(String, Border, Int32, Int32, Bytes)
@@ -663,13 +691,15 @@ pub(all) struct MetafileText {
   clip : Border?
 }
 
+#derive(@json.ToJson)
 pub(all) struct NestedTable {
   row : Int32
   column : Int32
   table : Table
-} derive(ToJson)
-pub fn NestedTable::to_json(Self) -> Json
+}
+pub fn NestedTable::to_json(Self) -> @json.Json
 
+#derive(@json.ToJson)
 pub(all) struct Note {
   kind : String
   key : String
@@ -677,8 +707,8 @@ pub(all) struct Note {
   node : Int32
   numbering : NoteNumbering
   content : Array[Paragraph]
-} derive(ToJson)
-pub fn Note::to_json(Self) -> Json
+}
+pub fn Note::to_json(Self) -> @json.Json
 
 pub(all) struct NoteNumbering {
   format : String
@@ -687,8 +717,8 @@ pub(all) struct NoteNumbering {
   marker : Int32
 }
 pub fn NoteNumbering::text(Self) -> String raise @failure.Failure
-pub fn NoteNumbering::to_json(Self) -> Json
-pub impl ToJson for NoteNumbering
+pub fn NoteNumbering::to_json(Self) -> @json.Json
+pub impl @json.ToJson for NoteNumbering
 
 pub(all) struct NoteReference {
   bookmark : String
@@ -699,11 +729,12 @@ pub(all) struct NoteReference {
 pub fn NoteReference::code(Self) -> String
 pub fn NoteReference::parse(String) -> Self raise @failure.Failure
 
+#derive(@json.ToJson)
 pub(all) struct Outline {
   key : String
   path : String
-} derive(ToJson)
-pub fn Outline::to_json(Self) -> Json
+}
+pub fn Outline::to_json(Self) -> @json.Json
 
 pub(all) struct PageBorder {
   side : String
@@ -713,20 +744,22 @@ pub(all) struct PageBorder {
   width : Double
   space : Double
 }
-pub fn PageBorder::to_json(Self) -> Json
-pub impl ToJson for PageBorder
+pub fn PageBorder::to_json(Self) -> @json.Json
+pub impl @json.ToJson for PageBorder
 
+#derive(@json.ToJson)
 pub(all) struct PageBorders {
   offsetFrom : String
   display : String
   zOrder : String
   sides : Array[PageBorder]
-} derive(ToJson)
+}
 pub fn PageBorders::fills(Self, PageSetup, Int32) -> Array[Fill] raise @failure.Failure
 pub fn PageBorders::new() -> Self
-pub fn PageBorders::to_json(Self) -> Json
+pub fn PageBorders::to_json(Self) -> @json.Json
 pub fn PageBorders::validate(Self) -> Unit raise @failure.Failure
 
+#derive(@json.ToJson)
 pub(all) struct PageFrame {
   width : Double
   height : Double
@@ -735,8 +768,8 @@ pub(all) struct PageFrame {
   fills : Array[Fill]
   pageBorders : Array[Fill]
   cellAreas : Array[CellArea]
-} derive(ToJson)
-pub fn PageFrame::to_json(Self) -> Json
+}
+pub fn PageFrame::to_json(Self) -> @json.Json
 
 pub(all) struct PageLink {
   rect : SelectionRect
@@ -749,10 +782,10 @@ pub(all) struct PageNumbering {
 }
 pub fn PageNumbering::field_text(Self, String, Int32, Int32) -> String raise @failure.Failure
 pub fn PageNumbering::new(start? : Int64, format? : String) -> Self
-pub fn PageNumbering::to_json(Self) -> Json
+pub fn PageNumbering::to_json(Self) -> @json.Json
 pub fn PageNumbering::validate(Self) -> Unit raise @failure.Failure
 pub fn PageNumbering::variant(Self, Int32, Bool, Bool) -> String
-pub impl ToJson for PageNumbering
+pub impl @json.ToJson for PageNumbering
 
 pub(all) struct PageReference {
   bookmark : String
@@ -763,6 +796,7 @@ pub(all) struct PageReference {
 pub fn PageReference::code(Self) -> String
 pub fn PageReference::parse(String) -> Self raise @failure.Failure
 
+#derive(@json.ToJson)
 pub(all) struct PageSetup {
   width : Double
   height : Double
@@ -770,11 +804,12 @@ pub(all) struct PageSetup {
   right : Double
   bottom : Double
   left : Double
-} derive(ToJson)
-pub fn PageSetup::to_json(Self) -> Json
+}
+pub fn PageSetup::to_json(Self) -> @json.Json
 
 type PaginationCache
 
+#derive(@json.ToJson)
 pub(all) struct Paragraph {
   id : Int32
   container : Int32
@@ -800,16 +835,18 @@ pub(all) struct Paragraph {
   keepNext : Bool
   widowControl : Bool
   readOnlyReason : String
-} derive(ToJson)
+}
 pub fn Paragraph::content_widths(Self, TextProbe, Map[String, String], ligatures? : Bool) -> (Double, Double, Double) raise @failure.Failure
-pub fn Paragraph::to_json(Self) -> Json
+pub fn Paragraph::to_json(Self) -> @json.Json
 
-type ParagraphCacheKey derive(Eq, Hash)
+#derive(Eq, Hash)
+type ParagraphCacheKey
 pub fn ParagraphCacheKey::equal(Self, Self) -> Bool
 pub fn ParagraphCacheKey::hash(Self) -> Int32
 pub fn ParagraphCacheKey::hash_combine(Self, Hasher) -> Unit
 pub fn ParagraphCacheKey::not_equal(Self, Self) -> Bool
 
+#derive(@json.ToJson)
 pub(all) struct ParagraphFrame {
   width : Double
   height : Double
@@ -823,15 +860,17 @@ pub(all) struct ParagraphFrame {
   horizontalSpace : Double
   verticalSpace : Double
   borders : Map[String, (Double, BorderStyle)]
-} derive(ToJson)
-pub fn ParagraphFrame::to_json(Self) -> Json
+}
+pub fn ParagraphFrame::to_json(Self) -> @json.Json
 
-type ParagraphKeySource derive(Eq, Hash)
+#derive(Eq, Hash)
+type ParagraphKeySource
 pub fn ParagraphKeySource::equal(Self, Self) -> Bool
 pub fn ParagraphKeySource::hash(Self) -> Int32
 pub fn ParagraphKeySource::hash_combine(Self, Hasher) -> Unit
 pub fn ParagraphKeySource::not_equal(Self, Self) -> Bool
 
+#derive(@json.ToJson)
 pub(all) struct ParagraphMarker {
   text : String
   image : PlacedImage?
@@ -839,8 +878,8 @@ pub(all) struct ParagraphMarker {
   style : TextStyle
   align : String
   suffix : String
-} derive(ToJson)
-pub fn ParagraphMarker::to_json(Self) -> Json
+}
+pub fn ParagraphMarker::to_json(Self) -> @json.Json
 
 pub(all) struct ParagraphNumbering {
   instance : Int32
@@ -848,8 +887,8 @@ pub(all) struct ParagraphNumbering {
   values : Array[Int32]
   labels : Array[String?]
 }
-pub fn ParagraphNumbering::to_json(Self) -> Json
-pub impl ToJson for ParagraphNumbering
+pub fn ParagraphNumbering::to_json(Self) -> @json.Json
+pub impl @json.ToJson for ParagraphNumbering
 
 type ParagraphVersion
 
@@ -859,8 +898,8 @@ pub(all) enum PathSegment {
   Cubic(Double, Double, Double, Double, Double, Double)
   Close
 }
-pub fn PathSegment::to_json(Self) -> Json
-pub impl ToJson for PathSegment
+pub fn PathSegment::to_json(Self) -> @json.Json
+pub impl @json.ToJson for PathSegment
 
 pub(all) struct PathStyle {
   fillAlpha : Double
@@ -874,6 +913,7 @@ pub(all) struct PathStyle {
 pub fn PathStyle::solid() -> Self
 pub fn PathStyle::validate(Self) -> Unit raise @failure.Failure
 
+#derive(@json.ToJson)
 pub(all) struct PlacedDrawingFrame {
   start : Int32
   level : Int32
@@ -884,9 +924,9 @@ pub(all) struct PlacedDrawingFrame {
   effectExtent : (Double, Double, Double, Double)
   anchor : DrawingAnchor?
   content : DrawingContent
-} derive(ToJson)
+}
 pub fn PlacedDrawingFrame::text_lines(Self) -> Array[Line]
-pub fn PlacedDrawingFrame::to_json(Self) -> Json
+pub fn PlacedDrawingFrame::to_json(Self) -> @json.Json
 
 pub(all) struct PlacedImage {
   key : String
@@ -896,9 +936,10 @@ pub(all) struct PlacedImage {
   width : Double
   height : Double
 }
-pub fn PlacedImage::to_json(Self) -> Json
-pub impl ToJson for PlacedImage
+pub fn PlacedImage::to_json(Self) -> @json.Json
+pub impl @json.ToJson for PlacedImage
 
+#derive(@json.ToJson)
 pub(all) struct PlacedRun {
   start : Int32
   sources : Array[SourceRange]
@@ -912,8 +953,8 @@ pub(all) struct PlacedRun {
   nominalSize : Double
   rise : Double
   decorations : Array[TextDecoration]
-} derive(ToJson)
-pub fn PlacedRun::to_json(Self) -> Json
+}
+pub fn PlacedRun::to_json(Self) -> @json.Json
 
 pub(all) struct PositionedDocument {
   pages : Array[PositionedPage]
@@ -945,7 +986,7 @@ pub(all) enum PositionedPrimitive {
   ClipPath(Array[PathSegment], Bool)
   PixelCenters
   IntegerScreenGlyphs
-  CachedDrawing(String, Json)
+  CachedDrawing(String, @json.Json)
   Restore
 }
 
@@ -962,12 +1003,13 @@ pub(all) struct PositionedText {
   runs : Array[PositionedRun]
 }
 
+#derive(@json.ToJson)
 pub(all) struct PreferredWidth {
   value : Double
   percent : Bool
-} derive(ToJson)
+}
 pub fn PreferredWidth::new(value? : Double, percent? : Bool) -> Self
-pub fn PreferredWidth::to_json(Self) -> Json
+pub fn PreferredWidth::to_json(Self) -> @json.Json
 
 pub(all) enum RasterHeaderScan {
   RasterDimensions(String, Int64, Int64)
@@ -975,14 +1017,16 @@ pub(all) enum RasterHeaderScan {
   InvalidRasterHeader
 }
 
+#derive(@json.ToJson)
 pub(all) struct RunningStory {
   paragraphs : Array[Paragraph]
   tables : Array[Table]
-} derive(ToJson)
+}
 pub fn RunningStory::all_paragraphs(Self) -> Array[Paragraph]
 pub fn RunningStory::map_paragraphs(Self, (Paragraph) -> Paragraph raise @failure.Failure) -> Self raise @failure.Failure
-pub fn RunningStory::to_json(Self) -> Json
+pub fn RunningStory::to_json(Self) -> @json.Json
 
+#derive(@json.ToJson)
 pub(all) struct SectionBreak {
   beforeParagraph : Int32
   beforeTable : Int32
@@ -999,9 +1043,10 @@ pub(all) struct SectionBreak {
   footerDistance : Double
   differentFirst : Bool
   differentEven : Bool
-} derive(ToJson)
-pub fn SectionBreak::to_json(Self) -> Json
+}
+pub fn SectionBreak::to_json(Self) -> @json.Json
 
+#derive(@json.ToJson)
 pub(all) struct SelectionRect {
   page : Int32
   line : Int32
@@ -1009,9 +1054,10 @@ pub(all) struct SelectionRect {
   y : Double
   width : Double
   height : Double
-} derive(ToJson)
-pub fn SelectionRect::to_json(Self) -> Json
+}
+pub fn SelectionRect::to_json(Self) -> @json.Json
 
+#derive(@json.ToJson)
 pub(all) struct SemanticLine {
   paragraph : Int32
   container : Int32
@@ -1027,13 +1073,14 @@ pub(all) struct SemanticLine {
   width : Double
   height : Double
   readOnlyReason : String
-} derive(ToJson)
-pub fn SemanticLine::to_json(Self) -> Json
+}
+pub fn SemanticLine::to_json(Self) -> @json.Json
 
+#derive(@json.ToJson)
 pub(all) struct SemanticPage {
   lines : Array[SemanticLine]
-} derive(ToJson)
-pub fn SemanticPage::to_json(Self) -> Json
+}
+pub fn SemanticPage::to_json(Self) -> @json.Json
 
 pub(all) struct SequenceField {
   sequence : String
@@ -1046,6 +1093,7 @@ pub(all) struct SequenceField {
 pub fn SequenceField::code(Self) -> String
 pub fn SequenceField::parse(String) -> Self raise @failure.Failure
 
+#derive(@json.ToJson)
 pub(all) struct ShapeBatch {
   text : String
   carets : Array[Caret]
@@ -1057,16 +1105,17 @@ pub(all) struct ShapeBatch {
   width : Double
   fontBytes : Int32
   outlineBytes : Int32
-} derive(ToJson)
-pub fn ShapeBatch::to_json(Self) -> Json
+}
+pub fn ShapeBatch::to_json(Self) -> @json.Json
 
+#derive(@json.ToJson)
 pub(all) struct SourceRange {
   node : Int32
   start : Int32
   end : Int32
   offset : Int32
-} derive(ToJson)
-pub fn SourceRange::to_json(Self) -> Json
+}
+pub fn SourceRange::to_json(Self) -> @json.Json
 
 pub(all) struct Span {
   node : Int32
@@ -1075,8 +1124,8 @@ pub(all) struct Span {
   drawing : DrawingFrame?
   field : String
 }
-pub fn Span::to_json(Self) -> Json
-pub impl ToJson for Span
+pub fn Span::to_json(Self) -> @json.Json
+pub impl @json.ToJson for Span
 
 pub(all) enum StrokeRaster {
   IntegerStroke
@@ -1084,15 +1133,17 @@ pub(all) enum StrokeRaster {
   CoverageStroke
 }
 
+#derive(Eq, @json.ToJson)
 pub(all) struct TabStop {
   position : Double
   align : String
   leader : String
-} derive(Eq, ToJson)
+}
 pub fn TabStop::equal(Self, Self) -> Bool
 pub fn TabStop::not_equal(Self, Self) -> Bool
-pub fn TabStop::to_json(Self) -> Json
+pub fn TabStop::to_json(Self) -> @json.Json
 
+#derive(@json.ToJson)
 pub(all) struct Table {
   id : Int32
   autoFit : Bool
@@ -1114,27 +1165,29 @@ pub(all) struct Table {
   splitRows : Array[Bool]
   fills : Array[Array[String]]
   verticalAligns : Array[Array[String]]
-} derive(ToJson)
+}
 pub fn Table::border_width(Self, Int32) -> Double
 pub fn Table::cell_insets(Self, Int32, Int32) -> CellMargins
 pub fn Table::fit_widths(Self, TextProbe, Map[String, String], Double) -> Self raise @failure.Failure
 pub fn Table::map_paragraphs(Self, (Paragraph) -> Paragraph raise @failure.Failure) -> Self raise @failure.Failure
 pub fn Table::paragraphs(Self) -> Array[Paragraph]
 pub fn Table::row_minimum_height(Self, Int32) -> Double
-pub fn Table::to_json(Self) -> Json
+pub fn Table::to_json(Self) -> @json.Json
 
+#derive(@json.ToJson)
 pub(all) struct TableBorders {
   horizontal : Array[Array[BorderStyle]]
   vertical : Array[Array[BorderStyle]]
-} derive(ToJson)
-pub fn TableBorders::to_json(Self) -> Json
+}
+pub fn TableBorders::to_json(Self) -> @json.Json
 
+#derive(@json.ToJson)
 pub(all) struct TableStroke {
   rect : Border
   color : String
   width : Double
-} derive(ToJson)
-pub fn TableStroke::to_json(Self) -> Json
+}
+pub fn TableStroke::to_json(Self) -> @json.Json
 
 pub(all) struct TextBlock {
   lines : Array[Array[PositionedPrimitive]]
@@ -1142,14 +1195,15 @@ pub(all) struct TextBlock {
   height : Double
 }
 
+#derive(@json.ToJson)
 pub(all) struct TextDecoration {
   x : Double
   width : Double
   underline : Bool
   strike : Bool
   highlight : String
-} derive(ToJson)
-pub fn TextDecoration::to_json(Self) -> Json
+}
+pub fn TextDecoration::to_json(Self) -> @json.Json
 
 pub struct TextProbe {
   fonts : Array[Font]
@@ -1200,6 +1254,7 @@ pub(all) struct TextReference {
 pub fn TextReference::code(Self) -> String
 pub fn TextReference::parse(String) -> Self raise @failure.Failure
 
+#derive(Eq, Hash, @json.ToJson)
 pub(all) struct TextStyle {
   font : String
   size : Double
@@ -1212,13 +1267,13 @@ pub(all) struct TextStyle {
   spacing : Double
   kerning : String
   fontLeading : Bool
-} derive(Eq, Hash, ToJson)
+}
 pub fn TextStyle::equal(Self, Self) -> Bool
 pub fn TextStyle::hash(Self) -> Int32
 pub fn TextStyle::hash_combine(Self, Hasher) -> Unit
 pub fn TextStyle::new(String, Double, String) -> Self
 pub fn TextStyle::not_equal(Self, Self) -> Bool
-pub fn TextStyle::to_json(Self) -> Json
+pub fn TextStyle::to_json(Self) -> @json.Json
 
 // Type aliases
 

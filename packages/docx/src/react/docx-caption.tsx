@@ -4,6 +4,7 @@ import type { DocumentEditor } from "../web/editor.js";
 import { listFormats, type DocxCaption } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxCaption({
   controller,
@@ -27,7 +28,10 @@ export function DocxCaption({
   const [separator, setSeparator] = useState("-");
   return (
     <section aria-label={t.caption}>
-      <h4>{t.caption}</h4>
+      <h4>
+        <Icon name="text" />
+        {t.caption}
+      </h4>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -136,7 +140,10 @@ export function DocxCaption({
               </select>
             </label>
           )}
-          <button type="submit">{t.insertCaption}</button>
+          <button type="submit">
+            <Icon name="plus" />
+            {t.insertCaption}
+          </button>
         </fieldset>
       </form>
     </section>

@@ -6,11 +6,18 @@ import type {
   PptxGuide,
 } from "../core/pptx.js";
 import { CanvasSurface } from "@open-document/web-core/canvas-surface";
+import { documentFailure } from "@open-document/web-core/connection";
 import {
   imageColorPlane,
   materializeImage,
 } from "@open-document/web-core/image";
 import type { PptxClient } from "./pptx.js";
+
+export interface PreviewTarget {
+  slide: string;
+  revision: number;
+  signal: AbortSignal;
+}
 
 export class PresentationCanvas extends CanvasSurface {
   point(event: MouseEvent, scale: number): PptxPoint {
@@ -103,19 +110,67 @@ export class PresentationCanvas extends CanvasSurface {
     });
     await this.prepareKeys(client, keys);
   }
+  async prepareLayout(
+    client: PptxClient,
+    profile: Record<string, string>,
+    current: { revision: number; slide: string },
+  ): Promise<PptxLayout> {
+    await this.prepare(client).catch((error: unknown) => {
+      throw documentFailure("image", error);
+    });
+    const layout = await client.execute({ operation: "layoutPptx", profile });
+    if (layout.revision !== current.revision || layout.slide !== current.slide)
+      throw new Error("Slide changed while preparing layout");
+    return layout;
+  }
   async prepareShow(client: PptxClient): Promise<void> {
     await this.prepareKeys(
       client,
       await client.execute({ operation: "imageKeysShowPptx" }),
     );
   }
-  private async prepareKeys(client: PptxClient, keys: string[]): Promise<void> {
+  static async preview(
+    client: PptxClient,
+    profile: Record<string, string>,
+    { slide, revision, signal }: PreviewTarget,
+  ): Promise<Blob> {
+    signal.throwIfAborted();
+    const surface = new PresentationCanvas();
+    try {
+      const keys = await client.execute({
+        operation: "previewKeysPptx",
+        slide,
+        revision,
+      });
+      await surface.prepareKeys(client, keys, { preview: slide }, signal);
+      const drawing = await client.execute({
+        operation: "previewPptx",
+        slide,
+        revision,
+        profile,
+      });
+      signal.throwIfAborted();
+      const limit = Math.min(1_048_576, client.inputLimits().exportBytes);
+      const bytes = await surface.exportImage(drawing, 0, 0.25, limit, limit);
+      return new Blob([new Uint8Array(bytes)], { type: "image/png" });
+    } finally {
+      surface.dispose();
+    }
+  }
+  private async prepareKeys(
+    client: PptxClient,
+    keys: string[],
+    target: { preview?: string } = {},
+    signal?: AbortSignal,
+  ): Promise<void> {
     this.retainImageKeys(new Set(keys));
     for (const key of keys) {
+      signal?.throwIfAborted();
       if (this.imageKeys.has(key)) continue;
       const image = await client.execute({
         operation: "prepareImagePptx",
         key,
+        ...target,
       });
       const { bitmap, rgba } = await materializeImage(image);
       let colors: ImageBitmap | undefined;
@@ -128,6 +183,7 @@ export class PresentationCanvas extends CanvasSurface {
                 await client.execute({
                   operation: "imagePptx",
                   key,
+                  ...target,
                   width: bitmap.width,
                   height: bitmap.height,
                   bytes: rgba,

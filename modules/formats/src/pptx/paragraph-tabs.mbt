@@ -2,10 +2,11 @@
 pub const ParagraphTabCount : Int32 = 32
 
 ///|
+#derive(Eq, ToJson)
 pub(all) struct ParagraphTab {
   position : Double
   align : String
-} derive(Eq, ToJson)
+}
 
 ///|
 pub extend ParagraphTab with Eq::{equal, not_equal}

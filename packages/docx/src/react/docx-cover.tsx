@@ -6,6 +6,7 @@ import {
 import type { DocumentEditor } from "../web/editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxCover({
   controller,
@@ -23,7 +24,10 @@ export function DocxCover({
   const [subtitle, setSubtitle] = useState("");
   return (
     <section aria-label={t.coverPage}>
-      <h4>{t.coverPage}</h4>
+      <h4>
+        <Icon name="file-plus" />
+        {t.coverPage}
+      </h4>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -49,6 +53,7 @@ export function DocxCover({
             />
           </label>
           <button type="submit" disabled={!title.trim()}>
+            <Icon name="check" />
             {t.applyCover}
           </button>
           <button
@@ -57,6 +62,7 @@ export function DocxCover({
               controller.run(() => editor.pages.setCoverPage(null))
             }
           >
+            <Icon name="trash" />
             {t.removeCover}
           </button>
         </fieldset>

@@ -1,22 +1,25 @@
 ///|
+#derive(@json.FromJson)
 priv struct CopiedCellsOriginRequest {
   top : @common.RequestInt
   left : @common.RequestInt
   date1904 : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct CopiedCellRequest {
   value : CellValueRequest
   formula : @common.RequiredNullable[String]
   format : CellFormatRequest
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct CopiedAddressRequest {
   row : @common.RequestInt
   column : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
 fn copied_address(value : Json) -> @model.Address raise @failure.Failure {
@@ -28,12 +31,13 @@ fn copied_address(value : Json) -> @model.Address raise @failure.Failure {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct CopiedRangeRequest {
   top : @common.RequestInt
   left : @common.RequestInt
   bottom : @common.RequestInt
   right : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
 fn copied_range(value : Json) -> @model.Range raise @failure.Failure {
@@ -50,27 +54,30 @@ fn copied_range(value : Json) -> @model.Range raise @failure.Failure {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct CopiedSparklineRequest {
   cell : Json
   source : Json
   kind : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct CopiedHyperlinkRequest {
   range : Json
   target : String
   display : @common.RequiredNullable[String]
   tooltip : @common.RequiredNullable[String]
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct CopiedNotesRequest {
   comments : String
   vml : @common.RequiredNullable[String]
   threads : @common.RequiredNullable[String]
   people : @common.RequiredNullable[String]
-} derive(@json.FromJson)
+}
 
 ///|
 fn xlsx_copied_cells(value : Json) -> @model.CopiedCells raise @failure.Failure {

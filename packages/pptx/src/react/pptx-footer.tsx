@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { pptxFooterTextUnits } from "@open-document/wasm/engine-source";
 import type { PanelProps } from "./panels.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function PptxFooter({ controller, state, file, disabled }: PanelProps) {
   const current = file.format === "pptx" ? file.editor.query.footer : undefined;
@@ -59,7 +60,10 @@ export function PptxFooter({ controller, state, file, disabled }: PanelProps) {
         }}
       >
         <fieldset disabled={disabled || !!editor.query.slideVisibilityReason}>
-          <legend>{t.slideNumbering}</legend>
+          <legend>
+            <Icon name="number-format" />
+            {t.slideNumbering}
+          </legend>
           <label>
             {t.firstSlideNumber}
             <input
@@ -72,7 +76,10 @@ export function PptxFooter({ controller, state, file, disabled }: PanelProps) {
               onChange={(event) => setFirstNumber(event.currentTarget.value)}
             />
           </label>
-          <button type="submit">{t.applySlideNumbering}</button>
+          <button type="submit">
+            <Icon name="check" />
+            {t.applySlideNumbering}
+          </button>
         </fieldset>
       </form>
       <form
@@ -82,7 +89,10 @@ export function PptxFooter({ controller, state, file, disabled }: PanelProps) {
         }}
       >
         <fieldset disabled={disabled || !!current.reason}>
-          <legend>{t.slideFooter}</legend>
+          <legend>
+            <Icon name="layout-header" />
+            {t.slideFooter}
+          </legend>
           <label>
             <input
               type="checkbox"
@@ -182,8 +192,12 @@ export function PptxFooter({ controller, state, file, disabled }: PanelProps) {
               />
             </label>
           )}
-          <button type="submit">{t.applySlideFooter}</button>
+          <button type="submit">
+            <Icon name="check" />
+            {t.applySlideFooter}
+          </button>
           <button type="button" onClick={() => apply(true)}>
+            <Icon name="check" />
             {t.applyAllSlideFooters}
           </button>
         </fieldset>
@@ -192,6 +206,7 @@ export function PptxFooter({ controller, state, file, disabled }: PanelProps) {
           disabled={disabled}
           onClick={() => controller.run(() => editor.refreshDateFields())}
         >
+          <Icon name="refresh" />
           {t.refreshSlideDates}
         </button>
         {current.reason && <p>{current.reason}</p>}

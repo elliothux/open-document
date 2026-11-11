@@ -1,11 +1,12 @@
 ///|
+#derive(@json.FromJson)
 priv struct PlacementRequest {
   x : @common.RequestNumber
   y : @common.RequestNumber
   width : @common.RequestNumber
   height : @common.RequestNumber
   rotation : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
 fn PlacementRequest::placement(self : PlacementRequest) -> @model.PdfPlacement {
@@ -19,12 +20,13 @@ fn PlacementRequest::placement(self : PlacementRequest) -> @model.PdfPlacement {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct CropWindowRequest {
   x : @common.RequestNumber
   y : @common.RequestNumber
   width : @common.RequestNumber
   height : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
 fn CropWindowRequest::crop(self : CropWindowRequest) -> @model.PdfImageCrop {

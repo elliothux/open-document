@@ -1,28 +1,32 @@
 ///|
+#derive(@json.FromJson)
 priv struct CommentAuthorRequest {
   name : String
   initials : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct AddCommentRequest {
   text : String
   author : CommentAuthorRequest
   date : String
   parent : @common.RequiredNullable[String]
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct UpdateCommentRequest {
   id : String
   text : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct CommentStatusRequest {
   id : String
   status : String
-} derive(@json.FromJson)
+}
 
 ///|
 fn pptx_comment_change(

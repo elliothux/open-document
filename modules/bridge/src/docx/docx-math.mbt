@@ -1,35 +1,40 @@
 ///|
+#derive(@json.FromJson)
 priv struct MathEditCommandRequest {
   revision : @common.RequestInt
   profile : @common.RequestProfile
   math : Json?
   script : Json?
   fraction : Json?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct MathFontRequest {
   family : String
   color : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct MathExpressionRequest {
   latex : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct MathScriptRequest {
   base : String
   subscript : String
   superscript : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct MathFractionRequest {
   numerator : String
   denominator : String
-} derive(@json.FromJson)
+}
 
 ///|
 fn Context::edit_math_command(

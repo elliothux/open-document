@@ -12,6 +12,7 @@ import {
   xlsxValidationMessageUnits,
   xlsxValidationTitleUnits,
 } from "@open-document/wasm/engine-source";
+import { Icon } from "@open-document/ui/icons";
 
 export function XlsxValidation({
   controller,
@@ -117,7 +118,10 @@ export function XlsxValidation({
         }}
       >
         <fieldset disabled={disabled || !!current.readOnlyReason}>
-          <legend>{t.dataValidation}</legend>
+          <legend>
+            <Icon name="list-checks" />
+            {t.dataValidation}
+          </legend>
           {current.mixed && <p>{t.mixed}</p>}
           <label>
             {t.validationKind}
@@ -253,6 +257,7 @@ export function XlsxValidation({
               )
             }
           >
+            <Icon name="eraser" />
             {t.clearValidation}
           </button>
         </fieldset>

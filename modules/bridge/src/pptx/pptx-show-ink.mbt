@@ -1,14 +1,16 @@
 ///|
+#derive(@json.FromJson)
 priv struct ShowInkPointRequest {
   x : @common.RequestNumber
   y : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ShowInkStyleRequest {
   color : String
   width : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
 fn pptx_show_ink(value : Json) -> @model.ShowInkChange raise @failure.Failure {

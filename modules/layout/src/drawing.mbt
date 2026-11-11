@@ -53,11 +53,12 @@ fn draw_glyph_runs(glyphs : Array[DrawGlyph]) -> Array[Json] {
 }
 
 ///|
+#derive(Eq)
 pub(all) enum DrawBlend {
   Normal
   Multiply
   Difference
-} derive(Eq)
+}
 
 ///|
 pub extend DrawBlend with Eq::{equal, not_equal}
@@ -77,6 +78,7 @@ pub impl ToJson for DrawBlend with fn to_json(self) {
 pub extend DrawBlend with ToJson::{to_json}
 
 ///|
+#derive(Eq, ToJson)
 pub(all) struct DrawStyle {
   fillAlpha : Double
   strokeAlpha : Double
@@ -87,7 +89,7 @@ pub(all) struct DrawStyle {
   dash : Array[Double]
   dashOffset : Double
   blend : DrawBlend
-} derive(Eq, ToJson)
+}
 
 ///|
 pub extend DrawStyle with ToJson::{to_json}
@@ -111,6 +113,7 @@ pub fn DrawStyle::default() -> DrawStyle {
 }
 
 ///|
+#derive(ToJson)
 pub(all) struct AxialClip {
   transforms : Array[Matrix]
   startX : Double
@@ -118,15 +121,16 @@ pub(all) struct AxialClip {
   y : Double
   startBounded : Bool
   endBounded : Bool
-} derive(ToJson)
+}
 
 ///|
 pub extend AxialClip with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub(all) struct GradientClip {
   axial : AxialClip?
-} derive(ToJson)
+}
 
 ///|
 pub extend GradientClip with ToJson::{to_json}
@@ -151,14 +155,14 @@ pub(all) enum DrawCommand {
     String,
     String,
     Double,
-    Array[Array[(Double, Double)]]
+    Array[Array[(Double, Double)]],
   )
   RectangleDashedPath(
     Array[PathSegment],
     String,
     String,
     Double,
-    Array[(Int32, Double, Double, Double, Bool)]
+    Array[(Int32, Double, Double, Double, Bool)],
   )
   TextRule(Array[PathSegment], String, Double)
   Transform(Matrix)
@@ -443,6 +447,7 @@ pub extend DrawingRegion with ToJson::{to_json}
 
 ///|
 // Reading order and text bounds are independent of the drawing commands.
+#derive(ToJson)
 pub(all) struct SemanticLine {
   paragraph : Int32
   container : Int32
@@ -458,12 +463,13 @@ pub(all) struct SemanticLine {
   width : Double
   height : Double
   readOnlyReason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 pub(all) struct SemanticPage {
   lines : Array[SemanticLine]
-} derive(ToJson)
+}
 
 ///|
 pub extend SemanticLine with ToJson::{to_json}

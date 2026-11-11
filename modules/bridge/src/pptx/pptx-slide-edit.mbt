@@ -1,4 +1,5 @@
 ///|
+#derive(@json.FromJson)
 priv struct SlideAnimationRequest {
   object : String
   kind : String
@@ -7,51 +8,58 @@ priv struct SlideAnimationRequest {
   duration : @common.RequestInt
   repeat : @common.RequestInt
   params : Array[@common.RequestNumber]
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SlideAdvanceRequest {
   click : Bool
   after : Json
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SlideTransitionRequest {
   kind : String
   duration : @common.RequestInt
   direction : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SolidBackgroundRequest {
   color : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct BackgroundImageFormatRequest {
   crop : Array[@common.RequestNumber]
   mode : String
   opacity : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct FooterContentRequest {
   date : @common.RequiredNullable[FooterDateRequest]
   footer : @common.RequiredNullable[String]
   number : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SlideFooterRequest {
   value : FooterContentRequest
   allSlides : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct AutomaticFooterDateRequest {
   format : @common.RequestInt
   language : String
-} derive(@json.FromJson)
+}
 
 ///|
 priv struct FooterDateRequest {
@@ -71,65 +79,76 @@ impl @json.FromJson for FooterDateRequest with fn from_json(input, path) {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct IndexRequest {
   index : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct IdRequest {
   id : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct NameRequest {
   name : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct RenameSectionRequest {
   id : String
   name : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct MoveSectionRequest {
   id : String
   index : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SlideVisibilityRequest {
   hidden : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SlideNotesRequest {
   text : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct FirstSlideNumberRequest {
   number : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ThemeColorRequest {
   slot : String
   color : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ThemeFontRequest {
   kind : String
   script : String
   font : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SlideSizeRequest {
   width : @common.RequestNumber
   height : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
 fn pptx_slide_edit(change : Json) -> @model.SlideEdit raise @failure.Failure {

@@ -14,6 +14,7 @@ pub const PrintScaleMax : Int32 = 400
 pub const PrintFitPageCount : Int32 = 1024
 
 ///|
+#derive(ToJson, Eq)
 pub(all) struct PrintSetup {
   paper : String
   orientation : String
@@ -24,7 +25,7 @@ pub(all) struct PrintSetup {
   scale : Int32
   fitWidth : Int32
   fitHeight : Int32
-} derive(ToJson, Eq)
+}
 
 ///|
 pub extend PrintSetup with ToJson::{to_json}

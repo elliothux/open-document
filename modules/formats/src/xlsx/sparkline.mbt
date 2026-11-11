@@ -17,12 +17,13 @@ let sparkline_formula_uri = "http://schemas.microsoft.com/office/excel/2006/main
 let sparkline_extension_uri = "{05C60535-1F16-4fd2-B633-F4F36F0B64E0}"
 
 ///|
+#derive(Eq)
 priv struct Sparkline {
   cell : Address
   source : Range?
   owner : String?
   kind : String
-} derive(Eq)
+}
 
 ///|
 priv struct Sparklines {

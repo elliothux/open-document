@@ -3,6 +3,7 @@ import type { DocumentEditor } from "../web/editor.js";
 import type { DocxCellMargins } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxMargins({
   controller,
@@ -46,7 +47,10 @@ export function DocxMargins({
       }}
     >
       <fieldset disabled={disabled}>
-        <legend>{label}</legend>
+        <legend>
+          <Icon name="ruler" />
+          {label}
+        </legend>
         {(
           [
             ["top", t.pageTop],
@@ -76,6 +80,7 @@ export function DocxMargins({
           aria-label={`${t.apply} ${label}`}
           disabled={Object.values(draft).some((value) => value === "")}
         >
+          <Icon name="check" />
           {t.apply}
         </button>
         <button

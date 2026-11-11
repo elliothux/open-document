@@ -55,6 +55,7 @@ pub impl ToJson for PivotValue with fn to_json(self) {
 pub extend PivotValue with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub(all) struct PivotSettings {
   sourceSheet : String
   source : String
@@ -65,7 +66,7 @@ pub(all) struct PivotSettings {
   numberGroups : Array[PivotNumberGroup]
   dateGroups : Array[PivotDateGroup]
   values : Array[PivotValue]
-} derive(ToJson)
+}
 
 ///|
 pub extend PivotSettings with ToJson::{to_json}
@@ -579,28 +580,32 @@ fn PivotStatistic::value(self : PivotStatistic, aggregate : String) -> Value {
 }
 
 ///|
+#derive(ToJson)
 priv struct PivotPreviewItem {
   value : Value
   label : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct PivotPreviewColumn {
   subtotal : Bool
   members : Array[Value]
   formats : Array[String]
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct PivotPreviewRow {
   subtotal : Bool
   members : Array[Value]
   formats : Array[String]
   values : Array[Value]
   total : Array[Value]
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct PivotPreview {
   revision : Int32
   settings : PivotSettings
@@ -617,7 +622,7 @@ priv struct PivotPreview {
   columnTotals : Array[Array[Value]]
   rows : Array[PivotPreviewRow]
   total : Array[Value]
-} derive(ToJson)
+}
 
 ///|
 /// Returns typed grouped values without changing cells, source or history.

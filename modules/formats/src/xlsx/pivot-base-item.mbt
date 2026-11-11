@@ -1,9 +1,10 @@
 ///|
+#derive(Eq)
 pub(all) enum PivotBaseItem {
   Previous
   Next
   Member(Value)
-} derive(Eq)
+}
 
 ///|
 pub impl ToJson for PivotBaseItem with fn to_json(self) {

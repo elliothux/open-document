@@ -2,6 +2,7 @@ import { useState } from "react";
 import { docxHyperlinkTargetUnits } from "@open-document/wasm/engine-source";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxDrawingLink({
   controller,
@@ -30,7 +31,10 @@ export function DocxDrawingLink({
         }}
       >
         <fieldset disabled={disabled}>
-          <legend>{t.objectHyperlink}</legend>
+          <legend>
+            <Icon name="link" />
+            {t.objectHyperlink}
+          </legend>
           <label>
             {t.hyperlinkAddress}
             <input
@@ -43,12 +47,16 @@ export function DocxDrawingLink({
             />
           </label>
           <p>{t.hyperlinkBookmark}</p>
-          <button type="submit">{t.hyperlinkApply}</button>
+          <button type="submit">
+            <Icon name="check" />
+            {t.hyperlinkApply}
+          </button>
           <button
             type="button"
             disabled={!hyperlink.target}
             onClick={() => controller.run(() => apply(null))}
           >
+            <Icon name="trash" />
             {t.hyperlinkRemove}
           </button>
         </fieldset>
@@ -63,6 +71,7 @@ export function DocxDrawingLink({
               controller.run(() => goTo(hyperlink.target!.slice(1)))
             }
           >
+            <Icon name="arrow-right" />
             {t.hyperlinkOpen}
           </button>
         ) : (

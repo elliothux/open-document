@@ -23,6 +23,7 @@ export interface DocxRevisions {
     date: string;
     text: string;
     paragraph: number | null;
+    target: { start: number; end: number } | { paragraphs: number[] } | null;
     reason: string;
   }[];
 }

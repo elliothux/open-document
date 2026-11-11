@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { PresentationEditor } from "../web/presentation-editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function PptxShapeAdjustments({
   controller,
@@ -41,7 +42,10 @@ export function PptxShapeAdjustments({
         disabled || query.selection.mode !== "object" || !!reason || !compatible
       }
     >
-      <legend>{t.shapeAdjustments}</legend>
+      <legend>
+        <Icon name="adjust" />
+        {t.shapeAdjustments}
+      </legend>
       {first.values.map((guide) => {
         const label = ["round2SameRect", "round2DiagRect"].includes(
           first.preset,
@@ -170,6 +174,7 @@ export function PptxShapeAdjustments({
                 )
               }
             >
+              <Icon name="undo" />
               {t.resetShapeAdjustment}
             </button>
           </form>

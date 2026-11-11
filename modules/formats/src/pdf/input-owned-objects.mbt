@@ -98,6 +98,7 @@ fn PdfSession::owned_objects(
 }
 
 ///|
+#derive(ToJson)
 pub struct PdfObjectEntry {
   id : String
   kind : String
@@ -109,17 +110,18 @@ pub struct PdfObjectEntry {
   color : String
   role : String
   readOnlyReason : String
-} derive(ToJson)
+}
 
 ///|
 pub extend PdfObjectEntry with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub struct PdfObjects {
   revision : Int32
   page : String
   objects : Array[PdfObjectEntry]
-} derive(ToJson)
+}
 
 ///|
 pub extend PdfObjects with ToJson::{to_json}

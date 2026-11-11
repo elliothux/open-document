@@ -2,6 +2,7 @@
 pub const SlideAnimationCount : Int32 = 128
 
 ///|
+#derive(Eq, ToJson)
 pub(all) struct SlideAnimation {
   object : String
   kind : String
@@ -10,7 +11,7 @@ pub(all) struct SlideAnimation {
   duration : Int32
   repeat : Int32
   params : Array[Double]
-} derive(Eq, ToJson)
+}
 
 ///|
 pub extend SlideAnimation with Eq::{equal, not_equal}

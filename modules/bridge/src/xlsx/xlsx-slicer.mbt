@@ -1,8 +1,9 @@
 ///|
+#derive(@json.FromJson)
 priv struct SlicerHoverRequest {
   object : String
   index : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
 fn xlsx_slicer_hover(request : Json) -> (String, Int32)? raise @failure.Failure {

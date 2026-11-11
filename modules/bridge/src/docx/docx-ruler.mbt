@@ -1,16 +1,18 @@
 ///|
+#derive(@json.FromJson)
 priv struct RulerChangeRequest {
   kind : String
   position : @common.RequestNumber
   snap : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct RulerTabRequest {
   index : @common.RequestNumber
   align : String
   remove : Bool
-} derive(@json.FromJson)
+}
 
 ///|
 fn Context::docx_ruler(

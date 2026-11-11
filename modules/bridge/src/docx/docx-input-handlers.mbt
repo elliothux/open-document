@@ -1,42 +1,48 @@
 ///|
+#derive(@json.FromJson)
 priv struct DirectionRequest {
   revision : @common.RequestInt
   direction : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct TabRequest {
   revision : @common.RequestInt
   backward : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct CompositionRequest {
   revision : @common.RequestInt
   compositionId : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct CompositionTextRequest {
   revision : @common.RequestInt
   compositionId : @common.RequestInt
   text : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ReplaceRangeRequest {
   revision : @common.RequestInt
   selection : SelectionRequest
   text : String
   inputGroup : @common.RequestInt?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ReplaceNodeRequest {
   revision : @common.RequestInt
   node : @common.RequestInt
   text : String
-} derive(@json.FromJson)
+}
 
 ///|
 fn Context::clear_edit_layout(

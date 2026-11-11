@@ -1,4 +1,5 @@
 ///|
+#derive(@json.FromJson)
 priv struct AnnotationStyleRequest {
   placement : PlacementRequest
   color : String
@@ -6,7 +7,7 @@ priv struct AnnotationStyleRequest {
   border : @common.RequestNumber
   author : String
   text : String
-} derive(@json.FromJson)
+}
 
 ///|
 fn AnnotationStyleRequest::style(
@@ -73,47 +74,53 @@ impl @json.FromJson for PdfInkStrokes with fn from_json(input, path) {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct AnnotationRequest {
   revision : @common.RequestInt
   page : String
   annotation : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct EditAnnotationRequest {
   revision : @common.RequestInt
   page : String
   annotation : String
   style : AnnotationStyleRequest
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ReplyAnnotationRequest {
   revision : @common.RequestInt
   page : String
   annotation : String
   text : String
   author : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct AnnotationTextRequest {
   revision : @common.RequestInt
   page : String
   annotation : String
   text : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct InkAnnotationRequest {
   revision : @common.RequestInt
   page : String
   style : AnnotationStyleRequest
   strokes : PdfInkStrokes
   signature : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct StampAnnotationRequest {
   bytes : String
   revision : @common.RequestInt
@@ -122,9 +129,10 @@ priv struct StampAnnotationRequest {
   pixelWidth : @common.RequestInt
   pixelHeight : @common.RequestInt
   signature : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct DrawingAnnotationSpec {
   kind : String
   placement : PlacementRequest
@@ -135,21 +143,23 @@ priv struct DrawingAnnotationSpec {
   author : String
   text : String
   arrow : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct DrawingAnnotationRequest {
   revision : @common.RequestInt
   page : String
   spec : DrawingAnnotationSpec
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct MarkTextRequest {
   revision : @common.RequestInt
   layoutId : @common.RequestInt
   kind : String
-} derive(@json.FromJson)
+}
 
 ///|
 let annotation_handlers : Map[

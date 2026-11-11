@@ -1,9 +1,10 @@
 ///|
+#derive(Eq, Hash)
 enum ParagraphKeySource {
   Version(Int32)
   Content(String)
   Block(UInt64, Array[(Int32, String, TextStyle)])
-} derive(Eq, Hash)
+}
 
 ///|
 pub extend ParagraphKeySource with Eq::{equal, not_equal}
@@ -12,6 +13,7 @@ pub extend ParagraphKeySource with Eq::{equal, not_equal}
 pub extend ParagraphKeySource with Hash::{hash, hash_combine}
 
 ///|
+#derive(Eq, Hash)
 struct ParagraphCacheKey {
   source : ParagraphKeySource
   width : UInt64
@@ -23,7 +25,7 @@ struct ParagraphCacheKey {
   ligatures : Bool
   cell : Bool
   writerTwips : Bool
-} derive(Eq, Hash)
+}
 
 ///|
 pub extend ParagraphCacheKey with Eq::{equal, not_equal}

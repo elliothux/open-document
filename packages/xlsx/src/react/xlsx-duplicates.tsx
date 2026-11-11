@@ -5,6 +5,7 @@ import type { XlsxDuplicates } from "../web/xlsx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { selectedXlsxTable } from "./xlsx-tables.js";
+import { Icon } from "@open-document/ui/icons";
 
 export function XlsxDuplicates({
   editor,
@@ -54,7 +55,10 @@ export function XlsxDuplicates({
     preview.columns.every((column, i) => column === columns[i]);
   return (
     <fieldset disabled={blocked}>
-      <legend>{t.removeDuplicates}</legend>
+      <legend>
+        <Icon name="copy" />
+        {t.removeDuplicates}
+      </legend>
       <p>{address}</p>
       <p>{t.duplicateNotice}</p>
       {!bounded && <p>{t.duplicateLimit}</p>}
@@ -107,6 +111,7 @@ export function XlsxDuplicates({
           )
         }
       >
+        <Icon name="eye" />
         {t.previewDuplicates}
       </button>
       {preview && (
@@ -155,6 +160,7 @@ export function XlsxDuplicates({
               )
             }
           >
+            <Icon name="trash" />
             {t.removeDuplicates}
           </button>
         </>

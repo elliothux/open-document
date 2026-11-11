@@ -5,10 +5,11 @@ pub const WorksheetRows : Int32 = 1048576
 pub const WorksheetColumns : Int32 = 16384
 
 ///|
+#derive(Eq, ToJson)
 pub(all) struct Address {
   row : Int32
   column : Int32
-} derive(Eq, ToJson)
+}
 
 ///|
 impl Hash for Address with fn hash_combine(self, hasher) {
@@ -68,12 +69,13 @@ pub fn Address::name(self : Address) -> String raise @failure.Failure {
 }
 
 ///|
+#derive(Eq, ToJson)
 pub(all) struct Range {
   top : Int32
   left : Int32
   bottom : Int32
   right : Int32
-} derive(Eq, ToJson)
+}
 
 ///|
 pub extend Range with ToJson::{to_json}

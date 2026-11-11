@@ -26,6 +26,7 @@ pub const SourcePublisherUnits : Int32 = 512
 pub const SourceUrlUnits : Int32 = 2048
 
 ///|
+#derive(Eq, ToJson, @json.FromJson)
 pub(all) struct BibliographySource {
   tag : String
   kind : String
@@ -34,7 +35,7 @@ pub(all) struct BibliographySource {
   year : String
   publisher : String
   url : String
-} derive(Eq, ToJson, @json.FromJson)
+}
 
 ///|
 pub extend BibliographySource with Eq::{equal, not_equal}
@@ -356,6 +357,7 @@ fn Session::bibliography_part(
 }
 
 ///|
+#derive(ToJson)
 priv struct BibliographyCatalogEntry {
   tag : String
   kind : String
@@ -367,14 +369,15 @@ priv struct BibliographyCatalogEntry {
   reason : String
   authorReason : String
   deleteReason : String
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct BibliographyCatalog {
   revision : Int32
   sources : Array[BibliographyCatalogEntry]
   bibliographies : Array[BibliographyField]
-} derive(ToJson)
+}
 
 ///|
 /// Lists the document's native bibliography source records without changing its package.

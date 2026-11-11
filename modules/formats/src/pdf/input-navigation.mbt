@@ -1,26 +1,29 @@
 ///|
+#derive(ToJson)
 pub struct PdfNavigationTarget {
   kind : String
   page : String
   uri : String
   reason : String
-} derive(ToJson)
+}
 
 ///|
 pub extend PdfNavigationTarget with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub struct PdfOutlineEntry {
   id : String
   title : String
   level : Int32
   target : PdfNavigationTarget
-} derive(ToJson)
+}
 
 ///|
 pub extend PdfOutlineEntry with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub struct PdfNavigationLink {
   id : String
   page : String
@@ -29,17 +32,18 @@ pub struct PdfNavigationLink {
   width : Double
   height : Double
   target : PdfNavigationTarget
-} derive(ToJson)
+}
 
 ///|
 pub extend PdfNavigationLink with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub struct PdfNavigation {
   revision : Int32
   outlines : Array[PdfOutlineEntry]
   links : Array[PdfNavigationLink]
-} derive(ToJson)
+}
 
 ///|
 pub extend PdfNavigation with ToJson::{to_json}

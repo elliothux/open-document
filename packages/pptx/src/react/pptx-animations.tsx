@@ -4,6 +4,7 @@ import type { PresentationEditor } from "../web/presentation-editor.js";
 import type { PptxAnimation } from "../web/pptx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function PptxAnimations({
   editor,
@@ -67,7 +68,10 @@ export function PptxAnimations({
   };
   return (
     <fieldset disabled={disabled || !!current.reason}>
-      <legend>{t.animations}</legend>
+      <legend>
+        <Icon name="sparkles" />
+        {t.animations}
+      </legend>
       <ol>
         {current.items.map((item, index) => (
           <li key={index}>
@@ -89,6 +93,7 @@ export function PptxAnimations({
                 setParams(item.params);
               }}
             >
+              <Icon name="pen" />
               {t.animationEdit}
             </button>
             <button
@@ -96,6 +101,7 @@ export function PptxAnimations({
               disabled={index === 0}
               onClick={() => move(index, -1)}
             >
+              <Icon name="chevron-up" />
               {t.animationEarlier}
             </button>
             <button
@@ -103,12 +109,14 @@ export function PptxAnimations({
               disabled={index === current.items.length - 1}
               onClick={() => move(index, 1)}
             >
+              <Icon name="chevron-down" />
               {t.animationLater}
             </button>
             <button
               type="button"
               onClick={() => apply(current.items.filter((_, i) => i !== index))}
             >
+              <Icon name="trash" />
               {t.animationRemove}
             </button>
           </li>
@@ -313,6 +321,7 @@ export function PptxAnimations({
         </button>
         {editing !== undefined && (
           <button type="button" onClick={() => setEditing(undefined)}>
+            <Icon name="close" />
             {t.animationCancel}
           </button>
         )}

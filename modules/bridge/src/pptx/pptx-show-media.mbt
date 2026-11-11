@@ -1,14 +1,16 @@
 ///|
+#derive(@json.FromJson)
 priv struct ShowMediaChangeRequest {
   object : String
   token : @common.RequestInt
   action : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ShowMediaErrorRequest {
   message : String
-} derive(@json.FromJson)
+}
 
 ///|
 fn pptx_show_media(

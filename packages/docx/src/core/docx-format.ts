@@ -461,5 +461,14 @@ export interface DocxStyleCatalog {
     canDelete: boolean;
     canReset: boolean;
     linked: boolean;
+    preview: {
+      family: string;
+      size: number;
+      color: string;
+      bold: boolean;
+      italic: boolean;
+      underline: boolean;
+      strike: boolean;
+    } | null;
   }[];
 }

@@ -174,11 +174,12 @@ fn read_sections(tree : Tree) -> Array[Section] raise @failure.Failure {
 }
 
 ///|
+#derive(ToJson)
 priv struct QuerySection {
   id : String
   name : String
   slides : Array[String]
-} derive(ToJson)
+}
 
 ///|
 fn Session::section_query(self : Session) -> SlideCollectionQuery[QuerySection] {

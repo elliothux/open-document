@@ -27,12 +27,13 @@ pub impl ToJson for PageBorder with fn to_json(self) {
 pub extend PageBorder with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub(all) struct PageBorders {
   offsetFrom : String
   display : String
   zOrder : String
   sides : Array[PageBorder]
-} derive(ToJson)
+}
 
 ///|
 pub extend PageBorders with ToJson::{to_json}

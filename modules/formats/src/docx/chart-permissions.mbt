@@ -1,4 +1,5 @@
 ///|
+#derive(Eq)
 priv enum ChartOperation {
   ChartContent
   ChartCopy
@@ -6,7 +7,7 @@ priv enum ChartOperation {
   ChartRetain
   ChartResize
   ChartPosition
-} derive(Eq)
+}
 
 ///|
 fn WordTree::check_chart_operation(

@@ -1,0 +1,549 @@
+/* Task panels: a titled side sheet. Sections stack; fields fill a row; actions wrap inline. */
+.od-properties {
+  display: flex;
+  flex-direction: column;
+  width: 304px;
+  flex-shrink: 0;
+  overflow: auto;
+  padding: 0 16px 24px;
+  border-left: 1px solid var(--od-ui-line);
+  background: var(--od-ui-surface);
+  font-size: var(--od-ui-font-size);
+}
+.od-task-panel {
+  width: min(320px, 100%);
+}
+.od-task-header {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  min-height: 52px;
+  margin: 0 -16px 4px;
+  padding: 0 8px 0 16px;
+  border-bottom: 1px solid var(--od-ui-line);
+  background: color-mix(in srgb, var(--od-ui-surface) 92%, transparent);
+  backdrop-filter: blur(8px);
+  outline: none;
+}
+.od-task-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: var(--od-ui-accent);
+  background: var(--od-ui-accent-soft);
+}
+.od-task-icon svg {
+  width: 16px;
+  height: 16px;
+}
+.od-task-header strong {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(var(--od-ui-font-size) + 1px);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.od-task-header button {
+  display: inline-grid;
+  place-items: center;
+  width: var(--od-ui-control);
+  height: var(--od-ui-control);
+  padding: 0;
+  color: var(--od-ui-muted);
+}
+.od-task-header button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Flow: every unclassed container wraps; non-action children take a full row. */
+.od-properties
+  :is(section, fieldset, form, .od-group-items, div:not([class], [role])),
+.od-pdf-task-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 8px;
+  min-width: 0;
+}
+.od-properties
+  :is(section, fieldset, form, .od-group-items, div:not([class], [role]))
+  > :not(
+    button,
+    .od-command,
+    [role="button"],
+    input:is([type="checkbox"], [type="radio"], [type="color"]),
+    .od-icon-command
+  ),
+.od-pdf-task-content > * {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+/* Top-level sections are separated by hairlines. */
+.od-properties > :not(.od-task-header),
+.od-properties > :not(.od-task-header) > section {
+  padding-block: 14px;
+}
+.od-properties > :not(.od-task-header) + :not(.od-task-header),
+.od-properties section + section {
+  border-top: 1px solid var(--od-ui-line);
+}
+.od-properties > :not(.od-task-header) > section:first-child {
+  padding-top: 0;
+}
+
+/* Headings carry an accent icon. */
+.od-properties :is(h2, h3, h4),
+.od-properties .od-group > .od-group-label,
+.od-pdf-task-content > .od-group > .od-group-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--od-ui-ink);
+  font-size: var(--od-ui-font-size);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+.od-properties :is(h2, h3, h4, legend, .od-group-label) > svg {
+  width: 15px;
+  height: 15px;
+  color: var(--od-ui-accent);
+}
+
+/* Fieldsets read as titled subsections; nested ones become quiet cards. */
+.od-properties fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.od-properties fieldset > legend {
+  float: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  color: var(--od-ui-ink);
+  font-size: var(--od-ui-small);
+  font-weight: 600;
+}
+.od-properties :is(fieldset, form) + :is(fieldset, form, details, .od-group),
+.od-properties .od-group + .od-group {
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--od-ui-line);
+}
+.od-properties fieldset fieldset {
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--od-ui-subtle);
+  box-shadow: inset 0 0 0 1px var(--od-ui-line);
+}
+.od-properties fieldset fieldset > legend {
+  color: var(--od-ui-muted);
+  font-size: var(--od-ui-tiny);
+}
+
+/* Fields: caption above control. */
+.od-properties label {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  margin: 0;
+  color: var(--od-ui-muted);
+  font-size: var(--od-ui-small);
+  font-weight: 500;
+}
+.od-properties
+  label
+  > :is(
+    input:not([type="checkbox"], [type="radio"], [type="color"], [type="file"]),
+    select,
+    textarea
+  ),
+.od-properties
+  :is(section, fieldset, form, div)
+  > :is(input:not([type="checkbox"], [type="radio"], [type="color"]), select) {
+  width: 100%;
+  min-height: 32px;
+  color: var(--od-ui-ink);
+  font-size: var(--od-ui-font-size);
+  font-weight: 400;
+}
+.od-properties textarea {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  color: var(--od-ui-ink);
+}
+.od-properties
+  label:has(> input:is([type="checkbox"], [type="radio"])):not(
+    :has(.od-slide-preview, img)
+  ) {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  color: var(--od-ui-ink);
+  font-size: var(--od-ui-font-size);
+  font-weight: 400;
+}
+.od-properties label:has(> input[type="color"]) {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+.od-properties input[type="color"] {
+  width: 44px;
+  height: 28px;
+  padding: 3px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.od-properties input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.od-properties input[type="color"]::-webkit-color-swatch {
+  border: 0;
+  border-radius: 5px;
+}
+/* A single text or number field with its Apply button sits on one row. */
+.od-properties
+  form:has(
+    > label:only-of-type
+      > input:not(
+        [type="checkbox"],
+        [type="radio"],
+        [type="file"],
+        [type="color"]
+      )
+  ):has(> label + button:last-child):not(:has(> :not(label, button))) {
+  flex-wrap: nowrap;
+  align-items: flex-end;
+}
+.od-properties
+  form:has(
+    > label:only-of-type
+      > input:not(
+        [type="checkbox"],
+        [type="radio"],
+        [type="file"],
+        [type="color"]
+      )
+  ):has(> label + button:last-child):not(:has(> :not(label, button)))
+  > label {
+  flex: 1 1 auto;
+}
+
+/* Actions. */
+.od-properties
+  button:not(
+    [class],
+    [role="tab"],
+    [role="slider"],
+    [role="option"],
+    li > button,
+    summary button,
+    .od-task-header button
+  ),
+.od-properties .od-command,
+.od-dialog form > button:not([type="submit"]),
+.od-dialog > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--od-ui-line-strong);
+  background-color: var(--od-ui-surface);
+  box-shadow: var(--od-ui-shadow-sm);
+  color: var(--od-ui-ink);
+  font-size: var(--od-ui-small);
+  font-weight: 500;
+}
+.od-properties
+  button:not(
+    [class],
+    [role="tab"],
+    [role="slider"],
+    [role="option"],
+    li > button,
+    summary button,
+    .od-task-header button
+  ):enabled:hover,
+.od-properties .od-command:enabled:hover {
+  background-color: color-mix(
+    in srgb,
+    var(--od-ui-ink) 4%,
+    var(--od-ui-surface)
+  );
+}
+.od-properties button svg,
+.od-dialog button svg {
+  width: 14px;
+  height: 14px;
+  color: var(--od-ui-muted);
+}
+/* A form's submit is the subsection's main action. */
+.od-properties button[type="submit"]:not([class]) {
+  border-color: var(--od-ui-accent-line);
+  color: var(--od-ui-accent);
+  background-color: var(--od-ui-accent-soft);
+  box-shadow: none;
+}
+.od-properties button[type="submit"]:not([class]):enabled:hover {
+  background-color: color-mix(
+    in srgb,
+    var(--od-ui-accent) 16%,
+    var(--od-ui-surface)
+  );
+}
+.od-properties button[type="submit"] svg {
+  color: inherit;
+}
+.od-properties button:is([aria-pressed="true"], [aria-checked="true"]) {
+  border-color: var(--od-ui-accent-line);
+  color: var(--od-ui-accent);
+  background-color: var(--od-ui-accent-soft);
+}
+.od-properties button:is([aria-pressed="true"], [aria-checked="true"]) svg {
+  color: inherit;
+}
+
+/* File pickers become drop zones; the native input covers the zone. */
+.od-properties label:has(> input[type="file"]),
+.od-dialog label:has(> input[type="file"]) {
+  position: relative;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 10px 12px;
+  border: 1px dashed var(--od-ui-line-strong);
+  border-radius: 10px;
+  background: var(--od-ui-subtle);
+  color: var(--od-ui-ink);
+  font-size: var(--od-ui-small);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    border-color 120ms var(--od-ui-ease),
+    background-color 120ms var(--od-ui-ease);
+}
+.od-properties label:has(> input[type="file"])::after,
+.od-dialog label:has(> input[type="file"])::after {
+  content: "Click or drop a file";
+  margin-left: auto;
+  color: var(--od-ui-faint);
+  font-size: var(--od-ui-tiny);
+  font-weight: 400;
+  white-space: nowrap;
+}
+.od-properties:lang(zh) label:has(> input[type="file"])::after {
+  content: "点击或拖入文件";
+}
+:is(.od-properties, .od-dialog) label:has(> input[type="file"]) > svg {
+  box-sizing: content-box;
+  width: 16px;
+  height: 16px;
+  padding: 7px;
+  border-radius: 8px;
+  color: var(--od-ui-accent);
+  background: var(--od-ui-accent-soft);
+}
+:is(.od-properties, .od-dialog) label:has(> input[type="file"]:enabled):hover {
+  border-color: var(--od-ui-accent);
+  background: color-mix(in srgb, var(--od-ui-accent) 5%, var(--od-ui-surface));
+}
+:is(.od-properties, .od-dialog) label:has(> input[type="file"]:focus-visible) {
+  border-color: var(--od-ui-accent);
+  box-shadow: var(--od-ui-ring);
+}
+:is(.od-properties, .od-dialog) label:has(> input[type="file"]:disabled) {
+  opacity: 0.5;
+  cursor: default;
+}
+:is(.od-properties, .od-dialog, .od-ribbon)
+  :is(label, .od-command):has(> input[type="file"])
+  > input[type="file"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.od-command:has(> input[type="file"]) {
+  position: relative;
+}
+
+/* Text, lists and disclosure. */
+.od-properties p,
+.od-properties small {
+  margin: 0;
+  color: var(--od-ui-muted);
+  font-size: var(--od-ui-small);
+  line-height: 1.5;
+}
+.od-properties :is(ol, ul) {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.od-properties li > button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 1px 0;
+  padding: 6px 8px;
+  text-align: left;
+  color: var(--od-ui-ink);
+}
+.od-properties li > button:is([aria-current="true"], [aria-pressed="true"]) {
+  color: var(--od-ui-ink);
+  background: var(--od-ui-active);
+}
+.od-properties details {
+  border-radius: 8px;
+}
+.od-properties summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+  color: var(--od-ui-ink);
+  font-weight: 500;
+  list-style: none;
+}
+.od-properties summary::-webkit-details-marker {
+  display: none;
+}
+.od-properties summary::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid var(--od-ui-muted);
+  border-bottom: 1.5px solid var(--od-ui-muted);
+  transform: rotate(-45deg);
+  transition: transform 120ms var(--od-ui-ease);
+}
+.od-properties details[open] > summary::before {
+  transform: rotate(45deg);
+}
+.od-properties hr {
+  flex-basis: 100%;
+  margin: 4px 0;
+  border: 0;
+  border-top: 1px solid var(--od-ui-line);
+}
+.od-properties .od-group {
+  margin: 0;
+}
+
+/* Three or more sibling actions form an even two-column grid. */
+.od-properties
+  :is(section, fieldset, form, .od-group-items, div:not([class], [role])):has(
+    > button:not([class]) + button:not([class]) + button:not([class])
+  )
+  > button:not([class]) {
+  flex: 0 1 calc(50% - 4px);
+  min-width: fit-content;
+}
+/* Numeric fields pair up, such as width and height. */
+.od-properties
+  :is(section, fieldset, form, div:not([class], [role]))
+  > label:has(> input[type="number"]):has(+ label > input[type="number"]),
+.od-properties
+  :is(section, fieldset, form, div:not([class], [role]))
+  > label:has(> input[type="number"])
+  + label:has(> input[type="number"]) {
+  flex: 1 1 calc(50% - 4px);
+}
+/* The drop zone stacks its caption over a hint. */
+:is(.od-properties, .od-dialog) label:has(> input[type="file"]) {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  row-gap: 2px;
+  align-items: center;
+}
+:is(.od-properties, .od-dialog) label:has(> input[type="file"]) > svg {
+  grid-row: 1 / 3;
+}
+:is(.od-properties, .od-dialog) label:has(> input[type="file"])::after {
+  grid-column: 2;
+  margin-left: 0;
+}
+
+/* Action labels never break mid-word; grid cells truncate instead. */
+.od-properties button {
+  white-space: nowrap;
+}
+.od-properties button:not([class]) {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.od-properties form > label + button:last-child {
+  flex: none;
+}
+
+.od-properties .od-repeat-heading {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Only the first nesting level becomes a card. */
+.od-properties fieldset fieldset fieldset {
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+
+/* Facts read as a compact two-column grid of tiles. */
+.od-properties dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+.od-properties dl > div {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--od-ui-subtle);
+  box-shadow: inset 0 0 0 1px var(--od-ui-line);
+}
+.od-properties dt {
+  color: var(--od-ui-muted);
+  font-size: var(--od-ui-tiny);
+}
+.od-properties dd {
+  margin: 0;
+  color: var(--od-ui-ink);
+  font-size: calc(var(--od-ui-font-size) + 3px);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}

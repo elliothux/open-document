@@ -7,6 +7,7 @@ import {
 } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxBodyField({
   controller,
@@ -55,7 +56,10 @@ export function DocxBodyField({
   };
   return (
     <section aria-label={t.bodyPageField}>
-      <h4>{t.bodyPageField}</h4>
+      <h4>
+        <Icon name="number-format" />
+        {t.bodyPageField}
+      </h4>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -83,7 +87,10 @@ export function DocxBodyField({
             onChange={setSequenceOptions}
             t={t}
           />
-          <button type="submit">{t.insertSequenceField}</button>
+          <button type="submit">
+            <Icon name="plus" />
+            {t.insertSequenceField}
+          </button>
         </fieldset>
       </form>
       <form
@@ -182,6 +189,7 @@ export function DocxBodyField({
         disabled={disabled || !snapshot.data.selection}
         onClick={() => controller.run(load)}
       >
+        <Icon name="refresh" />
         {t.loadBodyPageField}
       </button>
       {source?.reason && <p>{source.reason}</p>}
@@ -399,7 +407,10 @@ export function DocxBodyField({
                 </select>
               </label>
             )}
-            <button type="submit">{t.applyBodyPageField}</button>
+            <button type="submit">
+              <Icon name="check" />
+              {t.applyBodyPageField}
+            </button>
             {reference?.hyperlink && (
               <button
                 type="button"

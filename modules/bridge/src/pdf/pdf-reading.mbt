@@ -1,24 +1,28 @@
 ///|
+#derive(@json.FromJson)
 priv struct ViewRequest {
   layoutId : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PageReadRequest {
   revision : @common.RequestInt
   page : String
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SearchRequest {
   revision : @common.RequestInt
   page : String
   query : String
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct RangeRequest {
   revision : @common.RequestInt
   anchorPage : String
@@ -26,42 +30,47 @@ priv struct RangeRequest {
   focusPage : String
   focus : @common.RequestInt
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct RevisionProfileRequest {
   revision : @common.RequestInt
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct HitRequest {
   layoutId : @common.RequestInt
   x : @common.RequestNumber
   y : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SelectionRequest {
   layoutId : @common.RequestInt
   anchor : @common.RequestInt
   focus : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct NoteRequest {
   revision : @common.RequestInt
   page : String
   x : @common.RequestNumber
   y : @common.RequestNumber
   text : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct HighlightRequest {
   revision : @common.RequestInt
   layoutId : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
 let reading_handlers : Map[

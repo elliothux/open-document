@@ -1,4 +1,5 @@
 ///|
+#derive(Eq, ToJson(fields(first_row(rename="firstRow"), last_row(rename="lastRow"), first_column(rename="firstColumn"), last_column(rename="lastColumn"), band_rows(rename="bandRows"), band_columns(rename="bandColumns"))), @json.FromJson(fields(first_row(rename="firstRow"), last_row(rename="lastRow"), first_column(rename="firstColumn"), last_column(rename="lastColumn"), band_rows(rename="bandRows"), band_columns(rename="bandColumns"))))
 pub(all) struct TableStyleSettings {
   id : String
   first_row : Bool
@@ -7,29 +8,7 @@ pub(all) struct TableStyleSettings {
   last_column : Bool
   band_rows : Bool
   band_columns : Bool
-} derive (
-  Eq,
-  ToJson(
-    fields(
-      first_row(rename="firstRow"),
-      last_row(rename="lastRow"),
-      first_column(rename="firstColumn"),
-      last_column(rename="lastColumn"),
-      band_rows(rename="bandRows"),
-      band_columns(rename="bandColumns"),
-    ),
-  ),
-  @json.FromJson(
-    fields(
-      first_row(rename="firstRow"),
-      last_row(rename="lastRow"),
-      first_column(rename="firstColumn"),
-      last_column(rename="lastColumn"),
-      band_rows(rename="bandRows"),
-      band_columns(rename="bandColumns"),
-    ),
-  ),
-)
+}
 
 ///|
 pub extend TableStyleSettings with Eq::{equal, not_equal}

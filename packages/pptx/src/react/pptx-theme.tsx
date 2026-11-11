@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from "react";
 import type { PptxThemeSlot } from "../web/pptx.js";
 import type { PanelProps } from "./panels.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function PptxTheme({ controller, state, file, disabled }: PanelProps) {
   const colors = file.format === "pptx" ? file.editor.query.themeColors : [];
@@ -38,7 +39,10 @@ export function PptxTheme({ controller, state, file, disabled }: PanelProps) {
       }}
     >
       <fieldset disabled={disabled || !!editor.query.slideVisibilityReason}>
-        <legend>{t.themeColors}</legend>
+        <legend>
+          <Icon name="palette" />
+          {t.themeColors}
+        </legend>
         <p>{t.themeColorScope}</p>
         <label>
           {t.themeColorSlot}
@@ -69,6 +73,7 @@ export function PptxTheme({ controller, state, file, disabled }: PanelProps) {
         {selected.color === null && !selected.reason && <p>{t.mixed}</p>}
         {selected.reason && <p role="status">{selected.reason}</p>}
         <button type="submit" disabled={!!selected.reason}>
+          <Icon name="check" />
           {t.applyThemeColor}
         </button>
       </fieldset>
@@ -106,7 +111,10 @@ export function PptxThemeFonts({
       }}
     >
       <fieldset disabled={disabled || !!editor.query.slideVisibilityReason}>
-        <legend>{t.themeFonts}</legend>
+        <legend>
+          <Icon name="font-size" />
+          {t.themeFonts}
+        </legend>
         <p>{t.themeColorScope}</p>
         <label>
           {t.themeFontRole}
@@ -159,6 +167,7 @@ export function PptxThemeFonts({
         {selected?.font === null && !selected.reason && <p>{t.mixed}</p>}
         {selected?.reason && <p role="status">{selected.reason}</p>}
         <button type="submit" disabled={!!selected?.reason}>
+          <Icon name="check" />
           {t.applyThemeFont}
         </button>
       </fieldset>

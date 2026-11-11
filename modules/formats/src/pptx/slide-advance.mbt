@@ -1,8 +1,9 @@
 ///|
+#derive(Eq)
 pub(all) struct SlideAdvance {
   click : Bool
   after : Int32?
-} derive(Eq)
+}
 
 ///|
 pub extend SlideAdvance with Eq::{equal, not_equal}

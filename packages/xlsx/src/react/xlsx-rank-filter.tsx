@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { XlsxFilterColumn, XlsxRankFilter } from "../web/xlsx.js";
 import type { UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function XlsxRankFilterForm({
   criterion,
@@ -30,7 +31,10 @@ export function XlsxRankFilterForm({
       }}
     >
       <fieldset disabled={disabled}>
-        <legend>{t.filterRank}</legend>
+        <legend>
+          <Icon name="filter" />
+          {t.filterRank}
+        </legend>
         <p>{t.filterRankHelp}</p>
         <label>
           {t.filterRankDirection}
@@ -77,7 +81,10 @@ export function XlsxRankFilterForm({
             }
           />
         </label>
-        <button type="submit">{t.filterRankApply}</button>
+        <button type="submit">
+          <Icon name="check" />
+          {t.filterRankApply}
+        </button>
       </fieldset>
     </form>
   );

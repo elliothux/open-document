@@ -10,6 +10,7 @@ import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { StyleChoice, StyleInput } from "./docx-style-fields.js";
 import { DocxTabFields } from "./docx-tab-fields.js";
+import { Icon } from "@open-document/ui/icons";
 
 const emptyNumbers = {
   size: "",
@@ -139,7 +140,10 @@ export function DocxStyleEdit({
       }}
     >
       <fieldset disabled={!choice || !!choice.reason}>
-        <legend>{t.editStyle}</legend>
+        <legend>
+          <Icon name="format-painter" />
+          {t.editStyle}
+        </legend>
         <label>
           {t.styleName}
           <input

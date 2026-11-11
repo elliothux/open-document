@@ -4,6 +4,7 @@ import {
 } from "@open-document/wasm/engine-source";
 import type { PanelProps } from "./panels.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function XlsxOutlinePanel({
   controller,
@@ -17,7 +18,10 @@ export function XlsxOutlinePanel({
     query = editor.currentState;
   return (
     <fieldset disabled={disabled || !!query.outline.reason}>
-      <legend>{t.outline}</legend>
+      <legend>
+        <Icon name="list-nested" />
+        {t.outline}
+      </legend>
       <p>{t.outlineHelp}</p>
       {(["rows", "columns"] as const).map((axis) => {
         const outline = query.outline[axis],
@@ -49,6 +53,7 @@ export function XlsxOutlinePanel({
                 )
               }
             >
+              <Icon name="group" />
               {t.groupSelection}
             </button>
             <button
@@ -65,6 +70,7 @@ export function XlsxOutlinePanel({
                 )
               }
             >
+              <Icon name="ungroup" />
               {t.ungroupSelection}
             </button>
             <button
@@ -76,6 +82,7 @@ export function XlsxOutlinePanel({
                 )
               }
             >
+              <Icon name="eraser" />
               {t.clearOutline}
             </button>
             <label>

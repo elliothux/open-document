@@ -182,7 +182,7 @@ pub fn Session::create_content(
         rgba,
         width,
         height,
-        pageBreak
+        pageBreak,
       ) => {
         ignore(@image.type_info(bytes))
         let encoded = @base64.encode(bytes)

@@ -1,19 +1,22 @@
 ///|
+#derive(@json.FromJson)
 priv struct SelectionViewRequest {
   revision : @common.RequestInt
   selection : SelectionRequest
   formatTable : Bool
   describeText : Bool
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct SelectionGeometryResponse {
   layoutId : Int32
   revision : Int32
   rects : Array[@layout.SelectionRect]
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct SelectionViewResponse {
   layoutId : Int32
   revision : Int32
@@ -22,7 +25,7 @@ priv struct SelectionViewResponse {
   formatting : Json
   selectedText : String
   selectionError : String
-} derive(ToJson)
+}
 
 ///|
 fn Context::selection_caret(

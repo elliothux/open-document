@@ -169,6 +169,11 @@ export type XlsxClearMode = "contents" | "formats" | "all";
 /** One workbook owner; values, XML transactions and history stay in MoonBit. */
 export { XlsxSession } from "./xlsx-session.js";
 export type { XlsxCommand, XlsxResult } from "./xlsx-command.js";
+export type {
+  XlsxFormulaAssistance,
+  XlsxFormulaDraft,
+  XlsxFormulaSignature,
+} from "./xlsx-formula.js";
 import {
   checkByteInput,
   type InputLimits,

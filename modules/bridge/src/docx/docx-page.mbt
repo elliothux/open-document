@@ -1,18 +1,21 @@
 ///|
+#derive(@json.FromJson)
 priv struct PageSectionRequest {
   revision : @common.RequestInt
   section : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct RunningAreaRequest {
   revision : @common.RequestInt
   section : @common.RequestInt
   kind : String
   variant : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct RunningLinkRequest {
   revision : @common.RequestInt
   section : @common.RequestInt
@@ -20,18 +23,20 @@ priv struct RunningLinkRequest {
   variant : String
   linked : Bool
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct RunningOptionsRequest {
   revision : @common.RequestInt
   section : @common.RequestInt
   first : Bool
   even : Bool
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SetRunningAreaRequest {
   revision : @common.RequestInt
   section : @common.RequestInt
@@ -40,42 +45,47 @@ priv struct SetRunningAreaRequest {
   content : RunningContentRequest
   distance : @common.RequestNumber
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SetPageSetupRequest {
   revision : @common.RequestInt
   page : PageSetupInput
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ReferenceEditRequest {
   revision : @common.RequestInt
   change : Json
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct CaptionCommandRequest {
   revision : @common.RequestInt
   caption : CaptionInput
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct CaptionRequest {
   label : String
   text : String
   position : String
   format : String?
   chapter : CaptionChapterRequest?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct CaptionChapterRequest {
   level : @common.RequestInt
   separator : String
-} derive(@json.FromJson)
+}
 
 ///|
 priv struct CaptionInput {
@@ -108,75 +118,85 @@ impl @json.FromJson for CaptionInput with fn from_json(input, path) {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct DocumentProtectionRequest {
   revision : @common.RequestInt
   enabled : Bool
   password : String
   passwordSalt : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SectionBreakRequest {
   revision : @common.RequestInt
   kind : String
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PageProfileRequest {
   revision : @common.RequestInt
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct CoverPageRequest {
   revision : @common.RequestInt
   cover : @common.RequiredNullable[CoverPageInput]
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct CoverPageInput {
   title : String
   subtitle : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PageColumnsRequest {
   revision : @common.RequestInt
   section : @common.RequestInt
   columns : @common.RequiredNullable[PageColumnsInput]
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PageNumberingRequest {
   revision : @common.RequestInt
   section : @common.RequestInt
   numbering : @common.RequiredNullable[PageNumberingInput]
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PageBackgroundRequest {
   revision : @common.RequestInt
   color : @common.RequiredNullable[String]
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct SetWatermarkRequest {
   revision : @common.RequestInt
   section : @common.RequestInt
   value : Json
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct PageBordersRequest {
   revision : @common.RequestInt
   section : @common.RequestInt
   borders : @common.RequiredNullable[PageBordersInput]
-} derive(@json.FromJson)
+}
 
 ///|
 let page_handlers : Map[

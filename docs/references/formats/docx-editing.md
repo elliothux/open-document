@@ -90,7 +90,9 @@ CJK 字体的左到右 DOCX 文字采用固定 ONLYOFFICE 10 的 Word 光标度�
 
 `keepLines: true/false` 设置或关闭“段中不分页”，null 清除直接定义并恢复样式继承；查询与 Flow 返回有效布尔值。默认格式面板和样式编辑面板共用现有命令，格式复制、拆段及清除直接格式也包含该属性。正文段落不能放入当前页时先整体换页；超出一页时在新页正常拆分，不重复尝试。页首空间不足时省略使整段无法放入的段前留白；显式分页符优先，含分页符的段落沿原分页规则执行。可拆的普通表格行按单元格段落保留整组行；整页放不下的格内段落继续拆分，精确行高仍裁剪。重复表头的空间检查包含待放段落，属性变化参与分页缓存失效。规则参考 [ONLYOFFICE KeepLines 分页](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph_Recalculate.js#L2545-L2590)的现代文档路径；不新增旧 Word 分页模式。不等宽栏按下文使用各自区域宽度续排；多节继续实施。
 
-`FoundationSession/Client.execute({ operation: "styles", revision, kind })` 与 `DocumentEditor.formatting.styles(kind)` 返回现有样式目录：`{ revision, truncated, styles: [{ id, name, reason, basedOn, canDelete, canReset, linked }] }`，`kind` 为 `"paragraph" | "character"`，每类最多 1024 项。`basedOn` 为直接基础样式 ID，无继承时为空串；`canDelete` 表示已支持且未标为默认的自定义样式；`linked` 表示存在样式链接，`canReset` 表示有已支持的格式重置规则。不可应用的样式带原因，默认 UI 禁用对应选项。该接口替代原段落专用目录入口。
+`FoundationSession/Client.execute({ operation: "styles", revision, kind })` 与 `DocumentEditor.formatting.styles(kind)` 返回样式目录 `{ revision, truncated, styles: [{ id, name, reason, basedOn, canDelete, canReset, linked, preview }] }`。`kind` 为 `"paragraph" | "character"`，每类最多 1024 项。`basedOn` 为直接基础样式 ID，无继承时为空串。`canDelete` 表示已支持且未标为默认的自定义样式。`linked` 表示存在样式链接，`canReset` 表示有已支持的格式重置规则。不可应用的样式带原因，`preview` 为 null，默认 UI 禁用对应选项。
+
+`preview` 包含 `{ family, size, color, bold, italic, underline, strike }`。MoonBit 从文档默认值和 `basedOn` 链解析字形属性与主题色。自动文字颜色按白色背景解析。`size` 为 pt，`color` 为六位 RGB。默认 UI 展示所选样式名称与字号，预览文字限制在 9–28 pt，字形由浏览器字体绘制。目录过期后提示重新加载。应用或清除后刷新已加载的目录，提交前核对目标选区。
 
 `rtl` 使用布尔值写回 `w:bidi`，null 清除直接定义并恢复继承。有效方向参与混合查询、格式复制、样式修改、拆段、历史与保存；默认 UI 提供方向开关。派生 `Paragraph.rtl=true` 指定 RTL 段落基准方向，false 保留既有的 Unicode 自动双向文字计算；本次未增加 run 级方向覆盖。制表与边界坐标归下文。格式、样式或设置修改引起重排时，核心清除已失效的双向层级与跨帧提示；撤销保留修改前选择。双向边界的 `before` 光标跟随前一片段，`after` 跟随后一片段，两者可位于不同视觉位置。
 

@@ -1,10 +1,13 @@
 import type { XlsxCell } from "../core/xlsx.js";
 import { prepareGridInput } from "./spreadsheet-input.js";
+import { SpreadsheetFormulaHints } from "./spreadsheet-formula-hints.js";
+import type { CommandQueue } from "@open-document/web-core/command-queue";
 
 /** Both views use one native input, so switching keeps its draft and native undo. */
 export class SpreadsheetFormula {
   readonly element = document.createElement("div");
   private readonly mirror = document.createElement("textarea");
+  private readonly hints: SpreadsheetFormulaHints;
   private active = false;
   switching = false;
 
@@ -12,9 +15,26 @@ export class SpreadsheetFormula {
     private readonly input: HTMLTextAreaElement,
     private readonly holder: HTMLElement,
     signal: AbortSignal,
-    edit: () => void,
+    {
+      edit,
+      current,
+      queue,
+    }: {
+      edit(): void;
+      current: ConstructorParameters<typeof SpreadsheetFormulaHints>[3];
+      queue: CommandQueue;
+    },
   ) {
+    this.element.className = "od-xlsx-formula-entry";
     this.element.append(this.mirror);
+    this.hints = new SpreadsheetFormulaHints(
+      input,
+      this.element,
+      holder,
+      current,
+      signal,
+      queue,
+    );
     this.mirror.readOnly = true;
     this.element.addEventListener(
       "pointerdown",
@@ -97,5 +117,6 @@ export class SpreadsheetFormula {
       pointerEvents: "auto",
       resize: "none",
     });
+    this.hints.update(draft && !unavailable, this.active);
   }
 }

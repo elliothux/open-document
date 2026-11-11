@@ -1,32 +1,37 @@
 ///|
+#derive(@json.FromJson)
 priv struct MathEditTargetRequest {
   target : MathTargetRequest
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct MathTargetRequest {
   object : String
   revision : @common.RequestInt
   node : @common.RequestInt
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct MathContentRequest {
   latex : String
   format : MathAppearanceRequest
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct MathAppearanceRequest {
   family : String
   size : @common.RequestNumber
   color : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct MathPositionRequest {
   position : String
-} derive(@json.FromJson)
+}
 
 ///|
 fn pptx_math_target(value : Json) -> @model.MathTarget raise @failure.Failure {

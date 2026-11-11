@@ -4,7 +4,7 @@
 
 构建使用固定 MoonBit 工具链附带的 `moon-wasm-opt`（Binaryen 125，Apache-2.0）优化唯一共享引擎；不增加运行时依赖或第二套引擎。
 
-MoonBit 0.1.20261023 使用新配置格式。[依赖准备工具](../../tools/prepare-dependencies.mbtx)先用官方 `moonfmt` 转换固定 HarfBuzz 和 HTML 测试依赖 QuickCheck 0.14.0 的 JSON 配置，再核对并应用既有补丁。解析器可在首份旧配置处停止下载，工具最多完成两轮元数据迁移；最终依赖解析仍须通过。源码内容不参与配置转换。颜色结构中与新关键字冲突的 `extend` 改为 `extendMode`，调用方一并修改；两份源码补丁保留原始与结果 hash。依赖版本和许可证保持原值。
+MoonBit 0.10.20 使用新配置格式。[依赖准备工具](../../tools/prepare-dependencies.mbtx)先用官方 `moonfmt` 转换固定 HarfBuzz 和 HTML 测试依赖 QuickCheck 0.14.0 的 JSON 配置，再核对并应用补丁。解析器可在首份旧配置处停止下载，工具最多完成两轮元数据迁移。颜色结构和调用方使用 `extendMode`。HarfBuzz 工作预算的序列化使用 `Json(Int)`，输出仍为整数。补丁按 SHA-256 校验，依赖版本和许可证沿用固定值。
 
 | 固定 module | 用到的能力 / 许可 | 必要本地工作 |
 | --- | --- | --- |
@@ -142,4 +142,4 @@ GPOS 的合并补丁身份见上表；原版权头、Apache-2.0 及公开包 not
 | Vite / `@vitejs/plugin-react-swc` | 8.3.5 / 4.3.3；Bun 开发预览与 React Fast Refresh | MIT |
 | `@tailwindcss/vite` / `@types/node` | 4.3.3 / 24.19.2；预览样式编译与配置类型 | MIT |
 
-GenOffice 固定源码 `5eab98adc8d0ebf6ecea687e42400a791ef58d64` 的设计变量、功能区分组与选定剪贴板/历史 SVG 用于 UI。复用文件保留 Mainfunc 2026 版权与 Apache-2.0 来源，详见 [`packages/ui/NOTICE`](../../packages/ui/NOTICE)。未引入其 Electron、Tiptap、Univer 或 AI 引擎。UI 包分发自身 Apache LICENSE；依赖分发保留原许可。
+GenOffice 固定源码 `5eab98adc8d0ebf6ecea687e42400a791ef58d64` 的设计变量和功能区分组用于 UI。复用文件保留 Mainfunc 2026 版权与 Apache-2.0 来源。工具栏图标使用 Icon MCP 获取的内联 SVG。格式徽标与提示等点缀图标使用 Kubai Icons 0.5.1（MIT）的静态造型，以元素数据内联，不增加运行时依赖。来源见 [UI NOTICE](../../packages/ui/NOTICE)。

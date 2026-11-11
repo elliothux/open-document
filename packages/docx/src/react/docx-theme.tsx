@@ -8,6 +8,7 @@ import type {
 } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { Icon } from "@open-document/ui/icons";
 
 export function DocxTheme({
   controller,
@@ -50,7 +51,10 @@ export function DocxTheme({
       }}
     >
       <fieldset disabled={disabled}>
-        <legend>{t.documentThemeColors}</legend>
+        <legend>
+          <Icon name="palette" />
+          {t.documentThemeColors}
+        </legend>
         <p>{t.documentThemeScope}</p>
         <button
           type="button"
@@ -60,6 +64,7 @@ export function DocxTheme({
             )
           }
         >
+          <Icon name="refresh" />
           {t.loadThemeColors}
         </button>
         <label>
@@ -91,6 +96,7 @@ export function DocxTheme({
         </label>
         {selected?.reason && <p role="status">{selected.reason}</p>}
         <button type="submit" disabled={!selected || !!selected.reason}>
+          <Icon name="check" />
           {t.applyThemeColor}
         </button>
       </fieldset>
@@ -135,9 +141,13 @@ export function DocxThemeFontsPanel({
       }}
     >
       <fieldset disabled={disabled}>
-        <legend>{t.documentThemeFonts}</legend>
+        <legend>
+          <Icon name="font-size" />
+          {t.documentThemeFonts}
+        </legend>
         <p>{t.documentThemeFontScope}</p>
         <button type="button" onClick={() => controller.run(load)}>
+          <Icon name="refresh" />
           {t.loadThemeFonts}
         </button>
         {fonts.map(({ kind, script, font }, i) => (
@@ -180,6 +190,7 @@ export function DocxThemeFontsPanel({
             )
           }
         >
+          <Icon name="check" />
           {t.applyThemeFont}
         </button>
       </fieldset>

@@ -1,8 +1,9 @@
 ///|
+#derive(@json.FromJson)
 priv struct WordArtRequest {
   preset : String
   text : String
-} derive(@json.FromJson)
+}
 
 ///|
 fn pptx_word_art_edit(value : Json) -> @model.ObjectEdit raise @failure.Failure {

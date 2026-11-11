@@ -1,4 +1,5 @@
 ///|
+#derive(@json.FromJson)
 priv struct AnalysisInsertSettings {
   pivot : String
   field : @common.RequestInt
@@ -6,15 +7,16 @@ priv struct AnalysisInsertSettings {
   caption : String
   width : @common.RequestNumber
   height : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct AnalysisInsertRequest {
   revision : @common.RequestInt
   sheet : String
   settings : AnalysisInsertSettings
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
 fn Context::analysis_insert_request(
@@ -85,13 +87,14 @@ fn Context::insert_xlsx_timeline(
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct AnalysisFrameSettings {
   anchor : String
   x : @common.RequestNumber
   y : @common.RequestNumber
   width : @common.RequestNumber
   height : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
 fn AnalysisFrameSettings::rect(self : AnalysisFrameSettings) -> @layout.Border {
@@ -104,13 +107,14 @@ fn AnalysisFrameSettings::rect(self : AnalysisFrameSettings) -> @layout.Border {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct AnalysisFrameRequest {
   revision : @common.RequestInt
   sheet : String
   objectId : String
   frame : AnalysisFrameSettings
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
 fn Context::set_xlsx_analysis_frame(

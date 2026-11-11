@@ -308,6 +308,7 @@ fn read_thread_parts(
 }
 
 ///|
+#derive(ToJson)
 priv struct ThreadQueryItem {
   id : String
   parentId : Json
@@ -316,16 +317,17 @@ priv struct ThreadQueryItem {
   date : String
   text : String
   resolved : Bool
-} derive(ToJson)
+}
 
 ///|
+#derive(ToJson)
 priv struct ThreadQuery {
   revision : Int32
   sheet : String
   cell : String
   reason : String
   items : Array[ThreadQueryItem]
-} derive(ToJson)
+}
 
 ///|
 /// Lists native messages for the cell or merged-cell owner without changing selection.

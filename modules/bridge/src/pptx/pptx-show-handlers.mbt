@@ -1,11 +1,13 @@
 ///|
+#derive(@json.FromJson)
 priv struct ShowLayoutRequest {
   revision : @common.RequestInt
   time : @common.RequestNumber
   profile : @common.RequestProfile
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ShowControlRequest {
   revision : @common.RequestInt
   action : String
@@ -15,23 +17,25 @@ priv struct ShowControlRequest {
   layoutId : @common.RequestInt?
   x : @common.RequestNumber?
   y : @common.RequestNumber?
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ShowInkRequest {
   revision : @common.RequestInt
   layoutId : @common.RequestInt
   time : @common.RequestNumber
   change : Json
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ShowMediaRequest {
   revision : @common.RequestInt
   layoutId : @common.RequestInt?
   time : @common.RequestNumber
   change : Json
-} derive(@json.FromJson)
+}
 
 ///|
 let show_handlers : Map[

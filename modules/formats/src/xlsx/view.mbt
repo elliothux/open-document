@@ -1,10 +1,11 @@
 ///|
+#derive(Eq)
 pub(all) struct ViewSettings {
   grid_lines : Bool
   headings : Bool
   rtl : Bool
   formulas : Bool
-} derive(Eq)
+}
 
 ///|
 pub extend ViewSettings with Eq::{equal, not_equal}

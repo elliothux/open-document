@@ -182,6 +182,12 @@ Web 复用核心矩形显示悬停或选中便笺的作者与纯文字提示，�
 
 ### 显示与计算
 
+`execute({ operation: "numberFormatSamplesXlsx", formats })` 按请求顺序返回格式示例。每次最多 64 个格式，每个最多 256 个 UTF-16 单元。示例复用单元格格式化和当前工作簿的日期系统。`SpreadsheetEditor.data.numberFormatSamples(formats)` 通过 Worker 查询，保留选区、草稿和历史。Home 的数字格式菜单用同一结果显示代表值。
+
+`formulaAssistXlsx({ revision, sheet, source, caret, layoutId? })` 是只读查询。`source` 包含开头的 `=`，`caret` 与补全区间使用 UTF-16 偏移。结果包含最多八个函数候选、当前函数的参数位置，以及最多 24 个可解析的 A1 引用。绝对地址、矩形、整行整列及限定工作表引用复用计算词法和引用解析。传入当前 `layoutId` 时，当前表引用附带视口矩形。无 UI 调用可以省略 `layoutId`。过期视口请求会被拒绝。命名和结构化引用仍由计算路径处理。
+
+默认公式栏和格内输入共用原生草稿。上下键选候选，Tab 或 Enter 接收，Escape 收起候选。继续输入时显示当前参数，并在网格标记可见引用。查询在现有命令队列中合并过期请求，源值、选区和历史由既有提交事务管理。
+
 `MDETERM(matrix)` 接受一个普通方阵引用，包含限定工作表与名称引用。复用共享公式、依赖、原生缓存、结构平移、精确历史和保存重开。`A1:A1` 返回该格数值，直接单格 `A1` 和其他标量按主参考返回 `#N/A`；非方阵返回 `#VALUE!`，缺格、空白和文字返回 `#N/A`。布尔和错误按原生数值转换参与消元，通常返回 `#N/A`；原生全零主元列会提前返回 0。最终 NaN 为 `#N/A`，无穷为 `#NUM!`。
 
 行列式使用最大绝对主元和无分数消元，保留原生运算顺序、交换行后的符号及零主元提前结束。先扫描已存格检查缺格，再按公式工作预算分配方阵；主元扫描、交换及每次消元都计入预算。实现归 [formula-determinant.mbt](../../../modules/formats/src/xlsx/formula-determinant.mbt)，依据 [ONLYOFFICE MDETERM](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/mathematicFunctions.js#L2651-L2740)，未复制上游执行代码。通用数组表达式和跨多表范围继续保护。

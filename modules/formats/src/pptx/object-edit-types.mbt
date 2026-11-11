@@ -25,7 +25,7 @@ pub(all) enum ObjectEdit {
     Double,
     Double,
     Int32?,
-    String?
+    String?,
   )
   ChartData(String, String, String, Int32?, String?)
   FillChart(String, String, String, Int32?, String?)

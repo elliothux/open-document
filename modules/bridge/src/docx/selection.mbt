@@ -1,11 +1,12 @@
 ///|
+#derive(@json.FromJson)
 priv struct PositionRequest {
   paragraph : @common.RequestInt
   offset : @common.RequestInt
   affinity : String
   bidiLevel : @common.RequestInt?
   frameStart : @common.RequestInt?
-} derive(@json.FromJson)
+}
 
 ///|
 fn PositionRequest::position(self : PositionRequest) -> @model.Position {
@@ -19,16 +20,18 @@ fn PositionRequest::position(self : PositionRequest) -> @model.Position {
 }
 
 ///|
+#derive(@json.FromJson)
 priv struct SelectionRequest {
   anchor : PositionRequest
   focus : PositionRequest
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct RevisionSelectionRequest {
   revision : @common.RequestInt
   selection : SelectionRequest
-} derive(@json.FromJson)
+}
 
 ///|
 fn SelectionRequest::selection(self : SelectionRequest) -> @model.Selection {

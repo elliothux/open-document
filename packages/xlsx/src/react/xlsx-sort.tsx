@@ -9,6 +9,7 @@ import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { selectedXlsxTable } from "./xlsx-tables.js";
 import { conditionalIconLabels } from "./conditional-icons.js";
+import { Icon } from "@open-document/ui/icons";
 
 export function XlsxSort({
   editor,
@@ -61,7 +62,10 @@ export function XlsxSort({
           !!query.sheets.find((s) => s.id === query.sheet)?.protected
         }
       >
-        <legend>{native ? t.tableSort : t.sortCells}</legend>
+        <legend>
+          <Icon name="list-sort" />
+          {native ? t.tableSort : t.sortCells}
+        </legend>
         <p>{native ? native.table.range : query.selection.address}</p>
         {native && (
           <p>
@@ -318,6 +322,7 @@ export function XlsxSort({
                 setKeys((keys) => keys.filter((_, position) => position !== i))
               }
             >
+              <Icon name="trash" />
               {t.removeSortKey}
             </button>
           </div>
@@ -334,6 +339,7 @@ export function XlsxSort({
               setKeys((keys) => [...keys, { index, descending: false }]);
           }}
         >
+          <Icon name="plus" />
           {t.addSortKey}
         </button>
         <button type="submit">{native ? t.tableSort : t.sortCells}</button>

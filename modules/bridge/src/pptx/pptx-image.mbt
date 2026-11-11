@@ -1,31 +1,36 @@
 ///|
+#derive(@json.FromJson)
 priv struct ImageInsetsRequest {
   insets : Array[@common.RequestNumber]
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ImageModeRequest {
   mode : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ImageOpacityRequest {
   opacity : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ReplaceImageRequest {
   bytes : String
   object : String
-} derive(@json.FromJson)
+}
 
 ///|
+#derive(@json.FromJson)
 priv struct ImageCropRequest {
   left : @common.RequestNumber
   top : @common.RequestNumber
   right : @common.RequestNumber
   bottom : @common.RequestNumber
-} derive(@json.FromJson)
+}
 
 ///|
 fn pptx_image_insets(change : Json) -> Array[Double] raise @failure.Failure {

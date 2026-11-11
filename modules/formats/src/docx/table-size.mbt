@@ -53,6 +53,7 @@ fn table_row_height_limit(
 }
 
 ///|
+#derive(ToJson)
 priv struct TableDimensionsValue {
   id : Int32
   autoFit : Bool
@@ -75,7 +76,7 @@ priv struct TableDimensionsValue {
   cellFill : Json
   maxWidth : Double
   maxRowHeight : Double
-} derive(ToJson)
+}
 
 ///|
 priv struct TableDimensions {

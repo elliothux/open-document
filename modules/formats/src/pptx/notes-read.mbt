@@ -8,10 +8,11 @@ const NotesParagraphCount : Int32 = 256
 const NotesParagraphUnits : Int32 = 4096
 
 ///|
+#derive(ToJson)
 priv struct NotesQuery {
   text : String
   reason : String
-} derive(ToJson)
+}
 
 ///|
 priv struct Notes {

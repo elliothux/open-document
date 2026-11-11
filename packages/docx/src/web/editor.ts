@@ -7,6 +7,7 @@ import { createDocumentTables } from "./document-tables.js";
 import { createDocumentSearch } from "./document-search.js";
 import { createDocumentFormatting } from "./document-formatting.js";
 import { bindClipboard } from "@open-document/web-core/clipboard";
+import { viewOnlyError } from "@open-document/web-core/view-mode";
 import { docxOutputs, downloadDocxOutput } from "./document-output.js";
 
 export type * from "./document-types.js";
@@ -69,6 +70,7 @@ export class DocumentEditor {
   private resuming = false;
   private page = 0;
   private zoom = 1;
+  private shownRevision: string | undefined;
   private cssScale = 96 / 72;
   private readonly inputEvents: TextInput;
   private cleanup: Promise<void> | undefined;
@@ -93,8 +95,9 @@ export class DocumentEditor {
       changed: (state: EditState) => this.changed(state),
       snapshot: () => this.getSnapshot(),
       layout: () => this.currentLayout,
-      showRevisionGeometry: (geometry: DocxSelectionGeometry) =>
-        this.showRevisionGeometry(geometry),
+      shownRevision: () => this.shownRevision,
+      showRevisionGeometry: (id: string, geometry: DocxSelectionGeometry) =>
+        this.showRevisionGeometry(id, geometry),
       paste: (text: string) => this.paste(text),
     };
     this.formatting = createDocumentFormatting(client, profile, host);
@@ -185,8 +188,12 @@ export class DocumentEditor {
     bindClipboard(
       this.input,
       this.listeners.signal,
-      (cut) => void this.copy(cut).catch(() => {}),
-      (text) => void this.paste(text).catch(() => {}),
+      (cut) => {
+        if (!cut || !client.readOnly) void this.copy(cut).catch(() => {});
+      },
+      (text) => {
+        if (!client.readOnly) void this.paste(text).catch(() => {});
+      },
       (error) => this.stop(error),
       () => this.inputEvents.active,
       () => false,
@@ -285,6 +292,9 @@ export class DocumentEditor {
   get layout(): PageLayout {
     return this.currentLayout;
   }
+  get pictureSelected(): boolean {
+    return this.pointerSelection.pictureSelected;
+  }
   readonly getSnapshot = (): EditorSnapshot<EditState> =>
     this.observable.getSnapshot();
   readonly subscribe = (listener: () => void): (() => void) =>
@@ -299,12 +309,18 @@ export class DocumentEditor {
     this.assertOpen();
     this.input.focus({ preventScroll: true });
   }
+  setReadOnly(readOnly: boolean): void {
+    if (readOnly === this.client.readOnly) return;
+    this.client.readOnly = readOnly;
+    this.paint();
+  }
   async setPaused(paused: boolean): Promise<void> {
     this.assertOpen();
     if (paused) this.pointerSelection.finish();
     this.paused = paused;
     this.container.inert = paused;
     this.input.readOnly =
+      this.client.readOnly ||
       paused ||
       !!this.blocked ||
       this.resuming ||
@@ -323,6 +339,7 @@ export class DocumentEditor {
     return this.enqueue(() => this.showPage(index));
   }
   copy(cut = false, mode?: "cells"): Promise<void> {
+    if (cut && this.client.readOnly) return Promise.reject(viewOnlyError());
     return this.enqueue(async () => {
       const state = await copyDocxSelection(
         this.client,
@@ -403,6 +420,8 @@ export class DocumentEditor {
             error instanceof DocumentError &&
             [
               "busy",
+              "read-only-view",
+              "target-changed",
               "stale-search",
               "stale-overview",
               "stale-toc",
@@ -428,6 +447,7 @@ export class DocumentEditor {
     void this.enqueue(operation).catch(() => {});
   }
   private history(redo: boolean): Promise<void> {
+    if (this.client.readOnly) return Promise.reject(viewOnlyError());
     this.inputEvents.endGroup();
     if (this.blocked && !redo) return this.recover(true);
     return this.enqueue(async () =>
@@ -486,6 +506,7 @@ export class DocumentEditor {
       } finally {
         this.resuming = false;
         this.input.readOnly =
+          this.client.readOnly ||
           this.closed ||
           !!this.blocked ||
           docxInputReadOnly(this.state, this.currentLayout);
@@ -499,6 +520,7 @@ export class DocumentEditor {
     return selection;
   }
   private format(operation: () => Promise<EditState>): Promise<void> {
+    if (this.client.readOnly) return Promise.reject(viewOnlyError());
     this.inputEvents.endGroup();
     return this.enqueue(async () => {
       await this.changed(await operation());
@@ -528,6 +550,7 @@ export class DocumentEditor {
     await this.presentSelection(reveal, view);
   }
   paste(text: string): Promise<void> {
+    if (this.client.readOnly) return Promise.reject(viewOnlyError());
     this.inputEvents.endGroup();
     if (text.length > this.state.commandLimit) {
       const error = new Error("Paste exceeds command budget");
@@ -593,6 +616,7 @@ export class DocumentEditor {
     }
   }
   private paint(): void {
+    this.shownRevision = undefined;
     this.page = Math.min(this.page, this.currentLayout.regions.length - 1);
     this.cssScale = this.surface.draw(this.currentLayout, this.page, this.zoom);
     this.surface.setComments(
@@ -602,6 +626,7 @@ export class DocumentEditor {
     );
     // Focus and pointer selection run before text intents in the same queue.
     this.input.readOnly =
+      this.client.readOnly ||
       this.paused ||
       !!this.blocked ||
       this.resuming ||
@@ -716,6 +741,7 @@ export class DocumentEditor {
     );
   }
   private async showRevisionGeometry(
+    id: string,
     geometry: DocxSelectionGeometry,
   ): Promise<void> {
     await this.showPage(geometry.rects[0]!.page);
@@ -725,6 +751,7 @@ export class DocumentEditor {
       this.cssScale,
       this.viewport,
     );
+    this.shownRevision = id;
   }
   private downloadOutput(output: EditorOutput, filename: string): void {
     this.assertOpen();

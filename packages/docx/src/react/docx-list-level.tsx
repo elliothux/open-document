@@ -10,6 +10,7 @@ import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { docxListLevelPatternUnits } from "@open-document/wasm/engine-source";
 import { StyleChoice, StyleInput } from "./docx-style-fields.js";
+import { Icon } from "@open-document/ui/icons";
 
 type MarkerFormat = NonNullable<DocxListLevelUpdate["character"]>;
 
@@ -89,7 +90,10 @@ export function DocxListLevelEdit({
     >
       {stale && <p role="status">{t.listReload}</p>}
       <fieldset disabled={stale}>
-        <legend>{label}</legend>
+        <legend>
+          <Icon name="list-ordered" />
+          {label}
+        </legend>
         <p>{t.listDefinitionScope}</p>
         <label>
           {t.listFormat}
@@ -268,7 +272,10 @@ export function DocxListLevelEdit({
           ]}
           onChange={(value) => changeCharacter("vertAlign", value)}
         />
-        <button type="submit">{t.updateListLevel}</button>
+        <button type="submit">
+          <Icon name="refresh" />
+          {t.updateListLevel}
+        </button>
       </fieldset>
     </form>
   );

@@ -5,7 +5,11 @@ import {
   checkXlsxSheetEdit,
   type XlsxCellFormat,
 } from "../web/xlsx.js";
-import type { EditorController, UiSnapshot } from "./context.js";
+import {
+  preserveGridDraft,
+  type EditorController,
+  type UiSnapshot,
+} from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { xlsxNoteTextUnits } from "@open-document/wasm/engine-source";
 import { XlsxFormatPainter } from "./xlsx-format-painter.js";
@@ -19,6 +23,7 @@ import { XlsxPictures } from "./xlsx-pictures.js";
 import { XlsxShapes } from "./xlsx-shapes.js";
 import { XlsxCharts } from "./xlsx-charts.js";
 import { XlsxComments } from "./xlsx-comments.js";
+import { Icon } from "@open-document/ui/icons";
 
 type Props = {
   controller: EditorController;
@@ -27,7 +32,13 @@ type Props = {
   disabled: boolean;
 };
 
-export function XlsxFormat({ controller, state, editor, disabled }: Props) {
+export function XlsxFormat({
+  controller,
+  state,
+  editor,
+  disabled,
+  section = "format",
+}: Props & { section?: "format" | "objects" | "review" | "validation" }) {
   const t = messages(state.locale),
     current = editor.currentState.formatting;
   const [patch, setPatch] = useState<XlsxCellFormat>({});
@@ -41,63 +52,99 @@ export function XlsxFormat({ controller, state, editor, disabled }: Props) {
   const families = Object.keys(controller.options.resources.profile).filter(
     (key) => !key.includes("|"),
   );
+  if (section === "objects")
+    return (
+      <section aria-label={t.objects} onMouseDown={preserveGridDraft}>
+        <XlsxPictures
+          key={`pictures:${state.document?.documentId}`}
+          controller={controller}
+          state={state}
+          editor={editor}
+          disabled={disabled}
+        />
+        <XlsxShapes
+          key={`shapes:${state.document?.documentId}`}
+          controller={controller}
+          state={state}
+          editor={editor}
+          disabled={disabled}
+        />
+        <XlsxCharts
+          key={`charts:${state.document?.documentId}`}
+          controller={controller}
+          state={state}
+          editor={editor}
+          disabled={disabled}
+        />
+        <XlsxHyperlink
+          key={`hyperlink:${state.document?.documentId}`}
+          controller={controller}
+          state={state}
+          editor={editor}
+          disabled={disabled}
+        />
+        <XlsxSparkline
+          key={JSON.stringify([
+            state.document?.documentId,
+            editor.currentState.sheet,
+            editor.currentState.selection.address,
+            editor.currentState.sparklines,
+          ])}
+          controller={controller}
+          state={state}
+          editor={editor}
+          disabled={disabled}
+        />
+      </section>
+    );
+  if (section === "review")
+    return (
+      <section aria-label={t.reviewTab} onMouseDown={preserveGridDraft}>
+        <XlsxComments
+          key={`comments:${state.document?.documentId}`}
+          controller={controller}
+          state={state}
+          editor={editor}
+          disabled={disabled}
+        />
+        <XlsxNote
+          key={`note:${state.document?.documentId}:${editor.currentState.sheet}:${editor.currentState.note.address}`}
+          controller={controller}
+          state={state}
+          editor={editor}
+          disabled={disabled}
+        />
+        <XlsxProtection
+          key={`protection:${state.document?.documentId}:${editor.currentState.sheet}:${editor.currentState.protection.protected}`}
+          controller={controller}
+          state={state}
+          editor={editor}
+          disabled={disabled}
+        />
+        <XlsxProtection
+          key={`workbook-protection:${state.document?.documentId}:${editor.currentState.workbookProtection.protected}`}
+          controller={controller}
+          state={state}
+          editor={editor}
+          disabled={disabled}
+          workbook
+        />
+      </section>
+    );
+  if (section === "validation")
+    return (
+      <XlsxValidation
+        key={`validation:${state.document?.documentId}:${editor.currentState.sheet}:${editor.currentState.selection.address}:${JSON.stringify(editor.currentState.dataValidation)}`}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
+    );
   return (
-    <section
-      aria-label={t.cellFormat}
-      onMouseDown={(event) => {
-        if (
-          event.target instanceof Element &&
-          event.target.closest("button") &&
-          event.button === 0
-        )
-          event.preventDefault();
-      }}
-    >
-      <h3>{t.cellFormat}</h3>
+    <section aria-label={t.cellFormat} onMouseDown={preserveGridDraft}>
       <XlsxClipboard
         key={`clipboard:${state.document?.documentId}`}
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={disabled}
-      />
-      <XlsxPictures
-        key={`pictures:${state.document?.documentId}`}
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={disabled}
-      />
-      <XlsxShapes
-        key={`shapes:${state.document?.documentId}`}
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={disabled}
-      />
-      <XlsxCharts
-        key={`charts:${state.document?.documentId}`}
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={disabled}
-      />
-      <XlsxComments
-        key={`comments:${state.document?.documentId}`}
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={disabled}
-      />
-      <XlsxNote
-        key={`note:${state.document?.documentId}:${editor.currentState.sheet}:${editor.currentState.note.address}`}
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={disabled}
-      />
-      <XlsxHyperlink
-        key={`hyperlink:${state.document?.documentId}`}
         controller={controller}
         state={state}
         editor={editor}
@@ -121,20 +168,11 @@ export function XlsxFormat({ controller, state, editor, disabled }: Props) {
         editor={editor}
         disabled={disabled}
       />
-      <XlsxSparkline
-        key={JSON.stringify([
-          state.document?.documentId,
-          editor.currentState.sheet,
-          editor.currentState.selection.address,
-          editor.currentState.sparklines,
-        ])}
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={disabled}
-      />
       <fieldset disabled={disabled}>
-        <legend>{t.mergeCells}</legend>
+        <legend>
+          <Icon name="grid" />
+          {t.mergeCells}
+        </legend>
         <p>{merging.range}</p>
         {(merging.discarded > 0 || merging.discardedNotes > 0) && (
           <label>
@@ -164,6 +202,7 @@ export function XlsxFormat({ controller, state, editor, disabled }: Props) {
             )
           }
         >
+          <Icon name="table-cells" />
           {t.mergeCells}
         </button>
         <button
@@ -178,6 +217,7 @@ export function XlsxFormat({ controller, state, editor, disabled }: Props) {
             )
           }
         >
+          <Icon name="table-cells" />
           {t.unmerge}
         </button>
         {(merging.mergeReason || merging.unmergeReason) && (
@@ -202,33 +242,12 @@ export function XlsxFormat({ controller, state, editor, disabled }: Props) {
             state={state}
           />
           <button type="submit" disabled={Object.keys(patch).length === 0}>
+            <Icon name="check" />
             {t.applyCellFormat}
           </button>
         </fieldset>
       </form>
       {current.readOnlyReason && <p>{current.readOnlyReason}</p>}
-      <XlsxProtection
-        key={`protection:${state.document?.documentId}:${editor.currentState.sheet}:${editor.currentState.protection.protected}`}
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={disabled}
-      />
-      <XlsxProtection
-        key={`workbook-protection:${state.document?.documentId}:${editor.currentState.workbookProtection.protected}`}
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={disabled}
-        workbook
-      />
-      <XlsxValidation
-        key={`validation:${state.document?.documentId}:${editor.currentState.sheet}:${editor.currentState.selection.address}:${JSON.stringify(editor.currentState.dataValidation)}`}
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={disabled}
-      />
     </section>
   );
 }
@@ -260,7 +279,10 @@ function XlsxNote({ controller, state, editor, disabled }: Props) {
       }}
     >
       <fieldset disabled={disabled || !!note.reason}>
-        <legend>{t.cellNote}</legend>
+        <legend>
+          <Icon name="note" />
+          {t.cellNote}
+        </legend>
         {note.author && <p>{note.author}</p>}
         <label>
           {t.cellNote}
@@ -279,6 +301,7 @@ function XlsxNote({ controller, state, editor, disabled }: Props) {
             (note.exists && text === note.text)
           }
         >
+          <Icon name="check" />
           {t.noteApply}
         </button>
         <button
@@ -293,6 +316,7 @@ function XlsxNote({ controller, state, editor, disabled }: Props) {
             )
           }
         >
+          <Icon name="trash" />
           {t.noteRemove}
         </button>
       </fieldset>
@@ -327,7 +351,10 @@ function XlsxHyperlink({ controller, state, editor, disabled }: Props) {
         }}
       >
         <fieldset disabled={disabled || !!link.readOnlyReason}>
-          <legend>{t.cellHyperlink}</legend>
+          <legend>
+            <Icon name="link" />
+            {t.cellHyperlink}
+          </legend>
           <label>
             {t.hyperlinkAddress}
             <input
@@ -341,7 +368,10 @@ function XlsxHyperlink({ controller, state, editor, disabled }: Props) {
           </label>
           <p>{t.hyperlinkRange}</p>
           {link.mixed && <p>{t.mixed}</p>}
-          <button type="submit">{t.hyperlinkApply}</button>
+          <button type="submit">
+            <Icon name="check" />
+            {t.hyperlinkApply}
+          </button>
           <button
             type="button"
             disabled={!link.target && !link.mixed}
@@ -355,6 +385,7 @@ function XlsxHyperlink({ controller, state, editor, disabled }: Props) {
               )
             }
           >
+            <Icon name="trash" />
             {t.hyperlinkRemove}
           </button>
         </fieldset>
@@ -377,6 +408,7 @@ function XlsxHyperlink({ controller, state, editor, disabled }: Props) {
               )
             }
           >
+            <Icon name="arrow-right" />
             {t.hyperlinkOpen}
           </button>
         ) : (

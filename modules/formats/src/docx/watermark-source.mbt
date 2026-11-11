@@ -1,4 +1,5 @@
 ///|
+#derive(Eq, ToJson)
 pub(all) struct TextWatermark {
   text : String
   font : String
@@ -8,7 +9,7 @@ pub(all) struct TextWatermark {
   diagonal : Bool
   bold : Bool
   italic : Bool
-} derive(Eq, ToJson)
+}
 
 ///|
 pub extend TextWatermark with Eq::{equal, not_equal}
@@ -24,19 +25,21 @@ priv struct WatermarkSource {
 }
 
 ///|
+#derive(Eq)
 pub(all) enum WatermarkImage {
   Data(Bytes)
   Resource(String)
-} derive(Eq)
+}
 
 ///|
 pub extend WatermarkImage with Eq::{equal, not_equal}
 
 ///|
+#derive(Eq)
 pub(all) enum Watermark {
   Text(TextWatermark)
   Picture(WatermarkImage, Double, Double, Double)
-} derive(Eq)
+}
 
 ///|
 pub extend Watermark with Eq::{equal, not_equal}

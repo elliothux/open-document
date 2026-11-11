@@ -1,4 +1,5 @@
 ///|
+#derive(ToJson)
 pub(all) struct PdfAnnotationStyle {
   placement : PdfPlacement
   color : String
@@ -6,12 +7,13 @@ pub(all) struct PdfAnnotationStyle {
   border : Double
   author : String
   text : String
-} derive(ToJson)
+}
 
 ///|
 pub extend PdfAnnotationStyle with ToJson::{to_json}
 
 ///|
+#derive(ToJson)
 pub struct PdfAnnotationDetails {
   revision : Int32
   page : String
@@ -23,7 +25,7 @@ pub struct PdfAnnotationDetails {
   arrow : Bool
   replyTo : String
   signature : Bool
-} derive(ToJson)
+}
 
 ///|
 pub extend PdfAnnotationDetails with ToJson::{to_json}
