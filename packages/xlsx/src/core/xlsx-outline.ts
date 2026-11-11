@@ -1,3 +1,7 @@
+import {
+  xlsxWorksheetColumns,
+  xlsxWorksheetRows,
+} from "@open-document/wasm/engine-source";
 import { record, integer } from "@open-document/wasm/abi/validation";
 
 export interface XlsxOutlineGroup {
@@ -50,8 +54,16 @@ export function checkXlsxOutlineEdit(value: unknown): void {
     if (
       typeof change.first !== "number" ||
       typeof change.last !== "number" ||
-      !integer(change.first, 1, axis === "rows" ? 1048576 : 16384) ||
-      !integer(change.last, change.first, axis === "rows" ? 1048576 : 16384) ||
+      !integer(
+        change.first,
+        1,
+        axis === "rows" ? xlsxWorksheetRows : xlsxWorksheetColumns,
+      ) ||
+      !integer(
+        change.last,
+        change.first,
+        axis === "rows" ? xlsxWorksheetRows : xlsxWorksheetColumns,
+      ) ||
       change.last - change.first >= 4095
     )
       throw new Error("Invalid outline interval");
@@ -67,39 +79,4 @@ export function checkXlsxOutlineEdit(value: unknown): void {
     Object.keys(change).some((key) => !keys.includes(key))
   )
     throw new Error("Invalid outline edit fields");
-}
-
-export function xlsxOutline(value: unknown): XlsxOutline {
-  const outline = record(value);
-  if (typeof outline.reason !== "string")
-    throw new Error("Invalid outline reason");
-  for (const name of ["rows", "columns"] as const) {
-    const axis = record(outline[name]);
-    if (
-      typeof axis.summaryAfter !== "boolean" ||
-      !Array.isArray(axis.groups) ||
-      axis.groups.length > 1024
-    )
-      throw new Error("Invalid outline groups");
-    const limit = name === "rows" ? 1048576 : 16384,
-      seen = new Set<string>();
-    for (const entry of axis.groups) {
-      const group = record(entry);
-      if (
-        typeof group.first !== "number" ||
-        typeof group.last !== "number" ||
-        !integer(group.first, 1, limit) ||
-        !integer(group.last, group.first, limit) ||
-        !integer(group.level, 1, 7) ||
-        group.summary !==
-          (axis.summaryAfter ? group.last + 1 : group.first - 1) ||
-        typeof group.collapsed !== "boolean"
-      )
-        throw new Error("Invalid outline group");
-      const key = `${group.level}:${group.first}:${group.last}`;
-      if (seen.has(key)) throw new Error("Duplicate outline group");
-      seen.add(key);
-    }
-  }
-  return value as XlsxOutline;
 }

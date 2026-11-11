@@ -24,7 +24,7 @@
 
 PPTX 复用 Worker、`CanvasSurface`、`CanvasRenderer`、图片校验/解码、字体塑形和 PDF writer。DOCX/PPTX 共用 `NativeTextInput` 的平台事件与组合处理。TS 分发事件、绘制与准备当前页资源，不解析主题或重新排版。
 
-同步入口为 `loadEngine(wasm).openPptx()`。Web 入口为 `PptxClient.open()` 与 `PresentationEditor.create()`。类型化命令、嵌入示例、预算和支持边界归[开发说明](../references/development.md#pptx-入口)及[格式合同](../references/formats.md#pptx)。
+同步入口为 `loadEngine(wasm).openPptx()`。Web 入口为 `PptxClient.open()` 与 `PresentationEditor.create()`。类型化命令、嵌入示例、预算和支持边界归[开发说明](../references/development.md#公开入口与共享加载)及[格式合同](../references/formats/pptx-editing.md#pptx)。
 
 ## 足够检查与依据
 

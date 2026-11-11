@@ -1,56 +1,59 @@
 ///|
-fn pptx_insert_media(change : Json) -> @model.ObjectEdit raise @failure.Failure {
-  if field_string(change, "action") == "fillMedia" {
-    return @model.FillMedia(
-      field_string(change, "kind"),
-      field_string(change, "contentType"),
-      input_bytes(change, 16777216),
-      input_bytes({ "bytes": field_string(change, "poster") }, 4194304),
-    )
-  }
-  @model.InsertMedia(
-    field_string(change, "kind"),
-    field_string(change, "contentType"),
-    input_bytes(change, 16777216),
-    input_bytes({ "bytes": field_string(change, "poster") }, 4194304),
-    field_number(change, "x"),
-    field_number(change, "y"),
-    field_number(change, "width"),
-    field_number(change, "height"),
-  )
-}
+priv struct MediaKindRequest {
+  bytes : String
+  kind : String
+  contentType : String
+} derive(@json.FromJson)
 
 ///|
-fn pptx_resource_bytes(
-  session : @model.Session,
-  request : Json,
-  media : Bool,
-) -> Json raise @failure.Failure {
-  let key = field_string(request, "key")
-  {
-    "bytes": @base64.encode(
-      if media {
-        session.media_bytes(key)
-      } else {
-        session.image_bytes(key)
-      },
-    ),
+priv struct MediaPosterRequest {
+  poster : String
+} derive(@json.FromJson)
+
+///|
+priv struct MediaPlaybackRequest {
+  cycling : Bool
+  volume : @common.RequestInt
+  mute : Bool
+} derive(@json.FromJson(fields(cycling(rename="loop"))))
+
+///|
+fn pptx_insert_media(
+  action : String,
+  change : Json,
+) -> @model.ObjectEdit raise @failure.Failure {
+  let request : MediaKindRequest = @common.request(change)
+  let bytes = @common.byte_input(request.bytes, @model.MediaInputBytes)
+  let poster_request : MediaPosterRequest = @common.request(change)
+  let poster = @common.byte_input(poster_request.poster, @model.ImageInputBytes)
+  if action == "fillMedia" {
+    return @model.FillMedia(request.kind, request.contentType, bytes, poster)
   }
+  let frame : ObjectFrameRequest = @common.request(change)
+  @model.InsertMedia(
+    request.kind,
+    request.contentType,
+    bytes,
+    poster,
+    frame.x.value,
+    frame.y.value,
+    frame.width.value,
+    frame.height.value,
+  )
 }
 
 ///|
 fn pptx_media_playback(
   change : Json,
 ) -> @model.ObjectEdit raise @failure.Failure {
-  guard change is { "value": Object(value), .. } &&
-    value.length() == 3 &&
-    value.keys().all(key => ["loop", "volume", "mute"].contains(key)) else {
+  guard change is { "value": Object(fields) as value, .. } &&
+    fields.length() == 3 else {
     @failure.reject("invalid-operation", "Media playback settings are required")
   }
-  let value = Json::object(value)
+  let request : MediaPlaybackRequest = @common.request(value)
   @model.MediaPlayback({
-    cycling: field_boolean(value, "loop"),
-    volume: field_int(value, "volume"),
-    mute: field_boolean(value, "mute"),
+    cycling: request.cycling,
+    volume: request.volume.value,
+    mute: request.mute,
   })
 }

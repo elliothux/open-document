@@ -162,7 +162,7 @@ export function PptxPicture({
               event.currentTarget.value = "";
               if (!file || !object) return;
               controller.run(async () => {
-                if (!file.size || file.size > 4194304)
+                if (!file.size || file.size > editor.inputLimits.imageBytes)
                   throw new Error(t.imageInputLimit);
                 await editor.editObjects({
                   action: "replaceImage",

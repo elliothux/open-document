@@ -279,10 +279,59 @@ fn Session::import_fragment_drawings(
 }
 
 ///|
+fn fragment_image_base64(bytes : Bytes) -> Json {
+  Json(@base64.encode(bytes))
+}
+
+///|
+fn Session::fragment_image_response(
+  self : Session,
+  revision : Int32,
+  added : Map[String, Bytes],
+  encode_image : (Bytes) -> Json,
+  prepare_pixels : Bool,
+) -> Json raise @failure.Failure {
+  let images : Array[Json] = []
+  let mut remaining = @layout.ImageBytes
+  for rel in self.relationships() {
+    if rel.owner == self.main && added.get(rel.target) is Some(bytes) {
+      let (_, mime, width, height) = @image.type_info(bytes)
+      if prepare_pixels &&
+        width * height * 4 <= remaining &&
+        @image.decode_plain_raster(bytes, exif_orientation=true)
+        is Some((decoded_width, decoded_height, rgba)) {
+        images.push({
+          "key": rel.id,
+          "width": decoded_width,
+          "height": decoded_height,
+          "bytes": encode_image(rgba),
+          "rgba": true,
+        })
+        remaining -= rgba.length()
+        continue
+      }
+      let image = {
+        "key": Json(rel.id),
+        "width": Json(width),
+        "height": Json(height),
+        "bytes": encode_image(bytes),
+      }
+      if mime == "image/jpeg" {
+        image["allowTranspose"] = Json(true)
+      }
+      images.push(Json::object(image))
+    }
+  }
+  { "revision": revision, "images": images }
+}
+
+///|
 pub fn Session::table_fragment_images(
   self : Session,
   revision : Int32,
   fragment : String,
+  encode_image~ : (Bytes) -> Json = fragment_image_base64,
+  prepare_pixels~ : Bool = false,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let parts = self.parts.copy()
@@ -293,12 +342,7 @@ pub fn Session::table_fragment_images(
   ignore(
     self.read_table_fragment(fragment, parts, edits, created, media, added),
   )
-  let view = { ..self, parts, media, }
-  let images : Array[Json] = []
-  for rel in view.relationships() {
-    if rel.owner == self.main && added.get(rel.target) is Some(bytes) {
-      images.push({ "key": rel.id, "bytes": @base64.encode(bytes) })
-    }
-  }
-  { "revision": revision, "images": images }
+  { ..self, parts, media, }.fragment_image_response(
+    revision, added, encode_image, prepare_pixels,
+  )
 }

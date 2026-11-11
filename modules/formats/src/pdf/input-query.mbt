@@ -1,8 +1,43 @@
 ///|
+priv struct PdfQueryPage {
+  id : String
+  object : Int32
+  generation : Int32
+  width : Double
+  height : Double
+  rotate : Int32
+} derive(ToJson)
+
+///|
+priv struct PdfQueryAnnotation {
+  id : String
+  page : String
+  kind : String
+  text : String
+  readOnlyReason : String
+} derive(ToJson)
+
+///|
+priv struct PdfQueryState {
+  revision : Int32
+  page : String
+  pages : Array[PdfQueryPage]
+  annotations : Array[PdfQueryAnnotation]
+  fields : Array[PdfQueryField]
+  readOnlyReason : String
+  pageOrderReason : String
+  canUndo : Bool
+  canRedo : Bool
+  historyBytes : Int32
+  modified : Bool
+  diagnostics : Array[String]
+} derive(ToJson)
+
+///|
 pub fn PdfSession::query(self : PdfSession) -> Json raise @failure.Failure {
   self.check(self.revision)
   pdf_bound(self.budget, () => {
-    let annotations : Array[Json] = []
+    let annotations : Array[PdfQueryAnnotation] = []
     for page in self.pages {
       for
         index, reference in annotation_refs(
@@ -38,40 +73,41 @@ pub fn PdfSession::query(self : PdfSession) -> Json raise @failure.Failure {
           @failure.reject("limit-exceeded", "PDF annotations exceed budget")
         }
         annotations.push({
-          "id": id,
-          "page": page.id,
-          "kind": subtype,
-          "text": text,
-          "readOnlyReason": reason,
+          id,
+          page: page.id,
+          kind: subtype,
+          text,
+          readOnlyReason: reason,
         })
       }
     }
     let order_reason = self.page_order_reason()
-    let pages : Array[Json] = self.pages.map(page => {
-      "id": page.id,
-      "object": page.number,
-      "generation": page.generation,
-      "width": page.width,
-      "height": page.height,
-      "rotate": page.rotate,
+    let pages : Array[PdfQueryPage] = self.pages.map(page => {
+      id: page.id,
+      object: page.number,
+      generation: page.generation,
+      width: page.width,
+      height: page.height,
+      rotate: page.rotate,
     })
-    {
-      "revision": self.revision,
-      "page": self.current,
-      "pages": pages,
-      "annotations": annotations,
-      "fields": self.fields().map(field_json),
-      "readOnlyReason": self.readOnlyReason,
-      "pageOrderReason": order_reason,
-      "canUndo": !self.undo.is_empty(),
-      "canRedo": !self.redo.is_empty(),
-      "historyBytes": self.historyBytes,
-      "modified": self.stateId != 0,
-      "diagnostics": if self.readOnlyReason.is_empty() {
+    let state : PdfQueryState = {
+      revision: self.revision,
+      page: self.current,
+      pages,
+      annotations,
+      fields: self.fields().map(field_query),
+      readOnlyReason: self.readOnlyReason,
+      pageOrderReason: order_reason,
+      canUndo: !self.undo.is_empty(),
+      canRedo: !self.redo.is_empty(),
+      historyBytes: self.historyBytes,
+      modified: self.stateId != 0,
+      diagnostics: if self.readOnlyReason.is_empty() {
         []
       } else {
         [self.readOnlyReason]
       },
     }
+    ToJson::to_json(state)
   })
 }

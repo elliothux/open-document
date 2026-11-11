@@ -58,8 +58,11 @@ fn Session::set_sparkline(
       }
       self.sheets[index].name
     })
-    guard items.length() < 256 else {
-      @failure.reject("limit-exceeded", "Sparkline count exceeds 256")
+    guard items.length() < SparklineCount else {
+      @failure.reject(
+        "limit-exceeded",
+        "Sparkline count exceeds \{SparklineCount}",
+      )
     }
     items.push({ cell: address, source: range, owner, kind, })
   }

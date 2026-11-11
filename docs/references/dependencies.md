@@ -19,13 +19,13 @@ MoonBit 0.1.20261023 使用新配置格式。[依赖准备工具](../../tools/pr
 | [Milky2018/moon_skrifa](https://github.com/moonbit-community/moon_skrifa) 0.1.11 | Fontations 的 MoonBit 移植。为屏幕字形提供轻度调整轮廓，使用 Apache-2.0 | 固定现有间接依赖的版本。[补丁](../../tools/skrifa-patches/tt-hint-engine.mbt.json)移除 TrueType 解释器的调试日志，保留错误返回，使 Worker 可继续用空导入实例化 Wasm |
 | moonbitlang/x 0.5.5 | SHA-256/SHA-512、Unicode 简单小写映射与字符分类；Apache-2.0 | 字体字节身份、构建补丁核验、P10 字面查找及 P11 工作表保护；复用固定字符数据 |
 | moonbitlang/pdflite 0.3.8 | 严格 reader、源对象、内容/字体映射、序列化、字体子集；Apache-2.0，Typst subsetter 0.2.6 为 MIT OR Apache-2.0 | Office 输出复用 PositionedDocument；PDF 输入复用严格 reader 与源位置，编辑复用对象 writer |
-| [shunge/image](https://github.com/buildliming/moonbit_image/tree/61a8c64c90231f41bfec6cad8cc7ffb7d95a7f53) 0.2.1 | 纯 MoonBit JPEG Huffman、IDCT 与样本解码；MIT，Copyright 2025 lws | C0 补丁复用同一解码器，开放 baseline 四分量原始样本入口；PDF 核心负责 CMYK/YCCK、Decode、遮罩和预算，不使用该库的其他格式入口 |
+| [shunge/image](https://github.com/buildliming/moonbit_image/tree/61a8c64c90231f41bfec6cad8cc7ffb7d95a7f53) 0.2.1 | 纯 MoonBit PNG 和 JPEG 解码；MIT，Copyright 2025 lws | DOCX 核心解码符合像素保真条件的 PNG。C0 补丁开放 JPEG baseline 四分量原始样本入口，PDF 核心负责 CMYK/YCCK、Decode、遮罩和预算 |
 
-公开 Wasm 包分发项目 Apache LICENSE、完整 HarfBuzz、JPEG 库和 PDFium 的 NOTICE，以及 UNICODE-LICENSE。固定 Noto 字体、W3C XML 和 POI 测试材料仅保存在私有语料库，保留各自许可和来源；公开 SDK 不打包字体或 fixtures。
+公开 Wasm 包分发项目 Apache LICENSE、完整 HarfBuzz、shunge/image 和 PDFium 的 NOTICE，以及 UNICODE-LICENSE。固定 Noto 字体、W3C XML 和 POI 测试材料仅保存在私有语料库，保留各自许可和来源；公开 SDK 不打包字体或 fixtures。
 
 P1 使用 harfbuzz/bidi；P3 才因断行需要引入 moon_cosmic 的 unicode_linebreak。传递依赖为 moon_swash 0.1.13、moon_skrifa 0.1.11、moon_yazi 0.1.3、moon_zeno 0.1.4（Apache-2.0；swash Unicode 表为 13.0.0）、async 0.22.4，以及已固定的 harfbuzz/x/flate。解析到 module 不代表全部子包进入浏览器产物；最终 imports 由实际 Wasm 检查。
 
-C0 的 DOCX 存储元文件预览直接固定并复用已安装的 `Milky2018/moon_zeno@0.1.4`（Apache-2.0）。布局核心使用它的填充、描边和路径遮罩，沿既有字体轮廓生成有界 RGBA；格式层复用现有无损 PNG 编码。没有新增栅格器、字体提示解释器或 JPEG 编码器。预览范围与预算归[格式合同](formats.md#docx-内嵌-ole-预览)。
+C0 的 DOCX 存储元文件预览直接固定并复用已安装的 `Milky2018/moon_zeno@0.1.4`（Apache-2.0）。布局核心使用它的填充、描边和路径遮罩，沿既有字体轮廓生成有界 RGBA；格式层复用现有无损 PNG 编码。没有新增栅格器、字体提示解释器或 JPEG 编码器。预览范围与预算归[格式合同](formats/docx-content.md#docx-内嵌-ole-预览)。
 
 P11 的大小写转换使用固定 ucd 0.5.2；MoonBit 字符串大小写仅覆盖 ASCII，已有简单映射也不能处理扩张。词尾 Sigma 的 Cased/Case_Ignorable 类别差集依据 [Unicode 16 DerivedCoreProperties](https://www.unicode.org/Public/16.0.0/ucd/DerivedCoreProperties.txt)，在文本大小写模块保留来源；许可随 Wasm NOTICE 与 UNICODE-LICENSE 分发。
 
@@ -33,7 +33,7 @@ P11 的大小写转换使用固定 ucd 0.5.2；MoonBit 字符串大小写仅覆�
 
 P4 复用已安装的字素分段，没有新增生产依赖。formats module 显式引用已有 flate 0.8.5，只有 DOCX 私有 wbtest overlay 使用其 ZIP writer 构造独立输入，不进入生产 docx 包的 imports。输入生成不使用 SDK 的 archive/XML writer。
 
-固定 HarfBuzz 的 GDEF API 只暴露 header/class/mark-set，没有 LigCaretList 读取方法。P4 的 [局部 reader](../../modules/layout/src/ligature.mbt) 仅补 coverage 和 caret 格式的预算内读取；轮廓点仍复用 `glyph_contour_point_for_origin`，不维护另一套字体解析或 shaping。格式规则与回退依据见 [DOCX 光标合同](formats.md#p4-当前编辑-api-切片)；上游提供相同能力后替换该 reader 并保留回归。
+固定 HarfBuzz 的 GDEF API 只暴露 header/class/mark-set，没有 LigCaretList 读取方法。P4 的 [局部 reader](../../modules/layout/src/ligature.mbt) 仅补 coverage 和 caret 格式的预算内读取；轮廓点仍复用 `glyph_contour_point_for_origin`，不维护另一套字体解析或 shaping。格式规则与回退依据见 [DOCX 光标合同](formats/docx-editing.md#p4-当前编辑-api-切片)；上游提供相同能力后替换该 reader 并保留回归。
 
 共享布局的选区区域由 SDK 构造。现有字体和 BiDi 依赖不提供 Writer 的段落 frame 区域，故复用已有区段和字形边界计算。跨页规则依据 [LibreOffice 首尾 frame](https://github.com/LibreOffice/core/blob/d401f2107ccab8f924a8e2df40f573aab7605b6f/sw/source/core/layout/trvlfrm.cxx#L2565-L2651)，原生采集方式参考其[选区句柄回归](https://github.com/LibreOffice/core/blob/d401f2107ccab8f924a8e2df40f573aab7605b6f/desktop/qa/desktop_lib/test_desktop_lib.cxx#L3270-L3305)。与 [ONLYOFFICE 视觉区段选区](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/draw-selection.js#L155-L197)交叉核对；通过范围限已登记同段输入，跨段和跨来源样式另验。此处未移植上游可执行代码或增加依赖；上游依赖提供相同区域合同后替换本地计算并保留回归。
 
@@ -45,7 +45,7 @@ P1 的私有 pdflite content/path 探针继续保留；P3 产品 writer 复用�
 
 补丁覆盖词法/字节读取、对象深度、classic/xref stream 容量和修订链、流物化、Flate、TIFF/PNG Predictor、CMap/CID 展开与内容/宽度循环。SDK 同步操作共享预算，嵌套调用和依赖回退不重置耗尽状态。SDK 模式以外保留原入口策略。TIFF 解码补齐 1/2/4/8/16-bit 水平差分和完整行检查。
 
-加载加密对象流前，SDK 检查支持的安全处理器、密码和复制及打印权限。V4/R4 的 RC4 和 AESV2 复用依赖已有解密实现，AESV2 另核对版本、密钥长度及认证事件。补丁归 [严格对象装载](../../tools/pdflite-patches/pdf_reader_classic_load.mbt.json)，文件行为归[PDF 合同](formats.md#pdf-输入与文档操作)。
+加载加密对象流前，SDK 检查支持的安全处理器、密码和复制及打印权限。V4/R4 的 RC4 和 AESV2 复用依赖已有解密实现，AESV2 另核对版本、密钥长度及认证事件。补丁归 [严格对象装载](../../tools/pdflite-patches/pdf_reader_classic_load.mbt.json)，文件行为归[PDF 合同](formats/pdf.md#pdf-输入与文档操作)。
 
 xref 分流先跳过当前位置的合法空白，再区分普通表与对象流，与既有普通表解析入口一致。该修正让 PDFKit 的前置换行不再误入对象流解析；不扫描其他位置，非空白前缀仍拒绝。对应原件和错误前缀回归归 C0；行为依据为固定 ONLYOFFICE core 的 `PdfFile/lib/xpdf/XRef.cc`。
 
@@ -53,21 +53,23 @@ C0 复用同一依赖的 CCITT Group 3/4 解码，补齐正 K 的逐行一维/�
 
 C0 的 CFF1 入口复用依赖内的 read-fonts 0.39.2 移植，仅暴露有界字形路径读取。支持裸 CFF 和 OpenType 的 CFF 表。SDK 入口要求活动预算，字形指令按步计费；字符集反向查找不越过声明的字形数量。路径与坐标有上限，源重构权限保持独立。五项补丁覆盖入口、两处包导入、指令预算和字符集边界；已从上述固定原件重放并核对幂等结果。源码版权头和 Apache-2.0 许可保留，构建只使用公开补丁清单。
 
-嵌入 Type1 继续复用上述 charstring 求值器，新增入口接收格式层已解密的字形和子程序。格式层读取二进制 FontFile，保留显式编码和 FontMatrix。已知 OtherSubr 的结果按 [ONLYOFFICE FreeType](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/DesktopEditor/fontengine/freetype-2.10.4/src/psaux/t1decode.c#L876-L885)核对，未知 Type1 调用拒绝。另修正一维采样函数以实际分数位置插值，并补齐 [circlecopyrt 字形映射](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/DesktopEditor/fontengine/fontconverter/FontFileEncodings.cpp#L1752)。入口、charstring、函数及符号表四项补丁已从固定原件重放，并核对幂等结果；没有新增依赖。Gray ICC 的相对色度依据同一 core 内 LittleCMS 的 `BuildGrayInputMatrixPipeline`；未复制上游执行代码。支持范围归[格式合同](formats.md#pdf-输入与文档操作)。
+嵌入 Type1 继续复用上述 charstring 求值器，新增入口接收格式层已解密的字形和子程序。格式层读取二进制 FontFile，保留显式编码和 FontMatrix。已知 OtherSubr 的结果按 [ONLYOFFICE FreeType](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/DesktopEditor/fontengine/freetype-2.10.4/src/psaux/t1decode.c#L876-L885)核对，未知 Type1 调用拒绝。另修正一维采样函数以实际分数位置插值，并补齐 [circlecopyrt 字形映射](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/DesktopEditor/fontengine/fontconverter/FontFileEncodings.cpp#L1752)。入口、charstring、函数及符号表四项补丁已从固定原件重放，并核对幂等结果；没有新增依赖。Gray ICC 的相对色度依据同一 core 内 LittleCMS 的 `BuildGrayInputMatrixPipeline`；未复制上游执行代码。支持范围归[格式合同](formats/pdf.md#pdf-输入与文档操作)。
 
 PDF 实数写入补丁保留 Double 最短往返表示的全部有效数字，上限 17 位；移除 12 位和极小数固定六位舍入；保存和历史预检使用实际展开长度并扣除工作预算。沿既有实现展开科学记数法，非有限值拒绝。源矩阵、极小样本及有限极值通过数值往返检查。原件页面旋转后的非目标对象继续按独立 qpdf 结果严格比较。补丁归 [`pdf_writer_real.mbt.json`](../../tools/pdflite-patches/pdf_writer_real.mbt.json)，原始源码与上述固定 checkout 一致，保留原许可。
 
-内容流的普通十进制操作数按原生顺序逐位累加，依据 [ONLYOFFICE 数值读取](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/lib/xpdf/Lexer.cc#L204-L225)。规则只作用于内容流，源对象词法及字典数值身份保持。普通数字直接转换，沿用既有字节扫描计费、整数范围与异常回退。补丁归 [`pdf_content_parse_entry.mbt.json`](../../tools/pdflite-patches/pdf_content_parse_entry.mbt.json)，按固定源码和结果 hash 重放。绘制器在取 PDF 设备栅格前保留命令矩阵精度，规则归[格式合同](formats.md#字体资源与替代)。
+内容流的普通十进制操作数按原生顺序逐位累加，依据 [ONLYOFFICE 数值读取](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/lib/xpdf/Lexer.cc#L204-L225)。规则只作用于内容流，源对象词法及字典数值身份保持。普通数字直接转换，沿用既有字节扫描计费、整数范围与异常回退。补丁归 [`pdf_content_parse_entry.mbt.json`](../../tools/pdflite-patches/pdf_content_parse_entry.mbt.json)，按固定源码和结果 hash 重放。绘制器在取 PDF 设备栅格前保留命令矩阵精度，规则归[格式合同](formats/shared.md#字体资源与替代)。
 
-竖排 CID 字距与绘制原点分别由 [`pdf_content_text_width.mbt.json`](../../tools/pdflite-patches/pdf_content_text_width.mbt.json) 和 [`pdf_content_text_layout.mbt.json`](../../tools/pdflite-patches/pdf_content_text_layout.mbt.json) 修正。水平宽度用于字形框，竖排推进和 `TJ` 沿纵轴计算。范围归 [PDF 合同](formats.md#pdf-输入与文档操作)。
+竖排 CID 字距与绘制原点分别由 [`pdf_content_text_width.mbt.json`](../../tools/pdflite-patches/pdf_content_text_width.mbt.json) 和 [`pdf_content_text_layout.mbt.json`](../../tools/pdflite-patches/pdf_content_text_layout.mbt.json) 修正。水平宽度用于字形框，竖排推进和 `TJ` 沿纵轴计算。范围归 [PDF 合同](formats/pdf.md#pdf-输入与文档操作)。
 
 字体入口区分可信 Unicode 和缺项，独立返回源编码字形名；PDF 符号字体使用嵌入 cmap，CID 子集可省略 cmap。源显示不塑形，重新生成字段外观才走现有文本框布局。会话使用自己的局部历史，清除依赖未使用的变更日志；关闭释放源表。上游固定版本覆盖这些缺口后删除对应补丁并保留定向回归。
 
-## C0 CMYK JPEG 解码
+## JPEG 解码
 
-固定 shunge/image 0.2.1 的源码对应上述 revision。补丁通过[清单](../../tools/image-patches/index.json)校验原始与修改后 SHA-256，重用其标记、Huffman、重启与 IDCT 路径；普通灰度/RGB 入口保持原行为。新增入口返回 baseline 四分量样本，保留 PDF 分量顺序，不套用独立 JPEG 的颜色反转。调用前按编码字节、MCU 块数和输出面积扣除有界工作与分配预算。截断、错误表、扫描、尺寸、精度和组件数量拒绝；渐进式 CMYK 与 16 位量化表仍未支持。
+固定 shunge/image 0.2.1 的源码对应上述 revision。[清单](../../tools/image-patches/index.json)校验原始与修改后 SHA-256。PDF 的四分量入口保留原 IDCT 和分量顺序，调用前扣除编码字节、MCU 块数和输出面积预算。该入口仅接受基线扫描及 8 位量化表。
 
-CMYK 样本表与插值移植自 [PDFium 的 BSD 实现](https://github.com/chromium/pdfium/blob/a84323421e94f484faca52dd9d027934eba42ab8/core/fxge/dib/cfx_cmyk_to_srgb.cpp)，采用 ONLYOFFICE 读取器中的四维表插值方式。原始表身份写入生成文件，版权和完整条款随 Wasm NOTICE 分发。JPEG 补丁已从固定原始源码重放，并核对幂等结果；上游 76 项 baseline、43 项 progressive 定向回归通过。更多支持范围和原件结果归[格式合同](formats.md#pdf-输入与文档操作)与[测试说明](testing.md#当前兼容证据入口)。
+Office 的灰度和 YCbCr 路径沿用该依赖的标记、Huffman、重启和色度重建，使用 16 位定点颜色舍入。8×8 IDCT 的 MoonBit 移植取自固定 ONLYOFFICE core 随附的 IJG 算法。移植共用行列计算并扩大中间整数宽度。[原始许可](../../modules/formats/src/internal/image/LICENSE-IJG)、[IJG 变换源码](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/DesktopEditor/cximage/jpeg/jidctint.c)。
+
+CMYK 样本表与插值移植自 [PDFium 的 BSD 实现](https://github.com/chromium/pdfium/blob/a84323421e94f484faca52dd9d027934eba42ab8/core/fxge/dib/cfx_cmyk_to_srgb.cpp)，采用 ONLYOFFICE 读取器中的四维表插值方式。原始表身份写入生成文件，版权和完整条款随 Wasm NOTICE 分发。JPEG 补丁已从固定原始源码重放，并核对幂等结果；上游 76 项 baseline、43 项 progressive 定向回归通过。更多支持范围和原件结果归[格式合同](formats/pdf.md#pdf-输入与文档操作)与[测试说明](testing.md#当前兼容证据入口)。
 
 JPX/JPEG2000 解码归格式层 MoonBit，不增加运行依赖、辅助 Wasm 或平台解码入口。独立样本由本机 OpenJPEG 2.5.4 生成，整页参考使用固定 PDF.js 6.4.299 官方包；两者只作私有验收参考，不进入公开构建。参考包保留 Apache-2.0 及随附 OpenJPEG 许可，来源、压缩包和实际资源 hash 归私有 `c0-jpx-pdfjs-reference.json` 与本地 reference 清单。支持边界归[格式合同](formats.md)。
 

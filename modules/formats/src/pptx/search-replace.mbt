@@ -106,7 +106,7 @@ pub fn Session::replace_matches(
   self.check_idle()
   guard @xml.valid_text(replacement) &&
     !replacement.contains("\r") &&
-    replacement.length() <= 32767 else {
+    replacement.length() <= TextFrameUnits else {
     @failure.reject(
       "invalid-operation", "Replacement text is invalid or excessive",
     )
@@ -163,7 +163,7 @@ pub fn Session::replace_matches(
       let length = ranges.fold(init=object.text().length(), (length, r) => {
         length + replacement.length() - (r.1 - r.0)
       })
-      guard length <= 32767 else {
+      guard length <= TextFrameUnits else {
         @failure.reject(
           "limit-exceeded", "Replacement frame exceeds text budget",
         )

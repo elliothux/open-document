@@ -7,7 +7,7 @@ import {
   checkDocxDrawingPosition,
   type DocxDrawingPositionEdit,
 } from "./docx-picture.js";
-import { checkDrawingAnchor, type DrawingAnchor } from "./preview.js";
+import type { DrawingAnchor } from "./preview.js";
 
 export type DocxChartValue = ChartSettings & { width: number; height: number };
 export type DocxChartUpdate =
@@ -90,69 +90,4 @@ export function checkDocxChartEdit(value: unknown): void {
     Object.keys(edit).some((key) => !keys.includes(key))
   )
     throw new Error("Invalid document chart fields");
-}
-
-export function docxCharts(value: unknown): DocxCharts {
-  const catalog = record(value);
-  if (
-    Object.keys(catalog).length !== 2 ||
-    !integer(catalog.revision, 0, 2147483647) ||
-    !Array.isArray(catalog.items) ||
-    catalog.items.length > 256
-  )
-    throw new Error("Invalid document chart catalog");
-  const ids = new Set<number>();
-  for (const value of catalog.items) {
-    const item = record(value);
-    if (
-      Object.keys(item).length !== 10 ||
-      Object.keys(item).some(
-        (key) =>
-          ![
-            "id",
-            "width",
-            "height",
-            "settings",
-            "reason",
-            "deleteReason",
-            "anchor",
-            "selected",
-            "sizeReason",
-            "positionReason",
-          ].includes(key),
-      ) ||
-      typeof item.id !== "number" ||
-      !integer(item.id, 0, 2147483647) ||
-      ids.has(item.id) ||
-      typeof item.reason !== "string" ||
-      typeof item.deleteReason !== "string" ||
-      typeof item.positionReason !== "string" ||
-      typeof item.sizeReason !== "string" ||
-      typeof item.selected !== "boolean"
-    )
-      throw new Error("Invalid document chart item");
-    ids.add(item.id);
-    checkDrawingAnchor(item.anchor);
-    if (item.settings === null) {
-      if (
-        !item.reason ||
-        !item.sizeReason ||
-        !item.positionReason ||
-        !item.deleteReason ||
-        item.selected ||
-        item.width !== 0 ||
-        item.height !== 0 ||
-        item.anchor !== null
-      )
-        throw new Error("Invalid protected document chart");
-    } else {
-      checkDocxChartEdit({
-        ...record(item.settings),
-        width: item.width,
-        height: item.height,
-        action: "insert",
-      });
-    }
-  }
-  return value as DocxCharts;
 }

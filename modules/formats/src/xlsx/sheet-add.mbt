@@ -12,7 +12,7 @@ fn Session::prepare_sheet_add(
   self : Session,
   copy~ : Sheet? = None,
 ) -> (Sheet, Int32, String, Array[(String, @xml.Document, @xml.Edit)]) raise @failure.Failure {
-  guard self.sheets.length() < 256 else {
+  guard self.sheets.length() < WorksheetCount else {
     @failure.reject("limit-exceeded", "Worksheet count exceeds budget")
   }
   let tree = Tree::new(self.workbook)

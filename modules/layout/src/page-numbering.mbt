@@ -1,4 +1,7 @@
 ///|
+pub const NumberingStartMax : Int64 = 4294967295L
+
+///|
 pub(all) struct PageNumbering {
   start : Int64
   format : String
@@ -25,7 +28,7 @@ pub fn PageNumbering::validate(
   self : PageNumbering,
 ) -> Unit raise @failure.Failure {
   guard self.start >= 0L &&
-    self.start <= 4294967295L &&
+    self.start <= NumberingStartMax &&
     [
       "decimal", "decimalZero", "lowerLetter", "upperLetter", "lowerRoman", "upperRoman",
     ].contains(self.format) else {

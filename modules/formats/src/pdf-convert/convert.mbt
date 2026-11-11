@@ -345,7 +345,9 @@ pub fn convert(
         bytes: None,
       }
     }
-    let cap = source.budget.outputBytes.min(budget.output_bytes).min(67108864)
+    let cap = source.budget.outputBytes
+      .min(budget.output_bytes)
+      .min(@layout.ExportBytes)
     let budget = { ..budget, output_bytes: cap, }
     let (bytes, targets) = match format {
       "docx" => write_docx(pages, budget, probe, targetProfile, warnings)

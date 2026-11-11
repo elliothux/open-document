@@ -1,4 +1,7 @@
 ///|
+pub const CellTextUnits : Int32 = 32767
+
+///|
 pub(all) enum Value {
   Blank
   Text(String)
@@ -61,7 +64,7 @@ fn Value::display(self : Value) -> String {
 
 ///|
 fn input_value(text : String, literal~ : Bool) -> Value raise @failure.Failure {
-  guard text.length() <= 32767 && @xml.valid_text(text) else {
+  guard text.length() <= CellTextUnits && @xml.valid_text(text) else {
     @failure.reject(
       "limit-exceeded", "Cell text is invalid or exceeds 32767 UTF-16 units",
     )

@@ -3,7 +3,7 @@ fn determinant_function(
   arg : Expression,
   sheets : Array[Sheet],
   sheet : Int32,
-  values : Map[(Int32, String), Value],
+  values : Map[(Int32, Address), Value],
   work : FormulaWork,
   depth : Int32,
 ) -> Value raise @failure.Failure {

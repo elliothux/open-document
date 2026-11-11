@@ -15,11 +15,12 @@ fn Session::prepare_note(
   let entries = notes.map(n => n.entries).unwrap_or([])
   let previous = entries.iter().find_first(n => n.address == address)
   let text = text.map(text => {
-    guard text.length() <= 32767 &&
+    guard text.length() <= NoteTextUnits &&
       !text.trim().is_empty() &&
       @xml.valid_text(text) else {
       @failure.reject(
-        "invalid-text", "Cell notes require nonempty valid text within 32767 UTF-16 units",
+        "invalid-text",
+        "Cell notes require nonempty valid text within \{NoteTextUnits} UTF-16 units",
       )
     }
     text.replace_all(old="\r\n", new="\n").replace_all(old="\r", new="\n")
@@ -170,3 +171,6 @@ fn Session::prepare_note(
   }
   Some(sheet_document)
 }
+
+///|
+pub const NoteTextUnits : Int32 = 32767

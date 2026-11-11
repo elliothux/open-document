@@ -1,17 +1,17 @@
 import type {
   DrawingBatch,
-  DrawGlyph,
+  DrawingRegion,
+  DrawGlyphRun,
   DrawStyle,
   DrawCommand,
   DrawMatrix,
-  PathSegment,
+  DrawRect,
+  PdfGlyphCommand,
 } from "@open-document/wasm/abi/drawing";
 import type { ShapeBatch } from "@open-document/wasm/abi/shape";
+import { ChartBitmaps, type ChartFrame } from "./drawing-chart.js";
 import {
-  fillStrokeDiamond,
   clipDeviceRectangle,
-  fractionalClipBounds,
-  pdfClipPath,
   pixelRectangleFill,
   pixelRectangleStroke,
   type ClipBounds,
@@ -27,27 +27,31 @@ import {
   drawCroppedImage,
   imageSmoothing,
 } from "./drawing-image.js";
-import { pdfHairline, pdfPathStroke, pdfStroke } from "./pdf-stroke.js";
-import { drawingPath } from "./drawing-path.js";
+import { pdfHairline } from "./pdf-hairline.js";
+import { pdfPathStroke, pdfStroke } from "./pdf-stroke.js";
+import {
+  applyDrawingClip,
+  applyDrawingStyle,
+  drawingPath,
+  strokeRectangle,
+} from "./drawing-path.js";
 export type CanvasRasterMode = "integer" | "fractional" | "pdf";
 
 /** One renderer per core session. Platform resources never cross sessions. */
 export class CanvasRenderer {
   private readonly paths = new Map<string, GlyphPath>();
+  private readonly chartBitmaps = new ChartBitmaps();
   private closed = false;
   private basePixels = 0;
+  private layerPixels = 0;
   private imageWork = 0;
   // Preserve image sampling capacity when glyph refinement reaches its limit.
   private glyphWork = 0;
-  private glyphRasterMode: CanvasRasterMode;
-
   constructor(
-    private readonly rasterMode: CanvasRasterMode = "integer",
+    private glyphRasterMode?: CanvasRasterMode,
     private readonly imagePixels: ReadonlyMap<string, Uint8Array> = new Map(),
     private readonly imageColors: ReadonlyMap<string, ImageBitmap> = new Map(),
-  ) {
-    this.glyphRasterMode = rasterMode;
-  }
+  ) {}
 
   setGlyphRasterMode(mode: CanvasRasterMode): boolean {
     if (this.closed) throw new Error("Renderer is disposed");
@@ -58,32 +62,40 @@ export class CanvasRenderer {
     return changed;
   }
 
+  private regionGlyphMode(region: DrawingRegion): CanvasRasterMode {
+    return (
+      this.glyphRasterMode ??
+      (region.glyphRaster === "coverage"
+        ? "pdf"
+        : (region.glyphRaster ?? "integer"))
+    );
+  }
+
   drawRegion(
     context: CanvasRenderingContext2D,
     batch: DrawingBatch,
     index: number,
     images: ReadonlyMap<string, ImageBitmap> = new Map(),
     liveImages: ReadonlyMap<DrawCommand, CanvasImageSource> = new Map(),
+    cacheChartTiles = false,
   ): void {
     if (this.closed) throw new Error("Renderer is disposed");
     const region = batch.regions[index];
     if (!region) throw new Error("Unknown drawing region");
     const retained = new Set(batch.outlines.map((outline) => outline.key));
     for (const key of this.paths.keys())
-      if (!retained.has(key)) this.paths.delete(key);
+      if (!retained.has(key)) {
+        this.paths.delete(key);
+        this.chartBitmaps.clear();
+      }
     this.prepare(batch.outlines);
     this.usedLayers = 0;
     this.basePixels = context.canvas.width * context.canvas.height;
     this.imageWork = 0;
     this.glyphWork = 0;
-    const m = context.getTransform(),
-      first = region.commands[0];
-    const commands =
-      first?.op === "clipRect" &&
-      first.rect.x === 0 &&
-      first.rect.y === 0 &&
-      first.rect.width === region.width &&
-      first.rect.height === region.height &&
+    const m = context.getTransform();
+    const backingClip =
+      region.backingClip &&
       m.b === 0 &&
       m.c === 0 &&
       m.e === 0 &&
@@ -92,33 +104,50 @@ export class CanvasRenderer {
       m.d > 0 &&
       context.canvas.width === Math.ceil(region.width * m.a) &&
       context.canvas.height === Math.ceil(region.height * m.d)
-        ? // Align the page clip to its backing pixels while retaining its save/restore scope.
-          [
-            {
-              ...first,
-              rect: {
-                ...first.rect,
-                width: context.canvas.width / m.a,
-                height: context.canvas.height / m.d,
-              },
-            },
-            ...region.commands.slice(1),
-          ]
-        : region.commands;
-    for (const canvas of this.layers)
+        ? {
+            x: 0,
+            y: 0,
+            width: context.canvas.width / m.a,
+            height: context.canvas.height / m.d,
+          }
+        : undefined;
+    this.layerPixels = 0;
+    for (const canvas of this.layers) {
       if (
         canvas.width !== context.canvas.width ||
         canvas.height !== context.canvas.height
       ) {
         canvas.width = 0;
         canvas.height = 0;
-      }
+      } else this.layerPixels += canvas.width * canvas.height;
+    }
     try {
-      this.drawCommands(context, commands, images, 0, liveImages);
+      const charts =
+        cacheChartTiles && !liveImages.size
+          ? this.chartBitmaps.frame(
+              context,
+              region,
+              this.regionGlyphMode(region),
+              backingClip,
+            )
+          : undefined;
+      this.drawCommands(
+        context,
+        region.commands,
+        images,
+        0,
+        liveImages,
+        region,
+        false,
+        charts,
+        backingClip,
+      );
     } finally {
       for (let i = this.usedLayers; i < this.layers.length; i++) {
-        this.layers[i]!.width = 0;
-        this.layers[i]!.height = 0;
+        const canvas = this.layers[i]!;
+        this.layerPixels -= canvas.width * canvas.height;
+        canvas.width = 0;
+        canvas.height = 0;
       }
     }
   }
@@ -131,13 +160,20 @@ export class CanvasRenderer {
     images: ReadonlyMap<string, ImageBitmap>,
     depth: number,
     liveImages: ReadonlyMap<DrawCommand, CanvasImageSource>,
+    raster: DrawingRegion,
     nativePatternCell = false,
+    charts?: ChartFrame,
+    backingClip?: DrawRect,
   ): void {
+    const coverageImages = raster.imageSampling === "coverage";
+    const coverageStroke = raster.strokeRaster === "coverage";
+    const fractionalStroke = raster.strokeRaster === "fractional";
     let clips = 0;
     let clipBounds: ClipBounds | undefined;
     let paintClipped = false;
     let pixelCenters = false;
-    let glyphRasterMode = this.glyphRasterMode;
+    const defaultGlyphMode = this.regionGlyphMode(raster);
+    let glyphRasterMode = defaultGlyphMode;
     let sourceMatrix: DrawMatrix = context.getTransform();
     let style: DrawStyle = {
       fillAlpha: 1,
@@ -150,6 +186,7 @@ export class CanvasRenderer {
       dashOffset: 0,
       blend: "normal",
     };
+    const defaultStyle = style;
     const styles: {
       style: DrawStyle;
       pixelCenters: boolean;
@@ -168,35 +205,24 @@ export class CanvasRenderer {
         clipBounds,
       });
     };
-    const clipPath = (path: PathSegment[], evenOdd: boolean) => {
-      const bounds =
-        this.rasterMode === "pdf"
-          ? fractionalClipBounds(context, path)
-          : undefined;
-      if (bounds) {
-        clipBounds = clipBounds
-          ? [
-              Math.max(clipBounds[0], bounds[0]),
-              Math.max(clipBounds[1], bounds[1]),
-              Math.min(clipBounds[2], bounds[2]),
-              Math.min(clipBounds[3], bounds[3]),
-            ]
-          : bounds;
-      } else context.clip(drawingPath(path), evenOdd ? "evenodd" : "nonzero");
-    };
     context.save();
     try {
-      this.applyStyle(context, style);
+      if (coverageImages) context.imageSmoothingQuality = "medium";
+      applyDrawingStyle(context, style);
       for (let index = 0; index < commands.length; index++) {
+        const next = charts?.(
+          index,
+          commands,
+          clips,
+          style === defaultStyle &&
+            !pixelCenters &&
+            glyphRasterMode === defaultGlyphMode,
+        );
+        if (next !== undefined) {
+          index = next - 1;
+          continue;
+        }
         const command = commands[index]!;
-        const next = commands[index + 1];
-        const cropped =
-          command.op === "clipRect" &&
-          next?.op === "image" &&
-          commands[index + 2]?.op === "restore" &&
-          !liveImages.has(next)
-            ? images.get(next.image.key)
-            : undefined;
         if (
           clipBounds &&
           command.op !== "style" &&
@@ -205,15 +231,16 @@ export class CanvasRenderer {
           command.op !== "pixelCenters" &&
           command.op !== "integerScreenGlyphs" &&
           command.op !== "clipPath" &&
-          (command.op !== "clipRect" || cropped)
+          command.op !== "clipRect"
         ) {
           context.save();
           paintClipped = true;
           clipDeviceRectangle(
             context,
             clipBounds,
-            command.op === "glyphs" &&
-              command.glyphs.every((glyph) => glyph.strokeWidth === 0),
+            command.op === "pdfGlyphs" ||
+              (command.op === "glyphs" &&
+                command.runs.every(([, , strokeWidth]) => strokeWidth === 0)),
           );
         }
         switch (command.op) {
@@ -221,7 +248,6 @@ export class CanvasRenderer {
             drawTile(
               context,
               command,
-              this.rasterMode === "pdf",
               (width, height, matrix) =>
                 this.layerContext(context, depth, width, height, matrix),
               (target, commands, nativeCell) =>
@@ -231,6 +257,7 @@ export class CanvasRenderer {
                   images,
                   depth + 1,
                   liveImages,
+                  raster,
                   nativeCell,
                 ),
             );
@@ -243,6 +270,7 @@ export class CanvasRenderer {
               images,
               depth,
               liveImages,
+              raster,
               null,
             );
             break;
@@ -254,6 +282,7 @@ export class CanvasRenderer {
               images,
               depth,
               liveImages,
+              raster,
               command.mask,
             );
             break;
@@ -263,7 +292,7 @@ export class CanvasRenderer {
             context.fillStyle = `#${rect.color}`;
             if (
               pixelCenters ||
-              this.rasterMode === "fractional" ||
+              command.screenFractional ||
               !pixelRectangleFill(context, rect)
             )
               context.fillRect(rect.x, rect.y, rect.width, rect.height);
@@ -274,30 +303,41 @@ export class CanvasRenderer {
             drawBitmapPattern(
               context,
               command,
-              this.rasterMode === "pdf",
+              coverageImages,
               (width, height) =>
                 this.imageTarget(context, depth, width, height),
             );
             break;
-          case "strokeRect": {
+          case "strokeRect":
+          case "strokeBands": {
             context.globalAlpha = style.strokeAlpha;
-            const rect = command.rect;
             context.strokeStyle = `#${command.color}`;
             context.lineWidth = command.lineWidth;
-            if (pixelCenters) {
-              const m = context.getTransform();
-              context.save();
-              try {
-                context.setTransform(m.a, m.b, m.c, m.d, m.e + 0.5, m.f + 0.5);
-                context.strokeRect(rect.x, rect.y, rect.width, rect.height);
-              } finally {
-                context.restore();
+            if (command.op === "strokeRect") {
+              strokeRectangle(context, command, pixelCenters, coverageStroke);
+            } else {
+              const rect = { x: 0, y: 0, width: 0, height: 0 };
+              const stroke = {
+                op: "strokeRect" as const,
+                rect,
+                color: command.color,
+                lineWidth: command.lineWidth,
+              };
+              for (const [y, height, spans] of command.bands) {
+                rect.y = y;
+                rect.height = height;
+                for (const [x, width] of spans) {
+                  rect.x = x;
+                  rect.width = width;
+                  strokeRectangle(
+                    context,
+                    stroke,
+                    pixelCenters,
+                    coverageStroke,
+                  );
+                }
               }
-            } else if (
-              (command.screenFractional && this.rasterMode !== "pdf") ||
-              !pixelRectangleStroke(context, command, this.rasterMode === "pdf")
-            )
-              context.strokeRect(rect.x, rect.y, rect.width, rect.height);
+            }
             break;
           }
           case "gradientRect":
@@ -306,29 +346,14 @@ export class CanvasRenderer {
             if (rect.width === 0 || rect.height === 0) break;
             const gradient =
               command.op === "radialGradientRect"
-                ? context.createRadialGradient(
-                    rect.x + rect.width / 2,
-                    rect.y + rect.height / 2,
-                    72 / 25.4,
-                    rect.x + rect.width / 2,
-                    rect.y + rect.height / 2,
-                    Math.max(rect.width, rect.height) / 2,
-                  )
+                ? context.createRadialGradient(...command.circles)
                 : context.createLinearGradient(
                     rect.x,
                     rect.y,
                     rect.x + rect.width,
                     rect.y,
                   );
-            for (const [index, stop] of command.stops.entries()) {
-              // Match PDF interval extension at duplicate endpoint stops.
-              if (
-                (stop.position === 0 &&
-                  command.stops[index + 1]?.position === 0) ||
-                (stop.position === 1 &&
-                  command.stops[index - 1]?.position === 1)
-              )
-                continue;
+            for (const stop of command.stops) {
               gradient.addColorStop(
                 stop.position,
                 `rgba(${Number.parseInt(stop.color.slice(0, 2), 16)},${Number.parseInt(stop.color.slice(2, 4), 16)},${Number.parseInt(stop.color.slice(4, 6), 16)},${stop.opacity})`,
@@ -339,6 +364,22 @@ export class CanvasRenderer {
             context.fillRect(rect.x, rect.y, rect.width, rect.height);
             break;
           }
+          case "pdfGlyphs":
+            context.save();
+            try {
+              context.globalAlpha = style.fillAlpha;
+              context.fillStyle = `#${command.color}`;
+              this.glyphs(
+                context,
+                command,
+                glyphRasterMode,
+                false,
+                sourceMatrix,
+              );
+            } finally {
+              context.restore();
+            }
+            break;
           case "glyphs":
             context.globalAlpha = style.fillAlpha;
             context.fillStyle = `#${command.color}`;
@@ -347,7 +388,7 @@ export class CanvasRenderer {
               context.translate(command.x, command.y);
               this.glyphs(
                 context,
-                command.glyphs,
+                command.runs,
                 pixelCenters ? "fractional" : glyphRasterMode,
                 pixelCenters,
                 {
@@ -370,60 +411,70 @@ export class CanvasRenderer {
             }
             break;
           case "image": {
-            context.globalAlpha = style.fillAlpha;
-            const image = command.image;
-            const bitmap = liveImages.get(command) ?? images.get(image.key);
+            const { image, crop } = command;
+            const live = liveImages.get(command);
+            const poster = images.get(image.key);
+            const bitmap = live ?? poster;
             if (!bitmap) throw new Error(`Missing image: ${image.key}`);
-            imageSmoothing(
-              context,
-              bitmap,
-              image.width,
-              image.height,
-              image.interpolate,
-              this.rasterMode === "fractional",
-            );
-            drawImage(
-              context,
-              bitmap,
-              image,
-              nativePatternCell,
-              (width, height) =>
-                this.imageTarget(context, depth, width, height),
-              this.imagePixels.get(image.key),
-              this.imageColors.get(image.key),
-            );
+            if (crop) context.save();
+            try {
+              context.globalAlpha = style.fillAlpha;
+              if (crop && live) {
+                const rect = crop.clip;
+                context.beginPath();
+                context.rect(rect.x, rect.y, rect.width, rect.height);
+                context.clip();
+              }
+              imageSmoothing(
+                context,
+                bitmap,
+                image.width,
+                image.height,
+                image.interpolate,
+                command.preservePixels === true,
+              );
+              const target = (width: number, height: number) =>
+                this.imageTarget(context, depth, width, height);
+              const pixels = this.imagePixels.get(image.key);
+              const colors = this.imageColors.get(image.key);
+              if (crop && !live && poster)
+                drawCroppedImage(
+                  context,
+                  poster,
+                  image,
+                  crop.visible,
+                  target,
+                  pixels,
+                  colors,
+                );
+              else
+                drawImage(
+                  context,
+                  bitmap,
+                  image,
+                  nativePatternCell,
+                  target,
+                  pixels,
+                  colors,
+                );
+            } finally {
+              if (crop) context.restore();
+            }
             break;
           }
           case "style":
             style = command.style;
-            this.applyStyle(context, style);
+            applyDrawingStyle(context, style);
             break;
           case "pixelCenters":
-            pixelCenters = this.rasterMode !== "pdf";
+            pixelCenters = true;
             break;
           case "integerScreenGlyphs":
-            if (this.rasterMode !== "pdf") glyphRasterMode = "integer";
+            glyphRasterMode = "integer";
             break;
-          case "clipPath":
           case "path": {
-            if (command.op === "clipPath") {
-              saveScope();
-              clipPath(
-                pdfClipPath(
-                  context,
-                  command.path,
-                  this.rasterMode,
-                  commands,
-                  index,
-                ),
-                command.evenOdd,
-              );
-              break;
-            }
-            const path = drawingPath(command.path);
-            const curves = command.path.some(
-              (segment) => segment.op === "cubic",
-            );
+            let path: Path2D | undefined;
+            const curves = command.strokeGeometry === "curve";
             if (pixelCenters) {
               const m = context.getTransform();
               context.save();
@@ -434,61 +485,64 @@ export class CanvasRenderer {
               if (command.fill) {
                 context.globalAlpha = style.fillAlpha;
                 context.fillStyle = `#${command.fill}`;
-                if (
-                  style.strokeAlpha === 1 &&
-                  fillStrokeDiamond(context, command)
-                )
-                  break;
+                path = drawingPath(command.path);
                 context.fill(path, style.evenOdd ? "evenodd" : "nonzero");
               }
               if (command.stroke) {
                 context.globalAlpha = style.strokeAlpha;
                 context.strokeStyle = `#${command.stroke}`;
-                const m = context.getTransform();
+                const hairline = command.lineWidth === 0;
+                const m = command.lineWidth
+                  ? undefined
+                  : context.getTransform();
                 // shortcut: nonuniform hairlines use the largest scale; use device paths if required.
-                context.lineWidth =
-                  command.lineWidth ||
-                  1 / Math.max(Math.hypot(m.a, m.b), Math.hypot(m.c, m.d));
+                context.lineWidth = m
+                  ? 1 / Math.max(Math.hypot(m.a, m.b), Math.hypot(m.c, m.d))
+                  : command.lineWidth;
                 if (
                   !(
                     !pixelCenters &&
-                    ((command.lineWidth === 0 &&
-                      this.rasterMode !== "fractional" &&
+                    ((hairline &&
+                      m &&
+                      !curves &&
+                      !fractionalStroke &&
                       pdfHairline(context, command.path, m)) ||
                       pixelRectangleStroke(
                         context,
                         command,
-                        this.rasterMode === "pdf",
+                        coverageStroke,
+                        false,
+                        command.rectangleDashes,
                       ))
                   ) &&
                   !(
                     !pixelCenters &&
-                    (this.rasterMode !== "fractional" ||
-                      (command.textRule && m.b === 0 && m.c === 0)) &&
-                    pdfStroke(context, command)
+                    (!fractionalStroke || command.textRule) &&
+                    pdfStroke(context, command, fractionalStroke)
                   ) &&
                   !(
                     !pixelCenters &&
-                    this.rasterMode !== "fractional" &&
+                    !fractionalStroke &&
                     pdfPathStroke(
                       context,
                       command.path,
-                      this.rasterMode === "pdf" ||
-                        (Boolean(command.fill) && !curves),
+                      command.strokeGeometry,
+                      coverageStroke || (Boolean(command.fill) && !curves),
                       Boolean(command.fill),
-                      16777216 -
-                        this.layers.reduce(
-                          (sum, canvas) => sum + canvas.width * canvas.height,
-                          this.basePixels,
-                        ),
-                      command.lineWidth === 0,
+                      16777216 - this.basePixels - this.layerPixels,
+                      hairline,
+                      command.strokeOutline,
+                      command.strokeDashes,
+                      command.strokeBounds,
+                      command.strokeDashesAxisAligned,
+                      command.strokeNonRectangular,
                     )
                   )
                 )
                   context.stroke(
-                    pixelCenters && command.lineWidth === 0
+                    pixelCenters && hairline
                       ? drawingPath(command.path, m)
-                      : path,
+                      : (path ?? drawingPath(command.path)),
                   );
               }
             } finally {
@@ -510,66 +564,17 @@ export class CanvasRenderer {
             context.transform(m.a, m.b, m.c, m.d, m.e, m.f);
             break;
           }
-          case "clipRect": {
-            const rect = command.rect;
-            if (next?.op === "image" && cropped) {
-              const image = next.image;
-              context.save();
-              try {
-                context.globalAlpha = style.fillAlpha;
-                imageSmoothing(
-                  context,
-                  cropped,
-                  image.width,
-                  image.height,
-                  image.interpolate,
-                  this.rasterMode === "fractional",
-                );
-                drawCroppedImage(
-                  context,
-                  cropped,
-                  image,
-                  rect,
-                  (width, height) =>
-                    this.imageTarget(context, depth, width, height),
-                  this.imagePixels.get(image.key),
-                  this.imageColors.get(image.key),
-                );
-              } finally {
-                context.restore();
-              }
-              index += 2;
-              break;
-            }
+          case "clipPath":
+          case "clipRect":
             saveScope();
-            if (this.rasterMode === "pdf")
-              clipPath(
-                pdfClipPath(
-                  context,
-                  [
-                    { op: "move", x: rect.x, y: rect.y },
-                    { op: "line", x: rect.x + rect.width, y: rect.y },
-                    {
-                      op: "line",
-                      x: rect.x + rect.width,
-                      y: rect.y + rect.height,
-                    },
-                    { op: "line", x: rect.x, y: rect.y + rect.height },
-                    { op: "close" },
-                  ],
-                  "pdf",
-                  commands,
-                  index,
-                ),
-                false,
-              );
-            else {
-              context.beginPath();
-              context.rect(rect.x, rect.y, rect.width, rect.height);
-              context.clip();
-            }
+            clipBounds = applyDrawingClip(
+              context,
+              command,
+              raster.deviceClips === true,
+              clipBounds,
+              index === 0 ? backingClip : undefined,
+            );
             break;
-          }
           case "restore":
             if (clips === 0) throw new Error("Invalid drawing clip stack");
             context.restore();
@@ -605,14 +610,15 @@ export class CanvasRenderer {
     images: ReadonlyMap<string, ImageBitmap>,
     depth: number,
     liveImages: ReadonlyMap<DrawCommand, CanvasImageSource>,
+    raster: DrawingRegion,
     mask: DrawCommand[] | null,
   ): void {
     const nextDepth = depth + (mask === null ? 1 : 2);
     const target = this.layerContext(context, depth);
-    this.drawCommands(target, commands, images, nextDepth, liveImages);
+    this.drawCommands(target, commands, images, nextDepth, liveImages, raster);
     if (mask !== null) {
       const alpha = this.layerContext(context, depth + 1);
-      this.drawCommands(alpha, mask, images, nextDepth, liveImages);
+      this.drawCommands(alpha, mask, images, nextDepth, liveImages, raster);
       target.save();
       try {
         target.resetTransform();
@@ -673,6 +679,7 @@ export class CanvasRenderer {
     this.usedLayers = Math.max(this.usedLayers, depth + 1);
     if (canvas.width !== width) canvas.width = width;
     if (canvas.height !== height) canvas.height = height;
+    this.layerPixels = pixels - this.basePixels;
     const target = canvas.getContext("2d");
     if (!target) throw new Error("Layer canvas is unavailable");
     target.resetTransform();
@@ -695,21 +702,17 @@ export class CanvasRenderer {
     this.prepare(batch.outlines);
     this.glyphs(
       context,
-      batch.glyphs.map<DrawGlyph>((glyph) => ({
-        outline: glyph.outline,
-        upem: batch.fonts[glyph.font]!.upem,
-        fontBounds: [
-          batch.fonts[glyph.font]!.bbox[0]!,
-          batch.fonts[glyph.font]!.bbox[1]!,
-          batch.fonts[glyph.font]!.bbox[2]!,
-          batch.fonts[glyph.font]!.bbox[3]!,
-        ],
-        strokeWidth: glyph.strokeWidth,
-        x: x + glyph.x,
-        y: baseline + glyph.y,
-        scaleX: glyph.scale,
-        scaleY: -glyph.scale,
-      })),
+      batch.glyphs.map<DrawGlyphRun>((glyph) => {
+        const font = batch.fonts[glyph.font]!;
+        return [
+          font.upem,
+          [font.bbox[0]!, font.bbox[1]!, font.bbox[2]!, font.bbox[3]!],
+          glyph.strokeWidth,
+          glyph.scale,
+          -glyph.scale,
+          [[glyph.outline, x + glyph.x, baseline + glyph.y]],
+        ];
+      }),
     );
   }
 
@@ -719,44 +722,27 @@ export class CanvasRenderer {
         this.paths.set(outline.key, compileGlyphPath(outline.path));
   }
 
-  private applyStyle(
-    context: CanvasRenderingContext2D,
-    style: DrawStyle,
-  ): void {
-    if (this.rasterMode === "pdf") context.imageSmoothingQuality = "medium";
-    context.lineCap = (["butt", "round", "square"] as const)[style.cap]!;
-    context.lineJoin = (["miter", "round", "bevel"] as const)[style.join]!;
-    context.miterLimit = style.miter;
-    context.setLineDash(style.dash);
-    context.lineDashOffset = style.dashOffset;
-    context.globalCompositeOperation =
-      style.blend === "normal" ? "source-over" : style.blend;
-  }
-
   private glyphs(
     context: CanvasRenderingContext2D,
-    glyphs: DrawGlyph[],
-    mode: CanvasRasterMode = this.glyphRasterMode,
+    runs: DrawGlyphRun[] | PdfGlyphCommand,
+    mode: CanvasRasterMode = this.glyphRasterMode ?? "integer",
     pixelSize = false,
     sourceMatrix?: DrawMatrix,
   ): void {
     this.glyphWork += drawGlyphs(
       context,
-      glyphs,
+      runs,
       mode,
       pixelSize,
       sourceMatrix,
       this.paths,
-      16777216 -
-        this.layers.reduce(
-          (sum, canvas) => sum + canvas.width * canvas.height,
-          this.basePixels,
-        ),
+      16777216 - this.basePixels - this.layerPixels,
       67108864 - this.glyphWork,
     );
   }
 
   dispose(): void {
+    this.chartBitmaps.clear();
     for (const canvas of this.layers) {
       canvas.width = 0;
       canvas.height = 0;

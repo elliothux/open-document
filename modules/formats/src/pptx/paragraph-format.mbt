@@ -41,21 +41,14 @@ fn Session::paragraph_reason(self : Session, object : Object) -> String {
 
 ///|
 fn Session::paragraph_query(self : Session) -> Json {
-  let fields = [
-    "left", "right", "first", "before", "after", "line", "list", "level", "rtl",
-    "listFont", "listSize", "listColor", "tabs", "defaultTab",
-  ]
-  let result : Map[String, Json] = Map([])
-  for field in fields {
-    result[field] = Json::null()
-  }
+  let result = paragraph_values(None)
   result["reason"] = Json("Select an editable text frame")
   let selection = self.candidate.map(c => c.selection).unwrap_or(self.selection)
   if selection.objects.is_empty() {
     return Json(result)
   }
   try {
-    let values : Array[Array[Json]] = []
+    let values : Array[Map[String, Json]] = []
     for id in selection.objects {
       let object = self.current().object(id)
       let reason = self.paragraph_reason(object)
@@ -68,7 +61,7 @@ fn Session::paragraph_query(self : Session) -> Json {
         for paragraph in target.paragraphs {
           let length = paragraph_length(paragraph)
           if paragraph_selected(selected, offset, length) {
-            values.push(paragraph_values(paragraph))
+            values.push(paragraph_values(Some(paragraph)))
           }
           offset += length + 1
         }
@@ -76,9 +69,9 @@ fn Session::paragraph_query(self : Session) -> Json {
     }
     result["reason"] = Json("")
     if values is [first, ..] {
-      for index, field in fields {
-        if values.all(value => value[index] == first[index]) {
-          result[field] = first[index]
+      for field, initial in first {
+        if values.all(value => value[field] == initial) {
+          result[field] = initial
         }
       }
     }

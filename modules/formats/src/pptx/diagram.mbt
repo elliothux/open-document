@@ -1,4 +1,13 @@
 ///|
+pub const DiagramItemCount : Int32 = 16
+
+///|
+pub const DiagramLabelUnits : Int32 = 4096
+
+///|
+pub const DiagramTextUnits : Int32 = 32767
+
+///|
 pub(all) struct DiagramSettings {
   template : String
   items : Array[String]
@@ -15,9 +24,9 @@ fn diagram_boxes(
   let { template, items, x, y, width, height, } = settings
   guard ["process", "hierarchy", "cycle"].contains(template) &&
     items.length() >= (if template == "cycle" { 3 } else { 2 }) &&
-    items.length() <= 16 &&
-    items.all(item => item.length() <= 4096) &&
-    items.fold(init=0, (sum, item) => sum + item.length()) <= 32767 else {
+    items.length() <= DiagramItemCount &&
+    items.all(item => item.length() <= DiagramLabelUnits) &&
+    items.fold(init=0, (sum, item) => sum + item.length()) <= DiagramTextUnits else {
     @failure.reject("invalid-operation", "Invalid diagram template or labels")
   }
   validate_object_box(x, y, width, height, false)

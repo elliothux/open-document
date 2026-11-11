@@ -63,7 +63,7 @@ fn conditional_text_formula(
       }
     }
   }
-  guard formula.length() <= 8192 else {
+  guard formula.length() <= FormulaSourceUnits else {
     @failure.reject("limit-exceeded", "Conditional text formula exceeds budget")
   }
   formula

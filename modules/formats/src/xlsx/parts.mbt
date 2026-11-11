@@ -45,8 +45,23 @@ fn Session::replacements(
 fn Session::relationships(
   self : Session,
 ) -> ReadOnlyArray[@opc.Relationship] raise @failure.Failure {
-  self.opc.relationships(
-    replacements=self.replacements(self.sheets, self.workbook, self.parts),
-    removed=self.removed,
-  )
+  let cache = self.read_cache()
+  if cache.relationships is Some(relationships) {
+    return relationships
+  }
+  let changes_metadata = name => self.opc.changes_metadata(name)
+  let relationships = if !self.removed.is_empty() ||
+    self.parts.keys().any(changes_metadata) ||
+    self.media.keys().any(changes_metadata) ||
+    changes_metadata(self.main) ||
+    self.sheets.iter().any(sheet => changes_metadata(sheet.id)) {
+    self.opc.relationships(
+      replacements=self.replacements(self.sheets, self.workbook, self.parts),
+      removed=self.removed,
+    )
+  } else {
+    self.opc.relationships()
+  }
+  cache.relationships = Some(relationships)
+  relationships
 }

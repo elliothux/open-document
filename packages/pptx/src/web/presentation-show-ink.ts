@@ -1,3 +1,4 @@
+import { pptxShowInkStrokePoints } from "@open-document/wasm/engine-source";
 import type { PptxShowInkChange, PptxShowState } from "../core/pptx.js";
 
 export interface PresentationInkLabels {
@@ -35,6 +36,7 @@ export class PresentationShowInk {
     dialog: HTMLElement,
     signal: AbortSignal,
     labels: PresentationInkLabels,
+    private readonly maxBatchPoints: number,
     private readonly frame: () => InkFrame | undefined,
     private readonly send: (
       change: PptxShowInkChange,
@@ -123,6 +125,7 @@ export class PresentationShowInk {
       (event) => {
         if (this.gesture?.pointer !== event.pointerId) return;
         this.sample(event);
+        if (!this.gesture) return;
         this.gesture.finish = "end";
         this.schedule();
       },
@@ -187,7 +190,7 @@ export class PresentationShowInk {
     if (!rect.width || !rect.height) return;
     const coalesced = event.getCoalescedEvents(),
       samples = coalesced.length ? coalesced : [event];
-    if (gesture.points.length + samples.length > 4096) {
+    if (gesture.points.length + samples.length > pptxShowInkStrokePoints) {
       void this.cancel()
         .then(() => {
           throw new Error("Ink pointer buffer exceeds budget");
@@ -241,7 +244,7 @@ export class PresentationShowInk {
   private async flush(): Promise<void> {
     const gesture = this.gesture;
     if (!gesture) return;
-    const points = gesture.points.splice(0, 64);
+    const points = gesture.points.splice(0, this.maxBatchPoints);
     const change: PptxShowInkChange = !gesture.started
       ? { action: "begin", color: gesture.color, width: 2.25, points }
       : {

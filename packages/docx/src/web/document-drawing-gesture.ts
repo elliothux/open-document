@@ -258,18 +258,27 @@ export class DocxDrawingGesture {
         Math.abs(selection.anchor.offset - selection.focus.offset) === 1 &&
         this.host.available()
       ) {
-        const catalog = await this.client.pictures(current.state.revision);
+        const catalog = await this.client.execute({
+          operation: "pictures",
+          revision: current.state.revision,
+        });
         this.host.assertOpen();
         this.revision = catalog.revision;
         this.image = catalog.images.find((image) => image.selected);
         if (!this.image) {
-          const shapes = await this.client.shapes(current.state.revision);
+          const shapes = await this.client.execute({
+            operation: "shapes",
+            revision: current.state.revision,
+          });
           this.host.assertOpen();
           this.revision = shapes.revision;
           this.image = shapes.items.find((shape) => shape.selected);
         }
         if (!this.image) {
-          const charts = await this.client.charts(current.state.revision);
+          const charts = await this.client.execute({
+            operation: "charts",
+            revision: current.state.revision,
+          });
           this.host.assertOpen();
           this.revision = charts.revision;
           this.image = charts.items.find((chart) => chart.selected);

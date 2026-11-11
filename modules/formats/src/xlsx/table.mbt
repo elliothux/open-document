@@ -98,7 +98,7 @@ fn read_table(
       .one(node.id, "totalsRowFormula")
       .map(node => node.text)
     guard [formula, total_formula].all(value => {
-        value.map(text => text.length() <= 8192).unwrap_or(true)
+        value.map(text => text.length() <= FormulaSourceUnits).unwrap_or(true)
       }) &&
       total_label.map(text => text.length() <= 32767).unwrap_or(true) &&
       total_function.map(text => text.length() <= 255).unwrap_or(true) else {
@@ -398,7 +398,7 @@ fn Session::calculate(
   workbook : @xml.Document,
   parts~ : Map[String, @xml.Document] = self.parts,
   removed~ : Array[String] = self.removed,
-  restored_random~ : Map[(Int32, String), (Value, String?)] = Map([]),
+  restored_random~ : Map[(Int32, Address), (Value, String?)] = Map([]),
   force~ : Bool = false,
 ) -> Calculation raise @failure.Failure {
   Calculation::build(

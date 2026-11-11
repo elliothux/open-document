@@ -90,6 +90,7 @@ fn Object::paragraph_flow(
     before: 0,
     after: 0,
     line: spacing,
+    lineGrid: None,
     pageBreakBefore: false,
     keepLines: false,
     keepNext: false,

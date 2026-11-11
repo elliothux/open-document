@@ -40,7 +40,7 @@ fn Session::copy_sheet_pivots(
     }
     let name = for i in 1..<=65 {
       let suffix = "_" + i.to_string()
-      let mut end = pivot.name.length().min(255 - suffix.length())
+      let mut end = pivot.name.length().min(DefinedNameUnits - suffix.length())
       if end > 0 &&
         pivot.name[end - 1] >= 0xd800 &&
         pivot.name[end - 1] <= 0xdbff {

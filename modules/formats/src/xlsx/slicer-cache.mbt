@@ -1,4 +1,7 @@
 ///|
+pub const SlicerMembers : Int32 = 4096
+
+///|
 priv struct SlicerMember {
   index : Int32
   value : Value
@@ -160,13 +163,13 @@ fn Session::read_slicer_cache(
   let source_units = slots.fold(init=0, (units, node) => {
     units + node.attribute("v").unwrap_or("").length()
   })
-  guard slots.length() <= 4096 && source_units <= 1048576 else {
+  guard slots.length() <= SlicerMembers && source_units <= 1048576 else {
     @failure.reject(
       "limit-exceeded", "Slicer field members or text exceed budget",
     )
   }
   let values = pivot_field_items(cache, field, date1904=self.date1904)
-  guard !values.is_empty() && values.length() <= 4096 else {
+  guard !values.is_empty() && values.length() <= SlicerMembers else {
     @failure.reject("limit-exceeded", "Slicer members exceed budget")
   }
   let connections = tree.slicer_node(root.id, "pivotTables")
@@ -194,13 +197,13 @@ fn Session::read_slicer_cache(
   let items = tree.slicer_node(tabular.id, "items")
   slicer_node_profile(tree, items, ["count"], ["i"])
   let entries = tree.slicer_children(items.id, "i")
-  guard entries.length() <= 4096 else {
+  guard entries.length() <= SlicerMembers else {
     @failure.reject("limit-exceeded", "Slicer members exceed budget")
   }
   guard !entries.is_empty() &&
     items
     .attribute("count")
-    .map(count => natural(count, 4096) == entries.length())
+    .map(count => natural(count, SlicerMembers) == entries.length())
     .unwrap_or(true) else {
     @failure.reject("protected-content", "Slicer member count is inconsistent")
   }

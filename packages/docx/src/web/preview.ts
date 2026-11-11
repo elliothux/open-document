@@ -126,10 +126,14 @@ export class DocumentPreview {
   /** The core rejects export after another layout or edit replaces this view. */
   async downloadPdf(
     filename = "document.pdf",
-    outputBytes = 67108864,
+    outputBytes = this.client.inputLimits().exportBytes,
   ): Promise<void> {
     if (this.closed) throw new Error("Preview is disposed");
-    const bytes = await this.client.exportPdf(outputBytes, this.layout.id);
+    const bytes = await this.client.execute({
+      operation: "exportPdf",
+      outputBytes: outputBytes,
+      layoutId: this.layout.id,
+    });
     if (this.closed) throw new Error("Preview is disposed");
     downloadBytes(bytes, "application/pdf", filename);
   }

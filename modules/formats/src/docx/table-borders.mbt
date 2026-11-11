@@ -174,7 +174,7 @@ fn table_border_grid(
   columns : Int32,
   diagnostics : Array[String],
 ) -> @layout.TableBorders raise @failure.Failure {
-  guard spans.length() <= 1000 && columns <= 63 else {
+  guard spans.length() <= TableGridRows && columns <= TableGridColumns else {
     @failure.reject(
       "limit-exceeded", "Table border grid exceeds row or column limit",
     )

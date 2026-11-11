@@ -301,7 +301,7 @@ pub fn Session::set_hyperlink(
   if text is Some(text) {
     guard target is Some(_) &&
       !text.is_empty() &&
-      text.length() <= command_limit &&
+      text.length() <= TextCommandUnits &&
       @xml.valid_text(text) &&
       !text.contains("\n") &&
       !text.contains("\r") &&

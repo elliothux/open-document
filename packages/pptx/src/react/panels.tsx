@@ -2,6 +2,7 @@ export type { PanelProps } from "./context.js";
 import type { PanelProps } from "./context.js";
 import { Command, Group, NativeSlot } from "@open-document/ui/controls";
 import { messages } from "@open-document/ui/messages";
+import { pptxSlideCountLimit } from "@open-document/wasm/engine-source";
 import { PptxDesign } from "./pptx-design.js";
 import { PptxGuides, PptxSnapping } from "./pptx-guides.js";
 import { PptxObjects } from "./pptx-objects.js";
@@ -53,7 +54,9 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
         <Command
           label={t.addSlide}
           disabled={
-            disabled || query.slides.length >= 256 || !!query.slideOrderReason
+            disabled ||
+            query.slides.length >= pptxSlideCountLimit ||
+            !!query.slideOrderReason
           }
           action={() =>
             controller.run(() => editor.editSlides({ action: "add" }))
@@ -71,7 +74,9 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
         <Command
           label={t.copySlide}
           disabled={
-            disabled || query.slides.length >= 256 || !!query.slideOrderReason
+            disabled ||
+            query.slides.length >= pptxSlideCountLimit ||
+            !!query.slideOrderReason
           }
           action={() =>
             controller.run(() => editor.editSlides({ action: "copy" }))

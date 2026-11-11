@@ -1,51 +1,68 @@
 ///|
-fn Context::pdf_convert_operation(
-  self : Context,
-  request : Json,
-) -> Json raise @failure.Failure {
-  guard self.pdf is Some(session) else {
-    @failure.reject("session-required", "Open a PDF first")
-  }
-  guard request is { "budget": value, .. } else {
-    @failure.reject(
-      "invalid-budget", "Explicit Office output budget is required",
+priv struct ConvertRequest {
+  revision : @common.RequestInt
+  pages : PdfPages
+  format : String
+  acceptLoss : Bool
+  budget : @common.RequestArchiveBudget
+  profile : @common.RequestProfile
+} derive(@json.FromJson)
+
+///|
+priv struct ConvertedPage {
+  source : String
+  target : Int32
+} derive(ToJson)
+
+///|
+priv struct ConversionResponse {
+  revision : Int32
+  format : String
+  status : String
+  reason : String
+  warnings : Array[String]
+  pages : Array[ConvertedPage]
+  bytes : Json
+} derive(ToJson)
+
+///|
+let conversion_handlers : Map[
+  String,
+  (Context, @model.PdfSession, Json) -> String raise @failure.Failure,
+] = {
+  "convertPdfOffice": (context, session, input) => {
+    guard input is { "budget": _, .. } else {
+      @failure.reject(
+        "invalid-budget", "Explicit Office output budget is required",
+      )
+    }
+    let command : ConvertRequest = @common.request(input)
+    let result = @convert.convert(
+      session,
+      command.revision.value,
+      command.pages.value,
+      command.format,
+      command.acceptLoss,
+      command.budget.value,
+      context.probe,
+      command.profile.value,
+      decoded=context.images,
     )
-  }
-  let budget : @archive.Budget = {
-    file_bytes: field_int(value, "fileBytes"),
-    entry_bytes: field_int(value, "entryBytes"),
-    total_bytes: field_int(value, "totalBytes"),
-    retained_bytes: field_int(value, "retainedBytes"),
-    entries: field_int(value, "entries"),
-    xml_depth: field_int(value, "xmlDepth"),
-    output_bytes: field_int(value, "outputBytes"),
-  }
-  let result = @convert.convert(
-    session,
-    field_int(request, "revision"),
-    pdf_strings(request, "pages"),
-    field_string(request, "format"),
-    field_boolean(request, "acceptLoss"),
-    budget,
-    self.probe,
-    font_profile(request),
-    decoded=self.images,
-  )
-  let pages : Array[Json] = result.pages.map(page => {
-    "source": page.source,
-    "target": page.target,
-  })
-  let bytes : Json = match result.bytes {
-    Some(bytes) => Json::string(@base64.encode(bytes))
-    None => Json::null()
-  }
-  {
-    "revision": result.revision,
-    "format": result.format,
-    "status": result.status,
-    "reason": result.reason,
-    "warnings": result.warnings,
-    "pages": pages,
-    "bytes": bytes,
-  }
+    let output : ConversionResponse = {
+      revision: result.revision,
+      format: result.format,
+      status: result.status,
+      reason: result.reason,
+      warnings: result.warnings,
+      pages: result.pages.map(page => {
+        source: page.source,
+        target: page.target,
+      }),
+      bytes: match result.bytes {
+        Some(bytes) => Json(context.output.add(bytes))
+        None => Json::null()
+      },
+    }
+    ToJson::to_json(output).stringify()
+  },
 }

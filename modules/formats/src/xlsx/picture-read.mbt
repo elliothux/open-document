@@ -88,8 +88,8 @@ fn Tree::picture_mark(
     }
     picture_integer(node.text, maximum=max)
   }
-  let col = read("col", 16383).to_int() + 1
-  let row = read("row", 1048575).to_int() + 1
+  let col = read("col", WorksheetColumns.to_double() - 1).to_int() + 1
+  let row = read("row", WorksheetRows.to_double() - 1).to_int() + 1
   let x = read("colOff", 1000000000000) / 12700
   let y = read("rowOff", 1000000000000) / 12700
   guard mark.attributes.is_empty() &&
@@ -156,6 +156,33 @@ fn Session::picture_bytes(
 
 ///|
 fn Session::sheet_objects(
+  self : Session,
+  sheet : Sheet,
+  dimensions : Dimensions,
+  preview_diagnostics? : Array[String],
+) -> Array[SheetObject] raise @failure.Failure {
+  if preview_diagnostics is Some(diagnostics) {
+    let cache = self.read_cache()
+    if cache.objects.get(sheet.id) is Some((previous, objects, messages)) &&
+      previous == dimensions {
+      diagnostics.append(messages)
+      return objects
+    }
+    let messages : Array[String] = []
+    let objects = self.parse_sheet_objects(
+      sheet,
+      dimensions,
+      preview_diagnostics=messages,
+    )
+    cache.objects[sheet.id] = (dimensions, objects, messages)
+    diagnostics.append(messages)
+    return objects
+  }
+  self.parse_sheet_objects(sheet, dimensions)
+}
+
+///|
+fn Session::parse_sheet_objects(
   self : Session,
   sheet : Sheet,
   dimensions : Dimensions,

@@ -47,7 +47,11 @@ export function XlsxTableStyleForm({
       onSubmit={(event) => {
         event.preventDefault();
         props.controller.run(() =>
-          editor.editSheet({ action: "tableStyle", id: table.id, style }),
+          editor.objects.editSheet({
+            action: "tableStyle",
+            id: table.id,
+            style,
+          }),
         );
       }}
     >

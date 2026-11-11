@@ -1,4 +1,26 @@
 ///|
+priv struct ChartQuery {
+  id : String
+  anchor : String
+  x : Double
+  y : Double
+  width : Double
+  height : Double
+  name : String
+  description : String
+  kind : String
+  title : String
+  label : String
+  legend : String
+  holeSize : QueryNullable[Int32]
+  categories : String
+  names : Array[String]
+  values : Array[String]
+  data : String
+  bindingReason : String
+} derive(ToJson)
+
+///|
 pub fn Session::charts(
   self : Session,
   revision : Int32,
@@ -19,50 +41,48 @@ pub fn Session::charts(
       []
     }
   }
-  {
-    "revision": revision,
-    "sheet": sheet,
-    "reason": reason,
-    "items": objects
+  let result : DrawingQuery[ChartQuery] = {
+    revision,
+    sheet,
+    reason,
+    items: objects
     .iter()
     .filter(object => object.chart is Some(_))
     .map(object => {
       let chart = object.chart.unwrap().1
       let settings = sheet_chart_settings(chart)
-      let value : Json = {
-        "id": object.id,
-        "anchor": object.anchor,
-        "x": object.rect.x,
-        "y": object.rect.y,
-        "width": object.rect.width,
-        "height": object.rect.height,
-        "name": object.name,
-        "description": object.description,
-        "kind": if chart.native_bubble is Some(_) {
+      ChartQuery::{
+        id: object.id,
+        anchor: object.anchor,
+        x: object.rect.x,
+        y: object.rect.y,
+        width: object.rect.width,
+        height: object.rect.height,
+        name: object.name,
+        description: object.description,
+        kind: if chart.native_bubble is Some(_) {
           "bubble"
         } else {
           settings.kind
         },
-        "title": settings.title,
-        "label": settings.label,
-        "legend": settings.legend,
-        "holeSize": settings.hole_size
-        .map(value => Json(value))
-        .unwrap_or(Json::null()),
-        "categories": settings.categories,
-        "names": settings.names,
-        "values": settings.values,
-        "data": chart.data.tsv(),
-        "bindingReason": if object.chart_pending {
+        title: settings.title,
+        label: settings.label,
+        legend: settings.legend,
+        holeSize: { value: settings.hole_size, },
+        categories: settings.categories,
+        names: settings.names,
+        values: settings.values,
+        data: chart.data.tsv(),
+        bindingReason: if object.chart_pending {
           uncalculated_chart_reason
         } else {
           chart_binding_reason(chart)
         },
       }
-      value
     })
     .to_array(),
   }
+  ToJson::to_json(result)
 }
 
 ///|

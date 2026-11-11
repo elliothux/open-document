@@ -44,8 +44,8 @@ export function DocxTheme({
       onSubmit={(event) => {
         event.preventDefault();
         controller.run(async () => {
-          await editor.setThemeColor(slot, color.slice(1));
-          setQuery(await editor.themeColors());
+          await editor.formatting.setThemeColor(slot, color.slice(1));
+          setQuery(await editor.formatting.themeColors());
         });
       }}
     >
@@ -55,7 +55,9 @@ export function DocxTheme({
         <button
           type="button"
           onClick={() =>
-            controller.run(async () => setQuery(await editor.themeColors()))
+            controller.run(async () =>
+              setQuery(await editor.formatting.themeColors()),
+            )
           }
         >
           {t.loadThemeColors}
@@ -111,7 +113,7 @@ export function DocxThemeFontsPanel({
   const [query, setQuery] = useState<DocxThemeFonts>();
   const [fonts, setFonts] = useState<DocxThemeFontEdit[]>([]);
   const load = async () => {
-    const next = await editor.themeFonts();
+    const next = await editor.formatting.themeFonts();
     setQuery(next);
     setFonts(
       next.fonts.map(({ kind, script, font }) => ({
@@ -127,7 +129,7 @@ export function DocxThemeFontsPanel({
       onSubmit={(event) => {
         event.preventDefault();
         controller.run(async () => {
-          await editor.setThemeFonts(editable);
+          await editor.formatting.setThemeFonts(editable);
           await load();
         });
       }}

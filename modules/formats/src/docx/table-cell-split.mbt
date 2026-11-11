@@ -89,10 +89,10 @@ fn Session::split_table_cell(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   guard rows >= 1 &&
-    rows <= 1000 &&
+    rows <= TableGridRows &&
     columns >= 1 &&
-    columns <= 63 &&
-    rows.to_int64() * columns.to_int64() <= 4096 else {
+    columns <= TableGridColumns &&
+    rows.to_int64() * columns.to_int64() <= TableGridCells.to_int64() else {
     @failure.reject("invalid-operation", "Invalid split cell dimensions")
   }
   let document = self.document()
@@ -170,9 +170,10 @@ fn Session::split_table_cell(
   }
   refined.sort()
   let count = refined.length() - 1
-  guard row_edges.last().unwrap() <= 1000 &&
-    count <= 63 &&
-    row_edges.last().unwrap().to_int64() * count.to_int64() <= 4096 else {
+  guard row_edges.last().unwrap() <= TableGridRows &&
+    count <= TableGridColumns &&
+    row_edges.last().unwrap().to_int64() * count.to_int64() <=
+    TableGridCells.to_int64() else {
     @failure.reject(
       "limit-exceeded", "Split table exceeds row column or cell budget",
     )

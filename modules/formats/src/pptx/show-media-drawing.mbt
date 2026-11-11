@@ -13,7 +13,12 @@ fn media_fragment(
   }
   commands.map(command => {
     match command {
-      Image(image) => Image({ ..image, key: media_image_key(object.id), })
+      Image(image, crop~, preserve_pixels~) =>
+        Image(
+          { ..image, key: media_image_key(object.id), },
+          crop~,
+          preserve_pixels~,
+        )
       Layer(alpha, children) =>
         Layer(alpha, media_fragment(Some(object), children))
       _ => command
@@ -30,7 +35,7 @@ fn media_draw_commands(
 ) -> Array[@layout.DrawCommand] {
   commands.mapi((index, command) => {
     match command {
-      Image(image) => {
+      Image(image, crop~, preserve_pixels~) => {
         guard aliases.get(image.key) is Some((object, poster)) else {
           return command
         }
@@ -38,7 +43,7 @@ fn media_draw_commands(
           paths[object] = []
         }
         paths[object].push(prefix + [index])
-        Image({ ..image, key: poster, })
+        Image({ ..image, key: poster, }, crop~, preserve_pixels~)
       }
       Layer(alpha, children) =>
         Layer(

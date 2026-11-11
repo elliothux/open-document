@@ -1,4 +1,9 @@
-import { record, hasFields } from "@open-document/wasm/abi/validation";
+import {
+  pptxGridSpacingMaxPoints,
+  pptxGridUnitsPerPoint,
+  pptxGuideCount,
+} from "@open-document/wasm/engine-source";
+import { record } from "@open-document/wasm/abi/validation";
 
 export interface PptxSizeMatch {
   object: string;
@@ -6,77 +11,12 @@ export interface PptxSizeMatch {
   height: boolean;
   outline: { x: number; y: number }[];
 }
-export function checkPptxSizeMatches(value: unknown): void {
-  if (!Array.isArray(value) || value.length > 64)
-    throw new Error("Invalid PPTX size matches");
-  const seen = new Set<string>();
-  for (const item of value) {
-    const match = record(item);
-    if (
-      Object.keys(match).length !== 4 ||
-      Object.keys(match).some(
-        (key) => !["object", "width", "height", "outline"].includes(key),
-      ) ||
-      typeof match.object !== "string" ||
-      !match.object ||
-      match.object.length > 1024 ||
-      seen.has(match.object) ||
-      typeof match.width !== "boolean" ||
-      typeof match.height !== "boolean" ||
-      (!match.width && !match.height) ||
-      !Array.isArray(match.outline) ||
-      match.outline.length !== 4
-    )
-      throw new Error("Invalid PPTX size match");
-    seen.add(match.object);
-    for (const value of match.outline) {
-      const point = record(value);
-      if (
-        Object.keys(point).length !== 2 ||
-        Object.keys(point).some((key) => key !== "x" && key !== "y") ||
-        [point.x, point.y].some(
-          (value) =>
-            typeof value !== "number" ||
-            !Number.isFinite(value) ||
-            Math.abs(value) > 1e9,
-        )
-      )
-        throw new Error("Invalid PPTX size match outline");
-    }
-  }
-}
-
 export interface PptxSpacing {
   axis: "x" | "y";
   from: number;
   to: number;
   at: number;
 }
-export function checkPptxSpacing(value: unknown): void {
-  if (!Array.isArray(value) || value.length > 4)
-    throw new Error("Invalid PPTX spacing marks");
-  const coordinate = (value: unknown): value is number =>
-    typeof value === "number" &&
-    Number.isFinite(value) &&
-    value >= 0 &&
-    value <= 14400;
-  for (const item of value) {
-    const mark = record(item);
-    if (
-      Object.keys(mark).length !== 4 ||
-      Object.keys(mark).some(
-        (key) => !["axis", "from", "to", "at"].includes(key),
-      ) ||
-      (mark.axis !== "x" && mark.axis !== "y") ||
-      !coordinate(mark.from) ||
-      !coordinate(mark.to) ||
-      !coordinate(mark.at) ||
-      mark.from > mark.to
-    )
-      throw new Error("Invalid PPTX spacing arrow");
-  }
-}
-
 export interface PptxSnapSettings {
   grid: boolean;
   objects: boolean;
@@ -93,18 +33,11 @@ export function checkPptxSnapSettings(value: unknown): void {
     typeof settings.objects !== "boolean" ||
     typeof settings.spacing !== "number" ||
     !Number.isFinite(settings.spacing) ||
-    settings.spacing < 1 / 12700 ||
-    settings.spacing > 144
+    settings.spacing < 1 / pptxGridUnitsPerPoint ||
+    settings.spacing > pptxGridSpacingMaxPoints
   )
     throw new Error("Invalid presentation snapping settings");
 }
-export function checkPptxSnapping(value: unknown): void {
-  const { reason, ...settings } = record(value);
-  checkPptxSnapSettings(settings);
-  if (typeof reason !== "string" || reason.length > 8192)
-    throw new Error("Invalid presentation snapping reason");
-}
-
 export interface PptxGuide {
   orientation: "horz" | "vert";
   position: number;
@@ -118,10 +51,8 @@ export function checkPptxGuides(value: unknown): void {
   const guides = record(value);
   if (
     typeof guides.visible !== "boolean" ||
-    typeof guides.reason !== "string" ||
-    guides.reason.length > 8192 ||
     !Array.isArray(guides.items) ||
-    guides.items.length > 64
+    guides.items.length > pptxGuideCount
   )
     throw new Error("Invalid presentation guides");
   for (const item of guides.items) {
@@ -140,7 +71,6 @@ export function checkPptxGuides(value: unknown): void {
 import {
   checkPptxTextFormat,
   checkPptxParagraphFormat,
-  checkPptxParagraphFormatting,
   type PptxTextFormat,
   type PptxParagraphFormat,
   type PptxParagraphFormatting,
@@ -186,123 +116,6 @@ export interface PptxEditView {
     addMaster: string;
     copyMaster: string;
   };
-}
-
-export function checkPptxEditView(
-  value: unknown,
-  current: unknown,
-  slides: Set<string>,
-): void {
-  const view = record(value);
-  checkPptxMasterTextStyles(view.textStyles, view.kind);
-  const operations = record(view.operations);
-  for (const key of [
-    "rename",
-    "addLayout",
-    "copyLayout",
-    "deleteLayout",
-    "deleteMaster",
-    "addMaster",
-    "copyMaster",
-  ])
-    if (typeof operations[key] !== "string" || operations[key].length > 8192)
-      throw new Error("Invalid source operation reason");
-  if (
-    !hasFields(view, ["kind", "slide", "reason"], []) ||
-    !["slide", "master", "layout"].includes(String(view.kind)) ||
-    typeof view.slide !== "string" ||
-    !slides.has(view.slide) ||
-    !Array.isArray(view.choices) ||
-    view.choices.length > 512
-  )
-    throw new Error("Invalid PPTX edit view");
-  const owners = new Map<string, { kind: string; master: string }>();
-  let units = 0;
-  for (const item of view.choices) {
-    const owner = record(item);
-    if (
-      !hasFields(owner, ["id", "name", "kind", "master"], []) ||
-      typeof owner.id !== "string" ||
-      !owner.id ||
-      typeof owner.master !== "string" ||
-      !owner.master ||
-      typeof owner.name !== "string" ||
-      !["master", "layout"].includes(String(owner.kind)) ||
-      owners.has(owner.id) ||
-      slides.has(owner.id) ||
-      [owner.id, owner.name, owner.master].some((text) => text.length > 1024)
-    )
-      throw new Error("Invalid PPTX source owner");
-    units += owner.id.length + owner.name.length + owner.master.length;
-    owners.set(owner.id, { kind: String(owner.kind), master: owner.master });
-  }
-  if (units > 1048576) throw new Error("PPTX source catalog exceeds budget");
-  for (const [id, owner] of owners) {
-    if (
-      owners.get(owner.master)?.kind !== "master" ||
-      (owner.kind === "master" && owner.master !== id)
-    )
-      throw new Error("Invalid PPTX source inheritance");
-  }
-  if (
-    typeof current !== "string" ||
-    (view.kind === "slide"
-      ? current !== view.slide
-      : owners.get(current)?.kind !== view.kind)
-  )
-    throw new Error("Invalid current PPTX source");
-}
-
-export function checkPptxMasterTextStyles(value: unknown, kind: unknown): void {
-  const styles = record(value);
-  if (
-    typeof styles.reason !== "string" ||
-    styles.reason.length > 8192 ||
-    !Array.isArray(styles.items) ||
-    (styles.items.length !== 0 &&
-      (kind !== "master" || styles.items.length !== 27)) ||
-    (styles.items.length === 0 && styles.reason === "" && kind === "master")
-  )
-    throw new Error("Invalid master text styles query");
-  const slots = new Set<string>();
-  for (const item of styles.items) {
-    const slot = record(item);
-    const paragraph = record(slot.paragraph);
-    checkPptxParagraphFormatting(paragraph);
-    if (
-      typeof paragraph.reason !== "string" ||
-      paragraph.reason.length > 8192 ||
-      (paragraph.alignment !== null &&
-        (typeof paragraph.alignment !== "string" ||
-          !["left", "center", "right", "justify"].includes(
-            paragraph.alignment,
-          ))) ||
-      (!paragraph.reason &&
-        (paragraph.level !== slot.level ||
-          Object.values(paragraph).some((value) => value === null)))
-    )
-      throw new Error("Invalid master paragraph style query");
-    if (
-      typeof slot.kind !== "string" ||
-      !["title", "body", "other"].includes(slot.kind) ||
-      typeof slot.level !== "number" ||
-      !Number.isInteger(slot.level) ||
-      slot.level < 0 ||
-      slot.level > 8 ||
-      typeof slot.reason !== "string" ||
-      slot.reason.length > 8192
-    )
-      throw new Error("Invalid master text style slot");
-    const key = `${slot.kind}:${slot.level}`;
-    if (slots.has(key)) throw new Error("Duplicate master text style slot");
-    slots.add(key);
-    if (slot.format !== null) {
-      checkPptxTextFormat(slot.format);
-      if (Object.keys(record(slot.format)).length !== 10)
-        throw new Error("Incomplete master text style format");
-    } else if (!slot.reason)
-      throw new Error("Missing master text style format");
-  }
 }
 
 export function checkPptxMasterStyleEdit(value: unknown): void {

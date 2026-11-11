@@ -212,7 +212,8 @@ fn Session::edit_table_structure(
   }
   let count = current_count + (if insert { amount } else { -amount })
   let other = if rows { table.widths.length() } else { table.rows.length() }
-  guard count <= (if rows { 1000 } else { 63 }) && count * other <= 4096 else {
+  guard count <= (if rows { TableRowCount } else { TableColumnCount }) &&
+    count * other <= TableCellCount else {
     @failure.reject("limit-exceeded", "Table dimensions exceed budget")
   }
   let changes : Array[@xml.SourceChange] = []

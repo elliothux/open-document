@@ -102,7 +102,11 @@ fn form_clip_redundant(
         style = prior
         contained = safe
       }
-      Path(path, _, stroke, width) if !contained => {
+      Path(path, _, stroke, width)
+      | OutlinedPath(path, _, stroke, width, _)
+      | FilledOutline(path, _, stroke, width, _)
+      | RectangleDashedPath(path, _, stroke, width, _)
+      | DashedPath(path, _, stroke, width, _) if !contained => {
         if !stroke.is_empty() && width == 0 {
           return false
         }

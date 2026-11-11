@@ -28,7 +28,7 @@ fn Session::range_paragraph_text(
         .get(item.id)
         .unwrap_or_else(() => text[left:right].to_owned())
         .replace_all(old="\u2028", new="\n")
-      guard value.length() <= command_limit - units else {
+      guard value.length() <= TextCommandUnits - units else {
         @failure.reject(
           "limit-exceeded", "Selection text exceeds UTF-16 budget",
         )
@@ -58,7 +58,7 @@ fn Session::mixed_range_text(
   let mut units = 0
   fn append(line : String) -> Unit raise @failure.Failure {
     let size = line.length() + (if lines.is_empty() { 0 } else { 1 })
-    guard size <= command_limit - units else {
+    guard size <= TextCommandUnits - units else {
       @failure.reject("limit-exceeded", "Selection text exceeds UTF-16 budget")
     }
     units += size

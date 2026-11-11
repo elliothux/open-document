@@ -1,4 +1,5 @@
 import { record } from "@open-document/wasm/abi/validation";
+import { docxPageColumnCount } from "@open-document/wasm/engine-source";
 
 export interface DocxColumns {
   count: number;
@@ -18,7 +19,7 @@ export function checkDocxColumns(value: unknown): void {
     typeof columns.count !== "number" ||
     !Number.isInteger(columns.count) ||
     columns.count < 1 ||
-    columns.count > 12 ||
+    columns.count > docxPageColumnCount ||
     typeof columns.gap !== "number" ||
     !Number.isFinite(columns.gap) ||
     columns.gap < 0 ||

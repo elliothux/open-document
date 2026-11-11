@@ -24,6 +24,10 @@
       "default": "./dist/abi/*.js"
     },
     "./engine.wasm": "./dist/engine.wasm",
+    "./docx.wasm": "./dist/docx.wasm",
+    "./xlsx.wasm": "./dist/xlsx.wasm",
+    "./pptx.wasm": "./dist/pptx.wasm",
+    "./pdf.wasm": "./dist/pdf.wasm",
     "./engine-source": {
       "types": "./dist/engine-source.d.ts",
       "default": "./dist/engine-source.js"

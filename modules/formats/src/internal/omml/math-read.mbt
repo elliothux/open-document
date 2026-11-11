@@ -99,8 +99,11 @@ fn MathRead::term(
   if kind == "r" {
     let (text, current) = tree.read_math_run(id, self.base)
     self.units += text.length()
-    guard self.units <= 4096 else {
-      @failure.reject("limit-exceeded", "Math exceeds 4096 UTF-16 units")
+    guard self.units <= @layout.MathTextUnits else {
+      @failure.reject(
+        "limit-exceeded",
+        "Math exceeds \{@layout.MathTextUnits} UTF-16 units",
+      )
     }
     self.appearance(current)
     return Text(text)

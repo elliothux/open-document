@@ -1,4 +1,7 @@
 ///|
+pub const MarkupSourceUnits : Int32 = 65536
+
+///|
 fn check_markup_mode(mode : String) -> Unit raise @failure.Failure {
   guard ["source", "merge", "text"].contains(mode) else {
     @failure.reject("invalid-operation", "Unknown markup paste mode")

@@ -45,12 +45,16 @@ export function PageArrangeControls({
       <Command
         label={zh ? "左右拆成两页" : "Split into left and right pages"}
         disabled={blocked}
-        action={() => controller.run(() => editor.splitPageGrid(2, 1))}
+        action={() =>
+          controller.run(() => editor.operations.splitPageGrid(2, 1))
+        }
       />
       <Command
         label={zh ? "上下拆成两页" : "Split into top and bottom pages"}
         disabled={blocked}
-        action={() => controller.run(() => editor.splitPageGrid(1, 2))}
+        action={() =>
+          controller.run(() => editor.operations.splitPageGrid(1, 2))
+        }
       />
       <details>
         <summary>{zh ? "多页合一" : "N-up pages"}</summary>
@@ -123,7 +127,7 @@ export function PageArrangeControls({
           disabled={blocked}
           action={() =>
             controller.run(() =>
-              editor.nupPages(
+              editor.operations.nupPages(
                 chosenPages(
                   range,
                   editor.snapshot.pages.map((page) => page.id),

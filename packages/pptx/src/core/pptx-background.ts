@@ -3,7 +3,6 @@ import {
   checkGradientStops,
   type GradientStop,
 } from "@open-document/wasm/abi/drawing";
-import { imageInsets } from "./pptx-objects.js";
 
 export type PptxBackgroundFill =
   | { kind: "solid"; color: string }
@@ -25,27 +24,6 @@ export type PptxBackground =
       opacity: number;
       mode: "stretch" | "tile";
     };
-
-export function checkPptxBackground(value: unknown): void {
-  const fill = record(value);
-  if (fill.kind !== "image") {
-    checkPptxBackgroundFill(value);
-    return;
-  }
-  checkBackgroundImageFormat(fill);
-  imageInsets(fill.insets);
-  if (
-    typeof fill.key !== "string" ||
-    !fill.key ||
-    fill.key.length > 256 ||
-    !fill.key.isWellFormed() ||
-    Object.keys(fill).some(
-      (key) =>
-        !["kind", "key", "crop", "insets", "opacity", "mode"].includes(key),
-    )
-  )
-    throw new Error("Invalid picture background");
-}
 
 export function checkBackgroundImageFormat(
   fill: Record<string, unknown>,

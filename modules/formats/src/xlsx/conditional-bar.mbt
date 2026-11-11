@@ -2,13 +2,16 @@
 pub(all) struct ConditionalThreshold {
   kind : String
   value : String
-} derive(Eq, ToJson)
+} derive(Eq, ToJson, @json.FromJson)
 
 ///|
 pub extend ConditionalThreshold with Eq::{equal, not_equal}
 
 ///|
 pub extend ConditionalThreshold with ToJson::{to_json}
+
+///|
+pub extend ConditionalThreshold with @json.FromJson::{from_json}
 
 ///|
 pub(all) struct DataBar {
@@ -110,7 +113,7 @@ fn ConditionalRules::data_bar(
   address : Address,
   sheets : Array[Sheet],
   index : Int32,
-  values : Map[(Int32, String), Value],
+  values : Map[(Int32, Address), Value],
   work : FormulaWork,
 ) -> ConditionalBar? raise @failure.Failure {
   guard rule.bar is Some(bar) &&

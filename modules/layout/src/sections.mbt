@@ -124,6 +124,8 @@ fn paginate_sections(
   Array[String],
   Array[PageNumbering],
   Array[(Int32, Int32)?],
+  Int32,
+  Map[Int32, PaginationCache],
 ) raise @failure.Failure {
   let fields = flow.body_fields()
   let fixed = flow.fixed_body_field_values(fields)
@@ -141,6 +143,9 @@ fn paginate_sections(
     let mut lines = 0
     let mut pending : Array[NoteLine] = []
     let mut continuation : SectionContinuation? = None
+    let next : Map[Int32, PaginationCache] = Map([])
+    let mut units = 0
+    let mut reused_pages = 0
     for index in 0..<=flow.sectionBreaks.length() {
       let shared = flow.sectionBreaks
         .get(index - 1)
@@ -218,12 +223,14 @@ fn paginate_sections(
         profile,
         images,
       )
-      let (first, first_stories, _, _, _, first_problems) = paginate_running(
+      let previous = probe.section_pagination.get(index)
+      let (first, first_stories, _, first_reused, first_cache, first_problems) = paginate_running(
         probe,
         part,
         cache,
         profile,
         images,
+        previous=if shared is None { previous } else { None },
         documentTotal=Some(total),
         pendingNotes=pending,
         endnotes=Some(endnotes),
@@ -239,7 +246,9 @@ fn paginate_sections(
           (part.paragraphs.is_empty() && part.tables.is_empty())
         })
         .unwrap_or(false)
-      let (pagination, stories, problems) = if shared is Some(_) && !joined {
+      let (pagination, stories, reused, section_cache, problems) = if shared
+        is Some(_) &&
+        !joined {
         let section = flow.sectionBreaks[index - 1]
         numbering = {
           ..numbering,
@@ -250,21 +259,26 @@ fn paginate_sections(
           },
         }
         part = body.section_body(index, numbering)
-        let (pagination, stories, _, _, _, problems) = paginate_running(
+        let (pagination, stories, _, reused, section_cache, problems) = paginate_running(
           probe,
           part,
           cache,
           profile,
           images,
+          previous~,
           documentTotal=Some(total),
           pendingNotes=pending,
           endnotes=Some(endnotes),
           flushFootnotes=index == flow.sectionBreaks.length(),
           resolveBodyFields=false,
         )
-        (pagination, stories, problems)
+        (pagination, stories, reused, section_cache, problems)
       } else {
-        (first, first_stories, first_problems)
+        (first, first_stories, first_reused, first_cache, first_problems)
+      }
+      if section_cache is Some(entry) && entry.units <= 1048576 - units {
+        next[index] = entry
+        units += entry.units
       }
       section_numbering.push(numbering)
       pending = pagination.notePending[pagination.noteCursor:].to_owned()
@@ -285,6 +299,11 @@ fn paginate_sections(
         pagination.section_continuation(emptyEndParagraph=empty_end)
       } else {
         None
+      }
+      reused_pages += if continuation is Some(_) {
+        (reused - 1).max(0)
+      } else {
+        reused
       }
       for page, frame in pagination.pages {
         if page == 0 && joined {
@@ -372,6 +391,8 @@ fn paginate_sections(
         diagnostics,
         section_numbering,
         page_sections,
+        reused_pages,
+        next,
       )
     }
     if attempt == 7 {
@@ -384,6 +405,8 @@ fn paginate_sections(
         diagnostics,
         section_numbering,
         page_sections,
+        reused_pages,
+        next,
       )
     }
     body = updated

@@ -135,9 +135,7 @@ fn Session::find_cells(
         "=" + source
       } else {
         self.calculation
-        .bind(calculation => {
-          calculation.values.get((index, cell.address.name()))
-        })
+        .bind(calculation => calculation.values.get((index, cell.address)))
         .unwrap_or(cell.value)
         .display()
       }
@@ -170,6 +168,23 @@ fn Session::find_cells(
 }
 
 ///|
+priv struct SearchMatch {
+  sheet : String
+  name : String
+  address : String
+  hidden : Bool
+  snippet : String
+  reason : String
+} derive(ToJson)
+
+///|
+priv struct SearchResult {
+  revision : Int32
+  truncated : Bool
+  matches : Array[SearchMatch]
+} derive(ToJson)
+
+///|
 /// Finds matching cells in worksheet/row/column order without changing selection.
 pub fn Session::find(
   self : Session,
@@ -183,16 +198,20 @@ pub fn Session::find(
     sheet,
     SearchPattern::new(text, options),
   )
-  {
-    "revision": revision,
-    "truncated": truncated,
-    "matches": matches.map(item => {
-      "sheet": Json(self.sheets[item.sheet].id),
-      "name": Json(self.sheets[item.sheet].name),
-      "address": Json(item.cell.address.name()),
-      "hidden": Json(self.sheets[item.sheet].state != "visible"),
-      "snippet": Json(String::from_array(item.text.iter().take(80).to_array())),
-      "reason": Json(item.reason),
+  let result : SearchResult = {
+    revision,
+    truncated,
+    matches: matches.map(item => {
+      let sheet = self.sheets[item.sheet]
+      {
+        sheet: sheet.id,
+        name: sheet.name,
+        address: item.cell.address.name(),
+        hidden: sheet.state != "visible",
+        snippet: String::from_array(item.text.iter().take(80).to_array()),
+        reason: item.reason,
+      }
     }),
   }
+  ToJson::to_json(result)
 }

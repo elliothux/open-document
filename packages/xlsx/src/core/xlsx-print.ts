@@ -1,4 +1,15 @@
 import { record } from "@open-document/wasm/abi/validation";
+import {
+  xlsxHeaderFooterTextUnits,
+  xlsxPrintAreaUnits,
+  xlsxPrintFitPageCount,
+  xlsxPrintPageMaxPoints,
+  xlsxPrintPaperMinPoints,
+  xlsxPrintScaleMax,
+  xlsxPrintScaleMin,
+  xlsxPrintSheetLimit,
+  xlsxPrintTitleUnits,
+} from "@open-document/wasm/engine-source";
 
 interface PrintPaper {
   width: number;
@@ -56,7 +67,9 @@ export function checkXlsxHeaderFooter(value: unknown): void {
       "firstHeader",
       "firstFooter",
     ].every(
-      (key) => typeof settings[key] === "string" && settings[key].length <= 255,
+      (key) =>
+        typeof settings[key] === "string" &&
+        settings[key].length <= xlsxHeaderFooterTextUnits,
     ) ||
     ![
       "differentFirst",
@@ -65,18 +78,10 @@ export function checkXlsxHeaderFooter(value: unknown): void {
       "alignWithMargins",
     ].every((key) => typeof settings[key] === "boolean") ||
     !["headerMargin", "footerMargin"].every((key) =>
-      finite(settings[key], 0, 14400),
+      finite(settings[key], 0, xlsxPrintPageMaxPoints),
     )
   )
     throw new Error("Invalid worksheet header/footer");
-}
-export function xlsxHeaderFooter(
-  value: unknown,
-): XlsxHeaderFooter & { readOnlyReason: string } {
-  checkXlsxHeaderFooter(value);
-  if (typeof record(value).readOnlyReason !== "string")
-    throw new Error("Invalid header/footer protection query");
-  return value as XlsxHeaderFooter & { readOnlyReason: string };
 }
 export function checkXlsxPrintRange(value: unknown): void {
   const range = record(value);
@@ -84,18 +89,11 @@ export function checkXlsxPrintRange(value: unknown): void {
     !(["area", "rows", "columns"] as const).every(
       (key) =>
         typeof range[key] === "string" &&
-        range[key].length <= (key === "area" ? 2048 : 32),
+        range[key].length <=
+          (key === "area" ? xlsxPrintAreaUnits : xlsxPrintTitleUnits),
     )
   )
     throw new Error("Invalid worksheet print range");
-}
-export function xlsxPrintRange(
-  value: unknown,
-): XlsxPrintRange & { readOnlyReason: string } {
-  checkXlsxPrintRange(value);
-  if (typeof record(value).readOnlyReason !== "string")
-    throw new Error("Invalid print range protection query");
-  return value as XlsxPrintRange & { readOnlyReason: string };
 }
 function finite(value: unknown, low: number, high: number): value is number {
   return (
@@ -111,23 +109,16 @@ export function checkXlsxPrintSetup(value: unknown): void {
     !["A4", "Letter"].includes(String(setup.paper)) ||
     !["portrait", "landscape"].includes(String(setup.orientation)) ||
     !["left", "top", "right", "bottom"].every((key) =>
-      finite(setup[key], 0, 14400),
+      finite(setup[key], 0, xlsxPrintPageMaxPoints),
     ) ||
-    !finite(setup.scale, 10, 400) ||
+    !finite(setup.scale, xlsxPrintScaleMin, xlsxPrintScaleMax) ||
     !Number.isInteger(setup.scale) ||
     ![setup.fitWidth, setup.fitHeight].every(
-      (value) => finite(value, 0, 1024) && Number.isInteger(value),
+      (value) =>
+        finite(value, 0, xlsxPrintFitPageCount) && Number.isInteger(value),
     )
   )
     throw new Error("Invalid worksheet print setup");
-}
-export function xlsxPrintSetup(
-  value: unknown,
-): XlsxPrintSetup & { readOnlyReason: string } {
-  checkXlsxPrintSetup(value);
-  if (typeof record(value).readOnlyReason !== "string")
-    throw new Error("Invalid print protection query");
-  return value as XlsxPrintSetup & { readOnlyReason: string };
 }
 export function checkPrintOptions(value: unknown): void {
   if (value === null) return;
@@ -136,20 +127,28 @@ export function checkPrintOptions(value: unknown): void {
   const hasPaper = paper.some((key) => options[key] !== undefined);
   if (
     (hasPaper &&
-      (!finite(options.width, 36, 14400) ||
-        !finite(options.height, 36, 14400) ||
+      (!finite(
+        options.width,
+        xlsxPrintPaperMinPoints,
+        xlsxPrintPageMaxPoints,
+      ) ||
+        !finite(
+          options.height,
+          xlsxPrintPaperMinPoints,
+          xlsxPrintPageMaxPoints,
+        ) ||
         !["left", "top", "right", "bottom"].every((key) =>
-          finite(options[key], 0, 14400),
+          finite(options[key], 0, xlsxPrintPageMaxPoints),
         ))) ||
     (options.range !== undefined &&
       (typeof options.range !== "string" ||
         options.range.length === 0 ||
-        options.range.length > 2048)) ||
+        options.range.length > xlsxPrintAreaUnits)) ||
     (options.sheets !== undefined &&
       options.sheets !== "visible" &&
       (!Array.isArray(options.sheets) ||
         options.sheets.length === 0 ||
-        options.sheets.length > 256 ||
+        options.sheets.length > xlsxPrintSheetLimit ||
         !options.sheets.every(
           (id) => typeof id === "string" && id.length > 0 && id.length <= 4096,
         ) ||

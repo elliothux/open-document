@@ -1,4 +1,10 @@
 ///|
+pub const FontInputBytes : Int32 = 33554432
+
+///|
+const FontFaceCount : Int32 = 8
+
+///|
 struct Font {
   font : @font.Font
   identity : String
@@ -86,9 +92,12 @@ pub struct TextProbe {
   mut font_bytes : Int32
   mut outline_bytes : Int32
   mut closed : Bool
-  mut paragraphs : Map[String, Array[MeasuredLine]]
+  mut paragraphs : Map[ParagraphCacheKey, CachedParagraph]
+  mut paragraph_versions : Map[Int32, ParagraphVersion]
+  mut next_paragraph_version : Int32
   mut text_units : Int32
   mut pagination : PaginationCache?
+  mut section_pagination : Map[Int32, PaginationCache]
   mut measured_shape : MeasuredShape?
 }
 
@@ -102,8 +111,11 @@ pub fn TextProbe::new() -> TextProbe {
     outline_bytes: 0,
     closed: false,
     paragraphs: Map([]),
+    paragraph_versions: Map([]),
+    next_paragraph_version: 0,
     text_units: 0,
     pagination: None,
+    section_pagination: Map([]),
     measured_shape: None,
   }
 }
@@ -136,15 +148,36 @@ pub fn TextProbe::add_source_font(
 }
 
 ///|
-fn TextProbe::add_font_data(
+/// The bridge decodes one validated octet per string code unit.
+pub fn TextProbe::add_font_wire(
   self : TextProbe,
-  bytes : Bytes,
+  input : String,
   identity : String,
-  unicode : Bool,
+  decode : (String) -> Bytes raise @failure.Failure,
 ) -> Int32 raise @failure.Failure {
+  if parsed_fonts.wire(input, decode) is Some(font) {
+    self.admit_font(font.bytes.length(), identity)
+    return self.register_font(font, identity)
+  }
+  let bytes = decode(input)
+  let input = if input.length() == bytes.length() {
+    Some((input, decode))
+  } else {
+    None
+  }
+  self.add_font_data(bytes, identity, true, input~)
+}
+
+///|
+fn TextProbe::admit_font(
+  self : TextProbe,
+  length : Int32,
+  identity : String,
+) -> Unit raise @failure.Failure {
   self.check()
   self.measured_shape = None
-  guard self.fonts.length() < 8 && bytes.length() <= 33554432 - self.font_bytes else {
+  guard self.fonts.length() < FontFaceCount &&
+    length <= FontInputBytes - self.font_bytes else {
     @failure.reject("limit-exceeded", "Font budget exceeded")
   }
   guard !identity.is_empty() &&
@@ -154,12 +187,48 @@ fn TextProbe::add_font_data(
       "invalid-operation", "Font identity must be unique and nonempty",
     )
   }
+}
+
+///|
+fn TextProbe::add_font_data(
+  self : TextProbe,
+  bytes : Bytes,
+  identity : String,
+  unicode : Bool,
+  input~ : (String, (String) -> Bytes raise @failure.Failure)? = None,
+) -> Int32 raise @failure.Failure {
+  self.admit_font(bytes.length(), identity)
   guard bytes.length() >= 12 &&
     (bytes[0:4] == b"\x00\x01\x00\x00" || bytes[0:4] == b"true") else {
     @failure.reject(
       "unsupported-font", "Only standalone TrueType outlines are supported; CFF and collections are unsupported",
     )
   }
+  let parsed = parsed_fonts.load(bytes, unicode, input)
+  self.register_font(parsed, identity)
+}
+
+///|
+fn TextProbe::register_font(
+  self : TextProbe,
+  parsed : Font,
+  identity : String,
+) -> Int32 {
+  self.fonts.push({ ..parsed, identity, bbox: parsed.bbox.copy(), })
+  self.font_bytes += parsed.bytes.length()
+  self.paragraphs.clear()
+  self.text_units = 0
+  self.pagination = None
+  self.section_pagination.clear()
+  self.fonts.length() - 1
+}
+
+///|
+fn parse_font(
+  bytes : Bytes,
+  sha256 : String,
+  unicode : Bool,
+) -> Font raise @failure.Failure {
   let face = @face.Face::from_bytes(bytes)
   match face.ensure_sfnt_tables() {
     Err(_) => @failure.reject("malformed-font", "Invalid font directory")
@@ -190,7 +259,6 @@ fn TextProbe::add_font_data(
     Ok(None) if !unicode => None
     _ => @failure.reject("malformed-font", "Missing or invalid OS/2 metrics")
   }
-  let digest = @crypto.sha256(bytes)
   let head_bytes = face
     .reference_table(@common.Tag::from_string("head"))
     .unwrap()
@@ -254,18 +322,12 @@ fn TextProbe::add_font_data(
     }
     None => (line_ascent, line_descent)
   }
-  let digits = "0123456789abcdef"
-  let hash = StringBuilder()
-  for byte in digest {
-    hash.write_char(digits[byte.to_int() >> 4].to_char().unwrap())
-    hash.write_char(digits[byte.to_int() & 15].to_char().unwrap())
-  }
-  self.fonts.push({
+  {
     font,
-    identity,
+    identity: "",
     upem,
     bytes,
-    sha256: hash.to_string(),
+    sha256,
     ascent,
     descent,
     line_ascent,
@@ -286,12 +348,7 @@ fn TextProbe::add_font_data(
       Ok(Some(post)) => post.italic_angle.to_double() / 65536
       _ => 0
     },
-  })
-  self.font_bytes += bytes.length()
-  self.paragraphs.clear()
-  self.text_units = 0
-  self.pagination = None
-  self.fonts.length() - 1
+  }
 }
 
 ///|
@@ -469,6 +526,10 @@ fn TextProbe::outline(
   if self.outlines.get(key) is Some(path) {
     return (key, path, false)
   }
+  if shared_glyph_outlines.entries.get(key) is Some((path, bounds)) {
+    self.keep_outline(key, path, bounds)
+    return (key, path, true)
+  }
   let pen : GlyphOutlinePen = {
     path: StringBuilder(),
     bounds: [],
@@ -513,13 +574,24 @@ fn TextProbe::outline(
     @failure.reject("malformed-font", "Glyph outline coordinates exceed budget")
   }
   let path = pen.path.to_string()
+  self.keep_outline(key, path, pen.bounds)
+  shared_glyph_outlines.keep(key, path, pen.bounds)
+  (key, path, true)
+}
+
+///|
+fn TextProbe::keep_outline(
+  self : TextProbe,
+  key : String,
+  path : String,
+  bounds : Array[Double],
+) -> Unit raise @failure.Failure {
   guard path.length() <= 8388608 - self.outline_bytes else {
     @failure.reject("limit-exceeded", "Outline cache budget exceeded")
   }
   self.outline_bytes += path.length()
   self.outlines[key] = path
-  self.outline_boxes[key] = pen.bounds.copy()
-  (key, path, true)
+  self.outline_boxes[key] = bounds.copy()
 }
 
 ///|
@@ -530,8 +602,10 @@ pub fn TextProbe::close(self : TextProbe) -> Unit {
   self.outlines.clear()
   self.outline_boxes.clear()
   self.paragraphs.clear()
+  self.paragraph_versions.clear()
   self.text_units = 0
   self.pagination = None
+  self.section_pagination.clear()
   self.font_bytes = 0
   self.outline_bytes = 0
 }

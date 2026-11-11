@@ -16,7 +16,7 @@ fn Session::capture_body_fragment(
     notes=true,
   )
   let fields = self.selection_field_values(tree, range, layout)
-  let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
+  let limit = self.opc.budget.entry_bytes.min(ClipboardFragmentUnits)
   let styles = self.styles([])
   let (numbering, numbers) = self.fragment_paragraph_numbering(
     tree,

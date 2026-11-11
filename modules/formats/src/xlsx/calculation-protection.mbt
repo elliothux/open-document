@@ -7,7 +7,7 @@ fn isolated_math_function(name : String) -> Bool {
 ///|
 fn Calculation::protect_dependencies(
   self : Calculation,
-  formulas : Map[Int32, Array[(Int32, String)]],
+  formulas : Map[Int32, Array[(Address, Int32)]],
   work : FormulaWork,
 ) -> Unit raise @failure.Failure {
   if self.uncomputed.is_empty() {
@@ -36,7 +36,7 @@ fn Calculation::protect_dependencies(
   }
   for key in self.order.rev() {
     guard guarded.contains(key) else { continue }
-    let address = Address::parse(key.1)
+    let address = key.1
     add_range(key.0, {
       top: address.row,
       bottom: address.row,
@@ -48,11 +48,8 @@ fn Calculation::protect_dependencies(
     }
     for dependency in self.dependencies[key] {
       add_range(dependency.sheet, dependency.range)
-      for candidate in formulas.get(dependency.sheet).unwrap_or([]) {
-        work.spend()
-        if dependency.range.contains(Address::parse(candidate.1)) {
-          guarded.add(candidate)
-        }
+      for address in dependency.formulas(formulas, work) {
+        guarded.add((dependency.sheet, address))
       }
     }
   }
@@ -74,7 +71,7 @@ fn Calculation::protects(
 fn Session::cell_calculation_reason(
   self : Session,
   sheet : Int32,
-  address : String,
+  address : Address,
 ) -> String {
   if !self.read_only.is_empty() {
     return self.read_only
@@ -140,10 +137,10 @@ fn Session::check_partial_calculation(
       let original = before.cells.get(key)
       let next = after.cells.get(key)
       let a = previous.values
-        .get((index, key))
+        .get((index, address))
         .unwrap_or(original.map(cell => cell.value).unwrap_or(Blank))
       let b = calculation.values
-        .get((index, key))
+        .get((index, address))
         .unwrap_or(next.map(cell => cell.value).unwrap_or(Blank))
       guard a == b &&
         original.bind(cell => cell.formula) == next.bind(cell => cell.formula) &&

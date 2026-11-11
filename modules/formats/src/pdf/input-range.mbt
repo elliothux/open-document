@@ -1,4 +1,25 @@
 ///|
+pub struct PdfRangePage {
+  page : String
+  start : Int32
+  end : Int32
+  quads : Array[Array[Double]]
+} derive(ToJson)
+
+///|
+pub extend PdfRangePage with ToJson::{to_json}
+
+///|
+pub struct PdfRangeSelection {
+  revision : Int32
+  text : String
+  pages : Array[PdfRangePage]
+} derive(ToJson)
+
+///|
+pub extend PdfRangeSelection with ToJson::{to_json}
+
+///|
 fn check_pdf_offset(
   text : String,
   offset : Int32,
@@ -27,7 +48,7 @@ fn PdfSession::range_result(
   focus : Int32,
   supplied : @layout.TextProbe,
   profile : Map[String, String],
-) -> Json raise @failure.Failure {
+) -> PdfRangeSelection raise @failure.Failure {
   ignore(self.page(anchorPage))
   ignore(self.page(focusPage))
   let mut first = 0
@@ -48,7 +69,7 @@ fn PdfSession::range_result(
   }
   pdf_bound(self.budget, () => {
     let chunks : Array[String] = []
-    let pages : Array[Json] = []
+    let pages : Array[PdfRangePage] = []
     let mut units = 0
     for index in startPage..<=endPage {
       let page = self.pages[index]
@@ -76,13 +97,13 @@ fn PdfSession::range_result(
       }
       chunks.push(visible_text(display, low, high))
       pages.push({
-        "page": page.id,
-        "start": low,
-        "end": high,
-        "quads": selected_spans(display, low, high).map(span => span.quad),
+        page: page.id,
+        start: low,
+        end: high,
+        quads: selected_spans(display, low, high).map(span => span.quad),
       })
     }
-    { "revision": self.revision, "text": chunks.join("\n"), "pages": pages }
+    { revision: self.revision, text: chunks.join("\n"), pages, }
   })
 }
 
@@ -96,7 +117,7 @@ pub fn PdfSession::select_range(
   focus : Int32,
   supplied : @layout.TextProbe,
   profile : Map[String, String],
-) -> Json raise @failure.Failure {
+) -> PdfRangeSelection raise @failure.Failure {
   self.check(revision)
   let result = self.range_result(
     anchorPage, anchor, focusPage, focus, supplied, profile,
@@ -111,7 +132,7 @@ pub fn PdfSession::selected_range(
   revision : Int32,
   supplied : @layout.TextProbe,
   profile : Map[String, String],
-) -> Json raise @failure.Failure {
+) -> PdfRangeSelection raise @failure.Failure {
   self.check(revision)
   guard self.textRange is Some((a, b, c, d)) else {
     @failure.reject("invalid-selection", "No cross-page PDF selection")

@@ -10,11 +10,12 @@ pub(all) enum ThreadEdit {
 
 ///|
 fn thread_text(value : String) -> String raise @failure.Failure {
-  guard value.length() <= 32767 &&
+  guard value.length() <= ThreadTextUnits &&
     !value.trim().is_empty() &&
     @xml.valid_text(value) else {
     @failure.reject(
-      "invalid-text", "Thread comments require nonempty valid text within 32767 UTF-16 units",
+      "invalid-text",
+      "Thread comments require nonempty valid text within \{ThreadTextUnits} UTF-16 units",
     )
   }
   value.replace_all(old="\r\n", new="\n").replace_all(old="\r", new="\n")
@@ -303,3 +304,6 @@ pub fn Session::edit_thread(
   self.focus = focus
   self.query()
 }
+
+///|
+pub const ThreadTextUnits : Int32 = 32767

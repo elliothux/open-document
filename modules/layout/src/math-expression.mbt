@@ -1,4 +1,10 @@
 ///|
+pub const MathTextUnits : Int32 = 4096
+
+///|
+pub const MathFontUnits : Int32 = 255
+
+///|
 pub(all) enum MathExpression {
   Text(String)
   Row(ReadOnlyArray[MathExpression])
@@ -180,8 +186,11 @@ fn MathExpression::check(self : MathExpression) -> Unit raise @failure.Failure {
       }
       Text(text) => {
         units += text.length()
-        guard units <= 4096 else {
-          @failure.reject("limit-exceeded", "Math exceeds 4096 UTF-16 units")
+        guard units <= MathTextUnits else {
+          @failure.reject(
+            "limit-exceeded",
+            "Math exceeds \{MathTextUnits} UTF-16 units",
+          )
         }
         guard !text.is_empty() &&
           text

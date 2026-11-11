@@ -122,11 +122,43 @@ fn Session::table_cell_range(
 }
 
 ///|
+priv struct TableCellSelectionValue {
+  table : Int32
+  top : Int32
+  bottom : Int32
+  left : Int32
+  right : Int32
+  count : Int32
+  fill : FormatSummary
+  verticalAlign : FormatSummary
+  borders : Json
+  rowSplit : FormatSummary
+  rowHeight : FormatSummary
+  rowHeightRule : FormatSummary
+  maxRowHeight : Double
+  margins : Json
+} derive(ToJson)
+
+///|
+priv struct TableCellSelectionQuery {
+  value : TableCellSelectionValue?
+  reason : String
+}
+
+///|
+impl ToJson for TableCellSelectionQuery with fn to_json(self) {
+  match self.value {
+    None => { "value": Json::null(), "reason": self.reason }
+    Some(value) => { "reason": self.reason, "value": value }
+  }
+}
+
+///|
 fn Session::table_cell_selection(
   self : Session,
   tree : WordTree,
   selection : Selection,
-) -> Json raise @failure.Failure {
+) -> TableCellSelectionQuery raise @failure.Failure {
   let selected = self.table_cell_range(
     tree,
     selection,
@@ -136,9 +168,7 @@ fn Session::table_cell_selection(
     notes=true,
     review=true,
   )
-  guard selected is Some(selected) else {
-    return { "value": Json::null(), "reason": "" }
-  }
+  guard selected is Some(selected) else { return { value: None, reason: "", } }
   let fills : Array[Json] = []
   let alignments : Array[String] = []
   let borders = selected.owners.map(cell => {
@@ -156,40 +186,40 @@ fn Session::table_cell_selection(
     alignments.push(selected.grid.model.verticalAligns[row][column])
   }
   {
-    "reason": "",
-    "value": {
-      "table": selected.grid.table,
-      "top": selected.top,
-      "bottom": selected.bottom,
-      "left": selected.left,
-      "right": selected.right,
-      "count": selected.owners.length(),
-      "fill": format_summary(fills, ""),
-      "verticalAlign": format_summary(alignments, ""),
-      "borders": Json::object(
+    reason: "",
+    value: Some({
+      table: selected.grid.table,
+      top: selected.top,
+      bottom: selected.bottom,
+      left: selected.left,
+      right: selected.right,
+      count: selected.owners.length(),
+      fill: format_summary(fills, ""),
+      verticalAlign: format_summary(alignments, ""),
+      borders: Json::object(
         Map::from_array(
           ["top", "right", "bottom", "left"].map(side => {
             let values = borders.map(border => border[side])
             (
               side,
               if values.contains(Json::null()) {
-                { "kind": "mixed" }
+                Json(FormatMixed)
               } else {
-                format_summary(values, "")
+                Json(format_summary(values, ""))
               },
             )
           }),
         ),
       ),
-      "rowSplit": format_summary(
+      rowSplit: format_summary(
         selected.grid.model.splitRows[selected.top:selected.bottom].to_owned(),
         "",
       ),
-      "rowHeight": format_summary(
+      rowHeight: format_summary(
         selected.grid.model.heights[selected.top:selected.bottom].to_owned(),
         "",
       ),
-      "rowHeightRule": format_summary(
+      rowHeightRule: format_summary(
         selected.grid.model.exactHeights[selected.top:selected.bottom].map(exact => {
           if exact {
             "exact"
@@ -199,7 +229,7 @@ fn Session::table_cell_selection(
         }),
         "",
       ),
-      "maxRowHeight": table_row_height_limit(
+      maxRowHeight: table_row_height_limit(
         selected.grid.model,
         selected.top,
         page_area_for_position(
@@ -208,13 +238,13 @@ fn Session::table_cell_selection(
         ).0,
         end=selected.bottom,
       ),
-      "margins": {
+      margins: {
         "top": format_summary(margins.map(value => value.top), ""),
         "right": format_summary(margins.map(value => value.right), ""),
         "bottom": format_summary(margins.map(value => value.bottom), ""),
         "left": format_summary(margins.map(value => value.left), ""),
       },
-    },
+    }),
   }
 }
 

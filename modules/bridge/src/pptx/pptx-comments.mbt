@@ -1,39 +1,57 @@
 ///|
+priv struct CommentAuthorRequest {
+  name : String
+  initials : String
+} derive(@json.FromJson)
+
+///|
+priv struct AddCommentRequest {
+  text : String
+  author : CommentAuthorRequest
+  date : String
+  parent : @common.RequiredNullable[String]
+} derive(@json.FromJson)
+
+///|
+priv struct UpdateCommentRequest {
+  id : String
+  text : String
+} derive(@json.FromJson)
+
+///|
+priv struct CommentStatusRequest {
+  id : String
+  status : String
+} derive(@json.FromJson)
+
+///|
 fn pptx_comment_change(
+  action : String,
   change : Json,
 ) -> @model.SlideEdit raise @failure.Failure {
-  match field_string(change, "action") {
+  match action {
     "commentAdd" => {
-      guard change is { "author": author, "parent": parent, .. } else {
-        @failure.reject(
-          "invalid-operation", "Comment author and reply parent are required",
-        )
-      }
-      let parent = match parent {
-        Null => None
-        String(id) => Some(id)
-        _ =>
-          @failure.reject("invalid-operation", "Invalid comment reply parent")
-      }
+      let request : AddCommentRequest = @common.request(change)
       @model.AddComment(
-        field_string(change, "text"),
-        field_string(author, "name"),
-        field_string(author, "initials"),
-        field_string(change, "date"),
-        parent,
+        request.text,
+        request.author.name,
+        request.author.initials,
+        request.date,
+        request.parent.value,
       )
     }
-    "commentUpdate" =>
-      @model.UpdateComment(
-        field_string(change, "id"),
-        field_string(change, "text"),
-      )
-    "commentRemove" => @model.RemoveComment(field_string(change, "id"))
-    "commentStatus" =>
-      @model.CommentStatus(
-        field_string(change, "id"),
-        field_string(change, "status"),
-      )
+    "commentUpdate" => {
+      let request : UpdateCommentRequest = @common.request(change)
+      @model.UpdateComment(request.id, request.text)
+    }
+    "commentRemove" => {
+      let request : IdRequest = @common.request(change)
+      @model.RemoveComment(request.id)
+    }
+    "commentStatus" => {
+      let request : CommentStatusRequest = @common.request(change)
+      @model.CommentStatus(request.id, request.status)
+    }
     _ => @failure.reject("invalid-operation", "Expected a comment edit")
   }
 }

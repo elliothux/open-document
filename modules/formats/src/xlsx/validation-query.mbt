@@ -33,8 +33,8 @@ fn validation_nodes(tree : Tree) -> Array[@xml.Node] raise @failure.Failure {
 fn Sheet::validation_at(
   sheet : Sheet,
   target : Range,
+  tree~ : Tree = Tree::new(sheet.document),
 ) -> (DataValidation?, Bool) raise @failure.Failure {
-  let tree = Tree::new(sheet.document)
   let nodes = validation_nodes(tree)
   let anchor : Address = { row: target.top, column: target.left, }
   let mut selected : DataValidation? = None
@@ -99,13 +99,14 @@ fn Session::validation_reason(
   self : Session,
   sheet : Sheet,
   target : Range,
+  tree? : Tree,
 ) -> String {
   let reason = self.dimension_reason(sheet)
   if !reason.is_empty() {
     return reason
   }
   try {
-    let tree = Tree::new(sheet.document)
+    let tree = tree.unwrap_or_else(() => Tree::new(sheet.document))
     let nodes = validation_nodes(tree)
     if tree.one(tree.root("worksheet").id, "dataValidations") is Some(container) {
       let source = tree.document.source()[container.start:container.end]
@@ -134,11 +135,12 @@ fn Session::validation_query(
   self : Session,
   sheet : Int32,
   target : Range,
-) -> Json {
+  tree : Tree,
+) -> QueryValidation {
   let current = self.sheets[sheet]
-  let reason = self.validation_reason(current, target)
+  let reason = self.validation_reason(current, target, tree~)
   let (rule, mixed, reason) = try {
-    let (rule, mixed) = current.validation_at(target)
+    let (rule, mixed) = current.validation_at(target, tree~)
     if rule is Some(rule) {
       rule.check_metadata()
     }
@@ -156,21 +158,20 @@ fn Session::validation_query(
     ([], "")
   }
   let prompt_visible = rule.map(r => r.showInputMessage).unwrap_or(false) &&
-    (try {
-      let tree = Tree::new(current.document)
+    (try
       !tree
       .one(tree.root("worksheet").id, "dataValidations")
       .map(n => flag(n, "disablePrompts"))
       .unwrap_or(false)
-    } catch {
+    catch {
       @failure.Failure(..) => false
     })
   {
-    "rule": rule.map(DataValidation::to_json).unwrap_or(Json::null()),
-    "mixed": mixed,
-    "readOnlyReason": reason,
-    "options": options,
-    "optionsReason": options_reason,
-    "promptVisible": prompt_visible,
+    rule: { value: rule, },
+    mixed,
+    readOnlyReason: reason,
+    options,
+    optionsReason: options_reason,
+    promptVisible: prompt_visible,
   }
 }

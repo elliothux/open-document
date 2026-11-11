@@ -12,24 +12,45 @@ pub(all) struct DrawGlyph {
 }
 
 ///|
-pub impl ToJson for DrawGlyph with fn to_json(self) {
-  {
-    "outline": self.outline,
-    "upem": self.upem,
-    "fontBounds": match self.fontBounds {
+fn draw_glyph_runs(glyphs : Array[DrawGlyph]) -> Array[Json] {
+  let runs = []
+  let mut start = 0
+  while start < glyphs.length() {
+    let first = glyphs[start]
+    let positions = [(first.outline, first.x, first.y)]
+    let mut end = start + 1
+    while end < glyphs.length() {
+      let glyph = glyphs[end]
+      if glyph.upem != first.upem ||
+        glyph.fontBounds != first.fontBounds ||
+        glyph.strokeWidth != first.strokeWidth ||
+        glyph.scaleX != first.scaleX ||
+        glyph.scaleY != first.scaleY {
+        break
+      }
+      positions.push((glyph.outline, glyph.x, glyph.y))
+      end += 1
+    }
+    let bounds = match first.fontBounds {
       Some(bounds) => ToJson::to_json(bounds)
       None => Json::null()
-    },
-    "strokeWidth": self.strokeWidth,
-    "x": self.x,
-    "y": self.y,
-    "scaleX": self.scaleX,
-    "scaleY": self.scaleY,
+    }
+    runs.push(
+      ToJson::to_json(
+        (
+          first.upem,
+          bounds,
+          first.strokeWidth,
+          first.scaleX,
+          first.scaleY,
+          positions,
+        ),
+      ),
+    )
+    start = end
   }
+  runs
 }
-
-///|
-pub extend DrawGlyph with ToJson::{to_json}
 
 ///|
 pub(all) enum DrawBlend {
@@ -66,10 +87,13 @@ pub(all) struct DrawStyle {
   dash : Array[Double]
   dashOffset : Double
   blend : DrawBlend
-} derive(ToJson)
+} derive(Eq, ToJson)
 
 ///|
 pub extend DrawStyle with ToJson::{to_json}
+
+///|
+pub extend DrawStyle with Eq::{equal, not_equal}
 
 ///|
 pub fn DrawStyle::default() -> DrawStyle {
@@ -87,36 +111,103 @@ pub fn DrawStyle::default() -> DrawStyle {
 }
 
 ///|
+pub(all) struct AxialClip {
+  transforms : Array[Matrix]
+  startX : Double
+  endX : Double
+  y : Double
+  startBounded : Bool
+  endBounded : Bool
+} derive(ToJson)
+
+///|
+pub extend AxialClip with ToJson::{to_json}
+
+///|
+pub(all) struct GradientClip {
+  axial : AxialClip?
+} derive(ToJson)
+
+///|
+pub extend GradientClip with ToJson::{to_json}
+
+///|
+pub const TileReplayWork : Int32 = 1048576
+
+///|
 pub(all) enum DrawCommand {
-  FillRect(Fill)
+  FillRect(Fill, screen_fractional~ : Bool)
   GradientRect(Border, Array[GradientStop])
   RadialGradientRect(Border, Array[GradientStop])
   PatternRect(Border, Double, Bytes, String, String, screen_device~ : Bool)
   StrokeRect(Border, String, Double, screen_fractional~ : Bool)
   Glyphs(Double, Double, String, Array[DrawGlyph])
-  Image(PlacedImage)
+  Image(PlacedImage, crop~ : (Border, Border)?, preserve_pixels~ : Bool)
   Path(Array[PathSegment], String, String, Double)
+  OutlinedPath(Array[PathSegment], String, String, Double, Array[PathSegment])
+  FilledOutline(Array[PathSegment], String, String, Double, Array[PathSegment])
+  DashedPath(
+    Array[PathSegment],
+    String,
+    String,
+    Double,
+    Array[Array[(Double, Double)]]
+  )
+  RectangleDashedPath(
+    Array[PathSegment],
+    String,
+    String,
+    Double,
+    Array[(Int32, Double, Double, Double, Bool)]
+  )
   TextRule(Array[PathSegment], String, Double)
   Transform(Matrix)
   ClipRect(Border)
+  GradientClipRect(Border, GradientClip)
   Style(DrawStyle)
   PixelCenters
   IntegerScreenGlyphs
   ClipPath(Array[PathSegment], Bool)
+  GradientClipPath(Array[PathSegment], Bool, GradientClip)
   Restore
   Layer(Double, Array[DrawCommand])
   Mask(Array[DrawCommand], Array[DrawCommand])
   Tile(Double, Double, Int32, Int32, Matrix, Double, Double, Array[DrawCommand])
+  CachedDrawing(String, Json)
 }
 
 ///|
 pub impl ToJson for DrawCommand with fn to_json(self) {
   match self {
-    FillRect(rect) => { "op": "fillRect", "rect": rect }
+    FillRect(rect, screen_fractional~) =>
+      if screen_fractional {
+        { "op": "fillRect", "rect": rect, "screenFractional": true }
+      } else {
+        { "op": "fillRect", "rect": rect }
+      }
     GradientRect(rect, stops) =>
-      { "op": "gradientRect", "rect": rect, "stops": stops }
-    RadialGradientRect(rect, stops) =>
-      { "op": "radialGradientRect", "rect": rect, "stops": stops }
+      {
+        "op": "gradientRect",
+        "rect": rect,
+        "stops": drawing_gradient_stops(stops),
+      }
+    RadialGradientRect(rect, stops) => {
+      let x = rect.x + rect.width / 2
+      let y = rect.y + rect.height / 2
+      {
+        "op": "radialGradientRect",
+        "rect": rect,
+        "stops": drawing_gradient_stops(stops),
+        "circles": [
+          x,
+          y,
+          RADIAL_GRADIENT_INNER_RADIUS,
+          x,
+          y,
+          rect.width.max(rect.height) / 2,
+        ],
+      }
+    }
     PatternRect(rect, period, mask, zero, one, screen_device~) =>
       {
         "op": "patternRect",
@@ -140,38 +231,51 @@ pub impl ToJson for DrawCommand with fn to_json(self) {
       Json::object(command)
     }
     Glyphs(x, y, color, glyphs) =>
-      { "op": "glyphs", "x": x, "y": y, "color": color, "glyphs": glyphs }
-    Image(image) => { "op": "image", "image": image }
+      {
+        "op": "glyphs",
+        "x": x,
+        "y": y,
+        "color": color,
+        "runs": draw_glyph_runs(glyphs),
+      }
+    Image(image, crop~, preserve_pixels~) => {
+      let command = { "op": Json("image"), "image": image.to_json() }
+      if preserve_pixels && image.interpolate is None {
+        command["preservePixels"] = Json(true)
+      }
+      if crop is Some((clip, visible)) {
+        command["crop"] = { "clip": clip, "visible": visible }
+      }
+      Json::object(command)
+    }
     Path(path, fill, stroke, width) =>
-      {
-        "op": "path",
-        "path": path,
-        "fill": fill,
-        "stroke": stroke,
-        "lineWidth": width,
-      }
+      path_command_json(path, fill, stroke, width)
+    OutlinedPath(path, fill, stroke, width, outline) =>
+      path_command_json(path, fill, stroke, width, outline=Some(outline))
+    FilledOutline(_, fill, _, _, outline) =>
+      path_command_json(outline, fill, "", 0)
+    DashedPath(path, fill, stroke, width, pieces) =>
+      path_command_json(path, fill, stroke, width, dashes=Some(pieces))
+    RectangleDashedPath(path, fill, stroke, width, spans) =>
+      path_command_json(path, fill, stroke, width, rectangle_dashes=Some(spans))
     TextRule(path, color, width) =>
-      {
-        "op": "path",
-        "path": path,
-        "fill": "",
-        "stroke": color,
-        "lineWidth": width,
-        "textRule": true,
-      }
+      path_command_json(path, "", color, width, text_rule=true)
     Transform(matrix) => { "op": "transform", "matrix": matrix }
     ClipRect(rect) => { "op": "clipRect", "rect": rect }
+    GradientClipRect(rect, shading) =>
+      { "op": "clipRect", "rect": rect, "shading": shading }
     Style(style) => { "op": "style", "style": style }
     PixelCenters => { "op": "pixelCenters" }
     IntegerScreenGlyphs => { "op": "integerScreenGlyphs" }
-    ClipPath(path, even_odd) =>
-      { "op": "clipPath", "path": path, "evenOdd": even_odd }
+    ClipPath(path, even_odd) => clip_path_json(path, even_odd, None)
+    GradientClipPath(path, even_odd, shading) =>
+      clip_path_json(path, even_odd, Some(shading))
     Restore => { "op": "restore" }
     Layer(opacity, commands) =>
       { "op": "layer", "opacity": opacity, "commands": commands }
     Mask(mask, commands) => { "op": "mask", "mask": mask, "commands": commands }
-    Tile(width, height, columns, rows, matrix, x, y, commands) =>
-      {
+    Tile(width, height, columns, rows, matrix, x, y, commands) => {
+      let tile : Json = {
         "op": "tile",
         "width": width,
         "height": height,
@@ -181,6 +285,15 @@ pub impl ToJson for DrawCommand with fn to_json(self) {
         "resolution": { "x": x, "y": y },
         "commands": commands,
       }
+      if tile is Object(fields) &&
+        columns.to_int64() * rows.to_int64() * commands.length().to_int64() <=
+        TileReplayWork.to_int64() {
+        fields["replay"] = true
+      }
+      tile
+    }
+    CachedDrawing(key, commands) =>
+      { "op": "chartTile", "key": key, "commands": commands }
   }
 }
 
@@ -188,11 +301,142 @@ pub impl ToJson for DrawCommand with fn to_json(self) {
 pub extend DrawCommand with ToJson::{to_json}
 
 ///|
+fn path_command_json(
+  path : Array[PathSegment],
+  fill : String,
+  stroke : String,
+  width : Double,
+  text_rule~ : Bool = false,
+  outline~ : Array[PathSegment]? = None,
+  dashes~ : Array[Array[(Double, Double)]]? = None,
+  rectangle_dashes~ : Array[(Int32, Double, Double, Double, Bool)]? = None,
+) -> Json {
+  let fields = {
+    "op": Json("path"),
+    "path": ToJson::to_json(path),
+    "fill": Json(fill),
+    "stroke": Json(stroke),
+    "lineWidth": Json(width),
+  }
+  if text_rule {
+    fields["textRule"] = Json(true)
+  }
+  if outline is Some(outline) {
+    fields["strokeOutline"] = Json(outline)
+    if !fill.is_empty() && linear_bounds(path) is Some(bounds) {
+      fields["strokeBounds"] = Json(bounds)
+    }
+  }
+  if dashes is Some(pieces) {
+    fields["strokeDashes"] = Json(pieces)
+    fields["strokeDashesAxisAligned"] = Json(
+      pieces.all(points => {
+        for i in 1..<points.length() {
+          let (ax, ay) = points[i - 1]
+          let (bx, by) = points[i]
+          if ax != bx && ay != by {
+            break false
+          }
+        } nobreak {
+          true
+        }
+      }),
+    )
+  }
+  if rectangle_dashes is Some(spans) {
+    fields["rectangleDashes"] = Json(spans)
+  }
+  if !stroke.is_empty() {
+    let (geometry, non_rectangular) = stroke_geometry(path)
+    if geometry is Some(geometry) {
+      fields["strokeGeometry"] = Json(geometry)
+    }
+    if non_rectangular {
+      fields["strokeNonRectangular"] = Json(true)
+    }
+  }
+  Json::object(fields)
+}
+
+///|
+fn clip_path_json(
+  path : Array[PathSegment],
+  even_odd : Bool,
+  shading : GradientClip?,
+) -> Json {
+  let fields = { "op": Json("clipPath"), "evenOdd": Json(even_odd) }
+  if clip_rectangle(path[:]) is Some(rectangle) {
+    fields["rectangle"] = Json(rectangle)
+  } else {
+    fields["path"] = ToJson::to_json(path)
+  }
+  if shading is Some(shading) {
+    fields["shading"] = Json(shading)
+  }
+  Json::object(fields)
+}
+
+///|
+pub(all) enum StrokeRaster {
+  IntegerStroke
+  FractionalStroke
+  CoverageStroke
+}
+
+///|
+pub(all) enum GlyphRaster {
+  IntegerGlyphs
+  FractionalGlyphs
+  CoverageGlyphs
+}
+
+///|
 pub(all) struct DrawingRegion {
   width : Double
   height : Double
+  strokeRaster : StrokeRaster
+  glyphRaster : GlyphRaster
   commands : Array[DrawCommand]
-} derive(ToJson)
+}
+
+///|
+/// Keep the region header shared by standard and compact drawing encoders.
+pub fn DrawingRegion::encode(self : DrawingRegion, commands : Json) -> Json {
+  let fields = {
+    "width": Json(self.width),
+    "height": Json(self.height),
+    "commands": commands,
+  }
+  if self.commands.get(0) is Some(ClipRect(rect) | GradientClipRect(rect, _)) &&
+    rect.x == 0 &&
+    rect.y == 0 &&
+    rect.width == self.width &&
+    rect.height == self.height {
+    fields["backingClip"] = Json(true)
+    if self.strokeRaster is CoverageStroke {
+      fields["deviceClips"] = Json(true)
+    }
+  }
+  match self.strokeRaster {
+    IntegerStroke => ()
+    FractionalStroke => fields["strokeRaster"] = Json("fractional")
+    CoverageStroke => {
+      fields["imageSampling"] = Json("coverage")
+      fields["strokeRaster"] = Json("coverage")
+    }
+  }
+  match self.glyphRaster {
+    IntegerGlyphs => ()
+    FractionalGlyphs => fields["glyphRaster"] = Json("fractional")
+    CoverageGlyphs => fields["glyphRaster"] = Json("coverage")
+  }
+  Json::object(fields)
+}
+
+///|
+pub impl ToJson for DrawingRegion with fn to_json(self) {
+  self.encode(Json(self.commands))
+}
 
 ///|
 pub extend DrawingRegion with ToJson::{to_json}

@@ -53,53 +53,114 @@ fn Table::finite_geometry(self : Table) -> Bool {
 }
 
 ///|
-fn BodyBlock::key(self : BodyBlock) -> String? {
+fn paragraph_keys(
+  cache : ParagraphCache,
+  paragraphs : ArrayView[Paragraph],
+) -> Json? {
+  let keys : Array[Json] = []
+  for paragraph in paragraphs {
+    if cache.version(paragraph) is Some(version) {
+      keys.push(Json(version.number))
+    } else {
+      guard paragraph.finite_geometry() else { return None }
+      keys.push(paragraph.to_json())
+    }
+  }
+  Some(Json::array(keys))
+}
+
+///|
+fn table_row_keys(
+  cache : ParagraphCache,
+  rows : ArrayView[Array[Array[Paragraph]]],
+) -> Json? {
+  let keys : Array[Json] = []
+  for row in rows {
+    let cells : Array[Json] = []
+    for cell in row {
+      guard paragraph_keys(cache, cell[:]) is Some(key) else { return None }
+      cells.push(key)
+    }
+    keys.push(Json::array(cells))
+  }
+  Some(Json::array(keys))
+}
+
+///|
+fn BodyBlock::key(self : BodyBlock, cache : ParagraphCache) -> String? {
   let value : Json = match self {
     FramedBlocks(_, _) => return None
     KeptParagraphs(paragraphs, table) => {
-      guard paragraphs.all(p => p.finite_geometry()) else { return None }
+      guard paragraph_keys(cache, paragraphs[:]) is Some(keys) else {
+        return None
+      }
       let following = if table is Some(table) {
-        guard TableStart(table).key() is Some(start) &&
-          TableRows(table, 0, table.row_group_end(0)).key() is Some(rows) else {
+        guard TableStart(table).key(cache) is Some(start) &&
+          TableRows(table, 0, table.row_group_end(0)).key(cache) is Some(rows) else {
           return None
         }
         Json::array([Json(start), Json(rows)])
       } else {
         Json::null()
       }
-      Json::array([Json("kept-paragraphs"), Json(paragraphs), following])
+      Json::array([Json("kept-paragraphs"), keys, following])
     }
     BodyParagraph(paragraph) => {
+      if cache.version(paragraph) is Some(version) {
+        return Some("paragraph-version:\{version.number}")
+      }
       guard paragraph.finite_geometry() else { return None }
       Json::array([Json("paragraph"), paragraph.to_json()])
     }
     TableStart(table) => {
       guard table.finite_geometry() else { return None }
-      let value = table.to_json()
-      if value is Object(fields) {
-        for
-          key in [
-            "beforeParagraph", "heights", "fills", "columnSpans", "rowSpans", "verticalAligns",
-            "margins", "exactHeights", "splitRows",
-          ] {
-          fields.remove(key)
-        }
-        if !table.autoFit {
-          fields.remove("rows")
-          fields.remove("nestedTables")
-        }
+      let fields = {
+        "id": Json(table.id),
+        "autoFit": Json(table.autoFit),
+        "preferredWidth": Json(table.preferredWidth),
+        "preferredWidths": Json(table.preferredWidths),
+        "headerRows": Json(table.headerRows),
+        "legacyCellAlignment": Json(table.legacyCellAlignment),
+        "widths": Json(table.widths),
+        "align": Json(table.align),
+        "borders": Json(table.borders),
       }
-      Json::array([Json("table-start"), value])
+      if table.autoFit {
+        guard table_row_keys(cache, table.rows[:]) is Some(keys) else {
+          return None
+        }
+        fields["rows"] = keys
+        fields["nestedTables"] = Json(table.nestedTables)
+      }
+      Json::array([Json("table-start"), Json::object(fields)])
     }
     TableRows(table, row, end) => {
       guard table.finite_geometry() &&
-        table.rows[row:end + 1]
-        .iter()
-        .all(row => row.all(cell => cell.all(p => p.finite_geometry()))) &&
         table.heights[row:end + 1]
         .iter()
         .all(height => !height.is_nan() && !height.is_inf()) else {
         return None
+      }
+      guard table_row_keys(cache, table.rows[row:end + 1]) is Some(keys) else {
+        return None
+      }
+      let headers = if table.headerRows == 0 {
+        Json::null()
+      } else {
+        guard table_row_keys(cache, table.rows[:table.headerRows]) is Some(keys) else {
+          return None
+        }
+        Json::array([
+          keys,
+          Json(table.heights[:table.headerRows].to_owned()),
+          Json(table.exactHeights[:table.headerRows].to_owned()),
+          Json(table.splitRows[:table.headerRows].to_owned()),
+          Json(table.margins[:table.headerRows].to_owned()),
+          Json(table.fills[:table.headerRows].to_owned()),
+          Json(table.verticalAligns[:table.headerRows].to_owned()),
+          Json(table.columnSpans[:table.headerRows].to_owned()),
+          Json(table.rowSpans[:table.headerRows].to_owned()),
+        ])
       }
       Json::array([
         Json("table-row"),
@@ -115,23 +176,9 @@ fn BodyBlock::key(self : BodyBlock) -> String? {
         Json(table.legacyCellAlignment),
         Json(table.borders),
         Json(table.headerRows),
-        if table.headerRows == 0 {
-          Json::null()
-        } else {
-          Json::array([
-            Json(table.rows[:table.headerRows].to_owned()),
-            Json(table.heights[:table.headerRows].to_owned()),
-            Json(table.exactHeights[:table.headerRows].to_owned()),
-            Json(table.splitRows[:table.headerRows].to_owned()),
-            Json(table.margins[:table.headerRows].to_owned()),
-            Json(table.fills[:table.headerRows].to_owned()),
-            Json(table.verticalAligns[:table.headerRows].to_owned()),
-            Json(table.columnSpans[:table.headerRows].to_owned()),
-            Json(table.rowSpans[:table.headerRows].to_owned()),
-          ])
-        },
+        headers,
         Json(table.margins[row:end + 1].to_owned()),
-        Json(table.rows[row:end + 1].to_owned()),
+        keys,
         Json(table.heights[row:end + 1].to_owned()),
         Json(table.exactHeights[row:end + 1].to_owned()),
         Json(table.splitRows[row:end + 1].to_owned()),
@@ -193,12 +240,15 @@ fn BodyBlock::place(
 }
 
 ///|
-fn pagination_keys(blocks : Array[BodyBlock]) -> Array[String]? {
+fn pagination_keys(
+  blocks : Array[BodyBlock],
+  cache : ParagraphCache,
+) -> Array[String]? {
   guard blocks.length() <= 1024 else { return None }
   let keys = []
   let mut units = 0
   for block in blocks {
-    guard block.key() is Some(key) else { return None }
+    guard block.key(cache) is Some(key) else { return None }
     guard key.length() <= 1048576 - units else { return None }
     units += key.length()
     keys.push(key)

@@ -1,5 +1,7 @@
+import type { SpreadsheetHost } from "./spreadsheet-host.js";
+import type { XlsxClient } from "./xlsx.js";
+import type { SpreadsheetCanvas } from "./spreadsheet-canvas.js";
 import type { XlsxPasteMode } from "../core/xlsx.js";
-import { SpreadsheetObjects } from "./spreadsheet-objects.js";
 import {
   copyCellData,
   copySpreadsheetDrawing,
@@ -9,91 +11,85 @@ import {
 } from "./spreadsheet-clipboard.js";
 
 /** Clipboard access uses the editor's draft barrier, queue and disposal checks. */
-export abstract class SpreadsheetClipboard extends SpreadsheetObjects {
-  acceptValidationWarnings = false;
-  protected abstract closed: boolean;
-  protected abstract get selectedDrawing(): string | undefined;
-
-  paste(text: string): Promise<void> {
-    return this.change(() =>
-      this.client.paste(
-        this.currentState.revision,
-        text,
-        this.acceptValidationWarnings,
-      ),
-    );
-  }
-  copyCells(cut = false): Promise<void> {
-    return this.read(() =>
-      copyCellData(this.client, this.currentState, true, cut),
-    );
-  }
-  pasteCells(mode: XlsxPasteMode = "all", transpose = false): Promise<void> {
-    return this.change(() =>
-      pasteSpreadsheetCells(
-        this.client,
-        this.currentState,
-        this.profile,
-        mode,
-        transpose,
-        this.acceptValidationWarnings,
-        () => this.closed,
-      ),
-    );
-  }
-  copy(): Promise<void> {
-    return this.read(() =>
-      this.selectedDrawing
-        ? copySpreadsheetDrawing(
-            this.client,
-            this.currentState,
-            this.selectedDrawing,
-            this.profile,
-          )
-        : copyCellData(this.client, this.currentState, false),
-    );
-  }
-  copyDrawing(id: string): Promise<void> {
-    return this.read(() =>
-      copySpreadsheetDrawing(this.client, this.currentState, id, this.profile),
-    );
-  }
-  cutSelection(): Promise<void> {
-    return this.read(() =>
-      this.selectedDrawing
-        ? cutSpreadsheetDrawing(
-            this.client,
-            this.currentState,
-            this.selectedDrawing,
-          )
-        : copyCellData(this.client, this.currentState, true, true),
-    );
-  }
-  cutDrawing(id: string): Promise<void> {
-    return this.read(() =>
-      cutSpreadsheetDrawing(this.client, this.currentState, id),
-    );
-  }
-  pasteDrawing(): Promise<void> {
-    return this.change(() =>
-      pasteSpreadsheetDrawing(
-        this.client,
-        this.currentState,
-        this.profile,
-        () => this.closed,
-        async (fragment) => {
-          const bytes = await this.client.drawingFragmentImage(
-            this.currentState.revision,
-            fragment,
-          );
-          if (bytes)
-            await this.surface.addPicture(
-              this.client,
-              this.currentState.revision,
-              bytes,
-            );
-        },
-      ),
-    );
-  }
+export function createSpreadsheetClipboard(
+  client: XlsxClient,
+  profile: Record<string, string>,
+  surface: SpreadsheetCanvas,
+  host: SpreadsheetHost & {
+    closed(): boolean;
+    selectedDrawing(): string | undefined;
+    acceptWarnings(): boolean;
+  },
+) {
+  return {
+    paste(text: string): Promise<void> {
+      return host.change(() =>
+        client.execute({
+          operation: "pasteXlsx",
+          revision: host.state().revision,
+          text: text,
+          acceptWarnings: host.acceptWarnings(),
+        }),
+      );
+    },
+    copyCells(cut = false): Promise<void> {
+      return host.read(() => copyCellData(client, host.state(), true, cut));
+    },
+    pasteCells(mode: XlsxPasteMode = "all", transpose = false): Promise<void> {
+      return host.change(() =>
+        pasteSpreadsheetCells(
+          client,
+          host.state(),
+          profile,
+          mode,
+          transpose,
+          host.acceptWarnings(),
+          () => host.closed(),
+        ),
+      );
+    },
+    copy(): Promise<void> {
+      return host.read(() => {
+        const drawing = host.selectedDrawing();
+        return drawing
+          ? copySpreadsheetDrawing(client, host.state(), drawing, profile)
+          : copyCellData(client, host.state(), false);
+      });
+    },
+    copyDrawing(id: string): Promise<void> {
+      return host.read(() =>
+        copySpreadsheetDrawing(client, host.state(), id, profile),
+      );
+    },
+    cutSelection(): Promise<void> {
+      return host.read(() => {
+        const drawing = host.selectedDrawing();
+        return drawing
+          ? cutSpreadsheetDrawing(client, host.state(), drawing)
+          : copyCellData(client, host.state(), true, true);
+      });
+    },
+    cutDrawing(id: string): Promise<void> {
+      return host.read(() => cutSpreadsheetDrawing(client, host.state(), id));
+    },
+    pasteDrawing(): Promise<void> {
+      return host.change(() =>
+        pasteSpreadsheetDrawing(
+          client,
+          host.state(),
+          profile,
+          () => host.closed(),
+          async (fragment) => {
+            const bytes = await client.execute({
+              operation: "drawingFragmentImageXlsx",
+              revision: host.state().revision,
+              fragment: fragment,
+            });
+            if (bytes)
+              await surface.addPicture(client, host.state().revision, bytes);
+          },
+        ),
+      );
+    },
+  };
 }

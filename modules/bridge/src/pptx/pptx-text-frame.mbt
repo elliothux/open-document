@@ -1,53 +1,97 @@
 ///|
-fn pptx_text_frame(change : Json) -> @model.ObjectEdit raise @failure.Failure {
-  match field_string(change, "action") {
-    "textInsets" =>
+priv struct TextInsetsRequest {
+  left : @common.RequestNumber
+  top : @common.RequestNumber
+  right : @common.RequestNumber
+  bottom : @common.RequestNumber
+} derive(@json.FromJson)
+
+///|
+priv struct TextAnchorRequest {
+  anchor : String
+} derive(@json.FromJson)
+
+///|
+priv struct TextWrapRequest {
+  wrap : Bool
+} derive(@json.FromJson)
+
+///|
+priv struct TextFitRequest {
+  fit : String
+} derive(@json.FromJson)
+
+///|
+priv struct TextUprightRequest {
+  upright : Bool
+} derive(@json.FromJson)
+
+///|
+priv struct TextDirectionRequest {
+  direction : String
+} derive(@json.FromJson)
+
+///|
+priv struct TextColumnsRequest {
+  columns : @common.RequestInt
+  gap : @common.RequestNumber
+  rtl : Bool
+} derive(@json.FromJson)
+
+///|
+fn pptx_text_frame(
+  action : String,
+  change : Json,
+) -> @model.ObjectEdit raise @failure.Failure {
+  match action {
+    "textInsets" => {
+      let request : TextInsetsRequest = @common.request(change)
       @model.TextInsets(
-        field_number(change, "left"),
-        field_number(change, "top"),
-        field_number(change, "right"),
-        field_number(change, "bottom"),
+        request.left.value,
+        request.top.value,
+        request.right.value,
+        request.bottom.value,
       )
-    "textAnchor" => @model.TextAnchor(field_string(change, "anchor"))
-    "textWrap" => @model.TextWrap(field_boolean(change, "wrap"))
-    "textFit" => @model.TextFit(field_string(change, "fit"))
+    }
+    "textAnchor" => {
+      let request : TextAnchorRequest = @common.request(change)
+      @model.TextAnchor(request.anchor)
+    }
+    "textWrap" => {
+      let request : TextWrapRequest = @common.request(change)
+      @model.TextWrap(request.wrap)
+    }
+    "textFit" => {
+      let request : TextFitRequest = @common.request(change)
+      @model.TextFit(request.fit)
+    }
     "textUpright" => {
-      guard change is Object(fields) &&
-        fields.length() == 2 &&
-        fields.keys().all(key => ["action", "upright"].contains(key)) else {
+      guard change is Object(fields) && fields.length() == 2 else {
         @failure.reject("invalid-operation", "Invalid upright text fields")
       }
-      @model.TextUpright(field_boolean(change, "upright"))
+      let request : TextUprightRequest = @common.request(change)
+      @model.TextUpright(request.upright)
     }
     "textRotation" => {
-      guard change is Object(fields) &&
-        fields.length() == 2 &&
-        fields.keys().all(key => ["action", "angle"].contains(key)) else {
+      guard change is Object(fields) && fields.length() == 2 else {
         @failure.reject("invalid-operation", "Invalid text rotation fields")
       }
-      @model.TextRotation(field_number(change, "angle"))
+      let request : RotationRequest = @common.request(change)
+      @model.TextRotation(request.angle.value)
     }
     "textDirection" => {
-      guard change is Object(fields) &&
-        fields.length() == 2 &&
-        fields.keys().all(key => ["action", "direction"].contains(key)) else {
+      guard change is Object(fields) && fields.length() == 2 else {
         @failure.reject("invalid-operation", "Invalid text direction fields")
       }
-      @model.TextDirection(field_string(change, "direction"))
+      let request : TextDirectionRequest = @common.request(change)
+      @model.TextDirection(request.direction)
     }
     "textColumns" => {
-      guard change is Object(fields) &&
-        fields.length() == 4 &&
-        fields
-        .keys()
-        .all(key => ["action", "columns", "gap", "rtl"].contains(key)) else {
+      guard change is Object(fields) && fields.length() == 4 else {
         @failure.reject("invalid-operation", "Invalid text column fields")
       }
-      @model.TextColumns(
-        field_int(change, "columns"),
-        field_number(change, "gap"),
-        field_boolean(change, "rtl"),
-      )
+      let request : TextColumnsRequest = @common.request(change)
+      @model.TextColumns(request.columns.value, request.gap.value, request.rtl)
     }
     _ => @failure.reject("invalid-operation", "Unknown text frame action")
   }

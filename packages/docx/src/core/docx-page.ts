@@ -1,42 +1,19 @@
-import { FoundationReviewSession } from "./docx-revisions.js";
-import {
-  encodeDocxWatermark,
-  docxWatermarkState,
-  type DocxWatermark,
-} from "./docx-watermark.js";
-import {
-  docxRuler,
-  checkDocxRulerEdit,
-  type DocxRuler,
-  type DocxRulerEdit,
-} from "./docx-ruler.js";
 import { integer, record } from "@open-document/wasm/abi/validation";
 import {
-  checkDocxBibliographyEdit,
-  type DocxBibliographyEdit,
-  checkDocxCitationEdit,
-  type DocxCitationEdit,
-  checkDocxSourceEdit,
-  docxSources,
-  type DocxSourceEdit,
-} from "./docx-sources.js";
-import {
-  checkDocxIndexEdit,
-  docxIndexes,
-  type DocxIndexEdit,
-} from "./docx-index.js";
-import {
-  checkDocxTocEdit,
-  docxTableOfContents,
-  type DocxTocEdit,
-} from "./docx-toc.js";
+  docxCaptionTextUnits,
+  docxCoverSubtitleUnits,
+  docxCoverTitleUnits,
+  docxRunningContentItems,
+  docxRunningContentUnits,
+  docxRunningDistancePoints,
+} from "@open-document/wasm/engine-source";
 
 export interface DocxCoverPage {
   title: string;
   subtitle: string;
 }
 export type DocxSectionBreak = NonNullable<DocxPageSetup["startType"]>;
-import { checkSectionBreak } from "./docx-sections.js";
+
 export { checkSectionBreak } from "./docx-sections.js";
 const singleLineText = (value: unknown, max: number): value is string =>
   typeof value === "string" &&
@@ -61,30 +38,19 @@ export function checkDocxCoverPage(
   if (
     Object.keys(cover).length !== 2 ||
     Object.keys(cover).some((key) => key !== "title" && key !== "subtitle") ||
-    !singleLineText(cover.title, 256) ||
+    !singleLineText(cover.title, docxCoverTitleUnits) ||
     !cover.title.trim() ||
-    !singleLineText(cover.subtitle, 512)
+    !singleLineText(cover.subtitle, docxCoverSubtitleUnits)
   )
     throw new Error("Invalid cover page title or subtitle");
 }
 import { checkDocxHyperlink } from "./docx-format.js";
-import { docxProtection, checkDocxProtection } from "./docx-protection.js";
-import { protectionSalt } from "@open-document/wasm/abi/protection-password";
-import { isDocxSelection } from "./docx-search.js";
+
 import type { DocxSelection } from "./docx-hit.js";
 import {
-  checkPageSetup,
-  checkPageSection,
-  checkPageBackground,
-  checkPageBorders,
   checkPageNumbering,
-  checkDocxColumns,
-  docxPageSettings,
-  editState,
   type DocxPageSetup,
-  type DocxPageBorders,
   type DocxPageNumbering,
-  type DocxColumns,
 } from "./docx-format.js";
 
 export type DocxRunningVariant = "default" | "first" | "even";
@@ -117,7 +83,7 @@ export function checkDocxCaption(value: unknown): asserts value is DocxCaption {
       (key) =>
         !["label", "text", "position", "format", "chapter"].includes(key),
     ) ||
-    !singleLineText(caption.text, 1024) ||
+    !singleLineText(caption.text, docxCaptionTextUnits) ||
     (caption.position !== "before" && caption.position !== "after")
   )
     throw new Error("Invalid caption text or position");
@@ -186,24 +152,6 @@ export interface DocxBodyPageField {
   selection: DocxSelection;
   field: DocxBodyField | null;
   reason: string;
-}
-export function docxBodyPageField(value: unknown): DocxBodyPageField {
-  const result = record(value);
-  if (
-    !Number.isSafeInteger(result.revision) ||
-    Number(result.revision) < 0 ||
-    !isDocxSelection(result.selection) ||
-    typeof result.reason !== "string" ||
-    Object.keys(result).length !== 4 ||
-    Object.keys(result).some(
-      (key) => !["revision", "selection", "field", "reason"].includes(key),
-    )
-  )
-    throw new Error("Invalid body page field response");
-  if (result.field !== null) checkBodyField(result.field);
-  if ((result.field === null) !== result.reason.length > 0)
-    throw new Error("Invalid body page field availability");
-  return value as DocxBodyPageField;
 }
 export function checkPageField(value: unknown): asserts value is DocxPageField {
   const item = record(value);
@@ -326,7 +274,7 @@ export function checkRunningArea(
 ): void {
   checkRunningKind(kind);
   checkRunningVariant(variant);
-  if (!Array.isArray(content) || content.length > 256)
+  if (!Array.isArray(content) || content.length > docxRunningContentItems)
     throw new Error("Invalid running content");
   let units = 0;
   for (const value of content) {
@@ -355,381 +303,12 @@ export function checkRunningArea(
     } else throw new Error("Invalid running content item");
   }
   if (
-    units > 8192 ||
+    units > docxRunningContentUnits ||
     typeof distance !== "number" ||
     !Number.isFinite(distance) ||
     distance < 0 ||
-    distance > 14400 ||
+    distance > docxRunningDistancePoints ||
     !Number.isInteger(distance * 20)
   )
     throw new Error("Invalid running content or distance");
-}
-export function docxRunningArea(value: unknown): DocxRunningArea {
-  const area = record(value);
-  checkPageSection(area.section);
-  checkRunningArea("header", "default", area.content, area.distance);
-  checkRunningOptions(area.differentFirst, area.differentEven);
-  if (
-    !Number.isSafeInteger(area.revision) ||
-    Number(area.revision) < 0 ||
-    typeof area.reason !== "string" ||
-    typeof area.shared !== "boolean" ||
-    typeof area.linked !== "boolean" ||
-    (area.linked && area.section === 0) ||
-    Object.keys(area).some(
-      (key) =>
-        ![
-          "revision",
-          "section",
-          "linked",
-          "content",
-          "distance",
-          "reason",
-          "shared",
-          "differentFirst",
-          "differentEven",
-        ].includes(key),
-    )
-  )
-    throw new Error("Invalid running area response");
-  return value as DocxRunningArea;
-}
-
-/** Page commands share the session's revision and source transaction. */
-export class FoundationPageSession extends FoundationReviewSession {
-  documentProtection(revision: number) {
-    return docxProtection(
-      this.call({ operation: "documentProtection", revision }),
-    );
-  }
-  setDocumentProtection(revision: number, enabled: boolean, password: string) {
-    checkDocxProtection(enabled, password);
-    return editState(
-      this.call({
-        operation: "setDocumentProtection",
-        revision,
-        enabled,
-        password,
-        passwordSalt: protectionSalt(enabled, password),
-      }),
-    );
-  }
-  bodyPageField(revision: number, selection: DocxSelection): DocxBodyPageField {
-    return docxBodyPageField(
-      this.call({ operation: "bodyPageField", revision, selection }),
-    );
-  }
-  editBodyPageField(
-    revision: number,
-    selection: DocxSelection,
-    field: DocxBodyField,
-    profile: Record<string, string>,
-  ) {
-    checkBodyField(field);
-    return editState(
-      this.call({
-        operation: "editBodyPageField",
-        revision,
-        selection,
-        field,
-        profile,
-      }),
-    );
-  }
-  insertBodyPageField(
-    revision: number,
-    field: DocxBodyField,
-    profile: Record<string, string>,
-  ) {
-    checkBodyField(field);
-    return editState(
-      this.call({ operation: "insertBodyPageField", revision, field, profile }),
-    );
-  }
-  insertSectionBreak(
-    revision: number,
-    kind: DocxSectionBreak,
-    profile: Record<string, string>,
-  ) {
-    checkSectionBreak(kind);
-    return editState(
-      this.call({ operation: "insertSectionBreak", revision, kind, profile }),
-    );
-  }
-  insertCaption(
-    revision: number,
-    caption: DocxCaption,
-    profile: Record<string, string>,
-  ) {
-    checkDocxCaption(caption);
-    return editState(
-      this.call({ operation: "insertDocxCaption", revision, caption, profile }),
-    );
-  }
-  tableOfContents(revision: number) {
-    return docxTableOfContents(
-      this.call({ operation: "docxTableOfContents", revision }),
-    );
-  }
-  sources(revision: number) {
-    return docxSources(this.call({ operation: "docxSources", revision }));
-  }
-  editBibliography(
-    revision: number,
-    change: DocxBibliographyEdit,
-    profile: Record<string, string>,
-  ) {
-    checkDocxBibliographyEdit(change);
-    return editState(
-      this.call({
-        operation: "editDocxBibliography",
-        revision,
-        change,
-        profile,
-      }),
-    );
-  }
-  editCitation(
-    revision: number,
-    change: DocxCitationEdit,
-    profile: Record<string, string>,
-  ) {
-    checkDocxCitationEdit(change);
-    return editState(
-      this.call({ operation: "editDocxCitation", revision, change, profile }),
-    );
-  }
-  editSource(revision: number, change: DocxSourceEdit) {
-    checkDocxSourceEdit(change);
-    return editState(
-      this.call({ operation: "editDocxSource", revision, change }),
-    );
-  }
-  indexes(revision: number) {
-    return docxIndexes(this.call({ operation: "docxIndexes", revision }));
-  }
-  editIndex(
-    revision: number,
-    change: DocxIndexEdit,
-    profile: Record<string, string>,
-  ) {
-    checkDocxIndexEdit(change);
-    return editState(
-      this.call({ operation: "editDocxIndex", revision, change, profile }),
-    );
-  }
-  editTableOfContents(
-    revision: number,
-    change: DocxTocEdit,
-    profile: Record<string, string>,
-  ) {
-    checkDocxTocEdit(change);
-    return editState(
-      this.call({
-        operation: "editDocxTableOfContents",
-        revision,
-        change,
-        profile,
-      }),
-    );
-  }
-  ruler(revision: number): DocxRuler {
-    return docxRuler(this.call({ operation: "docxRuler", revision }));
-  }
-  editRuler(source: DocxRuler, change: DocxRulerEdit) {
-    docxRuler(source);
-    checkDocxRulerEdit(change);
-    return editState(
-      this.call({
-        operation: "editDocxRuler",
-        revision: source.revision,
-        layoutId: source.layoutId,
-        selection: source.selection,
-        change,
-      }),
-    );
-  }
-  setPageNumbering(
-    revision: number,
-    section: number,
-    numbering: DocxPageNumbering | null,
-    profile: Record<string, string>,
-  ) {
-    checkPageSection(section);
-    checkPageNumbering(numbering);
-    return editState(
-      this.call({
-        operation: "setPageNumbering",
-        revision,
-        section,
-        numbering,
-        profile,
-      }),
-    );
-  }
-  updateBodyPageFields(revision: number, profile: Record<string, string>) {
-    return editState(
-      this.call({ operation: "updateBodyPageFields", revision, profile }),
-    );
-  }
-  setRunningLink(
-    revision: number,
-    section: number,
-    kind: DocxRunningKind,
-    variant: DocxRunningVariant,
-    linked: boolean,
-    profile: Record<string, string>,
-  ) {
-    checkPageSection(section);
-    if (typeof linked !== "boolean")
-      throw new Error("Invalid running link state");
-    checkRunningKind(kind);
-    checkRunningVariant(variant);
-    return editState(
-      this.call({
-        operation: "setRunningLink",
-        revision,
-        section,
-        kind,
-        variant,
-        linked,
-        profile,
-      }),
-    );
-  }
-  setRunningOptions(
-    revision: number,
-    section: number,
-    first: boolean,
-    even: boolean,
-    profile: Record<string, string>,
-  ) {
-    checkPageSection(section);
-    checkRunningOptions(first, even);
-    return editState(
-      this.call({
-        operation: "setRunningOptions",
-        revision,
-        section,
-        first,
-        even,
-        profile,
-      }),
-    );
-  }
-  pageSetup(revision: number, section = 0) {
-    checkPageSection(section);
-    return docxPageSettings(
-      this.call({ operation: "pageSetup", revision, section }),
-    );
-  }
-  setPageColumns(
-    revision: number,
-    section: number,
-    columns: DocxColumns | null,
-    profile: Record<string, string>,
-  ) {
-    checkPageSection(section);
-    checkDocxColumns(columns);
-    return editState(
-      this.call({
-        operation: "setPageColumns",
-        revision,
-        section,
-        columns,
-        profile,
-      }),
-    );
-  }
-  setPageSetup(revision: number, page: DocxPageSetup) {
-    checkPageSetup(page);
-    return editState(this.call({ operation: "setPageSetup", revision, page }));
-  }
-  setPageBackground(revision: number, color: string | null) {
-    checkPageBackground(color);
-    return editState(
-      this.call({ operation: "setPageBackground", revision, color }),
-    );
-  }
-  watermark(revision: number, section: number) {
-    checkPageSection(section);
-    return docxWatermarkState(
-      this.call({ operation: "watermark", revision, section }),
-    );
-  }
-  setWatermark(
-    revision: number,
-    section: number,
-    value: DocxWatermark | null,
-    profile: Record<string, string>,
-  ) {
-    checkPageSection(section);
-    return editState(
-      this.call({
-        operation: "setWatermark",
-        revision,
-        section,
-        value: encodeDocxWatermark(value),
-        profile,
-      }),
-    );
-  }
-  setCoverPage(
-    revision: number,
-    cover: DocxCoverPage | null,
-    profile: Record<string, string>,
-  ) {
-    checkDocxCoverPage(cover);
-    return editState(
-      this.call({ operation: "setCoverPage", revision, cover, profile }),
-    );
-  }
-  setPageBorders(
-    revision: number,
-    section: number,
-    borders: DocxPageBorders | null,
-  ) {
-    checkPageSection(section);
-    checkPageBorders(borders);
-    return editState(
-      this.call({ operation: "setPageBorders", revision, section, borders }),
-    );
-  }
-  runningArea(
-    revision: number,
-    section: number,
-    kind: DocxRunningKind,
-    variant: DocxRunningVariant,
-  ): DocxRunningArea {
-    checkPageSection(section);
-    checkRunningKind(kind);
-    checkRunningVariant(variant);
-    return docxRunningArea(
-      this.call({ operation: "runningArea", revision, section, kind, variant }),
-    );
-  }
-  setRunningArea(
-    revision: number,
-    section: number,
-    kind: DocxRunningKind,
-    variant: DocxRunningVariant,
-    content: DocxRunningContent[],
-    distance: number,
-    profile: Record<string, string>,
-  ) {
-    checkPageSection(section);
-    checkRunningArea(kind, variant, content, distance);
-    return editState(
-      this.call({
-        operation: "setRunningArea",
-        revision,
-        section,
-        kind,
-        variant,
-        content,
-        distance,
-        profile,
-      }),
-    );
-  }
 }

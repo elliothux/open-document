@@ -26,8 +26,8 @@ export function DocxStyles({
   const apply = (style: string | null) =>
     controller.run(() =>
       paragraph
-        ? editor.setParagraphFormat({ style })
-        : editor.setCharacterFormat({ style }),
+        ? editor.formatting.setParagraphFormat({ style })
+        : editor.formatting.setCharacterFormat({ style }),
     );
   const currentId = current?.kind === "value" ? current.value : "";
   const [catalog, setCatalog] = useState<DocxStyleCatalog>();
@@ -52,7 +52,9 @@ export function DocxStyles({
       <button
         type="button"
         onClick={() =>
-          controller.run(async () => setCatalog(await editor.styles(kind)))
+          controller.run(async () =>
+            setCatalog(await editor.formatting.styles(kind)),
+          )
         }
       >
         {paragraph ? t.loadStyles : t.loadCharacterStyles}
@@ -92,12 +94,12 @@ export function DocxStyles({
         onClick={() =>
           controller.run(async () => {
             if (!choice) return;
-            await editor.updateStyle(choice.id, {
+            await editor.formatting.updateStyle(choice.id, {
               character: {},
               paragraph: {},
               reset: true,
             });
-            setCatalog(await editor.styles(kind));
+            setCatalog(await editor.formatting.styles(kind));
           })
         }
       >
@@ -110,18 +112,18 @@ export function DocxStyles({
         kind={kind}
         choice={choice}
         styles={catalog?.styles ?? []}
-        refresh={async () => setCatalog(await editor.styles(kind))}
+        refresh={async () => setCatalog(await editor.formatting.styles(kind))}
       />
       <form
         onSubmit={(event) => {
           event.preventDefault();
           controller.run(async () => {
-            const id = await editor.createStyle({
+            const id = await editor.formatting.createStyle({
               name: newName,
               kind,
               ...(choice ? { basedOn: choice.id } : {}),
             });
-            setCatalog(await editor.styles(kind));
+            setCatalog(await editor.formatting.styles(kind));
             setSelected(id);
             setNewName("");
           });
@@ -169,8 +171,8 @@ export function DocxStyles({
         onClick={() =>
           controller.run(async () => {
             if (!choice || !canReplace) return;
-            await editor.deleteStyle(choice.id, replacement);
-            setCatalog(await editor.styles(kind));
+            await editor.formatting.deleteStyle(choice.id, replacement);
+            setCatalog(await editor.formatting.styles(kind));
             setSelected(replacement);
           })
         }

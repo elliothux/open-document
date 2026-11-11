@@ -1,4 +1,7 @@
 ///|
+pub const SlideAnimationCount : Int32 = 128
+
+///|
 pub(all) struct SlideAnimation {
   object : String
   kind : String
@@ -62,7 +65,7 @@ fn validate_animations(
   slide : Slide,
   items : Array[SlideAnimation],
 ) -> Unit raise @failure.Failure {
-  guard items.length() <= 128 else {
+  guard items.length() <= SlideAnimationCount else {
     @failure.reject("limit-exceeded", "Slide animations exceed 128")
   }
   for item in items {
@@ -250,7 +253,7 @@ fn Session::read_animations(
           )
         }
         result.push(item)
-        guard result.length() <= 128 else {
+        guard result.length() <= SlideAnimationCount else {
           @failure.reject("limit-exceeded", "Slide animations exceed 128")
         }
         span = span.max(item.delay + item.duration * item.repeat)

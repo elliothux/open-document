@@ -128,12 +128,13 @@ fn Session::read_sheet_chart(
     origin: { row: 1, column: 1, },
     names: self.formula_names(),
   }
-  let (pending, inputs) = self.chart_input_state(sheet.id, chart, work)
+  let inputs = self.chart_input_state(sheet.id, chart, work)
+  let pending = inputs.pending
   let manual = self.calculation.map(c => c.manual).unwrap_or(false) &&
-    inputs.any(input => input.3 is Some(_))
+    inputs.has_formula
   let chart = if pending || manual {
     if !pending &&
-      inputs.any(input => input.2 is Error(_)) &&
+      inputs.has_error &&
       (
         chart.native_bar is Some(_) ||
         chart.native_area is Some(_) ||
@@ -148,12 +149,12 @@ fn Session::read_sheet_chart(
           chart.categories.is_empty()
         )
       ) {
-      self.manual_chart_error_gaps(sheet.id, chart, work)
+      self.manual_chart_error_gaps(sheet.id, chart, work, inputs)
     } else {
       chart
     }
   } else {
-    self.resolved_chart(sheet.id, chart, work)
+    self.resolved_chart(sheet.id, chart, work, inputs=Some(inputs))
   }
   {
     id,

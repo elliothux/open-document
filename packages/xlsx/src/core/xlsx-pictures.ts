@@ -1,4 +1,8 @@
-import { record, integer } from "@open-document/wasm/abi/validation";
+import { record } from "@open-document/wasm/abi/validation";
+import {
+  xlsxDrawingDescriptionUnits,
+  xlsxDrawingNameUnits,
+} from "@open-document/wasm/engine-source";
 
 function finite(value: unknown, min: number, max: number): boolean {
   return (
@@ -40,9 +44,9 @@ function pictureSettings(value: unknown, minimum: number): void {
     !finite(p.height, minimum, 14400) ||
     typeof p.name !== "string" ||
     !p.name.trim() ||
-    p.name.length > 255 ||
+    p.name.length > xlsxDrawingNameUnits ||
     typeof p.description !== "string" ||
-    p.description.length > 1024 ||
+    p.description.length > xlsxDrawingDescriptionUnits ||
     !Array.isArray(p.crop) ||
     p.crop.length !== 4 ||
     !p.crop.every((value) => finite(value, 0, 0.999999)) ||
@@ -55,46 +59,4 @@ export function checkXlsxPictureSettings(
   value: unknown,
 ): asserts value is XlsxPictureSettings {
   pictureSettings(value, 0.1);
-}
-export function xlsxPictures(value: unknown): XlsxPictures {
-  const result = record(value);
-  if (
-    !integer(result.revision, 0, 2147483647) ||
-    typeof result.sheet !== "string" ||
-    typeof result.reason !== "string" ||
-    !Array.isArray(result.items) ||
-    result.items.length > 256
-  )
-    throw new Error("Invalid worksheet picture list");
-  const ids = new Set<string>();
-  for (const item of result.items) {
-    pictureSettings(item, 0);
-    const p = record(item);
-    if (
-      typeof p.id !== "string" ||
-      !/^[1-9][0-9]*$/.test(p.id) ||
-      ids.has(p.id) ||
-      typeof p.key !== "string" ||
-      !p.key ||
-      p.key.length > 256
-    )
-      throw new Error("Invalid worksheet picture identity or crop");
-    ids.add(p.id);
-  }
-  return value as XlsxPictures;
-}
-
-export function xlsxPictureResource(value: unknown): {
-  revision: number;
-  key: string;
-} {
-  const result = record(value);
-  if (
-    !integer(result.revision, 0, 2147483647) ||
-    typeof result.key !== "string" ||
-    !result.key ||
-    result.key.length > 256
-  )
-    throw new Error("Invalid worksheet picture resource");
-  return value as { revision: number; key: string };
 }

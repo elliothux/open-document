@@ -75,7 +75,7 @@ fn shared_formula_source(
       Some(Cell(address)) => address.shift(rows, columns).source()
       Some(Row(row, fixed)) if range => {
         let next = row + (if fixed { 0 } else { rows })
-        guard next >= 1 && next <= 1048576 else {
+        guard next >= 1 && next <= WorksheetRows else {
           @failure.reject(
             "invalid-address", "Shared row reference leaves worksheet",
           )
@@ -84,7 +84,7 @@ fn shared_formula_source(
       }
       Some(Column(column, fixed)) if range => {
         let next = column + (if fixed { 0 } else { columns })
-        guard next >= 1 && next <= 16384 else {
+        guard next >= 1 && next <= WorksheetColumns else {
           @failure.reject(
             "invalid-address", "Shared column reference leaves worksheet",
           )
@@ -99,7 +99,7 @@ fn shared_formula_source(
   }
   output.write_view(source[cursor:])
   let result = output.to_string()
-  guard result.length() <= 8192 else {
+  guard result.length() <= FormulaSourceUnits else {
     @failure.reject(
       "limit-exceeded", "Expanded shared formula exceeds source budget",
     )

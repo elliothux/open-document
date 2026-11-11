@@ -315,7 +315,7 @@ pub fn Session::show_layout(
       previous: None,
       frame: show,
       key,
-      regions: document.drawing(images),
+      regions: document.drawing(images, glyph_raster=FractionalGlyphs),
       parts,
       images: resources,
       texts,

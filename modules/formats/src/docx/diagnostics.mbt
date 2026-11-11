@@ -14,7 +14,7 @@ fn WordTree::diagnose_properties(
         "pStyle", "rPr", "spacing", "ind", "jc", "pageBreakBefore", "autoSpaceDE",
         "autoSpaceDN", "tabs", "bidi", "numPr", "outlineLvl", "keepLines", "keepNext",
         "widowControl", "contextualSpacing", "sectPr", "pBdr", "suppressAutoHyphens",
-        "framePr", "adjustRightInd",
+        "framePr", "adjustRightInd", "snapToGrid",
       ]
     "rPr" =>
       [
@@ -156,9 +156,9 @@ fn WordTree::diagnose_properties(
       | "widowControl"
       | "contextualSpacing"
       | "suppressAutoHyphens"
-      | "formProt" => self.valid_on_off_property(child)
-      // Active document grids remain unsupported by docGrid validation below.
-      "adjustRightInd" => self.valid_on_off_property(child)
+      | "formProt"
+      | "snapToGrid"
+      | "adjustRightInd" => self.valid_on_off_property(child)
       // Suppression cannot affect layout until an endnote reference exists.
       "noEndnote" =>
         self.valid_on_off_property(child) &&
@@ -230,14 +230,27 @@ fn WordTree::diagnose_properties(
         }
       "docGrid" =>
         self.children[child].is_empty() &&
-        feature.attribute("type", uri=word_uri).unwrap_or("default") ==
-        "default" &&
         feature.attributes
         .iter()
         .all(attribute => {
           attribute.uri == word_uri &&
           ["type", "linePitch", "charSpace"].contains(attribute.name)
-        })
+        }) &&
+        (
+          feature.attribute("type", uri=word_uri).unwrap_or("default") ==
+          "default" ||
+          (
+            self.line_grid_pitch(child) > 0 &&
+            self.children[id]
+            .iter()
+            .filter(item => {
+              let node = self.nodes[item]
+              node.uri == word_uri && node.name == "docGrid"
+            })
+            .count() ==
+            1
+          )
+        )
       _ => true
     }
     if feature.uri != word_uri || !supported.contains(feature.name) || !inactive {

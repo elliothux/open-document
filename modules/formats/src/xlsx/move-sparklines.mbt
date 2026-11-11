@@ -107,8 +107,11 @@ fn Sheet::move_sparklines(
   guard !self.locked else {
     @failure.reject("protected-content", "A dependent sparkline is protected")
   }
-  guard items.length() <= 256 else {
-    @failure.reject("limit-exceeded", "Moved sparklines exceed 256")
+  guard items.length() <= SparklineCount else {
+    @failure.reject(
+      "limit-exceeded",
+      "Moved sparklines exceed \{SparklineCount}",
+    )
   }
   items.sort_by((a, b) => {
     if a.cell.row == b.cell.row {

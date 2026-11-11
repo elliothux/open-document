@@ -67,36 +67,6 @@ export function checkDocxThemeFonts(value: unknown): void {
     seen.add(key);
   }
 }
-export function docxThemeFonts(value: unknown): DocxThemeFonts {
-  const query = record(value);
-  if (
-    typeof query.revision !== "number" ||
-    !Number.isSafeInteger(query.revision) ||
-    query.revision < 0 ||
-    !Array.isArray(query.fonts) ||
-    query.fonts.length !== 6
-  )
-    throw new Error("Invalid DOCX theme fonts");
-  const seen = new Set<string>();
-  for (const value of query.fonts) {
-    const font = record(value);
-    const key = `${font.kind}:${font.script}`;
-    if (
-      typeof font.kind !== "string" ||
-      !["major", "minor"].includes(font.kind) ||
-      typeof font.script !== "string" ||
-      !["latin", "ea", "cs"].includes(font.script) ||
-      seen.has(key) ||
-      typeof font.reason !== "string" ||
-      (font.font === null
-        ? !font.reason
-        : font.font !== "" && !fontFamily(font.font))
-    )
-      throw new Error("Invalid DOCX theme font");
-    seen.add(key);
-  }
-  return value as DocxThemeFonts;
-}
 export function checkDocxThemeColor(slot: unknown, color: unknown): void {
   if (
     !slots.some((value) => value === slot) ||
@@ -104,28 +74,4 @@ export function checkDocxThemeColor(slot: unknown, color: unknown): void {
     !/^[0-9a-f]{6}$/i.test(color)
   )
     throw new Error("Invalid DOCX theme color");
-}
-export function docxThemeColors(value: unknown): DocxThemeColors {
-  const query = record(value);
-  if (
-    typeof query.revision !== "number" ||
-    !Number.isSafeInteger(query.revision) ||
-    query.revision < 0 ||
-    !Array.isArray(query.colors) ||
-    query.colors.length !== slots.length
-  )
-    throw new Error("Invalid DOCX theme colors");
-  const seen = new Set<unknown>();
-  for (const value of query.colors) {
-    const item = record(value);
-    if (
-      seen.has(item.slot) ||
-      typeof item.reason !== "string" ||
-      (item.color === null && !item.reason)
-    )
-      throw new Error("Invalid DOCX theme color");
-    checkDocxThemeColor(item.slot, item.color ?? "000000");
-    seen.add(item.slot);
-  }
-  return value as DocxThemeColors;
 }

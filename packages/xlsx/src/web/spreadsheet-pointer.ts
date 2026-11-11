@@ -136,13 +136,19 @@ export class SpreadsheetPointer {
             if (!now.layout) return;
             if (!now.layout.cells.length) return;
             const rect = surface.canvas.getBoundingClientRect();
-            const address = await client.hit(
-              now.layout.id,
-              (event.clientX - rect.left) / now.scale,
-              (event.clientY - rect.top) / now.scale,
-            );
+            const address = await client.execute({
+              operation: "hitXlsx",
+              layoutId: now.layout.id,
+              x: (event.clientX - rect.left) / now.scale,
+              y: (event.clientY - rect.top) / now.scale,
+            });
             host.assign(
-              await client.select(now.query.revision, now.query.sheet, address),
+              await client.execute({
+                operation: "selectXlsx",
+                revision: now.query.revision,
+                sheet: now.query.sheet,
+                range: address,
+              }),
             );
             await host.render();
             host.focus();
@@ -242,10 +248,14 @@ export class SpreadsheetPointer {
             await this.prepare(this.source());
             const current = host.current();
             if (!current.layout) return;
-            const preview = await client.fillPreview(current.layout.id, {
-              kind: "direction",
-              direction,
-              ctrl,
+            const preview = await client.execute({
+              operation: "fillPreviewXlsx",
+              layoutId: current.layout.id,
+              target: {
+                kind: "direction",
+                direction,
+                ctrl,
+              },
             });
             await this.apply(this.source(), preview, true);
           }),
@@ -296,8 +306,12 @@ export class SpreadsheetPointer {
         await this.prepare(selected);
         const now = this.host.current();
         if (!now.layout) return;
-        const preview = await this.client.fillPreview(now.layout.id, {
-          kind: "adjacent",
+        const preview = await this.client.execute({
+          operation: "fillPreviewXlsx",
+          layoutId: now.layout.id,
+          target: {
+            kind: "adjacent",
+          },
         });
         await this.apply(this.source(), preview, keyboard);
       }),
@@ -317,11 +331,12 @@ export class SpreadsheetPointer {
     if (query.sheet !== selected.sheet) throw new Error("Fill source changed");
     if (query.selection.address !== selected.source) {
       this.host.assign(
-        await this.client.select(
-          query.revision,
-          selected.sheet,
-          selected.source,
-        ),
+        await this.client.execute({
+          operation: "selectXlsx",
+          revision: query.revision,
+          sheet: selected.sheet,
+          range: selected.source,
+        }),
       );
       await this.host.render();
     }
@@ -524,7 +539,11 @@ export class SpreadsheetPointer {
       ),
     };
     return {
-      preview: await this.client.fillPreview(layout.id, target),
+      preview: await this.client.execute({
+        operation: "fillPreviewXlsx",
+        layoutId: layout.id,
+        target: target,
+      }),
       id: layout.id,
     };
   }
@@ -569,12 +588,17 @@ export class SpreadsheetPointer {
       throw new Error("Fill source changed");
     if (preview.mode === "shrink" || preview.range !== source.source) {
       this.host.assign(
-        await this.client.editSheet(source.revision, source.sheet, {
-          action: "series",
-          mode: preview.mode,
-          source: source.source,
-          range: preview.range,
-          direction: preview.direction,
+        await this.client.execute({
+          operation: "editXlsxSheet",
+          revision: source.revision,
+          sheet: source.sheet,
+          change: {
+            action: "series",
+            mode: preview.mode,
+            source: source.source,
+            range: preview.range,
+            direction: preview.direction,
+          },
         }),
       );
       {

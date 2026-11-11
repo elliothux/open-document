@@ -1,8 +1,20 @@
 ///|
+pub const ConsolidationSources : Int32 = 32
+
+///|
+pub const ConsolidationSourceCells : Int32 = 65536
+
+///|
 pub(all) struct ConsolidateSource {
   sheet : String
   range : String
-}
+} derive(ToJson, @json.FromJson)
+
+///|
+pub extend ConsolidateSource with ToJson::{to_json}
+
+///|
+pub extend ConsolidateSource with @json.FromJson::{from_json}
 
 ///|
 pub(all) struct ConsolidateSettings {
@@ -10,7 +22,10 @@ pub(all) struct ConsolidateSettings {
   target : String
   operation : String
   leftLabels : Bool
-}
+} derive(@json.FromJson)
+
+///|
+pub extend ConsolidateSettings with @json.FromJson::{from_json}
 
 ///|
 priv struct ConsolidatePlan {
@@ -27,7 +42,7 @@ fn Session::consolidate_plan(
   settings : ConsolidateSettings,
 ) -> ConsolidatePlan raise @failure.Failure {
   guard !settings.sources.is_empty() &&
-    settings.sources.length() <= 32 &&
+    settings.sources.length() <= ConsolidationSources &&
     ["sum", "count", "average", "max", "min"].contains(settings.operation) else {
     @failure.reject(
       "invalid-operation", "Consolidation requires 1 to 32 sources and a supported function",
@@ -56,7 +71,8 @@ fn Session::consolidate_plan(
     let source = self.sheets[source_index]
     cells += (area.bottom - area.top + 1).to_int64() *
       (area.right - area.left + 1).to_int64()
-    guard cells <= 65536 && (!settings.leftLabels || area.right > area.left) else {
+    guard cells <= ConsolidationSourceCells.to_int64() &&
+      (!settings.leftLabels || area.right > area.left) else {
       @failure.reject(
         "limit-exceeded", "Consolidation sources exceed 65536 cells or lack a label value column",
       )
@@ -135,8 +151,8 @@ fn Session::consolidate_plan(
     @failure.reject("limit-exceeded", "Consolidation output exceeds 4096 cells")
   }
   guard height > 0 &&
-    origin.row + height - 1 <= 1048576 &&
-    origin.column + width - 1 <= 16384 else {
+    origin.row + height - 1 <= WorksheetRows &&
+    origin.column + width - 1 <= WorksheetColumns else {
     @failure.reject(
       "invalid-operation", "Consolidation requires nonempty output within worksheet bounds",
     )
@@ -214,6 +230,19 @@ fn Session::consolidate_plan(
 }
 
 ///|
+priv struct ConsolidatePreview {
+  revision : Int32
+  sheet : String
+  target : String
+  sources : Array[ConsolidateSource]
+  operation : String
+  leftLabels : Bool
+  resultRange : String
+  overwrittenCells : Int32
+  preview : Array[Array[String]]
+} derive(ToJson)
+
+///|
 /// Previews linked consolidation output and occupied cells without changing source or history.
 pub fn Session::consolidation(
   self : Session,
@@ -223,20 +252,18 @@ pub fn Session::consolidation(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let plan = self.consolidate_plan(sheet, settings)
-  {
-    "revision": revision,
-    "sheet": sheet,
-    "target": settings.target,
-    "sources": settings.sources.map(source => {
-      "sheet": source.sheet,
-      "range": source.range,
-    }),
-    "operation": settings.operation,
-    "leftLabels": settings.leftLabels,
-    "resultRange": plan.target.name(),
-    "overwrittenCells": plan.overwritten,
-    "preview": self.cell_plan_values(sheet, plan.target, plan.edit),
+  let preview : ConsolidatePreview = {
+    revision,
+    sheet,
+    target: settings.target,
+    sources: settings.sources,
+    operation: settings.operation,
+    leftLabels: settings.leftLabels,
+    resultRange: plan.target.name(),
+    overwrittenCells: plan.overwritten,
+    preview: self.cell_plan_values(sheet, plan.target, plan.edit),
   }
+  ToJson::to_json(preview)
 }
 
 ///|

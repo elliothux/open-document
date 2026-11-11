@@ -62,7 +62,11 @@ fn Session::clipboard_media(
     .get(object.id)
     .map(value => value.1)
     .unwrap_or(MediaPlaybackSettings::initial())
-  let key = media.kind + "\n" + media.key + "\n" + playback.json().stringify()
+  let key = media.kind +
+    "\n" +
+    media.key +
+    "\n" +
+    playback.to_json().stringify()
   let id = if resources.get(key) is Some({ "id": String(id), .. }) {
     id
   } else {
@@ -172,21 +176,49 @@ fn clipboard_media_reference(
 }
 
 ///|
+fn clipboard_media_output(
+  media : ClipboardMedia,
+  encode_bytes : (Bytes) -> Json,
+) -> Json {
+  {
+    "kind": media.kind,
+    "contentType": media.content_type,
+    "bytes": encode_bytes(media.bytes),
+  }
+}
+
+///|
 /// Returns validated local media for platform decoding before object paste.
 pub fn Session::object_fragment_media(
   self : Session,
   revision : Int32,
   value : String,
+  encode_media~ : (Bytes) -> Json = bytes => Json(@base64.encode(bytes)),
 ) -> Array[Json] raise @failure.Failure {
   self.check_revision(revision)
   self.check_idle()
   read_object_fragment(value, self.budget).resources.filter_map(resource => {
-    resource.media.map(media => {
-      "kind": media.kind,
-      "contentType": media.content_type,
-      "bytes": @base64.encode(media.bytes),
-    })
+    resource.media.map(media => clipboard_media_output(media, encode_media))
   })
+}
+
+///|
+pub fn Session::object_fragment_resources(
+  self : Session,
+  revision : Int32,
+  value : String,
+  encode_image : (Bytes) -> Json,
+  encode_media : (Bytes) -> Json,
+) -> Json raise @failure.Failure {
+  self.check_revision(revision)
+  self.check_idle()
+  let resources = read_object_fragment(value, self.budget).resources
+  {
+    "images": resources.filter_map(resource => resource.image.map(encode_image)),
+    "media": resources.filter_map(resource => {
+      resource.media.map(media => clipboard_media_output(media, encode_media))
+    }),
+  }
 }
 
 ///|

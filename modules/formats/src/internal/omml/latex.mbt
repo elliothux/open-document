@@ -1,4 +1,7 @@
 ///|
+pub const LatexSourceUnits : Int32 = 131072
+
+///|
 priv struct MathLatex {
   chars : Array[Char]
   mut offset : Int32
@@ -33,8 +36,11 @@ fn MathLatex::text(
   value : String,
 ) -> @layout.MathExpression raise @failure.Failure {
   self.units += value.length()
-  guard self.units <= 4096 else {
-    @failure.reject("limit-exceeded", "Math exceeds 4096 UTF-16 units")
+  guard self.units <= @layout.MathTextUnits else {
+    @failure.reject(
+      "limit-exceeded",
+      "Math exceeds \{@layout.MathTextUnits} UTF-16 units",
+    )
   }
   guard !value.is_empty() else { self.invalid() }
   Text(value)
@@ -243,8 +249,11 @@ fn MathLatex::sequence(
 pub fn parse_latex(
   source : String,
 ) -> @layout.MathExpression raise @failure.Failure {
-  guard source.length() <= 131072 else {
-    @failure.reject("limit-exceeded", "LaTeX exceeds 131072 UTF-16 units")
+  guard source.length() <= LatexSourceUnits else {
+    @failure.reject(
+      "limit-exceeded",
+      "LaTeX exceeds \{LatexSourceUnits} UTF-16 units",
+    )
   }
   guard @xml.valid_text(source) &&
     source

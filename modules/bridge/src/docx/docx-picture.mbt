@@ -4,6 +4,16 @@ fn Context::docx_flow(
   session : @model.Session,
 ) -> Json raise @failure.Failure {
   let flow = session.flow()
+  self.images.retain(self.docx_image_keys(session, flow))
+  flow.to_json()
+}
+
+///|
+fn Context::docx_image_keys(
+  self : Context,
+  session : @model.Session,
+  flow : @layout.Flow,
+) -> Array[String] raise @failure.Failure {
   let keys : Array[String] = []
   fn retain(paragraph : @layout.Paragraph) {
     for span in paragraph.spans {
@@ -35,6 +45,20 @@ fn Context::docx_flow(
       retain(paragraph)
     }
   }
+  for section in flow.sectionBreaks {
+    for
+      story in section.headers.values().to_array() +
+      section.footers.values().to_array() {
+      for paragraph in story.all_paragraphs() {
+        retain(paragraph)
+      }
+    }
+  }
+  for note in flow.notes {
+    for paragraph in note.content {
+      retain(paragraph)
+    }
+  }
   if session.watermark(flow.revision, 0) is { "images": Array(images), .. } {
     for image in images {
       if image is String(key) && !keys.contains(key) {
@@ -57,120 +81,207 @@ fn Context::docx_flow(
       }
     }
   }
-  self.images.retain(keys)
-  flow.to_json()
+  keys
 }
 
 ///|
-fn Context::picture_operation(
+priv struct DrawingGestureBeginRequest {
+  drawing : @common.RequestInt
+  handle : @common.RequestInt
+} derive(@json.FromJson)
+
+///|
+priv struct DrawingGestureMoveRequest {
+  id : @common.RequestInt
+  dx : @common.RequestNumber
+  dy : @common.RequestNumber
+  page : @common.RequestInt?
+} derive(@json.FromJson)
+
+///|
+priv struct PictureInsertRequest {
+  width : @common.RequestNumber
+  height : @common.RequestNumber
+  bytes : String
+} derive(@json.FromJson)
+
+///|
+priv struct PictureReplaceRequest {
+  id : @common.RequestInt
+  bytes : String
+} derive(@json.FromJson)
+
+///|
+priv struct PictureResizeRequest {
+  id : @common.RequestInt
+  width : @common.RequestNumber
+  height : @common.RequestNumber
+  crop : Array[@common.RequestNumber]
+} derive(@json.FromJson)
+
+///|
+priv struct PictureCommandRequest {
+  revision : @common.RequestInt
+  picture : Json?
+  change : Json?
+  profile : Json?
+} derive(@json.FromJson)
+
+///|
+fn drawing_profile(
+  profile : Json?,
+) -> Map[String, String] raise @failure.Failure {
+  font_profile(profile.unwrap_or(Json::null()))
+}
+
+///|
+fn Context::edit_picture_command(
   self : Context,
-  operation : String,
+  session : @model.Session,
   request : Json,
+  gesture : Bool,
 ) -> Json raise @failure.Failure {
-  guard self.docx is Some(session) else {
-    @failure.reject("invalid-operation", "Open a DOCX session first")
-  }
-  let revision = field_int(request, "revision")
-  if operation == "docxPictures" {
-    return session.pictures(revision)
-  }
-  if operation == "docxDrawingGesture" {
-    guard request is { "change": change, .. } else {
+  let input : PictureCommandRequest = @common.request(request)
+  let revision = input.revision.value
+  if gesture {
+    guard input.change is Some(change) else {
       @failure.reject(
         "invalid-operation", "Picture gesture command is required",
       )
     }
-    let result = match field_string(change, "action") {
-      "begin" =>
+    let action : @common.ActionRequest = @common.request(change)
+    let result = match action.action {
+      "begin" => {
+        let command : DrawingGestureBeginRequest = @common.request(change)
         session.begin_drawing_gesture(
           revision,
-          field_int(change, "drawing"),
-          field_int(change, "handle"),
+          command.drawing.value,
+          command.handle.value,
           probe=self.probe,
-          profile=font_profile(request),
+          profile=drawing_profile(input.profile),
           images=self.images,
         )
-      "cancel" =>
-        session.cancel_drawing_gesture(revision, field_int(change, "id"))
-      "update" =>
-        session.update_drawing_gesture(
-          revision,
-          field_int(change, "id"),
-          field_number(change, "dx"),
-          field_number(change, "dy"),
-          page?=if change is { "page": _, .. } {
-            Some(field_int(change, "page"))
-          } else {
-            None
-          },
-        )
-      "commit" =>
-        session.finish_drawing_gesture(
-          revision,
-          field_int(change, "id"),
-          field_number(change, "dx"),
-          field_number(change, "dy"),
-          page?=if change is { "page": _, .. } {
-            Some(field_int(change, "page"))
-          } else {
-            None
-          },
-        )
+      }
+      "cancel" => {
+        let command : DrawingIdRequest = @common.request(change)
+        session.cancel_drawing_gesture(revision, command.id.value)
+      }
+      "update" | "commit" => {
+        guard !(change is { "page": Null, .. }) else {
+          @failure.reject("invalid-operation", "Invalid drawing gesture page")
+        }
+        let command : DrawingGestureMoveRequest = @common.request(change)
+        let page = command.page.map(value => value.value)
+        if action.action == "update" {
+          session.update_drawing_gesture(
+            revision,
+            command.id.value,
+            command.dx.value,
+            command.dy.value,
+            page?,
+          )
+        } else {
+          session.finish_drawing_gesture(
+            revision,
+            command.id.value,
+            command.dx.value,
+            command.dy.value,
+            page?,
+          )
+        }
+      }
       _ =>
         @failure.reject("invalid-operation", "Unknown picture gesture command")
     }
-    self.layout = None
-    return result
+    return self.clear_edit_layout(result)
   }
-  guard request is { "picture": picture, .. } else {
+  guard input.picture is Some(picture) else {
     @failure.reject("invalid-operation", "Picture settings are required")
   }
-  let result = match field_string(picture, "action") {
+  let action : @common.ActionRequest = @common.request(picture)
+  let result = match action.action {
     "hyperlink" => drawing_hyperlink(session, revision, picture)
-    "insert" =>
+    "insert" => {
+      let command : PictureInsertRequest = @common.request(picture)
       session.insert_picture(
         revision,
-        field_number(picture, "width"),
-        field_number(picture, "height"),
-        input_bytes(picture, 4194304),
+        command.width.value,
+        command.height.value,
+        @common.byte_input(command.bytes, @model.ImageInputBytes),
       )
-    "delete" => session.delete_picture(revision, field_int(picture, "id"))
-    "replace" =>
+    }
+    "delete" => {
+      let command : DrawingIdRequest = @common.request(picture)
+      session.delete_picture(revision, command.id.value)
+    }
+    "replace" => {
+      let command : PictureReplaceRequest = @common.request(picture)
       session.replace_picture(
         revision,
-        field_int(picture, "id"),
-        input_bytes(picture, 4194304),
+        command.id.value,
+        @common.byte_input(command.bytes, @model.ImageInputBytes),
       )
-    "resize" =>
-      resize_picture(
-        session,
+    }
+    "resize" => {
+      let command : PictureResizeRequest = @common.request(picture)
+      session.edit_picture(
         revision,
-        picture,
-        self.probe,
-        font_profile(request),
-        self.images,
-      )
-    "position" =>
-      session.set_drawing_anchor(
-        revision,
-        field_int(picture, "id"),
-        drawing_anchor(picture),
-        target?=if picture is { "target": target, .. } {
-          Some(field_position(target))
-        } else {
-          None
-        },
+        command.id.value,
+        command.width.value,
+        command.height.value,
+        command.crop.map(value => value.value),
         probe=self.probe,
-        profile=font_profile(request),
+        profile=drawing_profile(input.profile),
         images=self.images,
       )
+    }
+    "position" =>
+      self.position_drawing(session, revision, picture, input.profile)
     _ => @failure.reject("invalid-operation", "Invalid picture action")
   }
-  if result is { "revision": Number(current, ..), .. } &&
-    current != revision.to_double() {
-    self.layout = None
+  self.clear_edit_layout(result, previous=revision)
+}
+
+///|
+priv struct DrawingIdRequest {
+  id : @common.RequestInt
+} derive(@json.FromJson)
+
+///|
+priv struct DrawingHyperlinkRequest {
+  id : @common.RequestInt
+  target : @common.RequiredNullable[String]
+} derive(@json.FromJson)
+
+///|
+priv struct DrawingPositionRequest {
+  id : @common.RequestInt
+  anchor : @common.RequiredNullable[DrawingAnchorRequest]
+  target : PositionRequest?
+} derive(@json.FromJson)
+
+///|
+fn Context::position_drawing(
+  self : Context,
+  session : @model.Session,
+  revision : Int32,
+  change : Json,
+  profile : Json?,
+) -> Json raise @failure.Failure {
+  let drawing : DrawingPositionRequest = @common.request(change)
+  let anchor = drawing.anchor.value.map(anchor => anchor.anchor())
+  guard !(change is { "target": Null, .. }) else {
+    @failure.reject("invalid-operation", "Invalid drawing target position")
   }
-  result
+  session.set_drawing_anchor(
+    revision,
+    drawing.id.value,
+    anchor,
+    target?=drawing.target.map(target => target.position()),
+    probe=self.probe,
+    profile=drawing_profile(profile),
+    images=self.images,
+  )
 }
 
 ///|
@@ -179,107 +290,71 @@ fn drawing_hyperlink(
   revision : Int32,
   change : Json,
 ) -> Json raise @failure.Failure {
-  guard change is { "target": target, .. } else {
-    @failure.reject("invalid-operation", "Drawing hyperlink target is required")
-  }
-  let target = match target {
-    Null => None
-    String(value) => Some(value)
-    _ =>
-      @failure.reject("invalid-operation", "Invalid drawing hyperlink target")
-  }
-  session.set_drawing_hyperlink(revision, field_int(change, "id"), target)
+  let command : DrawingHyperlinkRequest = @common.request(change)
+  session.set_drawing_hyperlink(
+    revision,
+    command.id.value,
+    command.target.value,
+  )
 }
 
 ///|
-fn drawing_anchor(
-  picture : Json,
-) -> @layout.DrawingAnchor? raise @failure.Failure {
-  guard picture is { "anchor": value, .. } else {
-    @failure.reject("invalid-operation", "Picture anchor is required")
+priv struct DrawingAxisRequest {
+  relativeTo : String
+  offset : Json
+  align : Json
+} derive(@json.FromJson)
+
+///|
+fn DrawingAxisRequest::axis(
+  self : DrawingAxisRequest,
+) -> @layout.DrawingAxis raise @failure.Failure {
+  match (self.offset, self.align) {
+    (Number(offset, ..), Null) => @layout.Offset(self.relativeTo, offset)
+    (Null, String(align)) => @layout.Aligned(self.relativeTo, align)
+    _ => @failure.reject("invalid-operation", "Invalid picture position")
   }
-  if value is Null {
-    return None
-  }
-  fn axis(value : Json) -> @layout.DrawingAxis raise @failure.Failure {
-    let reference = field_string(value, "relativeTo")
-    match value {
-      { "offset": Number(offset, ..), "align": Null, .. } =>
-        @layout.Offset(reference, offset)
-      { "offset": Null, "align": String(align), .. } =>
-        @layout.Aligned(reference, align)
-      _ => @failure.reject("invalid-operation", "Invalid picture position")
-    }
-  }
-  guard value
-    is {
-      "horizontal": horizontal,
-      "vertical": vertical,
-      "behind": True
-      | False,
-      ..
-    } else {
-    @failure.reject("invalid-operation", "Invalid picture anchor")
-  }
-  let order = field_number(value, "order")
+}
+
+///|
+priv struct DrawingDistanceRequest {
+  top : @common.RequestNumber
+  right : @common.RequestNumber
+  bottom : @common.RequestNumber
+  left : @common.RequestNumber
+} derive(@json.FromJson)
+
+///|
+priv struct DrawingAnchorRequest {
+  horizontal : DrawingAxisRequest
+  vertical : DrawingAxisRequest
+  behind : Bool
+  order : @common.RequestNumber
+  wrapping : String
+  wrapSide : String
+  distance : DrawingDistanceRequest
+} derive(@json.FromJson)
+
+///|
+fn DrawingAnchorRequest::anchor(
+  anchor : DrawingAnchorRequest,
+) -> @layout.DrawingAnchor raise @failure.Failure {
+  let order = anchor.order.value
   guard order >= 0 && order <= 4294967295 && order == order.floor() else {
     @failure.reject("invalid-operation", "Invalid picture layer order")
   }
-  Some({
-    horizontal: axis(horizontal),
-    vertical: axis(vertical),
-    behind: value is { "behind": True, .. },
+  {
+    horizontal: anchor.horizontal.axis(),
+    vertical: anchor.vertical.axis(),
+    behind: anchor.behind,
     order: order.to_int64(),
-    wrapping: field_string(value, "wrapping"),
-    wrapSide: field_string(value, "wrapSide"),
+    wrapping: anchor.wrapping,
+    wrapSide: anchor.wrapSide,
     distance: {
-      guard value is { "distance": distance, .. } else {
-        @failure.reject(
-          "invalid-operation", "Picture text distance is required",
-        )
-      }
-      {
-        top: field_number(distance, "top"),
-        right: field_number(distance, "right"),
-        bottom: field_number(distance, "bottom"),
-        left: field_number(distance, "left"),
-      }
+      top: anchor.distance.top.value,
+      right: anchor.distance.right.value,
+      bottom: anchor.distance.bottom.value,
+      left: anchor.distance.left.value,
     },
-  })
-}
-
-///|
-fn resize_picture(
-  session : @model.Session,
-  revision : Int32,
-  picture : Json,
-  probe : @layout.TextProbe,
-  profile : Map[String, String],
-  images : @layout.Images,
-) -> Json raise @failure.Failure {
-  guard picture
-    is {
-      "crop": Array(values),
-      "width": Number(width, ..),
-      "height": Number(height, ..),
-      ..
-    } else {
-    @failure.reject("invalid-operation", "Picture settings are required")
   }
-  let crop = values.map(value => {
-    match value {
-      Number(value, ..) => value
-      _ => @failure.reject("invalid-operation", "Invalid crop value")
-    }
-  })
-  session.edit_picture(
-    revision,
-    field_int(picture, "id"),
-    width,
-    height,
-    crop,
-    probe~,
-    profile~,
-    images~,
-  )
 }

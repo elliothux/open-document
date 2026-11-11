@@ -1,9 +1,35 @@
 ///|
+pub const SlideImportBytes : Int32 = 33554432
+
+///|
+priv struct ImportSlide {
+  index : Int32
+  title : String
+  hidden : Bool
+} derive(ToJson)
+
+///|
+priv struct ImportMedia {
+  kind : String
+  contentType : String
+  bytes : Json
+} derive(ToJson)
+
+///|
+priv struct ImportInfo {
+  slides : Array[ImportSlide]
+  fonts : Array[String]
+  images : Array[Json]
+  media : Array[ImportMedia]
+} derive(ToJson)
+
+///|
 fn imported_slide_paths(
   source : Session,
   indices : Array[Int32],
 ) -> Array[String] raise @failure.Failure {
-  guard indices.length() <= 256 && Set(indices).length() == indices.length() else {
+  guard indices.length() <= SlideCountLimit &&
+    Set(indices).length() == indices.length() else {
     @failure.reject(
       "invalid-slide", "Imported slide indices must be unique and bounded",
     )
@@ -23,10 +49,12 @@ pub fn Session::import_slide_info(
   revision : Int32,
   bytes : Bytes,
   indices : Array[Int32],
+  encode_image~ : (Bytes) -> Json = bytes => Json(@base64.encode(bytes)),
+  encode_media~ : (Bytes) -> Json = bytes => Json(@base64.encode(bytes)),
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   self.check_idle()
-  guard bytes.length() <= 33554432 else {
+  guard bytes.length() <= SlideImportBytes else {
     @failure.reject("limit-exceeded", "Imported file exceeds32MiB")
   }
   let date_time = self.date_time.map(d => d.value)
@@ -34,46 +62,44 @@ pub fn Session::import_slide_info(
   defer source.close()
   let paths = imported_slide_paths(source, indices)
   let resources = source.slide_import_parts(paths)
-  let images : Array[String] = []
-  let media : Array[Json] = []
+  let images : Array[Json] = []
+  let media : Array[ImportMedia] = []
   let names = resources.media.keys().to_array()
   names.sort()
   for name in names {
     let kind = resources.kinds[name]
     if kind == "image" {
-      images.push(@base64.encode(resources.media[name]))
+      images.push(encode_image(resources.media[name]))
     } else if ["audio", "video", "media"].contains(kind) {
       let content_type = source.opc.content_type(name).unwrap_or("")
       media.push({
-        "kind": if content_type.has_prefix("audio/") {
+        kind: if content_type.has_prefix("audio/") {
           "audio"
         } else {
           "video"
         },
-        "contentType": content_type,
-        "bytes": @base64.encode(resources.media[name]),
+        contentType: content_type,
+        bytes: encode_media(resources.media[name]),
       })
     }
   }
-  {
-    "slides": source.slides.mapi((index, slide) => {
-      let value : Json = {
-        "index": index,
-        "title": slide.objects
-        .iter()
-        .find_first(o => !o.text().is_empty())
-        .map(o => o.text())
-        .unwrap_or(""),
-        "hidden": slide.hidden,
-      }
-      value
+  let info : ImportInfo = {
+    slides: source.slides.mapi((index, slide) => {
+      index,
+      title: slide.objects
+      .iter()
+      .find_first(o => !o.text().is_empty())
+      .map(o => o.text())
+      .unwrap_or(""),
+      hidden: slide.hidden,
     }),
-    "fonts": slide_font_keys(
+    fonts: slide_font_keys(
       source.slides.filter(slide => paths.contains(slide.tree.part)),
     ),
-    "images": images,
-    "media": media,
+    images,
+    media,
   }
+  ToJson::to_json(info)
 }
 
 ///|
@@ -89,15 +115,17 @@ pub fn Session::import_slides(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   self.check_idle()
-  guard bytes.length() <= 33554432 else {
+  guard bytes.length() <= SlideImportBytes else {
     @failure.reject("limit-exceeded", "Imported file exceeds32MiB")
   }
   let reason = self.slide_order_reason()
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let at = self.index(after)
-  guard !indices.is_empty() && indices.length() <= 256 - self.slides.length() else {
+  guard !indices.is_empty() &&
+    indices.length() <= SlideCountLimit - self.slides.length() else {
     @failure.reject(
-      "limit-exceeded", "Imported pages require space in the256-slide budget",
+      "limit-exceeded",
+      "Imported pages require space in the\{SlideCountLimit}-slide budget",
     )
   }
   let date_time = self.date_time.map(d => d.value)
@@ -427,8 +455,8 @@ pub fn Session::import_slides(
     slides.insert(at + offset + 1, slide)
   }
   let staged = { ..self, main, parts, media, slides, }
-  guard staged.master_choices().length() <= 256 &&
-    staged.layout_choices().length() <= 256 else {
+  guard staged.master_choices().length() <= MasterCatalogCount &&
+    staged.layout_choices().length() <= LayoutCatalogCount else {
     @failure.reject(
       "limit-exceeded", "Imported design catalog exceeds256 owners",
     )

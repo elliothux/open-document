@@ -1,4 +1,15 @@
 import { record } from "@open-document/wasm/abi/validation";
+import {
+  pptxCommentTextUnits,
+  pptxCustomShowCount,
+  pptxCustomShowNameUnits,
+  pptxCustomShowSlides,
+  pptxCustomShowTotalSlides,
+  pptxNotesTextUnits,
+  pptxSlideAnimationCount,
+  pptxSlideCountLimit,
+  pptxSourceNameUnits,
+} from "@open-document/wasm/engine-source";
 import type { PptxTextFormat } from "./pptx-format.js";
 import {
   checkPptxMasterStyleEdit,
@@ -10,7 +21,6 @@ import {
 } from "./pptx-view.js";
 import {
   checkPptxShowSettings,
-  pptxShowSettingsState,
   type PptxShowSettings,
 } from "./pptx-show-settings.js";
 import { imageInsets } from "./pptx-objects.js";
@@ -30,10 +40,7 @@ import {
   checkBackgroundImageFormat,
   type PptxBackgroundFill,
 } from "./pptx-background.js";
-export {
-  checkPptxBackgroundFill,
-  checkPptxBackground,
-} from "./pptx-background.js";
+export { checkPptxBackgroundFill } from "./pptx-background.js";
 export interface PptxTransition {
   kind: "none" | "fade" | "push";
   duration: number;
@@ -74,7 +81,7 @@ export interface PptxAnimation {
   params: number[];
 }
 function pptxAnimations(value: unknown): void {
-  if (!Array.isArray(value) || value.length > 128)
+  if (!Array.isArray(value) || value.length > pptxSlideAnimationCount)
     throw new Error("Invalid object animation list");
   for (const item of value) {
     const animation = record(item);
@@ -156,8 +163,8 @@ function pptxAnimations(value: unknown): void {
   }
 }
 
-function pptxCustomShows(value: unknown, creating: boolean): void {
-  if (!Array.isArray(value) || value.length > 32)
+function pptxCustomShows(value: unknown): void {
+  if (!Array.isArray(value) || value.length > pptxCustomShowCount)
     throw new Error("Invalid custom show list");
   const ids = new Set<string>(),
     names = new Set<string>();
@@ -166,7 +173,7 @@ function pptxCustomShows(value: unknown, creating: boolean): void {
     const item = record(entry);
     if (
       typeof item.id !== "string" ||
-      (!(creating && item.id === "") &&
+      (item.id !== "" &&
         (String(Number(item.id)) !== item.id ||
           !Number.isInteger(Number(item.id)) ||
           Number(item.id) < 0 ||
@@ -174,7 +181,7 @@ function pptxCustomShows(value: unknown, creating: boolean): void {
           ids.has(item.id))) ||
       typeof item.name !== "string" ||
       !item.name.trim() ||
-      item.name.length > 255 ||
+      item.name.length > pptxCustomShowNameUnits ||
       !item.name.isWellFormed() ||
       item.name.split("").some((char) => {
         const code = char.charCodeAt(0);
@@ -186,7 +193,7 @@ function pptxCustomShows(value: unknown, creating: boolean): void {
       }) ||
       names.has(item.name.toLowerCase()) ||
       !Array.isArray(item.slides) ||
-      item.slides.length > 256 ||
+      item.slides.length > pptxCustomShowSlides ||
       !item.slides.every(
         (slide: unknown) =>
           typeof slide === "string" &&
@@ -202,7 +209,8 @@ function pptxCustomShows(value: unknown, creating: boolean): void {
     names.add(item.name.toLowerCase());
     count += item.slides.length;
   }
-  if (count > 4096) throw new Error("Custom show entries exceed budget");
+  if (count > pptxCustomShowTotalSlides)
+    throw new Error("Custom show entries exceed budget");
 }
 export interface PptxAdvance {
   click: boolean;
@@ -240,38 +248,6 @@ export function pptxTransition(value: unknown): void {
   )
     throw new Error("Invalid slide transition");
 }
-export function pptxPlaybackState(value: unknown): void {
-  const state = record(record(value).transition);
-  if (typeof state.reason !== "string" || state.reason.length > 8192)
-    throw new Error("Invalid transition state");
-  if (state.value !== null) pptxTransition(state.value);
-  pptxAdvance(state.advance);
-  const animations = record(record(value).animations);
-  if (typeof animations.reason !== "string" || animations.reason.length > 8192)
-    throw new Error("Invalid animation state");
-  pptxAnimations(animations.items);
-  const shows = record(record(value).customShows);
-  if (typeof shows.reason !== "string" || shows.reason.length > 8192)
-    throw new Error("Invalid custom show state");
-  pptxCustomShows(shows.items, false);
-  pptxShowSettingsState(value);
-  const slides = record(value).slides;
-  if (!Array.isArray(slides))
-    throw new Error("Missing custom show slide identities");
-  const identities = new Set(slides.map((slide: unknown) => record(slide).id));
-  if (
-    Array.isArray(shows.items) &&
-    shows.items.some((entry: unknown) => {
-      const members = record(entry).slides;
-      return (
-        !Array.isArray(members) ||
-        members.some((slide: unknown) => !identities.has(slide))
-      );
-    })
-  )
-    throw new Error("Unknown custom show slide");
-}
-
 export type PptxSlideEdit =
   | { action: "showSettings"; value: PptxShowSettings }
   | { action: "customShows"; value: PptxPlaybackState["customShows"]["items"] }
@@ -362,7 +338,7 @@ export function checkPptxSlideEdit(value: unknown): void {
   }
   if (change.action === "guides") {
     if (Object.keys(change).length !== 3) throw new Error("Invalid guide edit");
-    checkPptxGuides({ ...change, reason: "" });
+    checkPptxGuides(change);
     return;
   }
   if (change.action === "showSettings") {
@@ -374,7 +350,7 @@ export function checkPptxSlideEdit(value: unknown): void {
   if (change.action === "customShows") {
     if (Object.keys(change).some((key) => !["action", "value"].includes(key)))
       throw new Error("Invalid custom show edit");
-    pptxCustomShows(change.value, true);
+    pptxCustomShows(change.value);
     return;
   }
   if (change.action === "animations") {
@@ -436,7 +412,6 @@ export function checkPptxSlideEdit(value: unknown): void {
       (change.mode !== "stretch" && change.mode !== "tile") ||
       !(change.bytes instanceof Uint8Array) ||
       !change.bytes.length ||
-      change.bytes.length > 4194304 ||
       Object.keys(change).some(
         (key) => !["action", "mode", "bytes"].includes(key),
       )
@@ -462,7 +437,10 @@ export function checkPptxSlideEdit(value: unknown): void {
     return;
   }
   if (change.action === "sourceName") {
-    if (!commentText(change.name, 1024) || Object.keys(change).length !== 2)
+    if (
+      !commentText(change.name, pptxSourceNameUnits) ||
+      Object.keys(change).length !== 2
+    )
       throw new Error("Invalid source name edit");
     return;
   }
@@ -503,7 +481,7 @@ export function checkPptxSlideEdit(value: unknown): void {
   if (change.action === "notes") {
     if (
       typeof change.text !== "string" ||
-      change.text.length > 32767 ||
+      change.text.length > pptxNotesTextUnits ||
       !change.text.isWellFormed() ||
       Array.from(change.text).some((c) => {
         const code = c.codePointAt(0)!;
@@ -570,7 +548,7 @@ export function checkPptxSlideEdit(value: unknown): void {
     typeof change.index === "number" &&
     Number.isInteger(change.index) &&
     change.index >= 0 &&
-    change.index < 256
+    change.index < pptxSlideCountLimit
   )
     return;
   if (change.action === "hidden" && typeof change.hidden === "boolean") return;
@@ -634,7 +612,8 @@ function checkCommentEdit(change: Record<string, unknown>): void {
   if (
     Object.keys(change).some((key) => !fields.includes(key)) ||
     (!add && !validCommentId(change.id)) ||
-    ((add || update) && !commentText(change.text, 32767, true)) ||
+    ((add || update) &&
+      !commentText(change.text, pptxCommentTextUnits, true)) ||
     (status &&
       (typeof change.status !== "string" ||
         !["active", "resolved", "closed"].includes(change.status) ||
@@ -663,42 +642,6 @@ function checkCommentEdit(change: Record<string, unknown>): void {
   )
     throw new Error("Invalid comment author, date or reply parent");
 }
-export function pptxComments(value: unknown): PptxComments {
-  const result = record(value);
-  if (
-    typeof result.reason !== "string" ||
-    !Array.isArray(result.items) ||
-    result.items.length > 4096
-  )
-    throw new Error("Invalid comment query");
-  const parents = new Map<string, string | null>();
-  let units = 0;
-  for (const item of result.items) {
-    const entry = record(item);
-    if (
-      !validCommentId(entry.id) ||
-      parents.has(entry.id) ||
-      !commentText(entry.author, 255) ||
-      !commentText(entry.initials, 32) ||
-      !commentText(entry.date, 64) ||
-      !commentText(entry.text, 32767) ||
-      (entry.id.startsWith("{")
-        ? typeof entry.status !== "string" ||
-          !["active", "resolved", "closed"].includes(entry.status)
-        : entry.status !== null) ||
-      (entry.parent !== null && !validCommentId(entry.parent))
-    )
-      throw new Error("Invalid comment entry");
-    parents.set(entry.id, entry.parent);
-    units += entry.text.length;
-  }
-  if (units > 1048576) throw new Error("Comment query exceeds text budget");
-  for (const parent of parents.values())
-    if (parent !== null && parents.get(parent) !== null)
-      throw new Error("Invalid comment thread");
-  return value as PptxComments;
-}
-
 export interface PptxSection {
   id: string;
   name: string;
@@ -709,7 +652,7 @@ export interface PptxSections {
   reason: string;
 }
 
-export { pptxSlideLayouts, type PptxSlideLayouts } from "./pptx-layouts.js";
+export type { PptxSlideLayouts } from "./pptx-layouts.js";
 
 const sectionGuid =
   /^\{[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\}$/iu;
@@ -725,37 +668,4 @@ function sectionName(value: unknown, required: boolean): void {
     })
   )
     throw new Error("Invalid section name");
-}
-export function pptxSections(value: unknown, slides: string[]): PptxSections {
-  const result = record(value);
-  if (
-    typeof result.reason !== "string" ||
-    !Array.isArray(result.items) ||
-    result.items.length > 256
-  )
-    throw new Error("Invalid section query");
-  const ids = new Set<string>();
-  let previous = -1;
-  for (const item of result.items) {
-    const section = record(item);
-    if (
-      typeof section.id !== "string" ||
-      !sectionGuid.test(section.id) ||
-      ids.has(section.id.toUpperCase()) ||
-      !Array.isArray(section.slides) ||
-      section.slides.length > 256
-    )
-      throw new Error("Invalid section query identity or slides");
-    ids.add(section.id.toUpperCase());
-    sectionName(section.name, false);
-    for (const id of section.slides) {
-      const index = typeof id === "string" ? slides.indexOf(id) : -1;
-      if (index < 0 || (previous >= 0 && index !== previous + 1))
-        throw new Error("Invalid section slide coverage");
-      previous = index;
-    }
-  }
-  if (previous >= 0 && previous !== slides.length - 1)
-    throw new Error("Incomplete section slide coverage");
-  return value as PptxSections;
 }

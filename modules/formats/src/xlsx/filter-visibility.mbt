@@ -3,9 +3,10 @@ fn Session::sheet_filters(
   self : Session,
   sheet : Sheet,
   parts : Map[String, @xml.Document],
+  tree~ : Tree = Tree::new(sheet.document),
 ) -> Map[String, AutoFilterState] raise @failure.Failure {
   let states : Map[String, AutoFilterState] = Map([])
-  if read_filter(sheet) is Some(state) {
+  if read_filter(sheet, tree~) is Some(state) {
     states[sheet.id] = state
   }
   let sheets = self.sheets.copy()

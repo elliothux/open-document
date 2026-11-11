@@ -177,7 +177,7 @@ fn prepare_paragraph(
     }
   }
   let size = if size > 0 { size } else { 11 }
-  let (line_height, _, clip) = paragraph.line.metrics(
+  let (line_height, _, clip) = paragraph.line_box(
     if ascent > 0 {
       ascent
     } else {
@@ -188,6 +188,7 @@ fn prepare_paragraph(
     } else {
       size * 0.2
     },
+    [],
     native~,
   )
   guard line_height > 0 &&
@@ -562,25 +563,12 @@ fn prepare_paragraph(
           line_ascent = if ascent > 0 { ascent } else { size * 0.8 }
           line_descent = if descent > 0 { descent } else { size * 0.2 }
         }
-        let (line_height, line_baseline, _) = paragraph.line.metrics(
+        let (height, baseline, _) = paragraph.line_box(
           line_ascent,
           line_descent,
+          inline_images,
           native~,
         )
-        let height = if clip {
-          line_height
-        } else {
-          inline_images
-          .iter()
-          .fold(init=line_height, (height, image) => {
-            height.max(image.baseline() + line_descent)
-          })
-        }
-        let baseline = if clip || inline_images.is_empty() {
-          line_baseline
-        } else {
-          height - line_descent
-        }
         let alignment = match paragraph.align {
           "center" => (limit - content_width).max(0) / 2
           "right" => (limit - content_width).max(0)
@@ -590,6 +578,7 @@ fn prepare_paragraph(
           textHeight: line_ascent + line_descent,
           textAscent: line_ascent,
           baseline,
+          grid: paragraph.grid_pitch() > 0,
           line: {
             paragraph: paragraph.id,
             container: paragraph.container,
@@ -703,6 +692,7 @@ fn prepare_paragraph(
           textHeight: line_height,
           textAscent: line_height * 0.8,
           baseline: line_height * 0.8,
+          grid: paragraph.grid_pitch() > 0,
           line: {
             paragraph: paragraph.id,
             container: paragraph.container,
@@ -749,7 +739,13 @@ fn prepare_paragraph(
         let baseline = line.runs
           .get(0)
           .map(run => run.baseline + run.rise)
-          .unwrap_or(paragraph.line.metrics(marker.ascent, marker.descent).1)
+          .unwrap_or(
+            if lines[0].grid {
+              lines[0].baseline
+            } else {
+              paragraph.line.metrics(marker.ascent, marker.descent).1
+            },
+          )
         lines[0] = {
           ..lines[0],
           line: {

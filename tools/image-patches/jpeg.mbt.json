@@ -1,8 +1,26 @@
 {
   "file": "jpeg.mbt",
   "originalSha256": "b54a72ad8e07def012d681b0a58ab0f5315c42560d072833b0e73b4ac3f6c486",
-  "patchedSha256": "344528e20ec9709f4af3187074202d50b99e35eb54358d93d210f90cf1307606",
+  "patchedSha256": "ba37930120b8b3d0c3eebaf3d20e2f965427a1dbe0f107914f20cf76ac3fb49a",
   "lineEdits": [
+    [289, 1, ["  dc_pred : Int,", "  inverse : (Array[Int]) -> Array[Int],"]],
+    [299, 1, ["  (r3, ndc, inverse(block))"]],
+    [303, 1, ["// YCbCr → RGB conversion (ITU-R BT.601, 16-bit fixed point)"]],
+    [
+      307,
+      1,
+      [
+        "/// Convert YCbCr to RGB using ITU-R BT.601 coefficients with 16 fractional bits."
+      ]
+    ],
+    [313, 1, ["  // Match IJG signed rounding for each channel."]],
+    [314, 1, ["  let r = y + ((91881 * cr_off + 32768) >> 16)"]],
+    [
+      316,
+      1,
+      ["  let g = y + ((-22554 * cb_off - 46802 * cr_off + 32768) >> 16)"]
+    ],
+    [318, 1, ["  let b = y + ((116130 * cb_off + 32768) >> 16)"]],
     [423, 0, ["  cmyk~ : Bool = false,"]],
     [
       430,
@@ -41,10 +59,17 @@
       ]
     ],
     [
+      579,
+      1,
+      [
+        "pub fn decode_jpeg(data : Bytes, inverse~ : (Array[Int]) -> Array[Int] = idct_2d) -> Image raise Failure {"
+      ]
+    ],
+    [
       580,
       0,
       [
-        "  match jpg_decode(data, cmyk=false) {",
+        "  match jpg_decode(data, cmyk=false, inverse~) {",
         "    ColorImage(image) => image",
         "    CmykSamples(_, _, _) => raise Failure::Failure(\"JPEG: expected color image\")",
         "  }",
@@ -61,7 +86,7 @@
         "}",
         "",
         "///|",
-        "fn jpg_decode(data : Bytes, cmyk~ : Bool) -> JpegDecoded raise Failure {"
+        "fn jpg_decode(data : Bytes, cmyk~ : Bool, inverse~ : (Array[Int]) -> Array[Int] = idct_2d) -> JpegDecoded raise Failure {"
       ]
     ],
     [
@@ -87,6 +112,11 @@
         "      let max_h = comp_h.fold(init=1, (maximum, value) => maximum.max(value))",
         "      let max_v = comp_v.fold(init=1, (maximum, value) => maximum.max(value))"
       ]
+    ],
+    [
+      819,
+      1,
+      ["                  predictors[ci],", "                  inverse,"]
     ],
     [
       857,
@@ -115,6 +145,14 @@
         "      return ColorImage(Image::new(w, h, format, Bytes::from_array(out)))"
       ]
     ],
-    [908, 1, ["        return ColorImage(jpg_progress_image(state))"]]
+    [908, 1, ["        return ColorImage(jpg_progress_image(state, inverse))"]],
+    [
+      1328,
+      1,
+      [
+        "fn jpg_progress_image(state : JPGProgress, inverse : (Array[Int]) -> Array[Int]) -> Image raise Failure {"
+      ]
+    ],
+    [1350, 1, ["        let pixels = inverse(block)"]]
   ]
 }

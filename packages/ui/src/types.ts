@@ -105,6 +105,7 @@ export interface OwnedFile<E extends EditorHost = EditorHost> {
   readonly editor: E;
   readonly surface: HTMLElement;
   readonly inputLimit: number;
+  readonly delimitedInputLimit?: number;
   readonly originalName: string;
   readonly imported: boolean;
   readonly draftCanSave: boolean;

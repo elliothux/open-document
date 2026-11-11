@@ -108,13 +108,15 @@ fn emf_bitmap(
   }
   let width = emf_uint(record, bmi + 4, 4)
   let signed_height = emf_uint(record, bmi + 8, 4)
-  guard width > 0 && width <= 4096 && signed_height != -2147483648 else {
+  guard width > 0 &&
+    width <= @layout.ImageDimension &&
+    signed_height != -2147483648 else {
     @failure.reject("limit-exceeded", "EMF bitmap dimensions exceed budget")
   }
   let height = signed_height.abs()
   guard height > 0 &&
-    height <= 4096 &&
-    width.to_int64() * height.to_int64() <= 4194304 &&
+    height <= @layout.ImageDimension &&
+    width.to_int64() * height.to_int64() <= (@layout.ImageBytes / 4).to_int64() &&
     width * height * 4 <= bits_size &&
     emf_uint(record, 100, 4) == width &&
     emf_uint(record, 104, 4) == height else {

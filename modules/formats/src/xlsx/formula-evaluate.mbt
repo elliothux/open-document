@@ -50,14 +50,14 @@ fn comparable(left : Value, right : Value) -> Int32 {
 ///|
 fn calculated_cell(
   sheets : Array[Sheet],
-  values : Map[(Int32, String), Value],
+  values : Map[(Int32, Address), Value],
   sheet : Int32,
   address : Address,
 ) -> Value raise @failure.Failure {
-  let name = address.name()
-  if values.get((sheet, name)) is Some(value) {
+  if values.get((sheet, address)) is Some(value) {
     return value
   }
+  let name = address.name()
   match sheets[sheet].cells.get(name) {
     Some(cell) => {
       guard cell.formula is None else {
@@ -80,7 +80,7 @@ fn Expression::evaluate(
   self : Expression,
   sheets : Array[Sheet],
   sheet : Int32,
-  values : Map[(Int32, String), Value],
+  values : Map[(Int32, Address), Value],
   work : FormulaWork,
   depth : Int32,
   hyperlink~ : Ref[String?]? = None,
@@ -239,7 +239,7 @@ fn Expression::evaluate(
       friendly.map(formula_result).unwrap_or(Text(target))
     }
     Function(name, args) if [
-        "AND", "OR", "NOT", "IFERROR", "IFNA", "ISBLANK", "ISNUMBER", "ISTEXT",
+        "AND", "OR", "XOR", "NOT", "IFERROR", "IFNA", "ISBLANK", "ISNUMBER", "ISTEXT",
       ].contains(name) =>
       logical_function(
         name,
@@ -338,7 +338,7 @@ fn Expression::evaluate(
                 "Formula range contains an unsupported cell value: " + key,
               )
             }
-            let value = values.get((target, key)).unwrap_or(cell.value)
+            let value = values.get((target, cell.address)).unwrap_or(cell.value)
             match value {
               Number(value) => numbers.push(value)
               Error(error) if name != "COUNT" => return Error(error)

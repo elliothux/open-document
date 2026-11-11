@@ -1,4 +1,13 @@
 ///|
+pub const ValidationFormulaUnits : Int32 = 8192
+
+///|
+pub const ValidationTitleUnits : Int32 = 32
+
+///|
+pub const ValidationMessageUnits : Int32 = 255
+
+///|
 pub(all) struct DataValidation {
   kind : String
   operator : String
@@ -13,13 +22,16 @@ pub(all) struct DataValidation {
   promptTitle : String
   prompt : String
   showDropDown : Bool
-} derive(Eq, ToJson)
+} derive(Eq, ToJson, @json.FromJson)
 
 ///|
 pub extend DataValidation with Eq::{equal, not_equal}
 
 ///|
 pub extend DataValidation with ToJson::{to_json}
+
+///|
+pub extend DataValidation with @json.FromJson::{from_json}
 
 ///|
 pub fn DataValidation::default() -> DataValidation {
@@ -86,8 +98,8 @@ fn validation_settings(
   }
   let formula1 = tree.one(node.id, "formula1").map(n => n.text).unwrap_or("")
   let formula2 = tree.one(node.id, "formula2").map(n => n.text).unwrap_or("")
-  guard formula1.length() <= 8192 &&
-    formula2.length() <= 8192 &&
+  guard formula1.length() <= ValidationFormulaUnits &&
+    formula2.length() <= ValidationFormulaUnits &&
     (
       kind == "none" ||
       (
@@ -133,11 +145,13 @@ fn DataValidation::check_metadata(
     ].contains(self.operator) &&
     ["stop", "warning", "information"].contains(self.errorStyle) &&
     [self.errorTitle, self.promptTitle].all(s => {
-      s.length() <= 32 && @xml.valid_text(s)
+      s.length() <= ValidationTitleUnits && @xml.valid_text(s)
     }) &&
-    [self.error, self.prompt].all(s => s.length() <= 255 && @xml.valid_text(s)) &&
+    [self.error, self.prompt].all(s => {
+      s.length() <= ValidationMessageUnits && @xml.valid_text(s)
+    }) &&
     [self.formula1, self.formula2].all(s => {
-      s.length() <= 8192 && @xml.valid_text(s)
+      s.length() <= ValidationFormulaUnits && @xml.valid_text(s)
     }) &&
     (
       self.kind == "none" ||

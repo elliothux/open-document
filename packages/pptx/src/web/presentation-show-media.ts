@@ -6,6 +6,7 @@ import {
   type PptxShowMediaChange,
 } from "../core/pptx.js";
 import type { DrawCommand } from "@open-document/wasm/abi/drawing";
+import { pptxMediaVolumeMax } from "@open-document/wasm/engine-source";
 import type { PptxClient } from "./pptx.js";
 
 export interface PresentationMediaLabels {
@@ -301,7 +302,7 @@ export class PresentationShowMedia {
   }
   private apply(media: PptxShowMediaState, player: Player): void {
     player.video.loop = media.playback.loop;
-    player.video.volume = media.playback.volume / 100000;
+    player.video.volume = media.playback.volume / pptxMediaVolumeMax;
     player.video.muted = media.playback.mute;
     if (player.failed || player.closed || player.video.readyState < 2) return;
     const want =

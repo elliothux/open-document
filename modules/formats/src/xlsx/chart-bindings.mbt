@@ -1,4 +1,7 @@
 ///|
+pub const ChartReferenceUnits : Int32 = 1024
+
+///|
 let chart_uri = "http://schemas.openxmlformats.org/drawingml/2006/chart"
 
 ///|
@@ -45,7 +48,7 @@ fn Session::chart_reference_range(
   owner : String,
   work : FormulaWork,
 ) -> (Int32, Range) raise @failure.Failure {
-  guard formula.length() <= 1024 &&
+  guard formula.length() <= ChartReferenceUnits &&
     parse_formula(formula) is Reference(target, first, last) else {
     @failure.reject(
       "unsupported-chart", "Chart data requires a worksheet cell range",
@@ -69,7 +72,14 @@ fn Session::chart_reference_values(
   formula : String,
   owner : String,
   work : FormulaWork,
+  inputs~ : ChartInputs? = None,
 ) -> Array[Value] raise @failure.Failure {
+  if inputs is Some(inputs) &&
+    !inputs.pending &&
+    inputs.references.get(formula) is Some(cells) {
+    work.spend(amount=cells.length())
+    return cells.map(cell => cell.value)
+  }
   let (index, range) = self.chart_reference_range(formula, owner, work)
   let sheet = self.sheets[index]
   Array::makei(range.bottom - range.top + range.right - range.left + 1, offset => {
@@ -86,7 +96,7 @@ fn Session::chart_reference_values(
       )
     }
     let calculated = self.calculation.bind(calculation => {
-      calculation.values.get((index, name))
+      calculation.values.get((index, address))
     })
     guard cell.bind(cell => cell.formula) is None || calculated is Some(_) else {
       @failure.reject("unsupported-chart", "Chart formulas must be calculated")
@@ -114,6 +124,7 @@ fn Session::resolved_chart(
   owner : String,
   chart : @chart.WorksheetChart,
   work : FormulaWork,
+  inputs~ : ChartInputs? = None,
 ) -> @chart.WorksheetChart raise @failure.Failure {
   let categories = if broken_chart_reference(chart.categories) ||
     (
@@ -122,13 +133,16 @@ fn Session::resolved_chart(
     ) {
     chart.data.categories
   } else {
-    self.chart_reference_values(chart.categories, owner, work).map(chart_label)
+    self
+    .chart_reference_values(chart.categories, owner, work, inputs~)
+    .map(chart_label)
   }
   let series = chart.names.mapi((index, formula) => {
     let name = if formula.is_empty() || broken_chart_reference(formula) {
       chart.data.series[index].name
     } else {
-      guard self.chart_reference_values(formula, owner, work) is [title] else {
+      guard self.chart_reference_values(formula, owner, work, inputs~)
+        is [title] else {
         @failure.reject(
           "unsupported-chart", "Chart series title requires one cell",
         )
@@ -140,7 +154,7 @@ fn Session::resolved_chart(
         value.map(value => Value::Number(value)).unwrap_or(Blank)
       })
     } else {
-      self.chart_reference_values(chart.values[index], owner, work)
+      self.chart_reference_values(chart.values[index], owner, work, inputs~)
     }
     @layout.ChartSeries::{
       name: if name.is_empty() {
@@ -164,7 +178,7 @@ fn Session::resolved_chart(
       bubble.size_sources.mapi((index, source) => {
         if source is Some(source) && !broken_chart_reference(source) {
           self
-          .chart_reference_values(source, owner, work)
+          .chart_reference_values(source, owner, work, inputs~)
           .map(value => {
             match value {
               Number(number) => Some(number)
@@ -214,6 +228,8 @@ fn Session::maintain_charts(
     names: calculation.names,
   }
   let seen : Set[String] = Set([])
+  let relationship_namespace = relationship_uri[:relationship_uri.length() - 1].to_owned()
+  let mut original_drawing : (String, @xml.Document)? = None
   for link in links {
     if link.external || link.kind != relationship_uri + "chart" {
       continue
@@ -222,17 +238,25 @@ fn Session::maintain_charts(
       is Some(drawing) else {
       continue
     }
-    if !view
-      .part_xml(link.owner)
+    // Read candidate replacements first and reuse only the immutable archive part.
+    let document = parts
+      .get(link.owner)
+      .unwrap_or_else(() => {
+        match original_drawing {
+          Some((owner, document)) if owner == link.owner => document
+          _ => {
+            let document = self.opc.xml(link.owner)
+            original_drawing = Some((link.owner, document))
+            document
+          }
+        }
+      })
+    if !document
       .nodes()
       .any(node => {
         node.uri == chart_uri &&
         node.name == "chart" &&
-        node.attribute(
-          "id",
-          uri=relationship_uri[:relationship_uri.length() - 1].to_owned(),
-        ) ==
-        Some(link.id)
+        node.attribute("id", uri=relationship_namespace) == Some(link.id)
       }) {
       continue
     }
@@ -244,22 +268,25 @@ fn Session::maintain_charts(
     seen.add(link.target)
     let original = view.part_xml(link.target)
     let chart = @chart.read_worksheet(link.target, original)
-    let (pending, inputs) = view.chart_input_state(drawing.owner, chart, work)
-    if calculation.manual &&
-      !recalculate &&
-      inputs.any(input => input.3 is Some(_)) {
+    let inputs = view.chart_input_state(drawing.owner, chart, work)
+    if calculation.manual && !recalculate && inputs.has_formula {
       continue
     }
-    if pending {
+    if inputs.pending {
       guard self.part_xml(link.target).source() == original.source() &&
-        self.chart_input_state(drawing.owner, chart, work) == (true, inputs) else {
+        self.chart_input_state(drawing.owner, chart, work) == inputs else {
         @failure.reject(
           "protected-content", "Change affects an uncalculated chart source",
         )
       }
       continue
     }
-    let next = view.resolved_chart(drawing.owner, chart, work)
+    let next = view.resolved_chart(
+      drawing.owner,
+      chart,
+      work,
+      inputs=Some(inputs),
+    )
     if next.data == chart.data &&
       next.native_bubble.map(bubble => bubble.sizes) ==
       chart.native_bubble.map(bubble => bubble.sizes) {

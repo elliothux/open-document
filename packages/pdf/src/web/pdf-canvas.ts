@@ -1,17 +1,15 @@
 import type { PdfLayout } from "../core/pdf.js";
 import { CanvasSurface } from "@open-document/web-core/canvas-surface";
 import { documentFailure } from "@open-document/web-core/connection";
-import { decodeImage } from "@open-document/web-core/image";
+import {
+  imageBitmapFromPixels,
+  materializeImage,
+} from "@open-document/web-core/image";
 import type { PdfClient } from "./pdf.js";
 
 export class PdfCanvas extends CanvasSurface {
-  private disposed = false;
-  constructor() {
-    super("pdf");
-  }
   async prepare(client: PdfClient, layout: PdfLayout): Promise<void> {
-    for (const image of this.images.values()) image.close();
-    this.images.clear();
+    this.retainImages(new Set());
     try {
       for (const key of layout.images) {
         let resource = await client.execute({
@@ -20,7 +18,11 @@ export class PdfCanvas extends CanvasSurface {
           key,
         });
         if (resource.kind === "jpeg") {
-          const decoded = await decodeImage(resource.bytes);
+          const decoded = await materializeImage({
+            kind: "encoded",
+            bytes: resource.bytes,
+            header: resource.header,
+          });
           try {
             resource = await client.execute({
               operation: "decodedImagePdf",
@@ -34,20 +36,15 @@ export class PdfCanvas extends CanvasSurface {
             decoded.bitmap.close();
           }
         }
-        const rgba = new Uint8ClampedArray(resource.bytes.length);
-        rgba.set(resource.bytes);
-        const bitmap = await createImageBitmap(
-          new ImageData(rgba, resource.width, resource.height),
+        const bitmap = await imageBitmapFromPixels(
+          resource.width,
+          resource.height,
+          resource.bytes,
         );
-        if (this.disposed) {
-          bitmap.close();
-          throw new Error("PDF canvas is disposed");
-        }
-        this.images.set(key, bitmap);
+        this.cacheImage(key, bitmap);
       }
     } catch (error) {
-      for (const bitmap of this.images.values()) bitmap.close();
-      this.images.clear();
+      this.retainImages(new Set());
       throw documentFailure("image", error);
     }
   }
@@ -61,9 +58,5 @@ export class PdfCanvas extends CanvasSurface {
       context.closePath();
       context.fill();
     }
-  }
-  override dispose(): void {
-    this.disposed = true;
-    super.dispose();
   }
 }

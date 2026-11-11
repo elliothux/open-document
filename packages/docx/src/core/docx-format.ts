@@ -1,21 +1,20 @@
-import { record, arrayOf } from "@open-document/wasm/abi/validation";
-import { checkDocxColumns, type DocxColumns } from "./docx-columns.js";
+import { record } from "@open-document/wasm/abi/validation";
 import {
-  checkDocxCellSelection,
-  type DocxCellSelection,
-} from "./docx-cell-selection.js";
+  docxHyperlinkTargetUnits,
+  docxNumberingStartMax,
+  docxTextCommandUnits,
+  tabStopCount,
+} from "@open-document/wasm/engine-source";
+import type { DocxColumns } from "./docx-columns.js";
+import { type DocxCellSelection } from "./docx-cell-selection.js";
 export { checkDocxColumns, type DocxColumns } from "./docx-columns.js";
 import type { DocxSelection } from "./docx-hit.js";
-import { isDocxSelection } from "./docx-search.js";
 import {
-  checkDocxCellMargins,
-  checkDocxBorders,
   type DocxCellMargins,
   type DocxCellBorders,
   type DocxTableBorders,
 } from "./docx-table.js";
 import {
-  isListReference,
   listFormats,
   type ListFormat,
   type DocxListReference,
@@ -36,11 +35,7 @@ export function copiedFormat(value: unknown): CopiedFormat {
   return value as CopiedFormat;
 }
 
-import {
-  checkPageSetup,
-  checkSectionBreak,
-  type DocxPageSetup,
-} from "./docx-sections.js";
+import type { DocxPageSetup } from "./docx-sections.js";
 export {
   checkPageSection,
   checkPageSetup,
@@ -77,7 +72,7 @@ export function checkPageNumbering(value: unknown): void {
       (typeof numbering.start !== "number" ||
         !Number.isInteger(numbering.start) ||
         numbering.start < 0 ||
-        numbering.start > 4294967295)) ||
+        numbering.start > docxNumberingStartMax)) ||
     typeof numbering.format !== "string" ||
     numbering.format === "bullet" ||
     !listFormats.some((format) => format === numbering.format)
@@ -85,7 +80,7 @@ export function checkPageNumbering(value: unknown): void {
     throw new Error("Invalid DOCX page numbering");
 }
 
-import { checkPageBorders, type DocxPageBorders } from "./docx-page-borders.js";
+import type { DocxPageBorders } from "./docx-page-borders.js";
 export {
   checkPageBorders,
   type DocxPageBorder,
@@ -100,122 +95,6 @@ export function checkPageBackground(color: unknown): void {
     throw new Error("Invalid DOCX page background");
 }
 
-export function docxPageSettings(value: unknown): DocxPageSettings {
-  const result = record(value);
-  const column = record(result.columns);
-  checkDocxColumns(column.value);
-  if (
-    typeof column.reason !== "string" ||
-    (column.value === null) !== !!column.reason ||
-    (column.value === null
-      ? column.availableWidth !== null
-      : typeof column.availableWidth !== "number" ||
-        !Number.isFinite(column.availableWidth) ||
-        column.availableWidth < 12 ||
-        column.availableWidth > 14400)
-  )
-    throw new Error("Invalid DOCX column settings");
-  const columns = {
-    value: column.value as DocxColumns | null,
-    reason: column.reason,
-    availableWidth:
-      column.availableWidth === null ? null : Number(column.availableWidth),
-  };
-  const numbering = record(result.numbering);
-  checkPageNumbering(numbering.value);
-  if (
-    typeof numbering.reason !== "string" ||
-    (numbering.value === null) !== !!numbering.reason
-  )
-    throw new Error("Invalid DOCX page numbering settings");
-  const numbers = {
-    value: numbering.value as DocxPageNumbering | null,
-    reason: numbering.reason,
-  };
-  const border = record(result.borders);
-  checkPageBorders(border.value);
-  if (border.value === null || typeof border.reason !== "string")
-    throw new Error("Invalid DOCX page border settings");
-  const borders = {
-    value: border.value as DocxPageBorders,
-    reason: border.reason,
-  };
-  const background = record(result.background);
-  checkPageBackground(background.color);
-  if (
-    typeof background.reason !== "string" ||
-    (background.reason && background.color !== null)
-  )
-    throw new Error("Invalid DOCX page background settings");
-  const paint = {
-    color: background.color === null ? null : String(background.color),
-    reason: background.reason,
-  };
-  if (
-    !Number.isSafeInteger(result.revision) ||
-    Number(result.revision) < 0 ||
-    !Number.isSafeInteger(result.sectionCount) ||
-    Number(result.sectionCount) < 0 ||
-    Number(result.sectionCount) > 1024 ||
-    typeof result.reason !== "string"
-  )
-    throw new Error("Invalid DOCX page settings");
-  if (result.page === null) {
-    if (!result.reason) throw new Error("Missing page setup reason");
-    return {
-      revision: Number(result.revision),
-      sectionCount: Number(result.sectionCount),
-      page: null,
-      reason: result.reason,
-      background: paint,
-      borders,
-      numbering: numbers,
-      columns,
-    };
-  }
-  const page = record(result.page);
-  const startType = page.startType;
-  checkSectionBreak(startType);
-  const footnotesAt = page.footnotesAt;
-  if (footnotesAt !== "pageBottom" && footnotesAt !== "beneathText")
-    throw new Error("Invalid footnote placement");
-  const setup: DocxPageSetup = {
-    section: Number(page.section),
-    startType,
-    footnotesAt,
-    width: Number(page.width),
-    height: Number(page.height),
-    top: Number(page.top),
-    right: Number(page.right),
-    bottom: Number(page.bottom),
-    left: Number(page.left),
-  };
-  if (
-    Object.keys(page).length !== 9 ||
-    setup.section >= Number(result.sectionCount) ||
-    !Object.entries(page).every(
-      ([key, value]) =>
-        key === "startType" ||
-        key === "footnotesAt" ||
-        typeof value === "number",
-    ) ||
-    result.reason
-  )
-    throw new Error("Invalid DOCX page settings");
-  checkPageSetup(setup);
-  return {
-    revision: Number(result.revision),
-    sectionCount: Number(result.sectionCount),
-    page: setup,
-    reason: "",
-    background: paint,
-    borders,
-    numbering: numbers,
-    columns,
-  };
-}
-
-/** Omitted metadata is retained; null basedOn removes the direct base reference. */
 export interface DocxStyleUpdate extends CopiedFormat {
   name?: string;
   basedOn?: string | null;
@@ -340,7 +219,7 @@ export function checkDefaultTabStop(value: unknown): void {
 }
 
 export function checkTabStops(value: unknown): void {
-  if (!Array.isArray(value) || value.length > 64)
+  if (!Array.isArray(value) || value.length > tabStopCount)
     throw new Error("Invalid tab stops");
   let previous = -1;
   for (const entry of value) {
@@ -515,123 +394,12 @@ function lineSpacing(value: unknown): boolean {
     Number.isFinite(spacing.value)
   );
 }
-export function docxFormatting(value: unknown): DocxFormatting {
-  const result = record(value),
-    character = record(result.character),
-    paragraph = record(result.paragraph);
-  const hyperlink = record(result.hyperlink);
-  checkDocxCellSelection(result.cellSelection);
-  checkDocxHyperlink(hyperlink.target);
-  if (
-    typeof hyperlink.mixed !== "boolean" ||
-    typeof hyperlink.reason !== "string" ||
-    (hyperlink.mixed && hyperlink.target !== null)
-  )
-    throw new Error("Invalid DOCX hyperlink query");
-  const table = record(result.table ?? {});
-  if (result.table !== null) {
-    for (const [name, whole] of [
-      ["cellBorders", false],
-      ["tableBorders", true],
-    ] as const) {
-      checkDocxBorders(table[name], whole);
-      if (Object.keys(record(table[name])).length !== (whole ? 6 : 4))
-        throw new Error("Incomplete border query");
-    }
-    checkDocxCellMargins(table.cellMargins);
-    checkDocxCellMargins(table.tableMargins);
-    if (!["left", "center", "right"].includes(String(table.align)))
-      throw new Error("Invalid table alignment");
-  }
-  const field = (value: unknown, type: string): boolean => {
-    const item = record(value);
-    if (item.kind === "value" && type === "list")
-      return item.value === null || isListReference(item.value);
-    if (item.kind === "value" && type === "tabs") {
-      checkTabStops(item.value);
-      return true;
-    }
-    return (
-      item.kind === "mixed" ||
-      (item.kind === "unavailable" && typeof item.reason === "string") ||
-      (item.kind === "value" &&
-        typeof item.value === type &&
-        (type !== "number" || Number.isFinite(item.value)) &&
-        (type !== "object" || lineSpacing(item.value)))
-    );
-  };
-  if (
-    !Number.isSafeInteger(result.revision) ||
-    Number(result.revision) < 0 ||
-    typeof result.reason !== "string" ||
-    typeof result.inputReason !== "string" ||
-    typeof result.fontReason !== "string" ||
-    typeof result.paragraphReason !== "string" ||
-    (result.table !== null &&
-      (typeof table.autoFit !== "boolean" ||
-        typeof table.rowSplit !== "boolean" ||
-        !["id", "row", "column", "columns", "rows", "headerRows"].every(
-          (key) =>
-            Number.isSafeInteger(table[key]) &&
-            Number(table[key]) >= 0 &&
-            Number(table[key]) <= 2147483647,
-        ) ||
-        Number(table.columns) < 1 ||
-        Number(table.rows) < 1 ||
-        Number(table.row) >= Number(table.rows) ||
-        Number(table.column) >= Number(table.columns) ||
-        !Array.isArray(table.columnWidths) ||
-        table.columnWidths.length !== Number(table.columns) ||
-        !table.columnWidths.every(
-          (width: unknown) =>
-            typeof width === "number" && Number.isFinite(width) && width > 0,
-        ) ||
-        Number(table.headerRows) > Number(table.rows) ||
-        !["atLeast", "exact"].includes(String(table.rowHeightRule)) ||
-        !["top", "center", "bottom"].includes(
-          String(table.cellVerticalAlign),
-        ) ||
-        (table.cellFill !== null &&
-          (typeof table.cellFill !== "string" ||
-            !/^[0-9a-f]{6}$/i.test(table.cellFill))) ||
-        !["width", "rowHeight", "maxWidth", "maxRowHeight"].every(
-          (key) =>
-            typeof table[key] === "number" &&
-            Number.isFinite(table[key]) &&
-            Number(table[key]) >= 0,
-        ))) ||
-    !field(result.list, "list") ||
-    !["style", "family", "color", "highlight", "vertAlign"].every((key) =>
-      field(character[key], "string"),
-    ) ||
-    !field(character.size, "number") ||
-    !field(character.spacing, "number") ||
-    !["bold", "italic", "underline", "strike"].every((key) =>
-      field(character[key], "boolean"),
-    ) ||
-    !field(paragraph.style, "string") ||
-    !field(paragraph.align, "string") ||
-    !field(paragraph.rtl, "boolean") ||
-    !["before", "after", "left", "right", "first"].every((key) =>
-      field(paragraph[key], "number"),
-    ) ||
-    !field(paragraph.pageBreakBefore, "boolean") ||
-    !field(paragraph.keepLines, "boolean") ||
-    !field(paragraph.keepNext, "boolean") ||
-    !field(paragraph.widowControl, "boolean") ||
-    !field(paragraph.line, "object") ||
-    !field(paragraph.tabs, "tabs")
-  )
-    throw new Error("Invalid DOCX formatting returned by Wasm");
-  return value as DocxFormatting;
-}
-
 export function checkDocxHyperlink(target: unknown, text?: unknown): void {
   if (
     target !== null &&
     (typeof target !== "string" ||
       !target.isWellFormed() ||
-      target.length > 2048 ||
+      target.length > docxHyperlinkTargetUnits ||
       (!/^(https?:\/\/|mailto:).+/i.test(target) &&
         !/^#[A-Za-z_][A-Za-z0-9_]{0,39}$/.test(target)) ||
       /\s/u.test(target) ||
@@ -650,7 +418,7 @@ export function checkDocxHyperlink(target: unknown, text?: unknown): void {
       typeof text !== "string" ||
       !text ||
       !text.isWellFormed() ||
-      text.length > 65536 ||
+      text.length > docxTextCommandUnits ||
       Array.from(text).some(
         (c) =>
           c.charCodeAt(0) <= 31 || c === "\u2028" || c.charCodeAt(0) >= 65534,
@@ -682,49 +450,6 @@ export interface CreatedDocxStyle {
   state: EditState;
 }
 
-export function createdDocxStyle(value: unknown): CreatedDocxStyle {
-  const result = record(value);
-  if (typeof result.id !== "string" || !result.id || result.id.length > 200)
-    throw new Error("Invalid created style identity");
-  return { id: result.id, state: editState(result.state) };
-}
-
-export function editState(value: unknown): EditState {
-  const object = record(value);
-  const integer = (value: unknown): boolean =>
-    typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
-  if (object.formatting !== null) docxFormatting(object.formatting);
-  if (
-    ![
-      "revision",
-      "historyBytes",
-      "historyEntries",
-      "historyEntryLimit",
-      "historyByteLimit",
-      "commandLimit",
-    ].every((key) => integer(object[key])) ||
-    (object.compositionId !== null &&
-      (!integer(object.compositionId) || Number(object.compositionId) === 0)) ||
-    (object.drawingGestureId !== null &&
-      (!integer(object.drawingGestureId) ||
-        Number(object.drawingGestureId) === 0 ||
-        Number(object.drawingGestureId) > 2147483647 ||
-        object.compositionId !== null)) ||
-    typeof object.canUndo !== "boolean" ||
-    typeof object.canRedo !== "boolean" ||
-    (object.readOnlyReason !== undefined &&
-      typeof object.readOnlyReason !== "string") ||
-    typeof object.defaultTabStop !== "number" ||
-    object.defaultTabStop < 0 ||
-    object.defaultTabStop > 1584 ||
-    !Number.isInteger(object.defaultTabStop * 20) ||
-    !arrayOf(object.affectedParagraphs, integer) ||
-    (object.selection !== null && !isDocxSelection(object.selection))
-  )
-    throw new Error("Invalid DOCX editing state returned by Wasm");
-  return value as EditState;
-}
-
 export interface DocxStyleCatalog {
   revision: number;
   truncated: boolean;
@@ -737,29 +462,4 @@ export interface DocxStyleCatalog {
     canReset: boolean;
     linked: boolean;
   }[];
-}
-
-export function docxStyleCatalog(value: unknown): DocxStyleCatalog {
-  const catalog = record(value);
-  if (
-    !Number.isSafeInteger(catalog.revision) ||
-    Number(catalog.revision) < 0 ||
-    typeof catalog.truncated !== "boolean" ||
-    !Array.isArray(catalog.styles) ||
-    catalog.styles.length > 1024 ||
-    !catalog.styles.every((value) => {
-      const style = record(value);
-      return (
-        typeof style.id === "string" &&
-        typeof style.name === "string" &&
-        typeof style.reason === "string" &&
-        typeof style.basedOn === "string" &&
-        typeof style.canDelete === "boolean" &&
-        typeof style.canReset === "boolean" &&
-        typeof style.linked === "boolean"
-      );
-    })
-  )
-    throw new Error("Invalid DOCX style catalog");
-  return value as DocxStyleCatalog;
 }

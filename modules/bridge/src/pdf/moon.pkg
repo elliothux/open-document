@@ -2,8 +2,24 @@ import {
   "open_document/core/failure",
   "open_document/formats/pdf" @model,
   "open_document/formats/pdf-convert" @convert,
-  "open_document/core/archive",
   "open_document/layout",
   "open_document/bridge/common",
-  "moonbitlang/core/encoding/base64",
+  "moonbitlang/core/json",
 }
+
+options(
+  link: {
+    "wasm-gc": {
+      "exports": [
+        "abi_version",
+        "new_context:pdf_new",
+        "call_wire:pdf_call",
+        "take_output:pdf_output",
+        "add_font:pdf_add_font",
+        "close:pdf_close",
+      ],
+      "use-js-builtin-string": true,
+      "imported-string-constants": "_",
+    },
+  },
+)

@@ -1,4 +1,4 @@
-import { record, integer } from "@open-document/wasm/abi/validation";
+import { record } from "@open-document/wasm/abi/validation";
 
 export interface PptxConnectorEnd {
   x: number;
@@ -63,39 +63,4 @@ export function checkPptxConnectorEdit(value: Record<string, unknown>): void {
     throw new Error("Invalid connector kind");
   endpoint(value.start);
   endpoint(value.end);
-}
-export function checkPptxConnectorQuery(
-  value: unknown,
-  siteCount: unknown,
-): void {
-  if (!integer(siteCount, 0, 256))
-    throw new Error("Invalid connection site count");
-  if (value === null) return;
-  const connector = record(value);
-  if (typeof connector.reason !== "string")
-    throw new Error("Invalid connector reason");
-  if (connector.start === null || connector.end === null) {
-    if (
-      connector.start !== null ||
-      connector.end !== null ||
-      connector.kind !== null ||
-      !connector.reason
-    )
-      throw new Error("Missing connector endpoints");
-  } else {
-    if (
-      connector.kind !== "straight" &&
-      connector.kind !== "rightAngle" &&
-      connector.kind !== "elbow" &&
-      connector.kind !== "elbow4" &&
-      connector.kind !== "elbow5" &&
-      connector.kind !== "curved" &&
-      connector.kind !== "curved2" &&
-      connector.kind !== "curved4" &&
-      connector.kind !== "curved5"
-    )
-      throw new Error("Invalid connector kind");
-    endpoint(connector.start);
-    endpoint(connector.end);
-  }
 }

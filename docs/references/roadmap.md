@@ -42,21 +42,21 @@
 | [P12 PPTX 核心功能](../implemented/p12-pptx-core.md) | 页面/对象、母版/文本、复合内容、放映媒体与输出 | P0 | `implemented`；五批最低范围已交付，复杂效果和导入变体归 P14 |
 | [P13 PDF 核心功能](../implemented/p13-pdf-core.md) | 创建/阅读、页面/内容、批注/表单、脱敏与转换 | P0 | `implemented`；六批最低范围已交付，复杂 PDF 兼容归 P14 |
 | [P14 兼容与性能](../implemented/p14-compatibility-performance.md) | 扩大真实文件覆盖，使复杂/大文件操作可用 | P1 | `implemented`；七个兼容批次、真实文件编辑与输出，以及 DOCX 首次布局优化 |
-| [R2 架构精简、核心下沉与性能重构](../r2-architecture-and-performance.md) | 清理重复校验与转发胶水，二进制直通，渲染与图像逻辑下沉 MoonBit，核心算法提速与单格式 Wasm 拆分 | P0 / P1 | `planned`；R2.1–R2.3 优先实施，R2.4–R2.5 与 C1 配合推进 |
+| [R2 架构精简、核心下沉与性能重构](../implemented/r2-architecture-and-performance.md) | 消除核心重算并缓存解析结果，统一命令协议与校验瘦身，渲染与图像逻辑下沉 MoonBit，响应合并与增量传输，排版/计算热点，单格式 Wasm 拆分与文档瘦身 | P0 / P1 | `implemented`。七个批次及登记兼容性复核已完成 |
 | [C0 真实文件可用性与兼容补齐](../implemented/c0-real-file-compatibility.md) | 首批 51 份候选文件能打开、主要内容可见，已支持操作可安全保存 | P0 / P1 | `implemented`；48 份正向与 3 份控制符合预期，128 条登记浏览器流程通过 |
 | [C1 兼容矩阵整合、开源语料引入与多生产工具覆盖](../c1-corpus-and-producer-compatibility.md) | 统一兼容账本、局部特性分级降级、接入 IronCalc/Calamine/Open-XML-SDK 等测试集及多生产工具/CJK 样本 | P0 / P1 | `planned`；承接 C0，系统化扩大真实文件与标准向量覆盖 |
 | [P15 次要与外围能力](../p15-peripheral-capabilities.md) | 原生 Diff、AI 命令事务、OCR/校对 Provider、PDF 签名与协作原语接入 | P2 | `planned`；在 R2、C0/C1 及 P16.1 核心独立闭环后逐项接入 |
-| [P16 跨宿主与非浏览器运行时](../p16-cross-host-runtime.md) | 无浏览器核心闭环、CLI 和一个明确的非浏览器宿主复用同一核心 | P2 | `planned`；P16.1 核心独立性探针前置到 P15 之前，P16.2–P16.3 最后实施 |
+| [P16 跨宿主与非浏览器运行时](../p16-cross-host-runtime.md) | 无浏览器核心闭环、CLI 和一个明确的非浏览器宿主复用同一核心 | P2 | P16.1 核心独立性探针已通过；P16.2–P16.3 `planned` |
 
 **分步推进顺序：**
 
-1. **第一步（架构减负与逻辑下沉）**：执行 [R2.1–R2.3](../r2-architecture-and-performance.md)，移除 TS 对 Wasm 输出的冗余校验，拍平 DOCX/XLSX 伪继承链，打通 `Uint8Array` / `Transferable` 二进制传输与字形轮廓增量下发，并将 `pdf-pixels.ts` 几何特判与图像头部解析收归 MoonBit。
+1. **第一步（消除重算与协议精简）**：[R2.1–R2.2](../implemented/r2-architecture-and-performance.md) 已交付核心缓存和命令协议。R2.7 完成文档拆分、历史迁移与证据索引。
 2. **第二步（分级降级基线）**：[C0](../implemented/c0-real-file-compatibility.md) 已完成首批登记范围，继续落地 [C1.1](../c1-corpus-and-producer-compatibility.md) 的局部不支持特性分级降级（Graceful Degradation）与历史测试账本去重归并。
-3. **第三步（开源语料扩充与核心性能攻坚）**：并行推进 [C1.2–C1.5](../c1-corpus-and-producer-compatibility.md)（接入 `IronCalc`、`calamine`、`Open-XML-SDK`、`excelize`、`ONLYOFFICE` 剩余样本及多生产工具/CJK 语料）与 [R2.4–R2.5](../r2-architecture-and-performance.md)（DOCX O(1) 段落缓存键与多节分页缓存、XLSX 强类型坐标与空间索引、单格式 Wasm 拆分编译）。
-4. **第四步（无浏览器核心闭环探针）**：执行 [P16.1](../p16-cross-host-runtime.md)，在无 DOM/Canvas 的纯 Wasm 环境跑通四格式含图打开、编辑、重算、排版与 PDF/原格式输出，锁死核心与宿主边界。
+3. **第三步（开源语料扩充与核心性能攻坚）**：推进 [C1.2–C1.6](../c1-corpus-and-producer-compatibility.md)，接入公式向量、布局对照及多生产工具和 CJK 语料。[R2.4–R2.6](../implemented/r2-architecture-and-performance.md) 已交付增量传输、排版与计算缓存、单格式 Wasm 和字体共享。
+4. **第四步（无浏览器核心闭环探针）**：[P16.1](../p16-cross-host-runtime.md) 已在固定构建中通过。该探针覆盖无 DOM/Canvas 的四格式含图打开、编辑、重算、排版和输出。[R2.3](../implemented/r2-architecture-and-performance.md) 已交付核心渲染策略和图像处理。
 5. **第五步（外围能力与跨宿主交付）**：按 [P15.1–P15.5](../p15-peripheral-capabilities.md) 接入原生 Diff、AI 批量事务、OCR/校对 Provider、PDF 签名与协作原语，最后完成 [P16.2–P16.3](../p16-cross-host-runtime.md) 的 CLI 与非浏览器宿主绑定。
 
-跨格式工程重构 [R1 领域拆包与共享 Wasm 加载](../implemented/r1-domain-packages-shared-wasm.md)已完成。四格式有独立 package 和前端入口，共用唯一 Wasm 与公共 Loader；[R2](../r2-architecture-and-performance.md) 在此基础上进一步清理内部胶水并支持单格式 Wasm 产物。
+跨格式工程重构 [R1 领域拆包与共享 Wasm 加载](../implemented/r1-domain-packages-shared-wasm.md)已完成。四格式有独立 package 和前端入口，共用全格式 Wasm 与公共 Loader。[R2](../implemented/r2-architecture-and-performance.md) 提供单格式 Wasm 产物并统一内部命令边界。
 
 ### P9 Web SDK 与默认 UI（已完成）
 
@@ -76,7 +76,7 @@
 
 交付结果归 [P13](../implemented/p13-pdf-core.md)。创建/阅读、页面整理、正文/叠加、批注/表单、真实脱敏、输出/转换六批最低范围已交付。基于 R1 的领域包与共享 Wasm，扩展现有源对象事务和多页资源；PDF → Office 在 MoonBit 中复用 P10–P12 的创建与保存。真实脱敏使用独立清理输出，普通删除和裁剪不承担脱敏语义。
 
-当前 API 与保护边界归[格式合同](formats.md#pdf-输入与文档操作)，定向证据归[测试说明](testing.md)。更广文件兼容归 P14；OCR 和证书签名归 P15。已有签名、资源和完整性保护随核心功能保留。
+当前 API 与保护边界归[格式合同](formats/pdf.md#pdf-输入与文档操作)，定向证据归[测试说明](testing.md)。更广文件兼容归 P14；OCR 和证书签名归 P15。已有签名、资源和完整性保护随核心功能保留。
 
 ### P14 兼容与性能（已完成）
 
@@ -100,7 +100,7 @@
 
 复用同一 MoonBit 核心完成无浏览器环境的真实读取、编辑、计算、排版、保存与 PDF 输出。详细分批计划归 [P16 方案](../p16-cross-host-runtime.md)。
 
-`P16.1 无浏览器核心独立性闭环` 前置到 [R2.3](../r2-architecture-and-performance.md) 之后执行，验证在禁用浏览器 DOM/Canvas/Image 全局对象的运行时中完成四格式操作与输出；`P16.2 CLI 工具` 与 `P16.3 非浏览器宿主接入` 在 P15 之后完成。数据操作和视觉输出分别验证；不预建全语言绑定生成器或通用运行时框架。
+P16.1 已验证四格式操作与输出可在无浏览器全局对象的运行时完成。P16.2 CLI 工具与 P16.3 非浏览器宿主接入在 P15 之后完成。数据操作和视觉输出分别验证。
 
 ## 实施与完成口径
 

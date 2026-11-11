@@ -52,7 +52,7 @@ fn rule_formula(
   try {
     let shifted = prefix +
       parse_formula(source).source(rows~, columns~, invalid_ref=true)
-    guard shifted.length() <= 8192 else {
+    guard shifted.length() <= FormulaSourceUnits else {
       @failure.reject(
         "limit-exceeded", "Shifted rule formula exceeds source budget",
       )

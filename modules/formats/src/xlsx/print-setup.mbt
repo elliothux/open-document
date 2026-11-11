@@ -1,4 +1,19 @@
 ///|
+pub const PrintPaperMinPoints : Int32 = 36
+
+///|
+pub const PrintPageMaxPoints : Int32 = 14400
+
+///|
+pub const PrintScaleMin : Int32 = 10
+
+///|
+pub const PrintScaleMax : Int32 = 400
+
+///|
+pub const PrintFitPageCount : Int32 = 1024
+
+///|
 pub(all) struct PrintSetup {
   paper : String
   orientation : String
@@ -61,10 +76,12 @@ fn PrintSetup::page(self : PrintSetup) -> @layout.PageSetup {
 fn validate_print_page(
   setup : @layout.PageSetup,
 ) -> Unit raise @failure.Failure {
-  guard setup.width >= 36 &&
-    setup.width <= 14400 &&
-    setup.height >= 36 &&
-    setup.height <= 14400 &&
+  let min = PrintPaperMinPoints.to_double()
+  let max = PrintPageMaxPoints.to_double()
+  guard setup.width >= min &&
+    setup.width <= max &&
+    setup.height >= min &&
+    setup.height <= max &&
     setup.left >= 0 &&
     setup.right >= 0 &&
     setup.top >= 0 &&
@@ -81,16 +98,19 @@ fn PrintSetup::validate(self : PrintSetup) -> Unit raise @failure.Failure {
   guard ["A4", "Letter"].contains(self.paper) &&
     ["portrait", "landscape"].contains(self.orientation) &&
     [self.left, self.top, self.right, self.bottom].all(v => {
-      !v.is_nan() && !v.is_inf() && v >= 0 && v <= 14400
+      !v.is_nan() &&
+      !v.is_inf() &&
+      v >= 0 &&
+      v <= PrintPageMaxPoints.to_double()
     }) &&
     page.width - self.left - self.right >= 12 &&
     page.height - self.top - self.bottom >= 12 &&
-    self.scale >= 10 &&
-    self.scale <= 400 &&
+    self.scale >= PrintScaleMin &&
+    self.scale <= PrintScaleMax &&
     self.fitWidth >= 0 &&
-    self.fitWidth <= 1024 &&
+    self.fitWidth <= PrintFitPageCount &&
     self.fitHeight >= 0 &&
-    self.fitHeight <= 1024 else {
+    self.fitHeight <= PrintFitPageCount else {
     @failure.reject("invalid-page", "Invalid print paper, margins or scaling")
   }
 }
@@ -111,8 +131,10 @@ fn print_integer(
 }
 
 ///|
-fn read_print_setup(sheet : Sheet) -> PrintSetup raise @failure.Failure {
-  let tree = Tree::new(sheet.document)
+fn read_print_setup(
+  sheet : Sheet,
+  tree~ : Tree = Tree::new(sheet.document),
+) -> PrintSetup raise @failure.Failure {
   let root = tree.sheet_root()
   let page = tree.one(root.id, "pageSetup")
   let margins = tree.one(root.id, "pageMargins")
@@ -231,15 +253,18 @@ fn read_print_setup(sheet : Sheet) -> PrintSetup raise @failure.Failure {
 }
 
 ///|
-fn Session::print_setup_query(self : Session, sheet : Sheet) -> Json {
-  let (setup, reason) = (read_print_setup(sheet), self.dimension_reason(sheet)) catch {
+fn Session::print_setup_query(
+  self : Session,
+  sheet : Sheet,
+  tree : Tree,
+) -> QueryPrintSettings[PrintSetup] {
+  let (setup, reason) = (
+    read_print_setup(sheet, tree~),
+    self.dimension_reason(sheet),
+  ) catch {
     @failure.Failure(message~, ..) => (PrintSetup::default(), message)
   }
-  let json = setup.to_json()
-  if json is Object(fields) {
-    fields["readOnlyReason"] = Json(reason)
-  }
-  json
+  { settings: setup, readOnlyReason: reason, }
 }
 
 ///|

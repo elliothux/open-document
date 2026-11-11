@@ -6,8 +6,9 @@ fn Session::prepare_plain_range(
   input_group~ : Int32? = None,
   check_graphemes~ : Bool = true,
   notes~ : Bool = false,
+  tree? : WordTree,
 ) -> PreparedEdit? raise @failure.Failure {
-  guard text.length() <= command_limit else {
+  guard text.length() <= TextCommandUnits else {
     @failure.reject("limit-exceeded", "Command input exceeds UTF-16 budget")
   }
   guard valid_inline_input(text) else {
@@ -20,8 +21,9 @@ fn Session::prepare_plain_range(
   if text.iter().any(ch => ['\u2028', '\u000b', '\u000c'].contains(ch)) {
     self.check_display_math_input(selection)
   }
+  let document = self.document()
+  let tree = tree.unwrap_or_else(() => WordTree::new(document))
   if has_region_break(text) {
-    let tree = WordTree::new(self.document())
     tree.check_region_break_input(anchor.paragraph, text)
     tree.check_region_break_input(focus.paragraph, text)
   }
@@ -39,7 +41,6 @@ fn Session::prepare_plain_range(
   }
   if anchor.paragraph != focus.paragraph || text.contains("\n") {
     if anchor.paragraph != focus.paragraph {
-      let tree = WordTree::new(self.document())
       if self.table_cell_range(
           tree,
           selection,
@@ -61,12 +62,18 @@ fn Session::prepare_plain_range(
       }
     }
     return Some(
-      self.prepare_structural_range(selection, text, check_graphemes~, notes~),
+      self.prepare_structural_range_in(
+        document,
+        selection,
+        text,
+        check_graphemes~,
+        notes~,
+        tree~,
+      ),
     )
   }
-  let tree = WordTree::new(self.document())
   let nodes = tree.nodes
-  let texts = self.editable_texts(anchor.paragraph, notes~)
+  let texts = self.editable_texts(anchor.paragraph, notes~, tree~)
   if notes && texts.any(item => note_reference(nodes[item.id])) {
     ignore(
       self.paragraph_range(
@@ -167,6 +174,7 @@ fn Session::prepare_plain_range(
     }),
     object_offsets~,
     notes~,
+    tree~,
   )
   Some({
     ..prepared,

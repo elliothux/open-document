@@ -86,7 +86,7 @@ export async function prepareFile(
       output: (kind) => output(opened.editor, kind),
       clipboard: () => clipboard(opened.editor),
       pageImages: (format) =>
-        opened.editor.exportPageImages(1, 67108864, false, format),
+        opened.editor.exportPageImages(1, undefined, false, format),
       surface,
       inputLimit,
       dispose() {

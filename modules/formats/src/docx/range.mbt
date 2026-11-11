@@ -24,9 +24,9 @@ fn Session::prepare_structural_range_in(
   text : String,
   check_graphemes~ : Bool = true,
   notes~ : Bool = false,
+  tree~ : WordTree = WordTree::new(document),
 ) -> PreparedEdit raise @failure.Failure {
   let source = document.source()
-  let tree = WordTree::new(document)
   let range = self.paragraph_range_in(
     document,
     tree,
@@ -310,6 +310,7 @@ fn Session::prepare_structural_range_in(
     source=changes,
     object_offsets~,
     notes~,
+    tree~,
   )
   let updated_tree = WordTree::new(candidate)
   let paragraph = updated_tree.children[parent.id][first_index +

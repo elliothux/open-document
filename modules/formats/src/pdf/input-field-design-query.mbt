@@ -7,7 +7,10 @@ pub(all) struct PdfFieldWidgetDesign {
   borderColor : String
   background : String
   exportValue : String
-} derive(ToJson)
+} derive(Eq, ToJson)
+
+///|
+pub extend PdfFieldWidgetDesign with Eq::{equal, not_equal}
 
 ///|
 pub extend PdfFieldWidgetDesign with ToJson::{to_json}
@@ -218,7 +221,7 @@ fn field_design_spec(
 }
 
 ///|
-fn field_design_json(spec : PdfFieldDesign) -> Json {
+pub impl ToJson for PdfFieldDesign with fn to_json(spec) {
   {
     "name": spec.name,
     "tooltip": spec.tooltip,
@@ -244,11 +247,40 @@ fn field_design_json(spec : PdfFieldDesign) -> Json {
 }
 
 ///|
+pub extend PdfFieldDesign with ToJson::{to_json}
+
+///|
+pub struct PdfFieldDesignQuery {
+  revision : Int32
+  field : String
+  spec : PdfFieldDesign?
+  widgets : Array[PdfFieldWidgetDesign]
+  readOnlyReason : String
+}
+
+///|
+pub impl ToJson for PdfFieldDesignQuery with fn to_json(result) {
+  {
+    "revision": result.revision,
+    "field": result.field,
+    "spec": match result.spec {
+      Some(spec) => Json(spec)
+      None => Json::null()
+    },
+    "widgets": result.widgets,
+    "readOnlyReason": result.readOnlyReason,
+  }
+}
+
+///|
+pub extend PdfFieldDesignQuery with ToJson::{to_json}
+
+///|
 pub fn PdfSession::field_design(
   self : PdfSession,
   revision : Int32,
   id : String,
-) -> Json raise @failure.Failure {
+) -> PdfFieldDesignQuery raise @failure.Failure {
   self.check(revision)
   pdf_bound(self.budget, () => {
     try {
@@ -266,29 +298,23 @@ pub fn PdfSession::field_design(
         self.document.lookup_object_or_null(field.number),
         widgets,
       )
-      {
-        "revision": revision,
-        "field": id,
-        "spec": field_design_json(spec),
-        "widgets": widgets,
-        "readOnlyReason": "",
-      }
+      { revision, field: id, spec: Some(spec), widgets, readOnlyReason: "", }
     } catch {
       @failure.Failure(message~, ..) =>
         {
-          "revision": revision,
-          "field": id,
-          "spec": Json::null(),
-          "widgets": [],
-          "readOnlyReason": message,
+          revision,
+          field: id,
+          spec: None,
+          widgets: [],
+          readOnlyReason: message,
         }
       _ =>
         {
-          "revision": revision,
-          "field": id,
-          "spec": Json::null(),
-          "widgets": [],
-          "readOnlyReason": "Malformed field appearance protects design editing",
+          revision,
+          field: id,
+          spec: None,
+          widgets: [],
+          readOnlyReason: "Malformed field appearance protects design editing",
         }
     }
   })

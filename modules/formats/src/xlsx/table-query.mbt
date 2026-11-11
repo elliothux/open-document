@@ -1,8 +1,23 @@
 ///|
+impl ToJson for TableColumn with fn to_json(self) {
+  {
+    "id": self.id,
+    "name": self.name,
+    "formula": self.formula.map(Json::string).unwrap_or(Json::null()),
+    "totalFunction": self.total_function
+    .map(Json::string)
+    .unwrap_or(Json::null()),
+    "totalLabel": self.total_label.map(Json::string).unwrap_or(Json::null()),
+    "totalFormula": self.total_formula.map(Json::string).unwrap_or(Json::null()),
+  }
+}
+
+///|
 fn Session::table_query(
   self : Session,
   sheet : Sheet,
-) -> Array[Json] raise @failure.Failure {
+  current_tree : Tree,
+) -> Array[QueryTable] raise @failure.Failure {
   let tables = self
     .table_definitions(self.sheets, self.workbook, self.parts)
     .filter(table => table.sheet == sheet.id)
@@ -16,6 +31,7 @@ fn Session::table_query(
     analysis=true,
     pictures=true,
     charts=true,
+    current_tree~,
   )
   let work : FormulaWork = {
     remaining: 1048576,
@@ -24,56 +40,40 @@ fn Session::table_query(
     origin: self.focus,
     names: self.formula_names(),
   }
-  let (filters, filter_reason) = (self.sheet_filters(sheet, self.parts), "") catch {
+  let (filters, filter_reason) = (
+    self.sheet_filters(sheet, self.parts, tree=current_tree),
+    "",
+  ) catch {
     @failure.Failure(message~, ..) => (Map([]), message)
   }
   tables.map(table => {
-    let value : Json = {
-      "id": table.id,
-      "name": table.name,
-      "range": table.range.name(),
-      "headerRow": table.headers == 1,
-      "totalRow": table.totals == 1,
-      "columns": table.columns.map(column => {
-        let value : Json = {
-          "id": column.id,
-          "name": column.name,
-          "formula": column.formula.map(Json::string).unwrap_or(Json::null()),
-          "totalFunction": column.total_function
-          .map(Json::string)
-          .unwrap_or(Json::null()),
-          "totalLabel": column.total_label
-          .map(Json::string)
-          .unwrap_or(Json::null()),
-          "totalFormula": column.total_formula
-          .map(Json::string)
-          .unwrap_or(Json::null()),
-        }
-        value
-      }),
-      "style": table.style.map(value => Json(value)).unwrap_or(Json::null()),
-      "firstColumn": table.first_column,
-      "lastColumn": table.last_column,
-      "rowStripes": table.row_stripes,
-      "columnStripes": table.column_stripes,
-      "filter": self.filter_query(
-        self.sheet_index(sheet.id),
-        table=Some(table),
-        states=Some(filters),
-        failure=filter_reason,
-        work=Some(work),
-      ),
-      "readOnlyReason": if !reason.is_empty() {
-        reason
-      } else if sheet.locked {
-        "Protected worksheet"
-      } else if !table.style_reason.is_empty() {
-        table.style_reason
-      } else {
-        table.reason
-      },
-    }
-    value
+    id: table.id,
+    name: table.name,
+    range: table.range.name(),
+    headerRow: table.headers == 1,
+    totalRow: table.totals == 1,
+    columns: table.columns,
+    style: { value: table.style, },
+    firstColumn: table.first_column,
+    lastColumn: table.last_column,
+    rowStripes: table.row_stripes,
+    columnStripes: table.column_stripes,
+    filter: self.filter_query(
+      self.sheet_index(sheet.id),
+      table=Some(table),
+      states=Some(filters),
+      failure=filter_reason,
+      work=Some(work),
+    ),
+    readOnlyReason: if !reason.is_empty() {
+      reason
+    } else if sheet.locked {
+      "Protected worksheet"
+    } else if !table.style_reason.is_empty() {
+      table.style_reason
+    } else {
+      table.reason
+    },
   })
 }
 

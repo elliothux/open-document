@@ -12,6 +12,10 @@ import type {
 } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import {
+  latexSourceUnits,
+  mathTextUnits,
+} from "@open-document/wasm/engine-source";
 
 type Catalog =
   | (DocumentMathFractions & { kind: "fraction" })
@@ -119,10 +123,10 @@ export function DocxMath({
               required: true,
             },
           ];
+  const textLimit = kind === "expression" ? latexSourceUnits : mathTextUnits;
   const invalid =
     fields.some((field) => field.required && !field.value) ||
-    fields.reduce((sum, field) => sum + field.value.length, 0) >
-      (kind === "expression" ? 131072 : 4096) ||
+    fields.reduce((sum, field) => sum + field.value.length, 0) > textLimit ||
     ("latex" in draft && !draft.latex.trim()) ||
     ("base" in draft && !draft.subscript && !draft.superscript) ||
     (draft.format &&
@@ -162,10 +166,19 @@ export function DocxMath({
   const load = async () => {
     const value =
       kind === "expression"
-        ? { ...(await editor.mathExpressions()), kind: "expression" as const }
+        ? {
+            ...(await editor.objects.mathExpressions()),
+            kind: "expression" as const,
+          }
         : kind === "fraction"
-          ? { ...(await editor.mathFractions()), kind: "fraction" as const }
-          : { ...(await editor.mathScripts()), kind: "script" as const };
+          ? {
+              ...(await editor.objects.mathFractions()),
+              kind: "fraction" as const,
+            }
+          : {
+              ...(await editor.objects.mathScripts()),
+              kind: "script" as const,
+            };
     setCatalog(value);
     selectItem(value.items.find((item) => item.id === id) ?? value.items[0]);
   };
@@ -208,7 +221,7 @@ export function DocxMath({
             {field.label}
             <input
               value={field.value}
-              maxLength={kind === "expression" ? 131072 : 4096}
+              maxLength={textLimit}
               required={field.required}
               onChange={(event) =>
                 setDraft({ ...draft, [field.key]: event.currentTarget.value })
@@ -295,9 +308,11 @@ export function DocxMath({
           disabled={insertDisabled || !!invalid}
           onClick={() =>
             controller.run(async () => {
-              if ("latex" in draft) await editor.insertMath(draft, display);
-              else if ("base" in draft) await editor.insertMathScript(draft);
-              else await editor.insertMathFraction(draft);
+              if ("latex" in draft)
+                await editor.objects.insertMath(draft, display);
+              else if ("base" in draft)
+                await editor.objects.insertMathScript(draft);
+              else await editor.objects.insertMathFraction(draft);
               setCatalog(undefined);
               setId(undefined);
               editor.focus();
@@ -313,11 +328,11 @@ export function DocxMath({
             controller.run(async () => {
               if (!catalog || id === undefined) return;
               if (catalog.kind === "expression" && "latex" in draft)
-                await editor.editMath(catalog, id, draft);
+                await editor.objects.editMath(catalog, id, draft);
               else if (catalog.kind === "script" && "base" in draft)
-                await editor.editMathScript(catalog, id, draft);
+                await editor.objects.editMathScript(catalog, id, draft);
               else if (catalog.kind === "fraction" && "numerator" in draft)
-                await editor.editMathFraction(catalog, id, draft);
+                await editor.objects.editMathFraction(catalog, id, draft);
               await load();
             })
           }
@@ -331,10 +346,10 @@ export function DocxMath({
             controller.run(async () => {
               if (!catalog || id === undefined) return;
               if (catalog.kind === "expression")
-                await editor.editMath(catalog, id, null);
+                await editor.objects.editMath(catalog, id, null);
               else if (catalog.kind === "script")
-                await editor.editMathScript(catalog, id, null);
-              else await editor.editMathFraction(catalog, id, null);
+                await editor.objects.editMathScript(catalog, id, null);
+              else await editor.objects.editMathFraction(catalog, id, null);
               await load();
             })
           }

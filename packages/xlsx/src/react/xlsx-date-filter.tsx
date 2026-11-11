@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { xlsxFilterTextUnits } from "@open-document/wasm/engine-source";
 import type {
   XlsxCalendarFilter,
   XlsxDateFilter,
@@ -79,7 +80,7 @@ export function XlsxDateFilterForm({
             <textarea
               aria-label={t.filterDateLabels}
               value={values}
-              maxLength={1048576}
+              maxLength={xlsxFilterTextUnits}
               rows={2}
               onChange={(event) => setValues(event.currentTarget.value)}
             />

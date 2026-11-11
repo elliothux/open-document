@@ -1,4 +1,7 @@
 ///|
+pub const DuplicateCells : Int32 = 4096
+
+///|
 pub(all) struct DuplicateSettings {
   range : String
   header : Bool
@@ -28,7 +31,7 @@ fn Session::duplicate_plan(
   let header = table.map(table => table.headers == 1).unwrap_or(settings.header)
   guard (target.bottom - target.top + 1).to_int64() *
     (target.right - target.left + 1).to_int64() <=
-    4096 else {
+    DuplicateCells.to_int64() else {
     @failure.reject("limit-exceeded", "Duplicate removal exceeds 4096 cells")
   }
   guard !settings.columns.is_empty() &&
@@ -135,6 +138,20 @@ fn Session::duplicate_plan(
 }
 
 ///|
+priv struct DuplicatePreview {
+  revision : Int32
+  sheet : String
+  range : String
+  header : Bool
+  totalRow : Bool
+  columns : Array[Int32]
+  keptRows : Array[Int32]
+  removedRows : Array[Int32]
+  resultRange : String
+  preview : Array[Array[String]]
+} derive(ToJson)
+
+///|
 /// Previews stable first-occurrence removal using formatted values without changing the workbook.
 pub fn Session::duplicates(
   self : Session,
@@ -149,18 +166,19 @@ pub fn Session::duplicates(
     plan.kept.length() +
     plan.table.map(table => table.totals).unwrap_or(0) -
     1
-  {
-    "revision": revision,
-    "sheet": sheet,
-    "range": plan.target.name(),
-    "header": plan.header,
-    "totalRow": plan.table.map(table => table.totals == 1).unwrap_or(false),
-    "columns": settings.columns,
-    "keptRows": plan.kept,
-    "removedRows": plan.removed,
-    "resultRange": { ..plan.target, bottom: bottom.max(plan.target.top), }.name(),
-    "preview": plan.preview,
+  let preview : DuplicatePreview = {
+    revision,
+    sheet,
+    range: plan.target.name(),
+    header: plan.header,
+    totalRow: plan.table.map(table => table.totals == 1).unwrap_or(false),
+    columns: settings.columns,
+    keptRows: plan.kept,
+    removedRows: plan.removed,
+    resultRange: { ..plan.target, bottom: bottom.max(plan.target.top), }.name(),
+    preview: plan.preview,
   }
+  ToJson::to_json(preview)
 }
 
 ///|

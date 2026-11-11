@@ -11,7 +11,7 @@ pub(all) struct TableStyleElement {
 pub extend TableStyleElement with Eq::{equal, not_equal}
 
 ///|
-fn TableStyleElement::json(self : TableStyleElement) -> Json {
+impl ToJson for TableStyleElement with fn to_json(self) {
   {
     "kind": self.kind,
     "size": if self.kind.has_suffix("Stripe") {

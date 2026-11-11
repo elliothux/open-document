@@ -10,7 +10,7 @@ fn Session::show_table_totals(
     return self.query()
   }
   guard table.range.bottom - table.range.top + 1 > table.headers + table.totals &&
-    (!visible || table.range.bottom < 1048576) else {
+    (!visible || table.range.bottom < WorksheetRows) else {
     @failure.reject(
       "limit-exceeded", "Totals row needs data and an available worksheet row",
     )
@@ -77,9 +77,8 @@ fn Session::show_table_totals(
         cell.address.row > table.range.bottom {
         continue
       }
-      let address = cell.address.name()
       let value = self.calculation
-        .bind(calculation => calculation.values.get((index, address)))
+        .bind(calculation => calculation.values.get((index, cell.address)))
         .unwrap_or(cell.value)
       if value != Blank && !(value is Number(_)) {
         numeric = false

@@ -467,7 +467,7 @@ pub fn Session::export_markup(
   self.check_revision(revision)
   guard ["html", "markdown"].contains(format) &&
     output_bytes > 0 &&
-    output_bytes <= 67108864 else {
+    output_bytes <= @layout.ExportBytes else {
     @failure.reject(
       "invalid-operation", "Invalid markup format or output budget",
     )

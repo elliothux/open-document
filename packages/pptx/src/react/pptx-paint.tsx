@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { gradientStopCount } from "@open-document/wasm/engine-source";
 import type { PresentationEditor } from "../web/presentation-editor.js";
 import type { PptxCap, PptxJoin, PptxBackgroundFill } from "../web/pptx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
@@ -105,7 +106,7 @@ export function GradientStops({
       ))}
       <button
         type="button"
-        disabled={stops.length >= 32}
+        disabled={stops.length >= gradientStopCount}
         onClick={() => {
           const last = stops[stops.length - 1]!,
             previous = stops[stops.length - 2]!;
@@ -378,7 +379,7 @@ export function PptxPaint({
                   const targets = [...query.selection.objects];
                   const mode = imageMode;
                   controller.run(async () => {
-                    if (!file.size || file.size > 4194304)
+                    if (!file.size || file.size > editor.inputLimits.imageBytes)
                       throw new Error(t.imageInputLimit);
                     await editor.editObjects({
                       action: "imageFill",

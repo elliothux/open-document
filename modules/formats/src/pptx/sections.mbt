@@ -145,8 +145,11 @@ fn read_sections(tree : Tree) -> Array[Section] raise @failure.Failure {
     let members = tree.required(node.id, "sldIdLst", uri=creation_uri)
     section_node(tree, members, [], ["sldId"])
     let nodes = tree.all(members.id, "sldId", uri=creation_uri)
-    guard nodes.length() <= 256 else {
-      @failure.reject("limit-exceeded", "Section slides exceed 256")
+    guard nodes.length() <= SlideCountLimit else {
+      @failure.reject(
+        "limit-exceeded",
+        "Section slides exceed \{SlideCountLimit}",
+      )
     }
     let slides = nodes.map(item => {
       section_node(tree, item, ["id"], [])
@@ -171,7 +174,14 @@ fn read_sections(tree : Tree) -> Array[Section] raise @failure.Failure {
 }
 
 ///|
-fn Session::section_query(self : Session) -> Json {
+priv struct QuerySection {
+  id : String
+  name : String
+  slides : Array[String]
+} derive(ToJson)
+
+///|
+fn Session::section_query(self : Session) -> SlideCollectionQuery[QuerySection] {
   try {
     let sections = read_sections(self.main)
     let paths : Map[String, String] = Map([])
@@ -180,17 +190,14 @@ fn Session::section_query(self : Session) -> Json {
     }
     let reason = self.slide_visibility_reason()
     {
-      "items": sections.map(s => {
-        let value : Json = {
-          "id": s.id,
-          "name": s.name,
-          "slides": s.slides.map(id => paths[id]),
-        }
-        value
+      items: sections.map(s => QuerySection::{
+        id: s.id,
+        name: s.name,
+        slides: s.slides.map(id => paths[id]),
       }),
-      "reason": reason,
+      reason,
     }
   } catch {
-    @failure.Failure(message~, ..) => { "items": [], "reason": message }
+    @failure.Failure(message~, ..) => { items: [], reason: message, }
   }
 }

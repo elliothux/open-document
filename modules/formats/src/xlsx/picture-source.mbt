@@ -1,4 +1,7 @@
 ///|
+pub const ImageInputBytes : Int32 = 2097152
+
+///|
 fn picture_emu(value : Double) -> String {
   (value * 12700).round().to_int64().to_string()
 }
@@ -65,8 +68,8 @@ fn check_picture_rect(
     rect.height >= 0.1 &&
     rect.width <= 14400 &&
     rect.height <= 14400 &&
-    rect.x + rect.width <= dimensions.columns.position(16385) &&
-    rect.y + rect.height <= dimensions.rows.position(1048577) else {
+    rect.x + rect.width <= dimensions.columns.position(WorksheetColumns + 1) &&
+    rect.y + rect.height <= dimensions.rows.position(WorksheetRows + 1) else {
     @failure.reject(
       "invalid-operation", "Invalid worksheet picture position or dimensions",
     )
@@ -105,13 +108,19 @@ fn Tree::picture_markup(
 }
 
 ///|
+pub const DrawingNameUnits : Int32 = 255
+
+///|
+pub const DrawingDescriptionUnits : Int32 = 1024
+
+///|
 fn check_picture_text(
   name : String,
   description : String,
 ) -> Unit raise @failure.Failure {
   guard !name.trim().is_empty() &&
-    name.length() <= 255 &&
-    description.length() <= 1024 &&
+    name.length() <= DrawingNameUnits &&
+    description.length() <= DrawingDescriptionUnits &&
     @xml.valid_text(name) &&
     @xml.valid_text(description) else {
     @failure.reject(
@@ -129,8 +138,8 @@ fn picture_key(part : String) -> String {
 fn Session::new_picture_part(
   self : Session,
   bytes : Bytes,
-) -> (String, String) raise @failure.Failure {
-  let (extension, mime, _, _) = @image.type_info(bytes)
+) -> (String, String, Int32, Int32) raise @failure.Failure {
+  let (extension, mime, width, height) = @image.type_info(bytes)
   let directory = self.main.split("/").map(p => p.to_owned()).to_array()
   ignore(directory.pop())
   let prefix = if directory.is_empty() { "" } else { directory.join("/") + "/" }
@@ -139,7 +148,7 @@ fn Session::new_picture_part(
     if !self.opc.names.contains(part.to_lower()) &&
       !self.media.contains(part) &&
       !self.parts.contains(part) {
-      return (part, mime)
+      return (part, mime, width, height)
     }
   }
   @failure.reject("limit-exceeded", "Worksheet image part identities exhausted")
@@ -150,11 +159,54 @@ pub fn Session::picture_resource(
   self : Session,
   revision : Int32,
   bytes : Bytes,
+  encode_pixels? : (Bytes) -> Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
-  let (part, _) = self.new_picture_part(bytes)
-  { "revision": revision, "key": picture_key(part) }
+  let (part, mime, width, height) = self.new_picture_part(bytes)
+  if encode_pixels is Some(encode) &&
+    @image.decode_plain_raster(bytes, exif_orientation=true)
+    is Some((width, height, pixels)) {
+    return {
+      "revision": revision,
+      "key": picture_key(part),
+      "width": width,
+      "height": height,
+      "bytes": encode(pixels),
+    }
+  }
+  let result = {
+    "revision": Json(revision),
+    "key": Json(picture_key(part)),
+    "width": Json(width),
+    "height": Json(height),
+  }
+  if mime == "image/jpeg" {
+    result["allowTranspose"] = Json(true)
+  }
+  Json::object(result)
 }
+
+///|
+priv struct DrawingQuery[T] {
+  revision : Int32
+  sheet : String
+  reason : String
+  items : Array[T]
+} derive(ToJson)
+
+///|
+priv struct PictureQuery {
+  id : String
+  name : String
+  description : String
+  anchor : String
+  x : Double
+  y : Double
+  width : Double
+  height : Double
+  crop : Array[Double]
+  key : String
+} derive(ToJson)
 
 ///|
 pub fn Session::pictures(
@@ -176,25 +228,24 @@ pub fn Session::pictures(
     }
   }
   self.font_context = Some((probe, profile.copy()))
-  {
-    "revision": revision,
-    "sheet": sheet.id,
-    "reason": reason,
-    "items": entries.map(fn(p : SheetObject) -> Json {
-      {
-        "id": p.id,
-        "name": p.name,
-        "description": p.description,
-        "anchor": p.anchor,
-        "x": p.rect.x,
-        "y": p.rect.y,
-        "width": p.rect.width,
-        "height": p.rect.height,
-        "crop": p.crop,
-        "key": picture_key(p.media.unwrap()),
-      }
+  let result : DrawingQuery[PictureQuery] = {
+    revision,
+    sheet: sheet.id,
+    reason,
+    items: entries.map(p => {
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      anchor: p.anchor,
+      x: p.rect.x,
+      y: p.rect.y,
+      width: p.rect.width,
+      height: p.rect.height,
+      crop: p.crop,
+      key: picture_key(p.media.unwrap()),
     }),
   }
+  ToJson::to_json(result)
 }
 
 ///|
@@ -218,4 +269,37 @@ pub fn Session::picture_image(
     @failure.reject("missing-image", "Unreferenced worksheet image")
   }
   self.picture_bytes(part)
+}
+
+///|
+/// Prepare an embedded raster or return its source for the host decoder.
+pub fn Session::prepare_picture_image(
+  self : Session,
+  revision : Int32,
+  key : String,
+  images : @layout.Images,
+) -> (Bytes, @layout.ImageResource?) raise @failure.Failure {
+  let source = self.picture_image(revision, key)
+  guard @image.decode_plain_raster(source, exif_orientation=true)
+    is Some((width, height, pixels)) else {
+    return (source, None)
+  }
+  self.register_picture_image(revision, key, width, height, pixels, images)
+  (source, Some(images.get(key)))
+}
+
+///|
+pub fn Session::register_picture_image(
+  self : Session,
+  revision : Int32,
+  key : String,
+  width : Int32,
+  height : Int32,
+  pixels : Bytes,
+  images : @layout.Images,
+) -> Unit raise @failure.Failure {
+  let keys = self.picture_keys(revision)
+  keys.push(key)
+  images.retain(keys)
+  images.add(key, width, height, pixels)
 }

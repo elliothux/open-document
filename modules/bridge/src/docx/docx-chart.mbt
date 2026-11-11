@@ -1,20 +1,38 @@
 ///|
-fn Context::chart_operation(
+priv struct ChartEditRequest {
+  revision : @common.RequestInt
+  chart : Json?
+  profile : Json?
+} derive(@json.FromJson)
+
+///|
+priv struct ChartGeometryRequest {
+  width : @common.RequestNumber
+  height : @common.RequestNumber
+} derive(@json.FromJson)
+
+///|
+priv struct ChartContentRequest {
+  kind : String
+  title : String
+  data : String
+  holeSize : @common.RequestInt?
+  legend : String?
+} derive(@json.FromJson)
+
+///|
+fn Context::edit_chart_command(
   self : Context,
-  operation : String,
+  session : @model.Session,
   request : Json,
 ) -> Json raise @failure.Failure {
-  guard self.docx is Some(session) else {
-    @failure.reject("invalid-operation", "Open a DOCX session first")
-  }
-  let revision = field_int(request, "revision")
-  if operation == "docxCharts" {
-    return session.charts(revision)
-  }
-  guard request is { "chart": chart, .. } && chart is Object(fields) else {
+  let input : ChartEditRequest = @common.request(request)
+  let revision = input.revision.value
+  guard input.chart is Some(Object(fields) as chart) else {
     @failure.reject("invalid-operation", "Chart settings are required")
   }
-  let action = field_string(chart, "action")
+  let command : @common.ActionRequest = @common.request(chart)
+  let action = command.action
   guard ["insert", "update", "delete", "resize", "position"].contains(action) else {
     @failure.reject("invalid-operation", "Unknown chart action")
   }
@@ -26,8 +44,11 @@ fn Context::chart_operation(
   if content {
     keys.append(["kind", "title", "data", "width", "height"])
     for key in ["holeSize", "legend"] {
-      if fields.contains(key) {
-        keys.push(key)
+      match fields.get(key) {
+        Some(Null) =>
+          @failure.reject("invalid-operation", "Invalid chart option: " + key)
+        Some(_) => keys.push(key)
+        None => ()
       }
     }
   }
@@ -44,69 +65,41 @@ fn Context::chart_operation(
     fields.keys().all(key => keys.contains(key)) else {
     @failure.reject("invalid-operation", "Unknown chart settings")
   }
-  let remove = action == "delete"
   let result = if action == "position" {
-    session.set_drawing_anchor(
-      revision,
-      field_int(chart, "id"),
-      drawing_anchor(chart),
-      target?=fields.get("target").map(field_position),
-      probe=self.probe,
-      profile=font_profile(request),
-      images=self.images,
-    )
+    self.position_drawing(session, revision, chart, input.profile)
   } else {
+    let id = if action == "insert" {
+      -1
+    } else {
+      let drawing : DrawingIdRequest = @common.request(chart)
+      drawing.id.value
+    }
+    let (width, height) = if action == "delete" {
+      (0.0, 0.0)
+    } else {
+      let geometry : ChartGeometryRequest = @common.request(chart)
+      (geometry.width.value, geometry.height.value)
+    }
+    let data : ChartContentRequest = if content {
+      @common.request(chart)
+    } else {
+      { kind: "", title: "", data: "", holeSize: None, legend: None, }
+    }
     session.edit_chart(
       revision,
       action,
-      if action == "insert" {
-        -1
-      } else {
-        field_int(chart, "id")
-      },
-      if !content {
-        ""
-      } else {
-        field_string(chart, "kind")
-      },
-      if !content {
-        ""
-      } else {
-        field_string(chart, "title")
-      },
-      if !content {
-        ""
-      } else {
-        field_string(chart, "data")
-      },
-      if remove {
-        0
-      } else {
-        field_number(chart, "width")
-      },
-      if remove {
-        0
-      } else {
-        field_number(chart, "height")
-      },
-      hole_size=if fields.contains("holeSize") {
-        Some(field_int(chart, "holeSize"))
-      } else {
-        None
-      },
-      legend=if fields.contains("legend") {
-        Some(field_string(chart, "legend"))
-      } else {
-        None
-      },
+      id,
+      data.kind,
+      data.title,
+      data.data,
+      width,
+      height,
+      hole_size=data.holeSize.map(size => size.value),
+      legend=data.legend,
       probe=self.probe,
-      profile=font_profile(request),
+      profile=drawing_profile(input.profile),
       images=self.images,
     )
   }
-  if result is { "revision": Number(current, ..), .. } &&
-    current != revision.to_double() {
-    self.layout = None
-  }
-  result
+  self.clear_edit_layout(result, previous=revision)
 }

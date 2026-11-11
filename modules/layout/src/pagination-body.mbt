@@ -6,11 +6,14 @@ fn Pagination::body(
   cache : ParagraphCache,
   profile : Map[String, String],
   images : Images,
+  previous : PaginationCache?,
 ) -> (Int32, Int32, PaginationCache?) raise @failure.Failure {
   let blocks = flow.body_blocks()
   // Note reservations must be replayed with their reference lines.
-  let keys = if flow.notes.is_empty() && self.notePending.is_empty() {
-    pagination_keys(blocks)
+  let keys = if self.continuation is None &&
+    flow.notes.is_empty() &&
+    self.notePending.is_empty() {
+    pagination_keys(blocks, cache)
   } else {
     None
   }
@@ -27,7 +30,7 @@ fn Pagination::body(
     .unwrap_or(Json::null()),
     Json(cache.profile),
   ]).stringify()
-  let previous = match probe.pagination {
+  let previous = match previous {
     Some(old) if old.context == context && keys is Some(_) => Some(old)
     _ => None
   }
@@ -129,14 +132,19 @@ fn Pagination::body(
     }
     reflowed = self.pages.length() - prefix_pages
   }
-  let next = if keys is Some(keys) &&
-    PaginationCache::bounded(context, keys, positions, self.pages) {
-    Some({
-      context,
-      keys,
-      positions,
-      pages: self.pages.map(page => page.copy_geometry()),
-    })
+  let next = if keys is Some(keys) {
+    let units = PaginationCache::units(context, keys, positions, self.pages)
+    if units <= 1048576 {
+      Some({
+        units,
+        context,
+        keys,
+        positions,
+        pages: self.pages.map(page => page.copy_geometry()),
+      })
+    } else {
+      None
+    }
   } else {
     None
   }

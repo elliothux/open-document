@@ -45,8 +45,8 @@ export function DocxLists({
     data.selection?.anchor.offset === data.selection?.focus.offset;
   const change = (change: DocxListEdit) =>
     controller.run(async () => {
-      await editor.editList(change);
-      setCatalog(await editor.lists());
+      await editor.formatting.editList(change);
+      setCatalog(await editor.formatting.lists());
     });
   return (
     <fieldset disabled={disabled}>
@@ -54,7 +54,9 @@ export function DocxLists({
       <button
         type="button"
         onClick={() =>
-          controller.run(async () => setCatalog(await editor.lists()))
+          controller.run(async () =>
+            setCatalog(await editor.formatting.lists()),
+          )
         }
       >
         {t.loadLists}
@@ -221,7 +223,7 @@ export function DocxLists({
               level={item}
               availableLevels={choice.levels.map((level) => level.level)}
               stale={catalog?.revision !== data.revision}
-              refresh={async () => setCatalog(await editor.lists())}
+              refresh={async () => setCatalog(await editor.formatting.lists())}
             />
           ))}
     </fieldset>

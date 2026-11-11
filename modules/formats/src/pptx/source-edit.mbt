@@ -101,7 +101,21 @@ fn Session::layout_deletion(
 }
 
 ///|
-fn Session::source_operations(self : Session, current : Slide) -> Json {
+priv struct SourceOperationsQuery {
+  rename : String
+  addLayout : String
+  copyLayout : String
+  deleteLayout : String
+  deleteMaster : String
+  addMaster : String
+  copyMaster : String
+} derive(ToJson)
+
+///|
+fn Session::source_operations(
+  self : Session,
+  current : Slide,
+) -> SourceOperationsQuery {
   let base = self.modification_reason()
   let root = current.tree.document.nodes()[0].name
   let owner = ["sldMaster", "sldLayout"].contains(root)
@@ -115,7 +129,7 @@ fn Session::source_operations(self : Session, current : Slide) -> Json {
   let add = try {
     if !rename.is_empty() {
       rename
-    } else if self.layout_choices().length() >= 256 {
+    } else if self.layout_choices().length() >= LayoutCatalogCount {
       "Slide layout catalog exceeds budget"
     } else {
       ""
@@ -180,13 +194,13 @@ fn Session::source_operations(self : Session, current : Slide) -> Json {
     @failure.Failure(message~, ..) => message
   }
   {
-    "rename": rename,
-    "addLayout": add,
-    "copyLayout": copy,
-    "deleteLayout": remove,
-    "deleteMaster": remove_master,
-    "addMaster": add_master,
-    "copyMaster": copy_master,
+    rename,
+    addLayout: add,
+    copyLayout: copy,
+    deleteLayout: remove,
+    deleteMaster: remove_master,
+    addMaster: add_master,
+    copyMaster: copy_master,
   }
 }
 
@@ -196,7 +210,7 @@ fn Session::rename_source(
   part : String,
   name : String,
 ) -> Json raise @failure.Failure {
-  guard name.length() <= 1024 && @xml.valid_text(name) else {
+  guard name.length() <= SourceNameUnits && @xml.valid_text(name) else {
     @failure.reject("invalid-operation", "Source name is invalid or excessive")
   }
   let choice = self.source_choice(part)

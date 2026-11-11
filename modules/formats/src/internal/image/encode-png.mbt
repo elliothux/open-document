@@ -25,10 +25,10 @@ pub fn encode_png(
 ) -> Bytes raise @failure.Failure {
   guard width > 0 &&
     height > 0 &&
-    width <= 4096 &&
-    height <= 4096 &&
+    width <= @layout.ImageDimension &&
+    height <= @layout.ImageDimension &&
     width.to_int64() * height.to_int64() * 4 == rgba.length().to_int64() &&
-    rgba.length() <= 16777216 else {
+    rgba.length() <= @layout.ImageBytes else {
     @failure.reject("invalid-image", "PNG output requires bounded RGBA pixels")
   }
   let header : Array[Byte] = []

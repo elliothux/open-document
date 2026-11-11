@@ -1,10 +1,13 @@
 ///|
+pub const FieldOptionCount : Int32 = 4096
+
+///|
 fn choice_options(
   value : @syntax.PdfObject,
 ) -> Array[(String, String)] raise @failure.Failure {
   guard value is PdfArray(options) &&
     !options.is_empty() &&
-    options.length() <= 4096 else {
+    options.length() <= FieldOptionCount else {
     @failure.reject(
       "protected-content", "Choice field requires a bounded option list",
     )

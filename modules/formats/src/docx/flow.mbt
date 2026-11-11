@@ -1,8 +1,31 @@
 ///|
+priv struct FlowCache {
+  document : @xml.Document
+  parts : Map[String, @xml.Document]
+  media : Map[String, Bytes]
+  flow : @layout.Flow
+}
+
+///|
 pub fn Session::flow(self : Session) -> @layout.Flow raise @failure.Failure {
   let document = self.display_document()
+  // Previews and transaction candidates can change without advancing revision.
+  if self.flow_cache is Some(cache) &&
+    cache.flow.revision == self.revision &&
+    physical_equal(cache.document, document) &&
+    physical_equal(cache.parts, self.parts) &&
+    physical_equal(cache.media, self.media) {
+    return cache.flow
+  }
   let (parts, _, _) = self.note_transition(document, self.parts)
-  { ..self, parts, }.flow_from(document)
+  let flow = { ..self, parts, }.flow_from(document)
+  self.flow_cache = Some({
+    document,
+    parts: self.parts,
+    media: self.media,
+    flow,
+  })
+  flow
 }
 
 ///|
@@ -30,7 +53,9 @@ fn Session::flow_from(
       (Map([]), [], "docEnd")
     }
   }
-  let sections = self.flow_sections(tree, styles, diagnostics, background)
+  let (sections, grids) = self.flow_sections(
+    tree, styles, diagnostics, background,
+  )
   let first = sections[0]
   if diagnostics.get(0) is Some(reason) {
     styles = {
@@ -128,6 +153,17 @@ fn Session::flow_from(
   }
   self.apply_numbering(tree, styles, numbered, backgrounds)
   styles.apply_contextual_spacing(tree, numbered)
+  let mut section = 0
+  for index, body_paragraph in paragraphs {
+    while section + 1 < sections.length() &&
+          sections[section + 1].beforeParagraph <= index {
+      section += 1
+    }
+    let paragraph = numbered[body_paragraph.id]
+    if grids[section] > 0 && paragraph.lineGrid is Some(_) {
+      numbered[paragraph.id] = { ..paragraph, lineGrid: Some(grids[section]), }
+    }
+  }
   let outline_levels : Map[Int32, Int32] = Map([])
   for id, _ in numbered {
     let level = styles.outline_level(tree, id) catch {

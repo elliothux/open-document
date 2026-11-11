@@ -15,6 +15,7 @@ priv struct NumberSection {
   parts : Array[NumberPart]
   color : String?
   percent : Int32
+  scale : Int32
 }
 
 ///|
@@ -25,6 +26,7 @@ fn number_section(source : String) -> NumberSection? {
   let mut numeric = false
   let mut text = false
   let mut percent = 0
+  let mut scale = 0
   let mut i = 0
   if chars.get(0) == Some('[') {
     let end = source.find("]").unwrap_or(0)
@@ -89,7 +91,12 @@ fn number_section(source : String) -> NumberSection? {
         while i < chars.length() && ['0', '#', '?', ',', '.'].contains(chars[i]) {
           i += 1
         }
-        let code = chars[start:i].iter().map(c => c.to_string()).join("")
+        let mut end = i
+        while end > start && chars[end - 1] == ',' {
+          end -= 1
+        }
+        scale = (i - end) * 3
+        let code = chars[start:end].iter().map(c => c.to_string()).join("")
         let pieces = code.split(".").to_array()
         guard pieces.length() <= 2 else { return None }
         let integer = pieces[0].to_owned()
@@ -142,12 +149,14 @@ fn number_section(source : String) -> NumberSection? {
     }
     unique.push(part)
   }
-  Some({ parts: unique, color, percent, })
+  Some({ parts: unique, color, percent, scale, })
 }
 
 ///|
 fn section_format(format : String) -> Array[NumberSection]? {
-  guard format.length() > 0 && format.length() <= 256 else { return None }
+  guard format != "General" && format.length() > 0 && format.length() <= 256 else {
+    return None
+  }
   let sections : Array[NumberSection] = []
   let source = StringBuilder()
   let mut quoted = false

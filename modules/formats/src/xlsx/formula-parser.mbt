@@ -1,4 +1,7 @@
 ///|
+pub const FormulaSourceUnits : Int32 = 8192
+
+///|
 priv struct FormulaAddress {
   address : Address
   fixed_row : Bool
@@ -38,7 +41,7 @@ fn formula_tokens(
   text : String,
   spans? : Array[(Int32, Int32)],
 ) -> Array[Token] raise @failure.Failure {
-  guard text.length() <= 8192 else {
+  guard text.length() <= FormulaSourceUnits else {
     @failure.reject("limit-exceeded", "Formula source exceeds budget")
   }
   let tokens : Array[Token] = []
@@ -269,7 +272,7 @@ fn FormulaParser::reference(
           fixed_column: true,
         },
         {
-          address: { row: last, column: 16384, },
+          address: { row: last, column: WorksheetColumns, },
           fixed_row: b,
           fixed_column: true,
         },
@@ -282,7 +285,7 @@ fn FormulaParser::reference(
           fixed_column: a,
         },
         {
-          address: { row: 1048576, column: last, },
+          address: { row: WorksheetRows, column: last, },
           fixed_row: true,
           fixed_column: b,
         },
@@ -359,6 +362,7 @@ fn FormulaParser::atom(
       let upper = word.to_upper()
       let name = match upper {
         "_XLFN.IFNA" => "IFNA"
+        "_XLFN.XOR" => "XOR"
         "_XLFN.CONCAT" => "CONCAT"
         "_XLFN.TEXTJOIN" => "TEXTJOIN"
         "_XLFN.DAYS" => "DAYS"
@@ -406,6 +410,7 @@ fn FormulaParser::atom(
         }
         guard (match name {
           "IF" => args.length() == 2 || args.length() == 3
+          "XOR" => !args.is_empty() && args.length() <= 254
           "HYPERLINK" | "LOG" | "WEEKDAY" | "WEEKNUM" | "TRUNC" =>
             args.length() == 1 || args.length() == 2
           "CEILING.MATH" | "FLOOR.MATH" =>

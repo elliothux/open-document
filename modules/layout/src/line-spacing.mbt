@@ -1,9 +1,50 @@
 ///|
-struct MeasuredLine {
+priv struct MeasuredLine {
   line : Line
   textHeight : Double
   textAscent : Double
   baseline : Double
+  grid : Bool
+}
+
+///|
+fn Paragraph::grid_pitch(self : Paragraph) -> Double {
+  match self.line {
+    Exact(_) | AtLeast(0) => 0
+    _ => self.lineGrid.unwrap_or(0)
+  }
+}
+
+///|
+fn Paragraph::line_box(
+  self : Paragraph,
+  ascent : Double,
+  descent : Double,
+  images : Array[PlacedDrawingFrame],
+  native~ : Bool,
+) -> (Double, Double, Bool) {
+  let pitch = self.grid_pitch()
+  if pitch > 0 {
+    let ascent = images.fold(init=ascent, (height, image) => {
+      height.max(image.baseline())
+    })
+    let natural = ascent + descent
+    let height = ((natural / pitch).ceil() * pitch).max(pitch)
+    let height = match self.line {
+      AtLeast(value) => height.max(value / 20)
+      _ => height
+    }
+    return (height, ascent + (height - natural) / 2, false)
+  }
+  let (height, baseline, clip) = self.line.metrics(ascent, descent, native~)
+  if clip || images.is_empty() {
+    (height, baseline, clip)
+  } else {
+    let height = images.fold(init=height, (height, image) => {
+      height.max(image.baseline() + descent)
+    })
+    (height, height - descent, false)
+  }
 }
 
 ///|
@@ -88,10 +129,14 @@ fn MeasuredLine::spaced(
   guard spacing is Auto(_) else { return self.line }
   let line = self.line
   let percent = spacing.percent()
+  if self.grid && percent <= 100 {
+    return line
+  }
   let change = if first {
     0.0
   } else {
-    let twips = (self.textHeight * 20).round() * (percent - 100) / 100
+    let base = if self.grid { line.height } else { self.textHeight }
+    let twips = (base * 20).round() * (percent - 100) / 100
     (if twips < 0 { twips.ceil() } else { twips.floor() }) / 20
   }
   let height = if percent < 100 && first {

@@ -4,7 +4,7 @@ fn date_function(
   args : Array[Expression],
   sheets : Array[Sheet],
   sheet : Int32,
-  calculated : Map[(Int32, String), Value],
+  calculated : Map[(Int32, Address), Value],
   work : FormulaWork,
   depth : Int32,
 ) -> Value raise @failure.Failure {
@@ -133,7 +133,7 @@ fn date_week_value(
     _ => mode - 10
   }
   if name == "WEEKDAY" {
-    let day = (series_weekday(serial, work.date1904) - start + 7) % 7
+    let day = (date_weekday(serial, work.date1904) - start + 7) % 7
     return Number((day + (if mode == 3 { 0 } else { 1 })).to_double())
   }
   work.spend(amount=32)

@@ -131,7 +131,8 @@ fn Session::delete_table_column(
   }
   cuts.sort()
   let count = cuts.length() - 1
-  guard count <= 63 && rows.length().to_int64() * count.to_int64() <= 4096 else {
+  guard count <= TableGridColumns &&
+    rows.length().to_int64() * count.to_int64() <= TableGridCells.to_int64() else {
     @failure.reject("limit-exceeded", "Table exceeds row column or cell budget")
   }
   guard edges.all(row => {

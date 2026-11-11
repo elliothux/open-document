@@ -450,6 +450,7 @@ export class PresentationShow {
       dialog,
       events.signal,
       labels,
+      this.client.inputLimits().showInkBatchPoints,
       () => {
         const page = this.drawing?.regions[0],
           slide = this.current?.slide;

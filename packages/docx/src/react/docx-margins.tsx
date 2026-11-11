@@ -33,7 +33,7 @@ export function DocxMargins({
       onSubmit={(event) => {
         event.preventDefault();
         controller.run(() =>
-          editor.editTable({
+          editor.tables.editTable({
             action,
             value: {
               top: Number(draft.top),
@@ -82,7 +82,9 @@ export function DocxMargins({
           type="button"
           onMouseDown={(event) => event.preventDefault()}
           onClick={() =>
-            controller.run(() => editor.editTable({ action, value: null }))
+            controller.run(() =>
+              editor.tables.editTable({ action, value: null }),
+            )
           }
         >
           {action === "cellMargins"

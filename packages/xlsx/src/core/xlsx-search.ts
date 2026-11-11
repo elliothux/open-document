@@ -42,32 +42,3 @@ export function xlsxFindOptions(
     workbook: options.workbook ?? false,
   };
 }
-
-export function xlsxSearchResult(value: unknown): XlsxSearchResult {
-  const result = record(value);
-  if (
-    !Number.isSafeInteger(result.revision) ||
-    Number(result.revision) < 0 ||
-    Number(result.revision) > 2147483647 ||
-    typeof result.truncated !== "boolean" ||
-    !Array.isArray(result.matches) ||
-    result.matches.length > 4096 ||
-    !result.matches.every((value: unknown) => {
-      const item = record(value);
-      return (
-        typeof item.sheet === "string" &&
-        item.sheet.length <= 4096 &&
-        typeof item.name === "string" &&
-        item.name.length <= 31 &&
-        typeof item.address === "string" &&
-        /^[A-Z]{1,3}[1-9][0-9]{0,6}$/.test(item.address) &&
-        typeof item.hidden === "boolean" &&
-        typeof item.snippet === "string" &&
-        item.snippet.length <= 160 &&
-        typeof item.reason === "string"
-      );
-    })
-  )
-    throw new Error("Invalid XLSX search result returned by Wasm");
-  return value as XlsxSearchResult;
-}

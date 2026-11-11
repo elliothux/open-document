@@ -152,22 +152,24 @@ export class SpreadsheetSlicers {
         if (now.query.sheet !== sheet || !timeline)
           throw new Error("Timeline view target changed");
         this.host.assign(
-          await this.client.editSheet(
-            now.query.revision,
-            sheet,
-            level === undefined
-              ? {
-                  action: "setTimelineLevel",
-                  name: timeline.name,
-                  level: value,
-                }
-              : {
-                  action: "scrollTimeline",
-                  name: timeline.name,
-                  level,
-                  position: value,
-                },
-          ),
+          await this.client.execute({
+            operation: "editXlsxSheet",
+            revision: now.query.revision,
+            sheet: sheet,
+            change:
+              level === undefined
+                ? {
+                    action: "setTimelineLevel",
+                    name: timeline.name,
+                    level: value,
+                  }
+                : {
+                    action: "scrollTimeline",
+                    name: timeline.name,
+                    level,
+                    position: value,
+                  },
+          }),
         );
         await this.host.render();
       })
@@ -261,49 +263,55 @@ export class SpreadsheetSlicers {
         const view = object.slicer;
         if (intent.kind === "position" && !view) return;
         this.host.assign(
-          await this.client.editSheet(
-            now.query.revision,
-            sheet,
-            object.timeline && intent.kind === "scroll"
-              ? {
-                  action: "scrollTimeline",
-                  name: object.timeline.name,
-                  level: object.timeline.navigation.level,
-                  position: Math.max(
-                    object.timeline.navigation.minimum,
-                    Math.min(
-                      object.timeline.navigation.maximum,
-                      object.timeline.navigation.position + intent.offset,
-                    ),
-                  ),
-                }
-              : intent.kind === "scroll" || intent.kind === "position"
+          await this.client.execute({
+            operation: "editXlsxSheet",
+            revision: now.query.revision,
+            sheet: sheet,
+            change:
+              object.timeline && intent.kind === "scroll"
                 ? {
-                    action: "scrollSlicer",
-                    layout: layout.id,
-                    id,
+                    action: "scrollTimeline",
+                    name: object.timeline.name,
+                    level: object.timeline.navigation.level,
                     position: Math.max(
-                      0,
+                      object.timeline.navigation.minimum,
                       Math.min(
-                        view?.maximum ?? 0,
-                        intent.kind === "position"
-                          ? intent.position
-                          : (view?.start ?? 0) + intent.offset,
+                        object.timeline.navigation.maximum,
+                        object.timeline.navigation.position + intent.offset,
                       ),
                     ),
                   }
-                : {
-                    action: "selectSlicer",
-                    layout: layout.id,
-                    id,
-                    index: intent.index,
-                    additive: intent.additive,
-                  },
-          ),
+                : intent.kind === "scroll" || intent.kind === "position"
+                  ? {
+                      action: "scrollSlicer",
+                      layout: layout.id,
+                      id,
+                      position: Math.max(
+                        0,
+                        Math.min(
+                          view?.maximum ?? 0,
+                          intent.kind === "position"
+                            ? intent.position
+                            : (view?.start ?? 0) + intent.offset,
+                        ),
+                      ),
+                    }
+                  : {
+                      action: "selectSlicer",
+                      layout: layout.id,
+                      id,
+                      index: intent.index,
+                      additive: intent.additive,
+                    },
+          }),
         );
         await this.host.render();
         if (restoreFocus) {
           const group = this.groups.get(id);
+          const firstPeriod = this.host
+            .current()
+            .layout?.objects.find((item) => item.id === id)
+            ?.timeline?.periods.find((period) => period.regions.length > 0);
           (
             ((focused instanceof HTMLButtonElement ||
               focused instanceof HTMLInputElement) &&
@@ -311,6 +319,8 @@ export class SpreadsheetSlicers {
             !focused.disabled
               ? focused
               : undefined) ??
+            (firstPeriod &&
+              this.targets.get(`${id}:period:${firstPeriod.index}:0`)) ??
             group?.querySelector<HTMLButtonElement>(
               'button[data-slicer-member="true"]:not(:disabled)',
             ) ??

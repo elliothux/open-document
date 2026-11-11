@@ -35,7 +35,7 @@ fn name_node_reason(node : @xml.Node, document : @xml.Document) -> String {
     validate_defined_name(node.attribute("name").unwrap_or(""))
     ignore(flag(node, "hidden"))
     guard !node.empty &&
-      node.text.length() <= 8192 &&
+      node.text.length() <= FormulaSourceUnits &&
       !document.source()[node.opening_end:node.closing_start].contains("<") else {
       return "Defined name source requires editing support"
     }
@@ -62,8 +62,8 @@ fn Session::name_scope(
 fn Session::name_entries(
   self : Session,
   workbook : @xml.Document,
-) -> Array[Json] raise @failure.Failure {
-  let entries : Array[Json] = []
+) -> Array[QueryName] raise @failure.Failure {
+  let entries : Array[QueryName] = []
   let tree = Tree::new(workbook)
   ignore(read_named_definitions(workbook, self.sheets.length()))
   let mut units = 0
@@ -71,23 +71,22 @@ fn Session::name_entries(
     for node in tree.all(parent.id, "definedName") {
       let scope = node
         .attribute("localSheetId")
-        .map(value => natural(value, self.sheets.length() - 1))
-      units += node.attribute("name").unwrap_or("").length() +
+        .map(value => self.sheets[natural(value, self.sheets.length() - 1)].id)
+      let name = node.attribute("name").unwrap_or("")
+      units += name.length() +
         node.text.length() +
-        scope.map(index => self.sheets[index].id.length()).unwrap_or(0)
+        scope.map(String::length).unwrap_or(0)
       guard units <= 1048576 else {
         @failure.reject("limit-exceeded", "Defined name catalog exceeds budget")
       }
       entries.push({
-        "name": node.attribute("name").unwrap_or(""),
-        "scope": scope
-        .map(index => Json(self.sheets[index].id))
-        .unwrap_or(Json::null()),
-        "formula": node.text,
-        "hidden": flag(node, "hidden") catch {
+        name,
+        scope: { value: scope, },
+        formula: node.text,
+        hidden: flag(node, "hidden") catch {
           @failure.Failure(..) => true
         },
-        "readOnlyReason": name_node_reason(node, workbook),
+        readOnlyReason: name_node_reason(node, workbook),
       })
     }
   }
@@ -95,13 +94,16 @@ fn Session::name_entries(
 }
 
 ///|
-fn Session::names_query(self : Session) -> Json {
+fn Session::names_query(self : Session, current_tree : Tree) -> QueryNames {
   {
-    "entries": self.name_entries(self.workbook),
-    "readOnlyReason": self.sheet_rename_reason(structure=false, tables=true),
+    entries: self.name_entries(self.workbook),
+    readOnlyReason: self.sheet_rename_reason(
+      structure=false,
+      tables=true,
+      current_tree~,
+    ),
   } catch {
-    @failure.Failure(message~, ..) =>
-      { "entries": [], "readOnlyReason": message }
+    @failure.Failure(message~, ..) => { entries: [], readOnlyReason: message, }
   }
 }
 
@@ -198,7 +200,7 @@ fn name_reference_formula(
     }
     let (start, end) = spans[index]
     units += name.length() - (end - start)
-    guard units <= 8192 else {
+    guard units <= FormulaSourceUnits else {
       @failure.reject("limit-exceeded", "Renamed formula exceeds source budget")
     }
     out.write_view(text[cursor:start])
@@ -269,7 +271,7 @@ fn Session::edit_name(
     .to_owned()
   if !delete {
     guard !formula.is_empty() &&
-      formula.length() <= 8192 &&
+      formula.length() <= FormulaSourceUnits &&
       @xml.valid_text(formula) else {
       @failure.reject("invalid-name", "Invalid defined name formula")
     }

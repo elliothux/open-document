@@ -1,4 +1,7 @@
 ///|
+pub const DelimitedInputBytes : Int32 = 4194304
+
+///|
 fn delimited_rows(
   source : String,
   delimiter : String,
@@ -64,7 +67,9 @@ fn delimited_rows(
       field.write_char(ch)
       start = false
     }
-    guard cells <= 65536 && row.length() <= 16384 && rows.length() <= 65536 else {
+    guard cells <= 65536 &&
+      row.length() <= WorksheetColumns &&
+      rows.length() <= 65536 else {
       @failure.reject("limit-exceeded", "Delimited rows or cells exceed limits")
     }
   }
@@ -76,7 +81,7 @@ fn delimited_rows(
     rows.push(row)
     cells += 1
   }
-  guard cells <= 65536 && rows.all(row => row.length() <= 16384) else {
+  guard cells <= 65536 && rows.all(row => row.length() <= WorksheetColumns) else {
     @failure.reject("limit-exceeded", "Delimited cells exceed limits")
   }
   rows
@@ -100,7 +105,7 @@ pub fn Session::import_delimited(
     )
   }
   guard bytes.length() <=
-    budget.file_bytes.min(budget.retained_bytes).min(4194304) else {
+    budget.file_bytes.min(budget.retained_bytes).min(DelimitedInputBytes) else {
     @failure.reject("limit-exceeded", "Delimited file exceeds input budget")
   }
   let source = @utf8.decode(bytes[:], ignore_bom=true) catch {
@@ -234,7 +239,7 @@ pub fn Session::export_csv(
         Blank
       } else {
         self.calculation
-        .bind(calc => calc.values.get((index, address.name())))
+        .bind(calc => calc.values.get((index, address)))
         .unwrap_or(cell.map(c => c.value).unwrap_or(Blank))
       }
       guard cell.bind(c => c.formula) is None || value != Blank else {

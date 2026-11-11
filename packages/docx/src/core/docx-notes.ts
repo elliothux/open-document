@@ -1,4 +1,8 @@
 import { integer, record } from "@open-document/wasm/abi/validation";
+import {
+  docxNoteTextUnits,
+  docxNumberingStartMax,
+} from "@open-document/wasm/engine-source";
 
 export type DocxNoteKind = "footnote" | "endnote";
 export type DocxEndnotePosition = "docEnd" | "sectEnd";
@@ -32,7 +36,7 @@ export function checkNoteNumbering(
       (key) => !["format", "start", "restart"].includes(key),
     ) ||
     !noteNumberFormats.some((format) => format === fields.format) ||
-    !integer(fields.start, 0, 4294967295) ||
+    !integer(fields.start, 0, docxNumberingStartMax) ||
     (fields.restart !== "continuous" &&
       fields.restart !== "eachSect" &&
       fields.restart !== "eachPage")
@@ -99,7 +103,7 @@ function kind(value: unknown): value is DocxNoteKind {
 function text(value: unknown): value is string {
   return (
     typeof value === "string" &&
-    value.length <= 32767 &&
+    value.length <= docxNoteTextUnits &&
     value.isWellFormed() &&
     !Array.from(value).some((c) => {
       const n = c.codePointAt(0)!;
@@ -150,43 +154,4 @@ export function checkDocxNoteEdit(
     !text(note.text)
   )
     throw new Error("Invalid native note text or identity");
-}
-export function docxNotes(value: unknown): DocxNotes {
-  const result = record(value);
-  const endnotes = record(result.endnotes);
-  if (
-    typeof endnotes.reason !== "string" ||
-    (endnotes.position === null
-      ? !endnotes.reason
-      : !!endnotes.reason ||
-        (endnotes.position !== "docEnd" && endnotes.position !== "sectEnd"))
-  )
-    throw new Error("Invalid endnote settings");
-  if (
-    !integer(result.revision, 0, 2147483647) ||
-    !Array.isArray(result.entries) ||
-    result.entries.length > 8192
-  )
-    throw new Error("Invalid native note catalog");
-  const seen = new Set<string>();
-  let units = 0;
-  for (const value of result.entries) {
-    const note = record(value);
-    if (
-      !kind(note.kind) ||
-      !identity(note.id) ||
-      typeof note.text !== "string" ||
-      note.text.length > 32767 ||
-      !note.text.isWellFormed() ||
-      typeof note.reason !== "string" ||
-      !integer(note.references, 0, 2147483647)
-    )
-      throw new Error("Invalid native note entry");
-    const key = `${note.kind}:${note.id}`;
-    units += note.text.length;
-    if (seen.has(key) || units > 2097152)
-      throw new Error("Native note catalog exceeds limits");
-    seen.add(key);
-  }
-  return value as DocxNotes;
 }

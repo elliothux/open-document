@@ -46,8 +46,7 @@ fn Session::commit_conditional(
   )
   if self.font_context is Some((probe, profile)) &&
     self.grid is Some(grid) &&
-    grid.sheet == sheet.id &&
-    grid.result is { "cells": Array(visible), .. } {
+    grid.sheet == sheet.id {
     let work : FormulaWork = {
       remaining: 1048576,
       date1904: self.date1904,
@@ -62,38 +61,29 @@ fn Session::commit_conditional(
       work,
       parts=plan.parts,
     )
-    for item in visible {
-      if item is { "cell": { "address": String(name), .. }, .. } {
-        let address = Address::parse(name)
-        let value = calculated_cell(
-          sheets,
-          self.calculation.unwrap().values,
-          index,
-          address,
-        )
-        if value == Blank || value == Text("") {
-          continue
-        }
-        let style = conditional.applied(
-          self.styles[sheets[index].style_at(address)],
-          address,
-          sheets,
-          index,
-          self.calculation.unwrap().values,
-          work,
-        )
-        let identity = profile
-          .get(style.font)
-          .unwrap_or_error(
-            @failure.Failure(
-              code="missing-font",
-              part="",
-              offset=-1,
-              message="Missing font profile mapping: " + style.font,
-            ),
-          )
-        ignore(probe.font_index(identity))
+    let values = self.calculation.unwrap().values
+    for address in grid.visible_cells {
+      let value = calculated_cell(sheets, values, index, address)
+      if value == Blank || value == Text("") {
+        continue
       }
+      let style = conditional.applied(
+        self.styles[sheets[index].style_at(address)],
+        address,
+        sheets,
+        index,
+        values,
+        work,
+      )
+      let identity = @layout.font_profile_identity(profile, style.font).unwrap_or_error(
+        @failure.Failure(
+          code="missing-font",
+          part="",
+          offset=-1,
+          message="Missing font profile mapping: " + style.font,
+        ),
+      )
+      ignore(probe.font_index(identity))
     }
   }
   plan.edits.push((sheet.id, edit))
@@ -168,7 +158,7 @@ fn Session::set_conditional(
     }
   }
   let plan = if settings is Some(settings) {
-    guard source.length() <= 262144 else {
+    guard source.length() <= ConditionalRangeUnits else {
       @failure.reject(
         "limit-exceeded", "Conditional ranges exceed source budget",
       )
@@ -180,13 +170,13 @@ fn Session::set_conditional(
     }
     if target is Some(target) &&
       target.ranges == ranges &&
-      target.settings().json() == settings.json() {
+      Json(target.settings()) == Json(settings) {
       return self.query()
     }
     let priority = target
       .map(t => t.priority)
       .unwrap_or_else(() => {
-        guard conditional.rules.length() < 4096 else {
+        guard conditional.rules.length() < ConditionalRuleCount else {
           @failure.reject("limit-exceeded", "Conditional rules exceed 4096")
         }
         let last = conditional.rules.last().map(r => r.priority).unwrap_or(0)
@@ -243,7 +233,7 @@ fn Session::set_conditional(
       []
     }
     let rule_markup = if target is Some(target) &&
-      target.settings().json() == settings.json() &&
+      Json(target.settings()) == Json(settings) &&
       (
         !(conditional_predicate_kind(settings.kind) ||
         conditional_text_kind(settings.kind) ||

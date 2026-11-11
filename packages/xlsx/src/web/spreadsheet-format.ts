@@ -15,14 +15,15 @@ export function autoFitGrid(
   profile: Record<string, string>,
 ) {
   const range = query.selection.range;
-  return client.autoFit(
-    query.revision,
-    query.sheet,
-    axis === "rows" ? range.top : range.left,
-    axis === "rows" ? range.bottom : range.right,
-    axis,
-    profile,
-  );
+  return client.execute({
+    operation: "autoFitXlsx",
+    revision: query.revision,
+    sheet: query.sheet,
+    first: axis === "rows" ? range.top : range.left,
+    last: axis === "rows" ? range.bottom : range.right,
+    axis: axis,
+    profile: profile,
+  });
 }
 
 export function formatGrid(
@@ -32,7 +33,11 @@ export function formatGrid(
   profile: Record<string, string>,
 ) {
   checkFormatFonts(patch, query.formatting, profile);
-  return client.formatCells(query.revision, patch);
+  return client.execute({
+    operation: "formatXlsxCells",
+    revision: query.revision,
+    patch: patch,
+  });
 }
 
 export function checkFontMapping(

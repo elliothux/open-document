@@ -73,6 +73,7 @@ pub(all) enum PositionedPrimitive {
   ClipPath(Array[PathSegment], Bool)
   PixelCenters
   IntegerScreenGlyphs
+  CachedDrawing(String, Json)
   Restore
 }
 
@@ -183,25 +184,33 @@ pub fn PositionedDocument::drawing(
   self : PositionedDocument,
   images : Images,
   clear~ : Bool = true,
+  stroke_raster~ : StrokeRaster = IntegerStroke,
+  glyph_raster~ : GlyphRaster = IntegerGlyphs,
 ) -> Array[DrawingRegion] raise @failure.Failure {
+  let fractional_screen = stroke_raster is FractionalStroke
+  let coverage = stroke_raster is CoverageStroke
   self.pages.map(page => {
     let commands : Array[DrawCommand] = [
       ClipRect({ x: 0, y: 0, width: page.width, height: page.height, }),
     ]
     if clear {
       commands.push(
-        FillRect({
-          x: 0,
-          y: 0,
-          width: page.width,
-          height: page.height,
-          color: "ffffff",
-        }),
+        FillRect(
+          {
+            x: 0,
+            y: 0,
+            width: page.width,
+            height: page.height,
+            color: "ffffff",
+          },
+          screen_fractional=fractional_screen,
+        ),
       )
     }
     for primitive in page.primitives {
       match primitive {
-        Rectangle(fill) => commands.push(FillRect(fill))
+        Rectangle(fill) =>
+          commands.push(FillRect(fill, screen_fractional=fractional_screen))
         GradientRectangle(rect, stops) => {
           validate_gradient(rect, stops)
           commands.push(GradientRect(rect, stops))
@@ -235,7 +244,11 @@ pub fn PositionedDocument::drawing(
             )
           }
           commands.push(
-            Image({ ..image, key: images.get(image.key).identity, }),
+            Image(
+              { ..image, key: images.get(image.key).identity, },
+              crop=None,
+              preserve_pixels=fractional_screen,
+            ),
           )
           if opacity != 1 {
             commands.push(Style(DrawStyle::default()))
@@ -243,19 +256,22 @@ pub fn PositionedDocument::drawing(
         }
         Path(path, fill, stroke, width, pen) => {
           pen.validate()
+          let style = {
+            ..DrawStyle::default(),
+            fillAlpha: pen.fillAlpha,
+            strokeAlpha: pen.strokeAlpha,
+            evenOdd: pen.evenOdd,
+            dash: pen.dash,
+            cap: pen.cap,
+            join: pen.join,
+            miter: pen.miter,
+          }
+          commands.push(Style(style))
           commands.push(
-            Style({
-              ..DrawStyle::default(),
-              fillAlpha: pen.fillAlpha,
-              strokeAlpha: pen.strokeAlpha,
-              evenOdd: pen.evenOdd,
-              dash: pen.dash,
-              cap: pen.cap,
-              join: pen.join,
-              miter: pen.miter,
-            }),
+            DrawCommand::Path(path, fill, stroke, width).prepare_fill_outline(
+              style,
+            ),
           )
-          commands.push(Path(path, fill, stroke, width))
           commands.push(Style(DrawStyle::default()))
         }
         TextRule(path, color, width) =>
@@ -263,9 +279,13 @@ pub fn PositionedDocument::drawing(
         Transform(matrix) => commands.push(Transform(matrix))
         Clip(rect) => commands.push(ClipRect(rect))
         ClipPath(path, even_odd) => commands.push(ClipPath(path, even_odd))
-        PixelCenters => commands.push(PixelCenters)
-        IntegerScreenGlyphs => commands.push(IntegerScreenGlyphs)
-        Restore => commands.push(Restore)
+        PixelCenters => if !coverage { commands.push(PixelCenters) }
+        IntegerScreenGlyphs =>
+          if !coverage {
+            commands.push(IntegerScreenGlyphs)
+          }
+        CachedDrawing(key, body) => commands.push(CachedDrawing(key, body))
+        Restore => close_drawing_scope(commands)
         Text(text) =>
           for run in text.runs {
             commands.push(
@@ -311,8 +331,47 @@ pub fn PositionedDocument::drawing(
       }
     }
     commands.push(Restore)
-    { width: page.width, height: page.height, commands, }
+    if !fractional_screen {
+      annotate_gradient_clips(commands, device=coverage)
+    }
+    {
+      width: page.width,
+      height: page.height,
+      strokeRaster: stroke_raster,
+      glyphRaster: if fractional_screen {
+        FractionalGlyphs
+      } else {
+        glyph_raster
+      },
+      commands,
+    }
   })
+}
+
+///|
+fn close_drawing_scope(commands : Array[DrawCommand]) -> Unit {
+  // The outer page clip remains a separate canvas scope.
+  let count = commands.length()
+  if count >= 3 &&
+    commands[count - 2] is ClipRect(clip) &&
+    commands[count - 1] is Image(image, crop=None, preserve_pixels~) {
+    let x = clip.x.max(image.x)
+    let y = clip.y.max(image.y)
+    let visible : Border = {
+      x,
+      y,
+      width: (clip.x + clip.width).min(image.x + image.width) - x,
+      height: (clip.y + clip.height).min(image.y + image.height) - y,
+    }
+    commands[count - 2] = Image(
+      image,
+      crop=Some((clip, visible)),
+      preserve_pixels~,
+    )
+    ignore(commands.pop())
+  } else {
+    commands.push(Restore)
+  }
 }
 
 ///|
@@ -388,6 +447,7 @@ pub fn TextProbe::span_block(
     before: 0,
     after: 0,
     line: Auto(240),
+    lineGrid: None,
     left: 0,
     right: 0,
     first: 0,
@@ -400,27 +460,14 @@ pub fn TextProbe::span_block(
     marker: None,
     readOnlyReason: "",
   }
-  let cache = ParagraphCache::new(self, profile)
+  let cache = ParagraphCache::new(self, profile, text_block=true)
   let available = if wrap { width } else { 1000000000.0 }
   let measured = cache.lines(self, paragraph, profile, available, cell~) catch {
     Failure(code="layout-overflow", ..) =>
       cache.lines(self, paragraph, profile, 1000000000.0, cell~)
     error => raise error
   }
-  // Retain only the existing bounded text cache; old viewport entries may be evicted.
-  if self.paragraphs.length() >= 1024 {
-    self.paragraphs.clear()
-    self.text_units = 0
-  }
-  for key, lines in cache.current {
-    if !self.paragraphs.contains(key) {
-      let units = paragraph_cache_units(key, lines.map(item => item.line))
-      if units <= 1048576 - self.text_units {
-        self.paragraphs[key] = lines
-        self.text_units += units
-      }
-    }
-  }
+  self.retain_text_cache(cache)
   let lines : Array[Array[PositionedPrimitive]] = []
   let widths : Array[Double] = []
   let mut y = 0.0

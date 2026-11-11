@@ -50,7 +50,7 @@ fn table_reference_formula(
   }
   out.write_view(text[cursor:])
   let result = out.to_string()
-  guard result.length() <= 8192 else {
+  guard result.length() <= FormulaSourceUnits else {
     @failure.reject("limit-exceeded", "Renamed table formula exceeds budget")
   }
   result

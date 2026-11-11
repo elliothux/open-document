@@ -264,7 +264,7 @@ fn Session::copy_object_fragment(
     "active": self.selection.object.split("#").last().unwrap().to_owned(),
   }
   let fragment = fragment.stringify()
-  guard fragment.length() <= 100663296 else {
+  guard fragment.length() <= ObjectFragmentUnits else {
     @failure.reject("limit-exceeded", "Object clipboard exceeds 96Mi units")
   }
   ignore(read_object_fragment(fragment, self.budget))
@@ -277,10 +277,10 @@ pub fn Session::object_fragment_images(
   self : Session,
   revision : Int32,
   value : String,
-) -> Array[String] raise @failure.Failure {
+) -> Array[Bytes] raise @failure.Failure {
   self.check_revision(revision)
   self.check_idle()
   read_object_fragment(value, self.budget).resources.filter_map(resource => {
-    resource.image.map(bytes => @base64.encode(bytes))
+    resource.image
   })
 }

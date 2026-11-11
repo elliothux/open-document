@@ -24,7 +24,7 @@ export function DocxTabs({ controller, state, editor, disabled }: Props) {
       onSubmit={(event) => {
         event.preventDefault();
         controller.run(() =>
-          editor.setParagraphFormat({
+          editor.formatting.setParagraphFormat({
             tabs: [...draft].sort((a, b) => a.position - b.position),
           }),
         );
@@ -42,7 +42,9 @@ export function DocxTabs({ controller, state, editor, disabled }: Props) {
         <button
           type="button"
           onClick={() =>
-            controller.run(() => editor.setParagraphFormat({ tabs: [] }))
+            controller.run(() =>
+              editor.formatting.setParagraphFormat({ tabs: [] }),
+            )
           }
         >
           {t.clearTabStops}
@@ -50,7 +52,9 @@ export function DocxTabs({ controller, state, editor, disabled }: Props) {
         <button
           type="button"
           onClick={() =>
-            controller.run(() => editor.setParagraphFormat({ tabs: null }))
+            controller.run(() =>
+              editor.formatting.setParagraphFormat({ tabs: null }),
+            )
           }
         >
           {t.restoreTabStops}
@@ -69,7 +73,9 @@ export function DocxDefaultTab({ controller, state, editor, disabled }: Props) {
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        controller.run(() => editor.setDefaultTabStop(Number(draft)));
+        controller.run(() =>
+          editor.formatting.setDefaultTabStop(Number(draft)),
+        );
       }}
     >
       <fieldset disabled={disabled}>
@@ -90,7 +96,9 @@ export function DocxDefaultTab({ controller, state, editor, disabled }: Props) {
         <button type="submit">{t.applyDefaultTab}</button>
         <button
           type="button"
-          onClick={() => controller.run(() => editor.setDefaultTabStop(null))}
+          onClick={() =>
+            controller.run(() => editor.formatting.setDefaultTabStop(null))
+          }
         >
           {t.restoreDefaultTab}
         </button>

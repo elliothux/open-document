@@ -1,107 +1,132 @@
 ///|
-fn Context::shape_operation(
+priv struct ShapeCommandRequest {
+  revision : @common.RequestInt
+  shape : Json
+  profile : Json?
+} derive(@json.FromJson)
+
+///|
+priv struct WordArtRequest {
+  preset : String
+  text : String
+} derive(@json.FromJson)
+
+///|
+priv struct ShapeInsertRequest {
+  preset : String
+  text : String?
+} derive(@json.FromJson)
+
+///|
+priv struct ShapeAppearanceRequest {
+  width : @common.RequestNumber
+  height : @common.RequestNumber
+  fill : String
+  stroke : String
+  lineWidth : @common.RequestNumber
+} derive(@json.FromJson)
+
+///|
+priv struct TextBoxRequest {
+  insets : Array[@common.RequestNumber]
+  anchor : String
+  wrap : Bool
+  clip : Bool
+} derive(@json.FromJson)
+
+///|
+priv struct TextBoxEditRequest {
+  id : @common.RequestInt
+  properties : TextBoxRequest
+} derive(@json.FromJson)
+
+///|
+fn Context::edit_shape_command(
   self : Context,
-  operation : String,
+  session : @model.Session,
   request : Json,
 ) -> Json raise @failure.Failure {
-  guard self.docx is Some(session) else {
-    @failure.reject("invalid-operation", "Open a DOCX session first")
-  }
-  let revision = field_int(request, "revision")
-  if operation == "docxShapes" {
-    return session.shapes(revision)
-  }
-  guard request is { "shape": shape, .. } else {
-    @failure.reject("invalid-operation", "Shape settings are required")
-  }
-  let result = match field_string(shape, "action") {
+  let command : ShapeCommandRequest = @common.request(request)
+  let revision = command.revision.value
+  let shape = command.shape
+  let edit : @common.ActionRequest = @common.request(shape)
+  let result = match edit.action {
     "hyperlink" => drawing_hyperlink(session, revision, shape)
-    "insertWordArt" =>
+    "insertWordArt" => {
+      let word_art : WordArtRequest = @common.request(shape)
       session.insert_word_art(
         revision,
-        field_string(shape, "preset"),
-        field_string(shape, "text"),
+        word_art.preset,
+        word_art.text,
         probe=self.probe,
-        profile=font_profile(request),
+        profile=drawing_profile(command.profile),
         images=self.images,
       )
-    "insert" =>
+    }
+    "insert" => {
+      guard !(shape is { "text": Null, .. }) else {
+        @failure.reject("invalid-operation", "Shape text cannot be null")
+      }
+      let insert : ShapeInsertRequest = @common.request(shape)
+      let appearance : ShapeAppearanceRequest = @common.request(shape)
       session.insert_shape(
         revision,
-        field_string(shape, "preset"),
-        field_number(shape, "width"),
-        field_number(shape, "height"),
-        field_string(shape, "fill"),
-        field_string(shape, "stroke"),
-        field_number(shape, "lineWidth"),
-        text?=if shape is Object(fields) && fields.contains("text") {
-          Some(field_string(shape, "text"))
-        } else {
-          None
-        },
+        insert.preset,
+        appearance.width.value,
+        appearance.height.value,
+        appearance.fill,
+        appearance.stroke,
+        appearance.lineWidth.value,
+        text?=insert.text,
         probe=self.probe,
-        profile=font_profile(request),
+        profile=drawing_profile(command.profile),
         images=self.images,
       )
-    "delete" => session.delete_shape(revision, field_int(shape, "id"))
+    }
+    "delete" => {
+      let drawing : DrawingIdRequest = @common.request(shape)
+      session.delete_shape(revision, drawing.id.value)
+    }
     "textBox" => {
-      guard shape is { "properties": properties, .. } &&
-        properties is { "insets": Array(insets), .. } else {
-        @failure.reject("invalid-operation", "Text box properties are required")
+      guard shape is { "properties": { "insets": Array(insets), .. }, .. } &&
+        insets.length() == 4 else {
+        @failure.reject("invalid-operation", "Text box requires four insets")
       }
+      let drawing : TextBoxEditRequest = @common.request(shape)
+      let text_box = drawing.properties
       session.edit_text_box(
         revision,
-        field_int(shape, "id"),
+        drawing.id.value,
         {
-          insets: insets.map(value => {
-            guard value is Number(number, ..) else {
-              @failure.reject(
-                "invalid-operation", "Text box insets require numbers",
-              )
-            }
-            number
-          }),
-          anchor: field_string(properties, "anchor"),
-          wrap: field_boolean(properties, "wrap"),
-          clip: field_boolean(properties, "clip"),
+          insets: text_box.insets.map(value => value.value),
+          anchor: text_box.anchor,
+          wrap: text_box.wrap,
+          clip: text_box.clip,
         },
         probe=self.probe,
-        profile=font_profile(request),
+        profile=drawing_profile(command.profile),
         images=self.images,
       )
     }
     "position" =>
-      session.set_drawing_anchor(
-        revision,
-        field_int(shape, "id"),
-        drawing_anchor(shape),
-        target?=if shape is { "target": target, .. } {
-          Some(field_position(target))
-        } else {
-          None
-        },
-        probe=self.probe,
-        profile=font_profile(request),
-        images=self.images,
-      )
-    "properties" =>
+      self.position_drawing(session, revision, shape, command.profile)
+    "properties" => {
+      let drawing : DrawingIdRequest = @common.request(shape)
+      let appearance : ShapeAppearanceRequest = @common.request(shape)
       session.edit_shape(
         revision,
-        field_int(shape, "id"),
-        field_number(shape, "width"),
-        field_number(shape, "height"),
-        field_string(shape, "fill"),
-        field_string(shape, "stroke"),
-        field_number(shape, "lineWidth"),
+        drawing.id.value,
+        appearance.width.value,
+        appearance.height.value,
+        appearance.fill,
+        appearance.stroke,
+        appearance.lineWidth.value,
         probe=self.probe,
-        profile=font_profile(request),
+        profile=drawing_profile(command.profile),
         images=self.images,
       )
+    }
     _ => @failure.reject("invalid-operation", "Unknown shape action")
   }
-  if result is { "revision": Number(current, ..), .. } &&
-    current != revision.to_double() {
-    self.layout = None
-  }
-  result
+  self.clear_edit_layout(result, previous=revision)
 }

@@ -1,13 +1,16 @@
+import type { PptxInputLimits } from "../core/pptx.js";
+
 /** Decode explicit local bytes. No source URL from a document enters this path. */
 async function decodeMedia<T>(
   bytes: Uint8Array,
   contentType: string,
+  byteLimit: number,
   signal: AbortSignal | undefined,
   use: (video: HTMLVideoElement) => T | Promise<T>,
 ): Promise<T> {
   signal?.throwIfAborted();
-  if (!bytes.length || bytes.length > 16777216)
-    throw new Error("Media input must contain 1 to 16777216 bytes");
+  if (!bytes.length || bytes.length > byteLimit)
+    throw new Error(`Media input must contain 1 to ${byteLimit} bytes`);
   const video = document.createElement("video");
   if (!video.canPlayType(contentType))
     throw new Error(`This browser cannot decode ${contentType}`);
@@ -78,9 +81,10 @@ export function verifyPresentationMedia(
   bytes: Uint8Array,
   kind: "audio" | "video",
   contentType: string,
+  limits: PptxInputLimits,
   signal?: AbortSignal,
 ): Promise<void> {
-  return decodeMedia(bytes, contentType, signal, (video) => {
+  return decodeMedia(bytes, contentType, limits.mediaBytes, signal, (video) => {
     if (video.videoWidth > 0 !== (kind === "video"))
       throw new Error("Decoded media kind differs from the declared kind");
   });
@@ -89,6 +93,7 @@ export function verifyPresentationMedia(
 /** Generate the static poster from the first decoded frame, or an audio play symbol. */
 export async function preparePresentationMedia(
   bytes: Uint8Array,
+  limits: PptxInputLimits,
   signal?: AbortSignal,
 ): Promise<{
   kind: "audio" | "video";
@@ -111,7 +116,7 @@ export async function preparePresentationMedia(
             ? "audio/mpeg"
             : "";
   if (!type) throw new Error("Unsupported media container");
-  return decodeMedia(bytes, type, signal, async (video) => {
+  return decodeMedia(bytes, type, limits.mediaBytes, signal, async (video) => {
     const kind = video.videoWidth ? "video" : "audio";
     const contentType =
       kind === "audio" ? type.replace("video/", "audio/") : type;
@@ -150,7 +155,7 @@ export async function preparePresentationMedia(
           "image/png",
         ),
       );
-      if (blob.size > 4194304)
+      if (blob.size > limits.imageBytes)
         throw new Error("Media poster exceeds byte budget");
       signal?.throwIfAborted();
       return {

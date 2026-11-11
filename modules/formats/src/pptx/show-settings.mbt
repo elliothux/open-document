@@ -25,17 +25,31 @@ pub fn ShowSettings::default() -> ShowSettings {
 }
 
 ///|
-fn ShowSettings::json(self : ShowSettings) -> Json {
+priv struct ShowSettingsValue {
+  slides : Json
+  timings : Bool
+  animations : Bool
+  cycling : Bool
+} derive(ToJson(fields(cycling(rename="loop"))))
+
+///|
+priv struct ShowSettingsQuery {
+  value : Json
+  reason : String
+} derive(ToJson)
+
+///|
+fn ShowSettings::query_value(self : ShowSettings) -> ShowSettingsValue {
   let slides : Json = match self.slides {
     ShowAll => { "kind": "all" }
     ShowRange(first, last) => { "kind": "range", "first": first, "last": last }
     ShowCustom(id) => { "kind": "custom", "id": id }
   }
   {
-    "slides": slides,
-    "timings": self.timings,
-    "animations": self.animations,
-    "loop": self.cycling,
+    slides,
+    timings: self.timings,
+    animations: self.animations,
+    cycling: self.cycling,
   }
 }
 
@@ -144,8 +158,16 @@ fn Session::read_show_settings(
       match range.name {
         "sldRg" =>
           ShowRange(
-            number(range.attribute("st").unwrap_or(""), 1, 256).to_int(),
-            number(range.attribute("end").unwrap_or(""), 1, 256).to_int(),
+            number(
+              range.attribute("st").unwrap_or(""),
+              1,
+              SlideCountLimit.to_double(),
+            ).to_int(),
+            number(
+              range.attribute("end").unwrap_or(""),
+              1,
+              SlideCountLimit.to_double(),
+            ).to_int(),
           )
         "custShow" =>
           ShowCustom(
@@ -168,13 +190,12 @@ fn Session::read_show_settings(
 }
 
 ///|
-fn Session::show_settings_query(self : Session) -> Json {
+fn Session::show_settings_query(self : Session) -> ShowSettingsQuery {
   {
-    "value": self.read_show_settings().json(),
-    "reason": self.slide_visibility_reason(),
+    value: ToJson::to_json(self.read_show_settings().query_value()),
+    reason: self.slide_visibility_reason(),
   } catch {
-    @failure.Failure(message~, ..) =>
-      { "value": Json::null(), "reason": message }
+    @failure.Failure(message~, ..) => { value: Json::null(), reason: message, }
   }
 }
 

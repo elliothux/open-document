@@ -1,6 +1,12 @@
 ///|
-fn xlsx_cell_format(value : Json) -> @model.CellFormat raise @failure.Failure {
+priv struct CellFormatRequest {
+  value : @model.CellFormat
+}
+
+///|
+impl @json.FromJson for CellFormatRequest with fn from_json(value, path) {
   guard value is Object(fields) &&
+    fields.values().all(field => !(field is Null)) &&
     fields
     .keys()
     .all(key => {
@@ -10,81 +16,50 @@ fn xlsx_cell_format(value : Json) -> @model.CellFormat raise @failure.Failure {
         "top", "bottom", "locked", "formulaHidden", "indent", "shrinkToFit", "textRotation",
       ].contains(key)
     }) else {
-    @failure.reject("invalid-operation", "Unknown cell format fields")
+    raise @json.JsonDecodeError((path, "Invalid cell format fields"))
   }
-  let string = fn(key) raise @failure.Failure {
-    if fields.contains(key) {
-      Some(field_string(value, key))
-    } else {
-      None
-    }
-  }
-  let boolean = fn(key) raise @failure.Failure {
-    if fields.contains(key) {
-      Some(field_boolean(value, key))
-    } else {
-      None
-    }
-  }
-  let border = fn(key) raise @failure.Failure {
+  for key in ["left", "right", "top", "bottom"] {
     if fields.get(key) is Some(value) {
       guard value is Object(edge) &&
         edge.length() == 2 &&
         edge.contains("style") &&
         edge.contains("color") else {
-        @failure.reject("invalid-operation", "Invalid cell border fields")
+        raise @json.JsonDecodeError(
+          (path.add_key(key), "Invalid cell border fields"),
+        )
       }
-      Some(@model.CellBorder::{
-        style: field_string(value, "style"),
-        color: field_string(value, "color"),
-      })
-    } else {
-      None
     }
   }
-  @model.CellFormat::new(
-    family=string("family"),
-    size=if fields.contains("size") {
-      Some(field_number(value, "size"))
-    } else {
-      None
-    },
-    bold=boolean("bold"),
-    italic=boolean("italic"),
-    underline=boolean("underline"),
-    strike=boolean("strike"),
-    script=string("script"),
-    color=string("color"),
-    fill=string("fill"),
-    horizontal=string("horizontal"),
-    vertical=string("vertical"),
-    wrap=boolean("wrap"),
-    shrinkToFit=boolean("shrinkToFit"),
-    textRotation=if fields.contains("textRotation") {
-      Some(field_int(value, "textRotation"))
-    } else {
-      None
-    },
-    indent=if fields.contains("indent") {
-      Some(field_int(value, "indent"))
-    } else {
-      None
-    },
-    locked=boolean("locked"),
-    formulaHidden=boolean("formulaHidden"),
-    numberFormat=string("numberFormat"),
-    left=border("left"),
-    right=border("right"),
-    top=border("top"),
-    bottom=border("bottom"),
-  )
+  if fields.get("size") is Some(value) {
+    let _ : @common.RequestNumber = @json.from_json(
+      value,
+      path=path.add_key("size"),
+    )
+  }
+  for key in ["indent", "textRotation"] {
+    if fields.get(key) is Some(value) {
+      let _ : @common.RequestInt = @json.from_json(
+        value,
+        path=path.add_key(key),
+      )
+    }
+  }
+  { value: @json.from_json(value, path~), }
+}
+
+///|
+fn xlsx_cell_format(value : Json) -> @model.CellFormat raise @failure.Failure {
+  let request : CellFormatRequest = @common.request(value)
+  request.value
 }
 
 ///|
 fn xlsx_format_pattern(
   value : Json,
 ) -> Array[Array[@model.CellFormat]] raise @failure.Failure {
-  guard value is Array(rows) && rows.length() > 0 && rows.length() <= 4096 else {
+  guard value is Array(rows) &&
+    rows.length() > 0 &&
+    rows.length() <= @model.CellFragmentCells else {
     @failure.reject("invalid-operation", "Expected copied cell format rows")
   }
   let mut cells = 0
@@ -94,12 +69,23 @@ fn xlsx_format_pattern(
         "invalid-operation", "Expected copied cell format columns",
       )
     }
-    cells += columns.length()
-    guard cells <= 4096 else {
-      @failure.reject("limit-exceeded", "Copied format exceeds 4096 cells")
+    guard columns.length() <= @model.CellFragmentCells - cells else {
+      @failure.reject(
+        "limit-exceeded",
+        "Copied format exceeds \{@model.CellFragmentCells} cells",
+      )
     }
+    cells += columns.length()
     columns.map(xlsx_cell_format)
   })
+}
+
+///|
+fn copied_merge_items(value : Json) -> Array[Json] raise @failure.Failure {
+  guard value is Array(merges) && merges.length() <= @model.CellFragmentMerges else {
+    @failure.reject("invalid-operation", "Expected bounded copied merges")
+  }
+  merges
 }
 
 ///|
@@ -109,25 +95,11 @@ fn xlsx_copied_format(
   guard value is Object(fields) &&
     fields.length() == 2 &&
     fields.get("cells") is Some(cells) &&
-    fields.get("merges") is Some(Array(merges)) &&
-    merges.length() <= 1024 else {
+    fields.get("merges") is Some(raw_merges) else {
     @failure.reject(
       "invalid-operation", "Expected copied format cells and merges",
     )
   }
-  let pattern = xlsx_format_pattern(cells)
-  let ranges = merges.map(merge => {
-    guard merge is Object(fields) &&
-      fields.length() == 4 &&
-      fields.keys().all(key => ["top", "left", "bottom", "right"].contains(key)) else {
-      @failure.reject("invalid-operation", "Invalid copied merged range")
-    }
-    @model.Range::{
-      top: field_int(merge, "top"),
-      left: field_int(merge, "left"),
-      bottom: field_int(merge, "bottom"),
-      right: field_int(merge, "right"),
-    }
-  })
-  (pattern, ranges)
+  let merges = copied_merge_items(raw_merges)
+  (xlsx_format_pattern(cells), merges.map(copied_range))
 }

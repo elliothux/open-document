@@ -3,6 +3,7 @@ import type { SpreadsheetEditor } from "../web/spreadsheet-editor.js";
 import type { XlsxThreads, XlsxThreadEdit } from "../web/xlsx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { xlsxThreadTextUnits } from "@open-document/wasm/engine-source";
 
 export function XlsxComments({
   controller,
@@ -32,7 +33,7 @@ export function XlsxComments({
     controller.run(async () => {
       await editor.whenIdle();
       if (!active) return;
-      const result = await editor.threads();
+      const result = await editor.objects.threads();
       if (active) setCatalog(result);
     });
     return () => {
@@ -48,7 +49,7 @@ export function XlsxComments({
   const root = catalog?.items.find((item) => item.parentId === null);
   const author = controller.options.commentAuthor?.name;
   const apply = (change: XlsxThreadEdit) =>
-    controller.run(() => editor.editThread(change));
+    controller.run(() => editor.objects.editThread(change));
   return (
     <fieldset disabled={disabled || !!blocked || stale || !!catalog?.reason}>
       <legend>{t.cellComments}</legend>
@@ -74,7 +75,7 @@ export function XlsxComments({
           if (!author || !catalog || !text.trim()) return;
           const content = { text, author, date: new Date().toISOString() };
           controller.run(async () => {
-            await editor.editThread(
+            await editor.objects.editThread(
               root
                 ? { action: "reply", id: root.id, ...content }
                 : { action: "create", cell: catalog.cell, ...content },
@@ -88,7 +89,7 @@ export function XlsxComments({
           <textarea
             aria-label={root ? t.commentReplyText : t.commentText}
             value={text}
-            maxLength={32767}
+            maxLength={xlsxThreadTextUnits}
             disabled={!author || root?.resolved}
             onChange={(event) => setText(event.currentTarget.value)}
           />
@@ -133,7 +134,7 @@ function Message({
           <textarea
             aria-label={t.commentText}
             value={text}
-            maxLength={32767}
+            maxLength={xlsxThreadTextUnits}
             onChange={(event) => setText(event.currentTarget.value)}
           />
         </label>

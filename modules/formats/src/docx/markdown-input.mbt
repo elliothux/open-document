@@ -371,8 +371,11 @@ fn Session::markdown_fragment(
   available~ : () -> (Double, Double) raise @failure.Failure = () => (14400, 0),
 ) -> String raise @failure.Failure {
   check_markup_mode(mode)
-  guard !markdown.trim().is_empty() && markdown.length() <= 65536 else {
-    @failure.reject("limit-exceeded", "Markdown requires 1..65536 source units")
+  guard !markdown.trim().is_empty() && markdown.length() <= MarkupSourceUnits else {
+    @failure.reject(
+      "limit-exceeded",
+      "Markdown requires 1..\{MarkupSourceUnits} source units",
+    )
   }
   // Bound parser work before building its AST, including adversarial delimiter nesting.
   guard markdown.iter().filter(c => "[]()*_>`".contains(c.to_string())).count() <=

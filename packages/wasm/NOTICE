@@ -235,7 +235,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 
-C0 uses the baseline JPEG decoder from shunge/image 0.2.1.
+Open Document uses PNG and JPEG decoding from shunge/image 0.2.1.
+Its JPEG reconstruction software is based in part on the work of
+the Independent JPEG Group.
 MIT License
 
 Copyright (c) 2025 lws

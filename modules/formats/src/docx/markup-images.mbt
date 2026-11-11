@@ -106,6 +106,8 @@ pub fn Session::markup_images(
   kind : String,
   input : String,
   mode~ : String = "source",
+  encode_image~ : (Bytes) -> Json = fragment_image_base64,
+  prepare_pixels~ : Bool = false,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let fragment = match kind {
@@ -113,5 +115,5 @@ pub fn Session::markup_images(
     "markdown" => self.markdown_fragment(input, mode)
     _ => @failure.reject("invalid-operation", "Unknown markup input format")
   }
-  self.body_fragment_images(revision, fragment)
+  self.body_fragment_images(revision, fragment, encode_image~, prepare_pixels~)
 }

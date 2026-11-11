@@ -1,6 +1,6 @@
 # P13 PDF 核心功能
 
-状态：`implemented`。六批最低交付范围已接通 PDF 核心、同步 Wasm/Worker SDK、默认 UI、历史及保存或派生输出。基于 [P7](p7-pdf-input.md)、[P8](p8-pdf-operations.md)、[P9](p9-web-sdk-ui.md)及 [R1](r1-domain-packages-shared-wasm.md)。当前 API、字体与预算归[格式合同](../references/formats.md#pdf-输入与文档操作)，功能差距归 [G3](../g3-genoffice-sdk-gap.md#pdf)，后续归[路线图](../references/roadmap.md)。
+状态：`implemented`。六批最低交付范围已接通 PDF 核心、同步 Wasm/Worker SDK、默认 UI、历史及保存或派生输出。基于 [P7](p7-pdf-input.md)、[P8](p8-pdf-operations.md)、[P9](p9-web-sdk-ui.md)及 [R1](r1-domain-packages-shared-wasm.md)。当前 API、字体与预算归[格式合同](../references/formats/pdf.md#pdf-输入与文档操作)，功能差距归 [G3](../g3-genoffice-sdk-gap.md#pdf)，后续归[路线图](../references/roadmap.md)。
 
 ## 已交付结果
 

@@ -1,4 +1,7 @@
 ///|
+pub const IndexLabelUnits : Int32 = 255
+
+///|
 priv struct IndexEntry {
   id : Int32
   paragraph : Int32
@@ -51,7 +54,7 @@ fn index_separator(instruction : String) -> String raise @failure.Failure {
 fn check_index_label(label : String) -> Unit raise @failure.Failure {
   let parts = label.split(":").to_array()
   guard !label.is_empty() &&
-    label.length() <= 255 &&
+    label.length() <= IndexLabelUnits &&
     @xml.valid_text(label) &&
     parts.length() <= 3 &&
     parts.all(part => !part.trim().is_empty()) &&
@@ -61,7 +64,8 @@ fn check_index_label(label : String) -> Unit raise @failure.Failure {
       ch.to_int() >= 32 && !"\"\\;\u2028\u2029".contains(ch.to_string())
     }) else {
     @failure.reject(
-      "invalid-operation", "Index entries require one to three nonempty levels and at most 255 plain characters",
+      "invalid-operation",
+      "Index entries require one to three nonempty levels and at most \{IndexLabelUnits} plain characters",
     )
   }
 }
@@ -320,6 +324,29 @@ fn WordTree::read_index_entries(
 }
 
 ///|
+priv struct IndexEntrySummary {
+  id : Int32
+  paragraph : Int32
+  label : String
+  reason : String
+} derive(ToJson)
+
+///|
+priv struct IndexFieldSummary {
+  paragraph : Int32
+  endParagraph : Int32
+  instruction : String
+  reason : String
+} derive(ToJson)
+
+///|
+priv struct IndexCatalog {
+  revision : Int32
+  entries : Array[IndexEntrySummary]
+  indexes : Array[IndexFieldSummary]
+} derive(ToJson)
+
+///|
 /// Lists native index entry fields and generated indexes without changing document history.
 pub fn Session::indexes(
   self : Session,
@@ -327,21 +354,21 @@ pub fn Session::indexes(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
-  let entries : Array[Json] = []
+  let entries : Array[IndexEntrySummary] = []
   for id in tree.order {
     if tree.index_entries.get(id) is Some(entry) {
       guard entries.length() < 4096 else {
         @failure.reject("limit-exceeded", "Index entries exceed budget")
       }
       entries.push({
-        "id": entry.id,
-        "paragraph": entry.paragraph,
-        "label": entry.label,
-        "reason": entry.reason,
+        id: entry.id,
+        paragraph: entry.paragraph,
+        label: entry.label,
+        reason: entry.reason,
       })
     }
   }
-  let indexes : Array[Json] = []
+  let indexes : Array[IndexFieldSummary] = []
   for id in tree.order {
     if tree.contents.get(id) is Some(value) &&
       value.paragraphs[0] == id &&
@@ -350,12 +377,13 @@ pub fn Session::indexes(
         @failure.reject("limit-exceeded", "Index fields exceed budget")
       }
       indexes.push({
-        "paragraph": id,
-        "endParagraph": value.paragraphs.last().unwrap(),
-        "instruction": value.instruction,
-        "reason": value.reason,
+        paragraph: id,
+        endParagraph: value.paragraphs.last().unwrap(),
+        instruction: value.instruction,
+        reason: value.reason,
       })
     }
   }
-  { "revision": revision, "entries": entries, "indexes": indexes }
+  let catalog : IndexCatalog = { revision, entries, indexes, }
+  ToJson::to_json(catalog)
 }

@@ -1,6 +1,9 @@
 import { record, integer } from "@open-document/wasm/abi/validation";
-import { FoundationClipboardSession } from "./docx-clipboard.js";
-import { editState, type EditState } from "./docx-format.js";
+import {
+  latexSourceUnits,
+  mathFontUnits,
+  mathTextUnits,
+} from "@open-document/wasm/engine-source";
 
 import type { MathFormat } from "@open-document/wasm/abi/math";
 export type { MathFormat } from "@open-document/wasm/abi/math";
@@ -68,7 +71,7 @@ function fractionText(value: unknown): value is string {
   return (
     typeof value === "string" &&
     value.length > 0 &&
-    value.length <= 4096 &&
+    value.length <= mathTextUnits &&
     value.isWellFormed() &&
     Array.from(value).every(
       (c) =>
@@ -86,7 +89,7 @@ function fractionFormat(value: unknown): boolean {
     Object.keys(format).length === 3 &&
     fractionText(format.family) &&
     format.family.trim().length > 0 &&
-    format.family.length <= 255 &&
+    format.family.length <= mathFontUnits &&
     typeof format.size === "number" &&
     Number.isFinite(format.size) &&
     format.size >= 0.5 &&
@@ -117,7 +120,7 @@ export function checkDocxFractionEdit(value: unknown): void {
     (!remove &&
       (!fractionText(edit.numerator) ||
         !fractionText(edit.denominator) ||
-        edit.numerator.length + edit.denominator.length > 4096))
+        edit.numerator.length + edit.denominator.length > mathTextUnits))
   )
     throw new Error("Invalid fraction edit");
 }
@@ -143,7 +146,7 @@ export function checkDocxScriptEdit(value: unknown): void {
         (edit.superscript !== "" && !fractionText(edit.superscript)) ||
         (!edit.subscript && !edit.superscript) ||
         edit.base.length + edit.subscript.length + edit.superscript.length >
-          4096))
+          mathTextUnits))
   )
     throw new Error("Invalid script edit");
 }
@@ -171,7 +174,7 @@ export function checkDocxMathEdit(value: unknown): void {
     (!remove &&
       (typeof edit.latex !== "string" ||
         !edit.latex.trim().length ||
-        edit.latex.length > 131072 ||
+        edit.latex.length > latexSourceUnits ||
         !edit.latex.isWellFormed() ||
         Array.from(edit.latex).some(
           (c) =>
@@ -180,133 +183,4 @@ export function checkDocxMathEdit(value: unknown): void {
         )))
   )
     throw new Error("Invalid math expression edit");
-}
-function checkMathCatalog(
-  value: unknown,
-  kind: "fraction" | "script" | "expression",
-): void {
-  const scripts = kind === "script";
-  const catalog = record(value);
-  if (
-    Object.keys(catalog).length !== 2 ||
-    !integer(catalog.revision, 0, 2147483647) ||
-    !Array.isArray(catalog.items) ||
-    catalog.items.length > 256
-  )
-    throw new Error("Invalid fraction catalog");
-  const ids = new Set<number>();
-  const names =
-    kind === "expression"
-      ? ["latex"]
-      : scripts
-        ? ["base", "subscript", "superscript"]
-        : ["numerator", "denominator"];
-  for (const item of catalog.items) {
-    const fraction = record(item);
-    const texts = names.map((name) => fraction[name]);
-    if (
-      Object.keys(fraction).length !== names.length + 3 ||
-      typeof fraction.id !== "number" ||
-      !integer(fraction.id, 0, 2147483647) ||
-      typeof fraction.reason !== "string" ||
-      !texts.every((text): text is string => typeof text === "string") ||
-      texts.reduce((sum, text) => sum + text.length, 0) >
-        (kind === "expression" ? 131072 : 4096) ||
-      ![...texts, fraction.reason].every((text) => text.isWellFormed()) ||
-      ids.has(fraction.id) ||
-      (fraction.reason
-        ? fraction.format !== null
-        : !fractionFormat(fraction.format))
-    )
-      throw new Error("Invalid fraction catalog item");
-    if (!fraction.reason) {
-      if (kind === "expression")
-        checkDocxMathEdit({
-          action: "update",
-          id: fraction.id,
-          latex: fraction.latex,
-        });
-      else if (scripts)
-        checkDocxScriptEdit({
-          action: "update",
-          id: fraction.id,
-          base: fraction.base,
-          subscript: fraction.subscript,
-          superscript: fraction.superscript,
-        });
-      else
-        checkDocxFractionEdit({
-          action: "update",
-          id: fraction.id,
-          numerator: fraction.numerator,
-          denominator: fraction.denominator,
-        });
-    }
-    ids.add(fraction.id);
-  }
-}
-export function docxMathFractions(value: unknown): DocxMathFractions {
-  checkMathCatalog(value, "fraction");
-  return value as DocxMathFractions;
-}
-export function docxMathScripts(value: unknown): DocxMathScripts {
-  checkMathCatalog(value, "script");
-  return value as DocxMathScripts;
-}
-export function docxMathExpressions(value: unknown): DocxMathExpressions {
-  checkMathCatalog(value, "expression");
-  return value as DocxMathExpressions;
-}
-
-export class FoundationMathSession extends FoundationClipboardSession {
-  mathExpressions(revision: number) {
-    return docxMathExpressions(
-      this.call({ operation: "docxMathExpressions", revision }),
-    );
-  }
-  editMath(
-    revision: number,
-    math: DocxMathEdit,
-    profile: Record<string, string> = {},
-  ): EditState {
-    checkDocxMathEdit(math);
-    return editState(
-      this.call({ operation: "editDocxMath", revision, math, profile }),
-    );
-  }
-  mathFractions(revision: number) {
-    return docxMathFractions(
-      this.call({ operation: "docxMathFractions", revision }),
-    );
-  }
-  mathScripts(revision: number) {
-    return docxMathScripts(
-      this.call({ operation: "docxMathScripts", revision }),
-    );
-  }
-  editMathFraction(
-    revision: number,
-    fraction: DocxFractionEdit,
-    profile: Record<string, string> = {},
-  ): EditState {
-    checkDocxFractionEdit(fraction);
-    return editState(
-      this.call({
-        operation: "editDocxMathFraction",
-        revision,
-        fraction,
-        profile,
-      }),
-    );
-  }
-  editMathScript(
-    revision: number,
-    script: DocxScriptEdit,
-    profile: Record<string, string> = {},
-  ): EditState {
-    checkDocxScriptEdit(script);
-    return editState(
-      this.call({ operation: "editDocxMathScript", revision, script, profile }),
-    );
-  }
 }

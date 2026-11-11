@@ -16,9 +16,12 @@ fn Session::set_table_column_formula(
   let formula = formula.map(text => {
     let body = text.trim().to_owned()
     let body = body.strip_prefix("=").unwrap_or(body[:]).to_owned()
-    guard !body.is_empty() && body.length() <= 8192 && @xml.valid_text(body) else {
+    guard !body.is_empty() &&
+      body.length() <= FormulaSourceUnits &&
+      @xml.valid_text(body) else {
       @failure.reject(
-        "limit-exceeded", "Calculated column formula must contain 1..8192 UTF-16 units",
+        "limit-exceeded",
+        "Calculated column formula must contain 1..\{FormulaSourceUnits} UTF-16 units",
       )
     }
     let expression = parse_formula(body)

@@ -48,12 +48,13 @@ fn Session::master_creation_sources(
   guard !copy || choice.kind == "master" else {
     @failure.reject("invalid-slide", "Select a master source to copy")
   }
-  guard self.master_choices().length() < 256 else {
+  guard self.master_choices().length() < MasterCatalogCount else {
     @failure.reject("limit-exceeded", "Slide master catalog exceeds budget")
   }
   let layouts = self.layout_choices()
   let owned = layouts.filter(layout => layout.master.part == choice.master)
-  guard layouts.length() + (if copy { owned.length() } else { 1 }) <= 256 else {
+  guard layouts.length() + (if copy { owned.length() } else { 1 }) <=
+    LayoutCatalogCount else {
     @failure.reject("limit-exceeded", "Slide layout catalog exceeds budget")
   }
   if !copy {

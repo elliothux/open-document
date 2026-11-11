@@ -19,7 +19,10 @@ fn Session::pivot_source_headers(
     guard cell
       .map(cell => {
         cell.calculation_supported &&
-        (cell.formula is None || calculation.expressions.contains((index, key)))
+        (
+          cell.formula is None ||
+          calculation.expressions.contains((index, address))
+        )
       })
       .unwrap_or(true) else {
       @failure.reject(
@@ -27,7 +30,7 @@ fn Session::pivot_source_headers(
       )
     }
     let value = calculation.values
-      .get((index, key))
+      .get((index, address))
       .unwrap_or(cell.map(cell => cell.value).unwrap_or(Blank))
     let label = formatted(
       value,

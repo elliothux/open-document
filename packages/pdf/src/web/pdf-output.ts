@@ -1,3 +1,4 @@
+import { pdfPageOperationCount } from "@open-document/wasm/engine-source";
 import { PdfCanvas } from "./pdf-canvas.js";
 import type { PdfClient } from "./pdf.js";
 
@@ -14,14 +15,15 @@ export async function pdfPageImages(
 ): Promise<Uint8Array[]> {
   if (
     !pages.length ||
-    pages.length > 1024 ||
+    pages.length > pdfPageOperationCount ||
     new Set(pages).size !== pages.length
   )
     throw new Error("Choose distinct PDF output pages");
+  const maxOutputBytes = client.inputLimits().exportBytes;
   if (
     !Number.isInteger(outputBytes) ||
     outputBytes < 1 ||
-    outputBytes > 67108864
+    outputBytes > maxOutputBytes
   )
     throw new Error("Invalid PDF output budget");
   if (format !== "png" && format !== "jpeg")
@@ -50,6 +52,7 @@ export async function pdfPageImages(
         0,
         scale,
         remaining,
+        maxOutputBytes,
         format,
       );
       output.push(bytes);

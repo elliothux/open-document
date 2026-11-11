@@ -1,4 +1,31 @@
 ///|
+pub const PivotSourceColumns : Int32 = 64
+
+///|
+pub const PivotSourceCells : Int32 = 65536
+
+///|
+pub const PivotFieldsPerRole : Int32 = 8
+
+///|
+pub const PivotSubtotalFields : Int32 = 14
+
+///|
+pub const PivotGroupUnits : Int32 = 16
+
+///|
+pub const PivotDateUnits : Int32 = 4
+
+///|
+pub const PivotMembers : Int32 = 4096
+
+///|
+pub const PivotFilterUnits : Int32 = 1048576
+
+///|
+pub const PivotValueNameUnits : Int32 = 255
+
+///|
 pub(all) struct PivotValue {
   field : Int32
   aggregate : String
@@ -72,17 +99,18 @@ fn PivotSettings::validate(
   let source = source.unwrap_or_else(() => Range::parse(self.source))
   let width = source.right - source.left + 1
   guard source.bottom > source.top &&
-    width <= 64 &&
-    (source.bottom - source.top).to_int64() * width.to_int64() <= 65536 &&
+    width <= PivotSourceColumns &&
+    (source.bottom - source.top).to_int64() * width.to_int64() <=
+    PivotSourceCells.to_int64() &&
     self.rows.length() > 0 &&
-    self.rows.length() <= 8 &&
-    self.columns.length() <= 8 &&
-    self.filters.length() <= 8 &&
+    self.rows.length() <= PivotFieldsPerRole &&
+    self.columns.length() <= PivotFieldsPerRole &&
+    self.filters.length() <= PivotFieldsPerRole &&
     self.numberGroups.length() +
     self.dateGroups.fold(init=0, (sum, group) => sum + group.units.length()) <=
-    16 &&
+    PivotGroupUnits &&
     self.values.length() > 0 &&
-    self.values.length() <= 8 else {
+    self.values.length() <= PivotFieldsPerRole else {
     @failure.reject(
       "limit-exceeded", "Pivot source or field count exceeds budget",
     )
@@ -140,7 +168,7 @@ fn PivotSettings::validate(
         sum +
         (if axis.contains(group.field) { group.units.length() - 1 } else { 0 })
       }) <=
-      8 else {
+      PivotFieldsPerRole else {
       @failure.reject(
         "limit-exceeded", "Expanded pivot calendar axis exceeds field budget",
       )
@@ -157,7 +185,7 @@ fn PivotSettings::validate(
     }
     filter_fields[filter.field] = true
     if filter.values is Some(values) {
-      guard values.length() <= 4096 else {
+      guard values.length() <= PivotMembers else {
         @failure.reject(
           "limit-exceeded", "Pivot member selection exceeds budget",
         )
@@ -167,7 +195,7 @@ fn PivotSettings::validate(
         pivot_filter_value(value)
         let key = pivot_item_key(value)
         units += key.length()
-        guard units <= 1048576 && !seen.contains(key) else {
+        guard units <= PivotFilterUnits && !seen.contains(key) else {
           @failure.reject(
             "invalid-operation", "Duplicate or excessive pivot filter values",
           )
@@ -193,7 +221,7 @@ fn PivotSettings::validate(
       }) &&
       pivot_compare_mode(value.showDataAs) == (value.baseItem is Some(_)) &&
       !value.name.trim().is_empty() &&
-      value.name.length() <= 255 &&
+      value.name.length() <= PivotValueNameUnits &&
       @xml.valid_text(value.name) &&
       !captions.contains(value.name.to_lower()) else {
       @failure.reject(
@@ -241,14 +269,14 @@ fn Session::pivot_cache(
     let record : Array[Int32] = []
     for column in range.left..<=range.right {
       let offset = column - range.left
-      let key = Address::{ row, column, }.name()
-      let cell = sheet.cells.get(key)
+      let address : Address = { row, column, }
+      let cell = sheet.cells.get(address.name())
       guard cell
         .map(cell => {
           cell.calculation_supported &&
           (
             cell.formula is None ||
-            calculation.expressions.contains((index, key))
+            calculation.expressions.contains((index, cell.address))
           )
         })
         .unwrap_or(true) else {
@@ -258,7 +286,7 @@ fn Session::pivot_cache(
       }
       let value = match
         calculation.values
-        .get((index, key))
+        .get((index, address))
         .unwrap_or(cell.map(cell => cell.value).unwrap_or(Blank)) {
         Text("") => Blank
         value => value
@@ -551,6 +579,47 @@ fn PivotStatistic::value(self : PivotStatistic, aggregate : String) -> Value {
 }
 
 ///|
+priv struct PivotPreviewItem {
+  value : Value
+  label : String
+} derive(ToJson)
+
+///|
+priv struct PivotPreviewColumn {
+  subtotal : Bool
+  members : Array[Value]
+  formats : Array[String]
+} derive(ToJson)
+
+///|
+priv struct PivotPreviewRow {
+  subtotal : Bool
+  members : Array[Value]
+  formats : Array[String]
+  values : Array[Value]
+  total : Array[Value]
+} derive(ToJson)
+
+///|
+priv struct PivotPreview {
+  revision : Int32
+  settings : PivotSettings
+  fields : Array[String]
+  rowFields : Array[Int32]
+  columnFields : Array[Int32]
+  recordCount : Int32
+  filteredCount : Int32
+  filterItems : Array[Array[PivotPreviewItem]]
+  baseItems : Array[Array[PivotPreviewItem]]
+  groups : Int32
+  truncated : Bool
+  columnMembers : Array[PivotPreviewColumn]
+  columnTotals : Array[Array[Value]]
+  rows : Array[PivotPreviewRow]
+  total : Array[Value]
+} derive(ToJson)
+
+///|
 /// Returns typed grouped values without changing cells, source or history.
 pub fn Session::pivot_preview(
   self : Session,
@@ -587,92 +656,82 @@ pub fn Session::pivot_preview(
     self.pivot_cache(settings).layout(settings)
   }
   let axes = layout.settings
-  let preview : Json = {
-    "revision": revision,
-    "settings": settings,
-    "fields": layout.cache.headers,
-    "rowFields": axes.rows,
-    "columnFields": axes.columns,
-    "recordCount": layout.cache.records.length(),
-    "filteredCount": layout.filtered_count,
-    "filterItems": settings.filters.map(filter => {
+  let preview_rows = 20
+  let preview : PivotPreview = {
+    revision,
+    settings,
+    fields: layout.cache.headers,
+    rowFields: axes.rows,
+    columnFields: axes.columns,
+    recordCount: layout.cache.records.length(),
+    filteredCount: layout.filtered_count,
+    filterItems: settings.filters.map(filter => {
       layout.cache
       .axis_items(filter.field)
       .mapi((at, value) => {
-        let item : Json = {
-          "value": value,
-          "label": if value == Blank {
-            "(blank)"
-          } else {
-            formatted(
-              value,
-              self.styles[layout.cache.axis_style(filter.field, at)].format,
-              self.date1904,
-            )
-          },
-        }
-        item
+        value,
+        label: if value == Blank {
+          "(blank)"
+        } else {
+          formatted(
+            value,
+            self.styles[layout.cache.axis_style(filter.field, at)].format,
+            self.date1904,
+          )
+        },
       })
     }),
-    "baseItems": settings.values.map(value => {
+    baseItems: settings.values.map(value => {
       if !pivot_compare_mode(value.showDataAs) {
         return []
       }
       let field = value.baseField.unwrap()
       let items = layout.cache.axis_items(field)
-      guard items.length() <= 4096 else {
+      guard items.length() <= PivotMembers else {
         @failure.reject("limit-exceeded", "Pivot base items exceed budget")
       }
       items.mapi((at, item) => {
-        let choice : Json = {
-          "value": item,
-          "label": if item == Blank {
-            "(blank)"
-          } else {
-            formatted(
-              item,
-              self.styles[layout.cache.axis_style(field, at)].format,
-              self.date1904,
-            )
-          },
-        }
-        choice
+        value: item,
+        label: if item == Blank {
+          "(blank)"
+        } else {
+          formatted(
+            item,
+            self.styles[layout.cache.axis_style(field, at)].format,
+            self.date1904,
+          )
+        },
       })
     }),
-    "groups": layout.members.length(),
-    "truncated": layout.members.length() > 20,
-    "columnMembers": (if axes.columns.is_empty() { [] } else { layout.columns }).map(members => {
-        let column : Json = {
-          "subtotal": members.length() < axes.columns.length(),
-          "members": members.mapi((at, item) => {
-            layout.cache.axis_items(axes.columns[at])[item]
-          }),
-          "formats": members.mapi((at, item) => {
-            self.styles[layout.cache.axis_style(axes.columns[at], item)].format
-          }),
-        }
-        column
+    groups: layout.members.length(),
+    truncated: layout.members.length() > preview_rows,
+    columnMembers: (if axes.columns.is_empty() { [] } else { layout.columns }).map(members => {
+        subtotal: members.length() < axes.columns.length(),
+        members: members.mapi((at, item) => {
+          layout.cache.axis_items(axes.columns[at])[item]
+        }),
+        formats: members.mapi((at, item) => {
+          self.styles[layout.cache.axis_style(axes.columns[at], item)].format
+        }),
       },
     ),
-    "columnTotals": layout.column_totals,
-    "rows": layout.members[:layout.members.length().min(20)]
+    columnTotals: layout.column_totals,
+    rows: layout.members[:layout.members.length().min(preview_rows)]
     .to_owned()
     .mapi((index, members) => {
-      let row : Json = {
-        "subtotal": members.length() < axes.rows.length(),
-        "members": members.mapi((at, item) => {
-          layout.cache.axis_items(axes.rows[at])[item]
-        }),
-        "formats": members.mapi((at, item) => {
-          self.styles[layout.cache.axis_style(axes.rows[at], item)].format
-        }),
-        "values": layout.values[index],
-        "total": layout.row_totals[index],
-      }
-      row
+      subtotal: members.length() < axes.rows.length(),
+      members: members.mapi((at, item) => {
+        layout.cache.axis_items(axes.rows[at])[item]
+      }),
+      formats: members.mapi((at, item) => {
+        self.styles[layout.cache.axis_style(axes.rows[at], item)].format
+      }),
+      values: layout.values[index],
+      total: layout.row_totals[index],
     }),
-    "total": layout.total,
+    total: layout.total,
   }
+  let preview = ToJson::to_json(preview)
   guard preview.stringify().length() <= 1048576 else {
     @failure.reject("limit-exceeded", "Pivot preview exceeds text budget")
   }

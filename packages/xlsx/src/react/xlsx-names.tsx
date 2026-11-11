@@ -2,6 +2,10 @@ import { useState } from "react";
 import type { SpreadsheetEditor } from "../web/spreadsheet-editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import {
+  xlsxDefinedNameUnits,
+  xlsxFormulaSourceUnits,
+} from "@open-document/wasm/engine-source";
 
 interface NameProps {
   controller: EditorController;
@@ -68,7 +72,7 @@ export function XlsxNames({ controller, state, editor, disabled }: NameProps) {
         onClick={() => {
           if (selected)
             controller.run(() =>
-              editor.editSheet({
+              editor.objects.editSheet({
                 action: "nameSelect",
                 name: selected.name,
                 scope: selected.scope,
@@ -82,7 +86,7 @@ export function XlsxNames({ controller, state, editor, disabled }: NameProps) {
         onSubmit={(event) => {
           event.preventDefault();
           controller.run(() =>
-            editor.editSheet({
+            editor.objects.editSheet({
               action: "name",
               original: selected?.name ?? null,
               name,
@@ -98,7 +102,7 @@ export function XlsxNames({ controller, state, editor, disabled }: NameProps) {
             {t.definedNameText}
             <input
               required
-              maxLength={255}
+              maxLength={xlsxDefinedNameUnits}
               value={name}
               onChange={(event) => setName(event.currentTarget.value)}
             />
@@ -123,7 +127,7 @@ export function XlsxNames({ controller, state, editor, disabled }: NameProps) {
             {t.definedNameFormula}
             <input
               required
-              maxLength={8192}
+              maxLength={xlsxFormulaSourceUnits}
               value={formula}
               onChange={(event) => setFormula(event.currentTarget.value)}
             />
@@ -140,7 +144,7 @@ export function XlsxNames({ controller, state, editor, disabled }: NameProps) {
             onClick={() => {
               if (selected)
                 controller.run(() =>
-                  editor.editSheet({
+                  editor.objects.editSheet({
                     action: "nameDelete",
                     name: selected.name,
                     scope: selected.scope,

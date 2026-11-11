@@ -1,4 +1,3 @@
-import { record, hasFields, arrayOf, glyphs } from "./validation.js";
 export interface ShapeBatch {
   text: string;
   carets: { offset: number; before: number; after: number }[];
@@ -55,49 +54,6 @@ export interface TextStyle {
   spacing: number;
   kerning: "all" | "words" | "none";
   fontLeading: boolean;
-}
-
-export function shapeBatch(value: unknown): ShapeBatch {
-  const object = record(value);
-  if (
-    !hasFields(value, ["text"], ["width", "fontBytes", "outlineBytes"]) ||
-    !glyphs(object.glyphs) ||
-    !arrayOf(
-      object.carets,
-      (entry) =>
-        hasFields(entry, [], ["offset", "before", "after"]) &&
-        Number.isSafeInteger(record(entry).offset) &&
-        Number(record(entry).offset) >= 0,
-    ) ||
-    !arrayOf(object.outlines, (entry) =>
-      hasFields(entry, ["key", "path"], []),
-    ) ||
-    !arrayOf(object.runs, (entry) =>
-      hasFields(
-        entry,
-        ["script", "language"],
-        ["start", "end", "level", "font"],
-      ),
-    ) ||
-    !arrayOf(
-      object.fonts,
-      (entry) =>
-        hasFields(
-          entry,
-          ["identity", "variation", "sha256"],
-          ["face", "upem", "ascent", "descent", "capHeight", "italicAngle"],
-        ) &&
-        arrayOf(
-          record(entry).bbox,
-          (value) => typeof value === "number" && Number.isFinite(value),
-        ),
-    ) ||
-    !arrayOf(object.diagnostics, (entry) =>
-      hasFields(entry, ["code"], ["cluster", "codepoint"]),
-    )
-  )
-    throw new Error("Invalid shape batch returned by Wasm");
-  return value as ShapeBatch;
 }
 
 export type NavigationDirection =

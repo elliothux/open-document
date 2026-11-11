@@ -1,8 +1,20 @@
 ///|
+pub const WorksheetRows : Int32 = 1048576
+
+///|
+pub const WorksheetColumns : Int32 = 16384
+
+///|
 pub(all) struct Address {
   row : Int32
   column : Int32
 } derive(Eq, ToJson)
+
+///|
+impl Hash for Address with fn hash_combine(self, hasher) {
+  hasher.combine_int(self.row)
+  hasher.combine_int(self.column)
+}
 
 ///|
 pub extend Address with ToJson::{to_json}
@@ -16,7 +28,7 @@ pub fn Address::parse(text : String) -> Address raise @failure.Failure {
   let mut offset = 0
   while offset < text.length() && text[offset] >= 65 && text[offset] <= 90 {
     column = column * 26 + text[offset].to_int() - 64
-    guard column <= 16384 else {
+    guard column <= WorksheetColumns else {
       @failure.reject("invalid-address", "Column exceeds XFD")
     }
     offset += 1
@@ -30,7 +42,7 @@ pub fn Address::parse(text : String) -> Address raise @failure.Failure {
       @failure.reject("invalid-address", "Invalid cell row")
     }
     row = row * 10 + text[index].to_int() - 48
-    guard row <= 1048576 else {
+    guard row <= WorksheetRows else {
       @failure.reject("invalid-address", "Row exceeds worksheet bounds")
     }
   }
@@ -40,15 +52,17 @@ pub fn Address::parse(text : String) -> Address raise @failure.Failure {
 ///|
 pub fn Address::name(self : Address) -> String raise @failure.Failure {
   guard self.row >= 1 &&
-    self.row <= 1048576 &&
+    self.row <= WorksheetRows &&
     self.column >= 1 &&
-    self.column <= 16384 else {
+    self.column <= WorksheetColumns else {
     @failure.reject("invalid-address", "Cell address exceeds worksheet bounds")
   }
-  let mut letters = ""
-  for column = self.column; column > 0; column = (column - 1) / 26 {
-    letters = String::from_array([(65 + (column - 1) % 26).to_char().unwrap()]) +
-      letters
+  let alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  let trailing = (self.column - 1) % 26
+  let mut letters = alphabet[trailing:trailing + 1].to_owned()
+  for column = (self.column - 1) / 26; column > 0; column = (column - 1) / 26 {
+    let digit = (column - 1) % 26
+    letters = alphabet[digit:digit + 1].to_owned() + letters
   }
   letters + self.row.to_string()
 }

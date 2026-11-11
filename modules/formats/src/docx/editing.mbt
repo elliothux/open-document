@@ -5,7 +5,7 @@ let history_entry_limit = 100
 let history_byte_limit = 4194304
 
 ///|
-let command_limit = 65536
+pub const TextCommandUnits : Int32 = 65536
 
 ///|
 pub(all) struct Position {
@@ -75,8 +75,8 @@ fn Session::editable_texts(
   self : Session,
   paragraph : Int32,
   notes~ : Bool = false,
+  tree~ : WordTree = WordTree::new(self.document()),
 ) -> Array[TextNode] raise @failure.Failure {
-  let tree = WordTree::new(self.document())
   if tree.has_review_markup(paragraph) {
     ignore(tree.review_text_parts(paragraph))
   } else {
@@ -134,51 +134,103 @@ fn Session::check_revision_value(
 }
 
 ///|
-fn Session::edit_result(
+pub struct EditState {
+  priv revision : Int32
+  priv readOnlyReason : String
+  priv defaultTabStop : Double
+  formatting : FormattingQuery?
+  priv selection : Json
+  priv canUndo : Bool
+  priv canRedo : Bool
+  priv affectedParagraphs : Array[Int32]
+  priv historyBytes : Int32
+  priv historyEntries : Int32
+  priv historyEntryLimit : Int32
+  priv historyByteLimit : Int32
+  priv commandLimit : Int32
+  priv compositionId : Json
+  priv drawingGestureId : Json
+}
+
+///|
+pub impl ToJson for EditState with fn to_json(self) {
+  {
+    "revision": self.revision,
+    "readOnlyReason": self.readOnlyReason,
+    "defaultTabStop": self.defaultTabStop,
+    "formatting": self.formatting
+    .map(format => Json(format))
+    .unwrap_or(Json::null()),
+    "selection": self.selection,
+    "canUndo": self.canUndo,
+    "canRedo": self.canRedo,
+    "affectedParagraphs": self.affectedParagraphs,
+    "historyBytes": self.historyBytes,
+    "historyEntries": self.historyEntries,
+    "historyEntryLimit": self.historyEntryLimit,
+    "historyByteLimit": self.historyByteLimit,
+    "commandLimit": self.commandLimit,
+    "compositionId": self.compositionId,
+    "drawingGestureId": self.drawingGestureId,
+  }
+}
+
+///|
+pub extend EditState with ToJson::{to_json}
+
+///|
+fn Session::edit_snapshot(
   self : Session,
   affected : Array[Int32],
-) -> Json raise @failure.Failure {
+) -> EditState raise @failure.Failure {
   ignore(self.document())
   let current = match (self.composition, self.drawing_gesture) {
     (Some({ prepared: Some(prepared), .. }), _)
     | (_, Some({ prepared: Some(prepared), .. })) => prepared.edit.after
     _ => self.selection
   }
-  let selection : Json = match current {
-    None => Json::null()
-    Some(selection) => selection.to_json()
-  }
   {
-    "revision": self.revision,
-    "readOnlyReason": if self.encrypted_source is Some(_) {
+    revision: self.revision,
+    readOnlyReason: if self.encrypted_source is Some(_) {
       encrypted_docx_reason
     } else {
       ""
     },
-    "defaultTabStop": self.default_tab(),
-    "formatting": if self.composition is None &&
+    defaultTabStop: self.default_tab(),
+    formatting: if self.composition is None &&
       self.drawing_gesture is None &&
       self.selection is Some(selection) {
-      self.query_formatting(self.revision, selection)
+      Some(self.formatting_query(self.revision, selection))
     } else {
-      Json::null()
+      None
     },
-    "selection": selection,
-    "canUndo": !self.history.is_empty(),
-    "canRedo": !self.redo.is_empty(),
-    "affectedParagraphs": affected,
-    "historyBytes": self.history_bytes,
-    "historyEntries": self.history.length() + self.redo.length(),
-    "historyEntryLimit": history_entry_limit,
-    "historyByteLimit": history_byte_limit,
-    "commandLimit": command_limit,
-    "compositionId": self.composition
+    selection: match current {
+      None => Json::null()
+      Some(selection) => selection.to_json()
+    },
+    canUndo: !self.history.is_empty(),
+    canRedo: !self.redo.is_empty(),
+    affectedParagraphs: affected,
+    historyBytes: self.history_bytes,
+    historyEntries: self.history.length() + self.redo.length(),
+    historyEntryLimit: history_entry_limit,
+    historyByteLimit: history_byte_limit,
+    commandLimit: TextCommandUnits,
+    compositionId: self.composition
     .map(composition => Json(composition.id))
     .unwrap_or(Json::null()),
-    "drawingGestureId": self.drawing_gesture
+    drawingGestureId: self.drawing_gesture
     .map(gesture => Json(gesture.id))
     .unwrap_or(Json::null()),
   }
+}
+
+///|
+fn Session::edit_result(
+  self : Session,
+  affected : Array[Int32],
+) -> Json raise @failure.Failure {
+  Json(self.edit_snapshot(affected))
 }
 
 ///|
@@ -192,6 +244,15 @@ pub fn Session::select(
   revision : Int32,
   selection : Selection,
 ) -> Json raise @failure.Failure {
+  Json(self.select_state(revision, selection))
+}
+
+///|
+fn Session::select_state(
+  self : Session,
+  revision : Int32,
+  selection : Selection,
+) -> EditState raise @failure.Failure {
   self.check_revision(revision)
   for position in [selection.anchor, selection.focus] {
     self.check_position(position)
@@ -207,7 +268,7 @@ pub fn Session::select(
   self.typing_format = None
   self.vertical_x = None
   self.navigation_layout = -1
-  self.edit_state()
+  self.edit_snapshot([])
 }
 
 ///|
@@ -339,6 +400,7 @@ fn Session::prepare_range(
     input_group~,
     check_graphemes~,
     notes=true,
+    tree~,
   )
   if self.typing_format is Some(patch) &&
     self.selection == Some(selection) &&
@@ -382,13 +444,16 @@ fn Session::prepare_text(
   source~ : Array[@xml.SourceChange] = [],
   object_offsets~ : Map[Int32, Int32] = Map([]),
   notes~ : Bool = false,
+  tree? : WordTree,
 ) -> PreparedEdit raise @failure.Failure {
+  let document = self.document()
   let (candidate, xml) = self.edit_inline_text(
-    self.document(),
+    document,
     changes,
     source~,
     object_offsets~,
     notes~,
+    tree=tree.unwrap_or_else(() => WordTree::new(document)),
   )
   {
     edit: {
@@ -598,6 +663,7 @@ fn Session::accept_document(
   ignore({ ..self, document: Some(candidate), parts, media, }.default_tab())
   let texts = docx_texts(WordTree::new(candidate))
   self.document = Some(candidate)
+  self.flow_cache = None
   self.parts = parts
   self.media = media
   self.texts = texts

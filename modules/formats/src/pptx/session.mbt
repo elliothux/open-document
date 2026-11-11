@@ -1,4 +1,7 @@
 ///|
+pub const SlideCountLimit : Int32 = 256
+
+///|
 pub struct Session {
   priv opc : @opc.Package
   priv mut main : Tree
@@ -100,8 +103,8 @@ fn Session::from_package(
         "malformed-pptx", "Invalid slide identity or relationship",
       )
     }
-    guard slides.length() < 256 else {
-      @failure.reject("limit-exceeded", "Slides exceed 256")
+    guard slides.length() < SlideCountLimit else {
+      @failure.reject("limit-exceeded", "Slides exceed \{SlideCountLimit}")
     }
     let slide = read_slide(
       opc,
@@ -239,6 +242,65 @@ fn Slide::object(self : Slide, id : String) -> Object raise @failure.Failure {
 }
 
 ///|
+priv struct QueryBackground {
+  value : Json
+  explicit : Bool
+  reason : String
+} derive(ToJson)
+
+///|
+priv struct QuerySlide {
+  id : String
+  hidden : Bool
+  title : String
+} derive(ToJson)
+
+///|
+priv struct QueryState {
+  revision : Int32
+  editView : EditViewQuery
+  guides : Json
+  snapping : SnappingQuery
+  formatting : Json
+  paragraph : Json
+  table : Json
+  groupReason : String
+  ungroupReason : String
+  slideOrderReason : String
+  slideSizeReason : String
+  slideVisibilityReason : String
+  sections : SlideCollectionQuery[QuerySection]
+  notes : NotesQuery
+  transition : QueryTransition
+  animations : SlideCollectionQuery[SlideAnimation]
+  customShows : SlideCollectionQuery[CustomShow]
+  showSettings : ShowSettingsQuery
+  footer : QueryFooter
+  firstSlideNumber : Double
+  comments : Json
+  textHyperlink : Json
+  slideLayout : SlideLayoutQuery
+  themeColors : Json
+  themeFonts : Json
+  background : QueryBackground
+  width : Double
+  height : Double
+  slide : String
+  slides : Array[QuerySlide]
+  objects : Array[QueryObject]
+  mediaPlayback : MediaPlaybackQuery
+  fontKeys : Array[String]
+  imageKeys : Array[String]
+  selection : Selection
+  canUndo : Bool
+  canRedo : Bool
+  historyBytes : Int32
+  candidateId : Json
+  readOnlyReason : String
+  diagnostics : Array[String]
+} derive(ToJson)
+
+///|
 pub fn Session::query(self : Session) -> Json raise @failure.Failure {
   let current = self.current()
   let links = self.relationships()
@@ -254,35 +316,35 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
     font_slides.push(current)
   }
   let fonts = slide_font_keys(font_slides)
-  {
-    "revision": self.revision,
-    "editView": self.edit_view_query(current),
-    "guides": self.guides_query(),
-    "snapping": self.snapping_query(),
-    "formatting": self.formatting_query(),
-    "paragraph": self.paragraph_query(),
-    "table": self.table_query(),
-    "groupReason": self.group_edit_reason(false),
-    "ungroupReason": self.group_edit_reason(true),
-    "slideOrderReason": self.slide_order_reason(),
-    "slideSizeReason": self.slide_size_reason(),
-    "slideVisibilityReason": self.slide_visibility_reason(),
-    "sections": self.section_query(),
-    "notes": self.notes_query(current.tree.part),
-    "transition": self.transition_query(current),
-    "animations": self.animation_query(current),
-    "customShows": self.custom_show_query(),
-    "showSettings": self.show_settings_query(),
-    "footer": self.footer_query(current),
-    "firstSlideNumber": presentation_first_number(self.main),
-    "comments": self.comments_query(current.tree.part, links),
-    "textHyperlink": self.text_hyperlink_query(links),
-    "slideLayout": self.layout_query(current),
-    "themeColors": self.theme_colors(),
-    "themeFonts": self.theme_fonts(),
-    "background": {
-      "value": current.background.to_json(),
-      "explicit": current.tree.one(
+  let result : QueryState = {
+    revision: self.revision,
+    editView: self.edit_view_query(current),
+    guides: self.guides_query(),
+    snapping: self.snapping_query(),
+    formatting: self.formatting_query(),
+    paragraph: self.paragraph_query(),
+    table: nullable_json(self.table_query()),
+    groupReason: self.group_edit_reason(false),
+    ungroupReason: self.group_edit_reason(true),
+    slideOrderReason: self.slide_order_reason(),
+    slideSizeReason: self.slide_size_reason(),
+    slideVisibilityReason: self.slide_visibility_reason(),
+    sections: self.section_query(),
+    notes: self.notes_query(current.tree.part),
+    transition: self.transition_query(current),
+    animations: self.animation_query(current),
+    customShows: self.custom_show_query(),
+    showSettings: self.show_settings_query(),
+    footer: self.footer_query(current),
+    firstSlideNumber: presentation_first_number(self.main),
+    comments: self.comments_query(current.tree.part, links),
+    textHyperlink: self.text_hyperlink_query(links),
+    slideLayout: self.layout_query(current),
+    themeColors: self.theme_colors(),
+    themeFonts: self.theme_fonts(),
+    background: {
+      value: current.background.to_json(),
+      explicit: current.tree.one(
         current.tree.required(
           current.tree.document.nodes()[0].id,
           "cSld",
@@ -292,167 +354,46 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
         uri=presentation_uri,
       )
       is Some(_),
-      "reason": self.background_reason(current),
+      reason: self.background_reason(current),
     },
-    "width": self.width,
-    "height": self.height,
-    "slide": self.selection.slide,
-    "slides": self.slides.map(slide => {
-      let value : Json = {
-        "id": slide.tree.part,
-        "hidden": slide.hidden,
-        "title": slide.objects
-        .iter()
-        .find_first(object => !object.text().is_empty())
-        .map(object => object.text())
-        .unwrap_or(""),
-      }
-      value
+    width: self.width,
+    height: self.height,
+    slide: self.selection.slide,
+    slides: self.slides.map(slide => {
+      id: slide.tree.part,
+      hidden: slide.hidden,
+      title: slide.objects
+      .iter()
+      .find_first(object => !object.text().is_empty())
+      .map(object => object.text())
+      .unwrap_or(""),
     }),
-    "objects": current.objects.map(object => {
-      let value : Json = {
-        "id": object.id,
-        "parent": object.parent,
-        "name": object.name,
-        "kind": object.kind,
-        "chart": object.chart
-        .map(chart => chart.data.query())
-        .unwrap_or(Json::null()),
-        "media": object.media_query(),
-        "text": object.accessible_text(),
-        "equations": self.math_items(object),
-        "readOnlyReason": object.read_only,
-        "textReadOnlyReason": object.text_reason,
-        "deleteReason": if self.selection.objects.contains(object.id) &&
-          !deletion_reason.is_empty() {
-          deletion_reason
-        } else {
-          self.object_edit_reason(object, "delete")
-        },
-        "duplicateReason": self.object_edit_reason(object, "duplicate"),
-        "rotateReason": self.object_edit_reason(object, "rotate"),
-        "arrangeReason": self.object_edit_reason(object, "arrange"),
-        "transformReason": self.object_edit_reason(object, "transform"),
-        "tableFillReason": self.table_fill_reason(object),
-        "chartFillReason": self.chart_fill_reason(object),
-        "mediaFillReason": self.media_fill_reason(object),
-        "chartDataReason": self.chart_data_reason(object),
-        "hyperlink": self.hyperlink_query(object, links),
-        "shapeAdjustments": self.shape_adjustments(object),
-        "shapeTypeReason": self.shape_type_reason(object),
-        "connector": self.connector_query(object),
-        "connectionSiteCount": object.connection_site_count(),
-        "placeholder": self.placeholder_query(object),
-        "imageInsets": object.insets,
-        "imageInsetsReason": self.image_insets_reason(object),
-        "picture": {
-          "mode": if object.tile is Some(_) {
-            "tile"
-          } else {
-            "stretch"
-          },
-          "modeReason": self.image_mode_reason(object),
-          "opacity": object.opacity,
-          "opacityReason": self.opacity_reason(object),
-          "left": object.crop[0],
-          "top": object.crop[1],
-          "right": object.crop[2],
-          "bottom": object.crop[3],
-          "replaceReason": self.image_replacement_reason(object),
-          "cropReason": self.image_reason(object, true),
-        },
-        "appearance": {
-          "imageFill": if object.kind == "shape" {
-            object.image.map(key => Json(key)).unwrap_or(Json::null())
-          } else {
-            Json::null()
-          },
-          "imageFillReason": self.image_fill_reason(object),
-          "imageFillMode": if object.kind == "shape" && object.image is Some(_) {
-            Json(if object.tile is Some(_) { "tile" } else { "stretch" })
-          } else {
-            Json::null()
-          },
-          "gradient": object.gradient.map(g => Json(g)).unwrap_or(Json::null()),
-          "fillOpacity": object.fill_alpha,
-          "strokeOpacity": object.stroke_alpha,
-          "fillOpacityReason": self.paint_opacity_reason(object, false),
-          "strokeOpacityReason": self.paint_opacity_reason(object, true),
-          "fill": if object.fill.is_empty() {
-            Json::null()
-          } else {
-            Json(object.fill)
-          },
-          "stroke": if object.stroke.is_empty() {
-            Json::null()
-          } else {
-            Json(object.stroke)
-          },
-          "width": object.line_width,
-          "dash": object.dash,
-          "dashReason": self.dash_reason(object),
-          "cap": object.cap,
-          "join": object.join,
-          "miterLimit": object.miter,
-          "penReason": self.pen_reason(object),
-          "headEnd": object.ends.0,
-          "tailEnd": object.ends.1,
-          "lineEndReason": self.line_end_reason(object),
-          "reason": self.paint_reason(object),
-        },
-        "textFrame": {
-          "left": object.body.left,
-          "top": object.body.top,
-          "right": object.body.right,
-          "bottom": object.body.bottom,
-          "anchor": object.body.anchor,
-          "wrap": object.body.wrap,
-          "fit": object.body.fit,
-          "columns": object.body.columns,
-          "columnGap": object.body.columnGap,
-          "rtlColumns": object.body.rtlColumns,
-          "direction": object.body.direction,
-          "rotation": object.body.rotation,
-          "upright": object.body.upright,
-          "reason": self.text_frame_reason(object),
-        },
-        "geometry": object.geometry
-        .map(value => {
-          let json : Json = {
-            "x": value.x,
-            "y": value.y,
-            "width": value.width,
-            "height": value.height,
-            "rotation": value.rotation,
-            "flipX": value.flip_x,
-            "flipY": value.flip_y,
-            "matrix": value.matrix,
-          }
-          json
-        })
-        .unwrap_or(Json::null()),
-      }
-      value
+    objects: current.objects.map(object => {
+      self.query_object(object, links, deletion_reason)
     }),
-    "mediaPlayback": self.media_playback_query(),
-    "fontKeys": fonts,
-    "imageKeys": self.image_keys(false, false),
-    "selection": self.candidate
+    mediaPlayback: self.media_playback_query(),
+    fontKeys: fonts,
+    imageKeys: self.image_keys(false, false),
+    selection: self.candidate
     .map(item => item.selection)
     .unwrap_or(self.selection),
-    "canUndo": !self.history.is_empty(),
-    "canRedo": !self.redo.is_empty(),
-    "historyBytes": self.history_bytes +
+    canUndo: !self.history.is_empty(),
+    canRedo: !self.redo.is_empty(),
+    historyBytes: self.history_bytes +
     [..self.history, ..self.redo].fold(init=0, (sum, entry) => {
       sum + entry.media_bytes
     }),
-    "candidateId": self.candidate
+    candidateId: self.candidate
     .map(item => Json(item.id))
     .unwrap_or(Json::null()),
-    "readOnlyReason": current.read_only,
-    "diagnostics": current.diagnostics,
+    readOnlyReason: current.read_only,
+    diagnostics: current.diagnostics,
   }
+  ToJson::to_json(result)
 }
+
+///|
+pub const ObjectSelectionCount : Int32 = 256
 
 ///|
 pub fn Session::select(
@@ -479,7 +420,7 @@ pub fn Session::select(
     @failure.reject("invalid-operation", "Unknown selection mode")
   }
   let objects = objects.unwrap_or(if object.is_empty() { [] } else { [object] })
-  guard objects.length() <= 256 else {
+  guard objects.length() <= ObjectSelectionCount else {
     @failure.reject("limit-exceeded", "Selection exceeds 256 objects")
   }
   let seen : Map[String, Bool] = Map([])
@@ -556,6 +497,23 @@ pub fn Session::image_bytes(
     @failure.reject("invalid-image", "Unknown presentation image")
   }
   self.image_content(key)
+}
+
+///|
+/// Prepare an embedded raster or return its source for the host decoder.
+pub fn Session::prepare_image(
+  self : Session,
+  key : String,
+  images : @layout.Images,
+) -> (Bytes, @layout.ImageResource?) raise @failure.Failure {
+  let source = self.image_bytes(key)
+  guard @image.decode_plain_raster(source, exif_orientation=true)
+    is Some((width, height, pixels)) else {
+    return (source, None)
+  }
+  images.add(key, width, height, pixels)
+  self.invalidate_geometry()
+  (source, Some(images.get(key)))
 }
 
 ///|

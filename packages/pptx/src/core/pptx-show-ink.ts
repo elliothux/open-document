@@ -10,7 +10,7 @@ export type PptxShowInkChange =
   | { action: "append" | "end"; points: { x: number; y: number }[] }
   | { action: "cancel" | "clear" };
 
-export function checkPptxShowInk(value: unknown): void {
+export function checkPptxShowInk(value: unknown, maxBatchPoints: number): void {
   const change = record(value);
   const keys =
     change.action === "begin"
@@ -27,9 +27,11 @@ export function checkPptxShowInk(value: unknown): void {
   )
     throw new Error("Invalid slideshow ink fields");
   if (keys.includes("points")) {
+    if (!Number.isSafeInteger(maxBatchPoints) || maxBatchPoints < 1)
+      throw new Error("Slideshow ink batch limit is required");
     if (
       !Array.isArray(change.points) ||
-      change.points.length > 64 ||
+      change.points.length > maxBatchPoints ||
       (change.action !== "end" && !change.points.length)
     )
       throw new Error("Invalid ink point batch");

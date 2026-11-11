@@ -49,15 +49,22 @@ export async function prepareFile(
     if ((document.bytes?.length ?? 0) > inputLimit)
       throw new Error("Document input exceeds budget");
     stage = "open";
-    if (document.blank) await connection.create(budget);
+    if (document.blank)
+      await connection.execute({ operation: "createXlsx", budget });
     else if (/\.(csv|tsv)$/i.test(document.name))
-      await connection.importDelimited(
-        document.bytes,
-        /\.tsv$/i.test(document.name) ? "\t" : ",",
+      await connection.execute({
+        operation: "importXlsxDelimited",
+        bytes: document.bytes,
+        delimiter: /\.tsv$/i.test(document.name) ? "\t" : ",",
         budget,
-        document.delimited,
-      );
-    else await connection.openXlsx(document.bytes, budget);
+        options: document.delimited,
+      });
+    else
+      await connection.execute({
+        operation: "openXlsx",
+        bytes: document.bytes,
+        budget,
+      });
     stage = "font";
     await fonts(connection);
     stage = "layout";
@@ -83,6 +90,10 @@ export async function prepareFile(
       clipboard: () => clipboard(opened.editor),
       surface,
       inputLimit,
+      delimitedInputLimit: Math.min(
+        inputLimit,
+        opened.editor.inputLimits.delimitedBytes,
+      ),
       dispose() {
         cleanup ??= (async () => {
           try {

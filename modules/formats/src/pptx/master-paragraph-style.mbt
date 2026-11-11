@@ -99,16 +99,9 @@ fn Session::master_paragraph_query(
   kind : String,
   level : Int32,
 ) -> Json {
-  let fields = [
-    "left", "right", "first", "before", "after", "line", "list", "level", "rtl",
-    "listFont", "listSize", "listColor", "tabs", "defaultTab",
-  ]
-  let result : Map[String, Json] = Map([])
-  for field in fields {
-    result[field] = Json::null()
-  }
-  result["alignment"] = Json::null()
-  result["reason"] = Json("")
+  let mut result = paragraph_values(None)
+  let mut alignment : String? = None
+  let mut reason = ""
   try {
     let (_, _, own) = master_text_style(tree, kind, level)
     check_master_paragraph(own)
@@ -122,14 +115,13 @@ fn Session::master_paragraph_query(
       self.parts,
       self.media,
     )
-    let values = paragraph_values(paragraph)
-    for index, field in fields {
-      result[field] = values[index]
-    }
-    result["alignment"] = Json(paragraph.align)
+    result = paragraph_values(Some(paragraph))
+    alignment = Some(paragraph.align)
   } catch {
-    @failure.Failure(message~, ..) => result["reason"] = Json(message)
+    @failure.Failure(message~, ..) => reason = message
   }
+  result["alignment"] = nullable_json(alignment)
+  result["reason"] = Json(reason)
   Json(result)
 }
 

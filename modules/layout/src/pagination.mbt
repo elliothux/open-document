@@ -573,11 +573,13 @@ fn Table::left(
 }
 
 ///|
+/// Source versions are only for immutable paragraphs supplied by a document session.
 pub fn paginate(
   probe : TextProbe,
   flow : Flow,
   profile : Map[String, String],
   images : Images,
+  source_versions~ : Bool = false,
 ) -> Layout raise @failure.Failure {
   probe.check()
   flow.page.validate()
@@ -600,25 +602,27 @@ pub fn paginate(
   }
   flow.validate_floating_images()
   flow.validate_notes()
-  let cache = ParagraphCache::new(probe, profile)
+  let cache = ParagraphCache::new(probe, profile, source_versions~)
   if !flow.sectionBreaks.is_empty() {
-    let old = probe.pagination
-    // shortcut: Retain paragraph shaping until page-cache positions include section boundaries.
+    let (
+      pages,
+      running,
+      diagnostics,
+      section_numbering,
+      page_sections,
+      reused,
+      next,
+    ) = paginate_sections(probe, flow, cache, profile, images)
+    cache.commit(probe)
     probe.pagination = None
-    errdefer {
-      probe.pagination = old
-    }
-    let (pages, running, diagnostics, section_numbering, page_sections) = paginate_sections(
-      probe, flow, cache, profile, images,
-    )
-    probe.paragraphs = cache.current
+    probe.section_pagination = next
     return {
       background: flow.background,
       revision: flow.revision,
       shapedParagraphs: cache.shaped,
       reusedParagraphs: cache.reused,
-      reflowedPages: pages.length(),
-      reusedPages: 0,
+      reflowedPages: pages.length() - reused,
+      reusedPages: reused,
       profile: profile.copy(),
       pages,
       running,
@@ -630,7 +634,12 @@ pub fn paginate(
     }
   }
   let (pagination, running, reflowed, reused, next, diagnostics) = paginate_running(
-    probe, flow, cache, profile, images,
+    probe,
+    flow,
+    cache,
+    profile,
+    images,
+    previous=probe.pagination,
   )
   guard running
     .iter()
@@ -668,7 +677,8 @@ pub fn paginate(
     outlines: probe.outline_resources(),
     fonts: probe.font_info(),
   }
-  probe.paragraphs = cache.current
+  cache.commit(probe)
   probe.pagination = next
+  probe.section_pagination.clear()
   result
 }

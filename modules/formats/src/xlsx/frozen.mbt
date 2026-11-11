@@ -82,10 +82,10 @@ fn read_frozen(tree : Tree) -> Frozen raise @failure.Failure {
   let rows = number(pane.attribute("ySplit").unwrap_or("0"))
   let columns = number(pane.attribute("xSplit").unwrap_or("0"))
   guard rows >= 0 &&
-    rows < 1048576 &&
+    rows < WorksheetRows.to_double() &&
     rows == rows.floor() &&
     columns >= 0 &&
-    columns < 16384 &&
+    columns < WorksheetColumns.to_double() &&
     columns == columns.floor() else {
     @failure.reject("malformed-xlsx", "Invalid frozen row or column count")
   }
@@ -127,7 +127,10 @@ fn Session::freeze(
   rows : Int32,
   columns : Int32,
 ) -> Json raise @failure.Failure {
-  guard rows >= 0 && rows < 1048576 && columns >= 0 && columns < 16384 else {
+  guard rows >= 0 &&
+    rows < WorksheetRows &&
+    columns >= 0 &&
+    columns < WorksheetColumns else {
     @failure.reject("invalid-operation", "Invalid frozen row or column count")
   }
   let index = self.sheet_index(sheet)

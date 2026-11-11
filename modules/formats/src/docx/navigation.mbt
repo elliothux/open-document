@@ -1,4 +1,11 @@
 ///|
+pub struct NavigationResult {
+  hit : @layout.Hit
+  selection : Selection
+  state : EditState
+}
+
+///|
 /// Updates the authoritative selection without changing document history.
 pub fn Session::navigate(
   self : Session,
@@ -7,7 +14,7 @@ pub fn Session::navigate(
   layout_id : Int32,
   direction : String,
   extend_selection~ : Bool,
-) -> @layout.Hit raise @failure.Failure {
+) -> NavigationResult raise @failure.Failure {
   self.check_revision(revision)
   guard layout.revision == revision else {
     @failure.reject(
@@ -77,19 +84,18 @@ pub fn Session::navigate(
     bidiLevel: hit.bidiLevel,
     frameStart: hit.frameStart,
   }
-  ignore(
-    self.select(revision, {
-      anchor: if extend_selection {
-        anchor
-      } else {
-        target
-      },
-      focus: target,
-    }),
-  )
+  let selection : Selection = {
+    anchor: if extend_selection {
+      anchor
+    } else {
+      target
+    },
+    focus: target,
+  }
+  let state = self.select_state(revision, selection)
   if vertical {
     self.vertical_x = Some(goal)
     self.navigation_layout = layout_id
   }
-  hit
+  { hit, selection, state, }
 }

@@ -191,11 +191,12 @@ export class SpreadsheetDrawingPointer {
               gesture.revision = current.query.revision;
               gesture.layout = current.layout.id;
               gesture.ready = true;
-              const selection = await this.client.selectDrawing(
-                gesture.revision,
-                gesture.layout,
-                object,
-              );
+              const selection = await this.client.execute({
+                operation: "selectDrawingXlsx",
+                revision: gesture.revision,
+                layout: gesture.layout,
+                objectId: object,
+              });
               this.paint(selection);
             })
             .catch((error) => {
@@ -219,12 +220,13 @@ export class SpreadsheetDrawingPointer {
             gesture.viewport.scrollX =
               Math.abs(this.viewport.scrollLeft) / gesture.scale;
             gesture.viewport.scrollY = this.viewport.scrollTop / gesture.scale;
-            const preview = await this.client.drawingGesture(
-              gesture.revision,
-              gesture.layout,
-              { handle, ...this.delta(gesture), commit: false },
-              this.host.current().profile,
-            );
+            const preview = await this.client.execute({
+              operation: "drawingGestureXlsx",
+              revision: gesture.revision,
+              layout: gesture.layout,
+              gesture: { handle, ...this.delta(gesture), commit: false },
+              profile: this.host.current().profile,
+            });
             if (gesture.cancelled || this.signal.aborted) return;
             if (preview.drawing) {
               this.surface.draw(preview.drawing, 0, (gesture.scale * 72) / 96);
@@ -255,12 +257,13 @@ export class SpreadsheetDrawingPointer {
         try {
           await this.host.run(async () => {
             if (!gesture.cancelled) {
-              const result = await this.client.drawingGesture(
-                gesture.revision,
-                gesture.layout,
-                { handle, ...this.delta(gesture), commit: true },
-                this.host.current().profile,
-              );
+              const result = await this.client.execute({
+                operation: "drawingGestureXlsx",
+                revision: gesture.revision,
+                layout: gesture.layout,
+                gesture: { handle, ...this.delta(gesture), commit: true },
+                profile: this.host.current().profile,
+              });
               if (result.query) this.host.assign(result.query);
             }
             this.gesture = undefined;
@@ -348,11 +351,12 @@ export class SpreadsheetDrawingPointer {
             if (now.query.sheet !== sheet)
               throw new Error("Worksheet object target changed");
             if (!now.layout) return;
-            await this.client.selectDrawing(
-              now.query.revision,
-              now.layout.id,
-              object,
-            );
+            await this.client.execute({
+              operation: "selectDrawingXlsx",
+              revision: now.query.revision,
+              layout: now.layout.id,
+              objectId: object,
+            });
             if (event.key === "Delete") {
               const target = now.layout.objects.find(
                 (item) => item.id === object,
@@ -360,47 +364,57 @@ export class SpreadsheetDrawingPointer {
               if (!target) throw new Error("Worksheet object no longer exists");
               this.host.assign(
                 await (target.timeline
-                  ? this.client.editSheet(now.query.revision, now.query.sheet, {
-                      action: "deleteTimeline",
-                      name: target.timeline.name,
+                  ? this.client.execute({
+                      operation: "editXlsxSheet",
+                      revision: now.query.revision,
+                      sheet: now.query.sheet,
+                      change: {
+                        action: "deleteTimeline",
+                        name: target.timeline.name,
+                      },
                     })
                   : target.slicer
-                    ? this.client.editSheet(
-                        now.query.revision,
-                        now.query.sheet,
-                        {
+                    ? this.client.execute({
+                        operation: "editXlsxSheet",
+                        revision: now.query.revision,
+                        sheet: now.query.sheet,
+                        change: {
                           action: "deleteSlicer",
                           name: target.slicer.name,
                         },
-                      )
+                      })
                     : target.kind === "picture"
-                      ? this.client.deletePicture(
-                          now.query.revision,
-                          now.query.sheet,
-                          object,
-                          now.profile,
-                        )
+                      ? this.client.execute({
+                          operation: "deletePictureXlsx",
+                          revision: now.query.revision,
+                          sheet: now.query.sheet,
+                          id: object,
+                          profile: now.profile,
+                        })
                       : target.kind === "chart"
-                        ? this.client.deleteChart(
-                            now.query.revision,
-                            now.query.sheet,
-                            object,
-                            now.profile,
-                          )
-                        : this.client.deleteShape(
-                            now.query.revision,
-                            now.query.sheet,
-                            object,
-                            now.profile,
-                          )),
+                        ? this.client.execute({
+                            operation: "deleteXlsxChart",
+                            revision: now.query.revision,
+                            sheet: now.query.sheet,
+                            id: object,
+                            profile: now.profile,
+                          })
+                        : this.client.execute({
+                            operation: "deleteShapeXlsx",
+                            revision: now.query.revision,
+                            sheet: now.query.sheet,
+                            id: object,
+                            profile: now.profile,
+                          })),
               );
             } else {
-              const result = await this.client.drawingGesture(
-                now.query.revision,
-                now.layout.id,
-                { handle, dx, dy, commit: true },
-                now.profile,
-              );
+              const result = await this.client.execute({
+                operation: "drawingGestureXlsx",
+                revision: now.query.revision,
+                layout: now.layout.id,
+                gesture: { handle, dx, dy, commit: true },
+                profile: now.profile,
+              });
               if (result.query) this.host.assign(result.query);
             }
             await this.host.render();
@@ -422,11 +436,12 @@ export class SpreadsheetDrawingPointer {
             if (now.query.sheet !== sheet)
               throw new Error("Worksheet object target changed");
             if (now.layout)
-              await this.client.selectDrawing(
-                now.query.revision,
-                now.layout.id,
-                object,
-              );
+              await this.client.execute({
+                operation: "selectDrawingXlsx",
+                revision: now.query.revision,
+                layout: now.layout.id,
+                objectId: object,
+              });
             await this.host.render();
           })
           .catch((error) => this.report(error));

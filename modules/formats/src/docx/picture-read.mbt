@@ -202,9 +202,17 @@ pub fn Session::image_bytes(
 }
 
 ///|
-/// Encode a prepared layout image without changing its document source.
-pub fn image_resource_bytes(
-  image : @layout.ImageResource,
-) -> Bytes raise @failure.Failure {
-  @image.encode_png(image.width, image.height, image.rgba)
+/// Register a supported raster for layout, or leave the source for host decoding.
+pub fn Session::prepare_image(
+  self : Session,
+  key : String,
+  images : @layout.Images,
+) -> Bool raise @failure.Failure {
+  let source = self.image_bytes(key) catch { _ => return false }
+  guard @image.decode_plain_raster(source, exif_orientation=true)
+    is Some((width, height, rgba)) else {
+    return false
+  }
+  images.add(key, width, height, rgba)
+  true
 }

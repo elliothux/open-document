@@ -3,6 +3,15 @@ import type { SpreadsheetEditor } from "../web/spreadsheet-editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { Command, Group } from "@open-document/ui/controls";
+import {
+  xlsxHeaderFooterTextUnits,
+  xlsxPrintAreaUnits,
+  xlsxPrintFitPageCount,
+  xlsxPrintPageMaxPoints,
+  xlsxPrintScaleMax,
+  xlsxPrintScaleMin,
+  xlsxPrintTitleUnits,
+} from "@open-document/wasm/engine-source";
 
 type PrintProps = {
   controller: EditorController;
@@ -89,7 +98,7 @@ export function XlsxPrintSetup({
           onSubmit={(event) => {
             event.preventDefault();
             controller.run(async () => {
-              await editor.editSheet({
+              await editor.objects.editSheet({
                 action: "pageSetup",
                 paper,
                 orientation,
@@ -154,13 +163,13 @@ export function XlsxPrintSetup({
                     ? 1
                     : "any"
                 }
-                min={key === "scale" ? 10 : 0}
+                min={key === "scale" ? xlsxPrintScaleMin : 0}
                 max={
                   key === "scale"
-                    ? 400
+                    ? xlsxPrintScaleMax
                     : key === "fitWidth" || key === "fitHeight"
-                      ? 1024
-                      : 14400
+                      ? xlsxPrintFitPageCount
+                      : xlsxPrintPageMaxPoints
                 }
                 value={values[key]}
                 onChange={(event) => {
@@ -186,7 +195,10 @@ export function XlsxPrintSetup({
           onSubmit={(event) => {
             event.preventDefault();
             controller.run(async () => {
-              await editor.editSheet({ action: "printRange", ...range });
+              await editor.objects.editSheet({
+                action: "printRange",
+                ...range,
+              });
             });
           }}
         >
@@ -202,7 +214,9 @@ export function XlsxPrintSetup({
               <input
                 value={range[key]}
                 placeholder={placeholder}
-                maxLength={key === "area" ? 2048 : 32}
+                maxLength={
+                  key === "area" ? xlsxPrintAreaUnits : xlsxPrintTitleUnits
+                }
                 onChange={(event) => {
                   const value = event.currentTarget.value;
                   setRange((previous) => ({ ...previous, [key]: value }));
@@ -223,7 +237,7 @@ export function XlsxPrintSetup({
           onSubmit={(event) => {
             event.preventDefault();
             controller.run(async () => {
-              await editor.editSheet({
+              await editor.objects.editSheet({
                 action: "headerFooter",
                 ...headers,
                 headerMargin: Number(distances.headerMargin),
@@ -247,7 +261,7 @@ export function XlsxPrintSetup({
               <textarea
                 aria-label={label}
                 value={headers[key]}
-                maxLength={255}
+                maxLength={xlsxHeaderFooterTextUnits}
                 onChange={(event) => {
                   const value = event.currentTarget.value;
                   setHeaders((previous) => ({ ...previous, [key]: value }));
@@ -287,7 +301,7 @@ export function XlsxPrintSetup({
                 type="number"
                 required
                 min={0}
-                max={14400}
+                max={xlsxPrintPageMaxPoints}
                 step="any"
                 value={distances[key]}
                 onChange={(event) => {

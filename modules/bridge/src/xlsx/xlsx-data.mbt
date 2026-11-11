@@ -1,82 +1,84 @@
 ///|
-fn xlsx_data(
-  session : @model.Session,
-  operation : String,
-  request : Json,
-) -> Json raise @failure.Failure {
-  guard request is { "settings": settings, .. } else {
-    @failure.reject("invalid-operation", "Data operation settings are required")
-  }
-  let revision = field_int(request, "revision")
-  let sheet = field_string(request, "sheet")
-  if operation == "duplicatesXlsx" {
-    session.duplicates(revision, sheet, xlsx_duplicate_settings(settings))
-  } else if operation == "consolidationXlsx" {
-    session.consolidation(revision, sheet, xlsx_consolidate_settings(settings))
-  } else if operation == "subtotalsXlsx" {
-    session.subtotals(revision, sheet, xlsx_subtotal_settings(settings))
-  } else {
-    session.text_columns(revision, sheet, xlsx_column_settings(settings))
-  }
+priv struct SubtotalRequest {
+  range : String
+  groupColumn : @common.RequestInt
+  valueColumn : @common.RequestInt
+  operation : String
+} derive(@json.FromJson)
+
+///|
+priv struct DataEditRequest[T] {
+  settings : T
+  sourceRevision : @common.RequestInt
+  overwrite : Bool?
+} derive(@json.FromJson)
+
+///|
+priv struct TextColumnRequest {
+  range : String
+  delimiter : String?
+  breaks : Array[@common.RequestInt]?
+  types : Array[String]?
+  formulas : Bool?
+} derive(@json.FromJson)
+
+///|
+priv struct DuplicateRequest {
+  range : String
+  header : Bool
+  columns : Array[@common.RequestInt]
+} derive(@json.FromJson)
+
+///|
+priv struct SubtotalSettingsInput {
+  value : @model.SubtotalSettings
 }
 
 ///|
-fn xlsx_subtotal_settings(
-  value : Json,
-) -> @model.SubtotalSettings raise @failure.Failure {
-  guard value is Object(fields) &&
-    fields.length() == 4 &&
-    fields
-    .keys()
-    .all(key => {
-      ["range", "groupColumn", "valueColumn", "operation"].contains(key)
-    }) else {
-    @failure.reject("invalid-operation", "Invalid subtotal settings")
+impl @json.FromJson for SubtotalSettingsInput with fn from_json(value, path) {
+  guard value is Object(fields) && fields.length() == 4 else {
+    raise @json.JsonDecodeError((path, "Invalid subtotal settings"))
   }
+  let settings : SubtotalRequest = @json.from_json(value, path~)
   {
-    range: field_string(value, "range"),
-    groupColumn: field_int(value, "groupColumn"),
-    valueColumn: field_int(value, "valueColumn"),
-    operation: field_string(value, "operation"),
+    value: {
+      range: settings.range,
+      groupColumn: settings.groupColumn.value,
+      valueColumn: settings.valueColumn.value,
+      operation: settings.operation,
+    },
   }
 }
 
 ///|
-fn xlsx_consolidate_settings(
-  value : Json,
-) -> @model.ConsolidateSettings raise @failure.Failure {
+priv struct ConsolidateSettingsInput {
+  value : @model.ConsolidateSettings
+}
+
+///|
+impl @json.FromJson for ConsolidateSettingsInput with fn from_json(value, path) {
   guard value is Object(fields) &&
     fields.length() == 4 &&
-    fields
-    .keys()
-    .all(key => ["sources", "target", "operation", "leftLabels"].contains(key)) &&
     fields.get("sources") is Some(Array(sources)) &&
     !sources.is_empty() &&
-    sources.length() <= 32 else {
-    @failure.reject("invalid-operation", "Invalid consolidation settings")
+    sources.length() <= @model.ConsolidationSources else {
+    raise @json.JsonDecodeError((path, "Invalid consolidation settings"))
   }
-  {
-    sources: sources.map(source => {
-      guard source is Object(fields) &&
-        fields.length() == 2 &&
-        fields.keys().all(key => ["sheet", "range"].contains(key)) else {
-        @failure.reject("invalid-operation", "Invalid consolidation source")
-      }
-      {
-        sheet: field_string(source, "sheet"),
-        range: field_string(source, "range"),
-      }
-    }),
-    target: field_string(value, "target"),
-    operation: field_string(value, "operation"),
-    leftLabels: field_boolean(value, "leftLabels"),
+  guard sources.all(source => source is Object(fields) && fields.length() == 2) else {
+    raise @json.JsonDecodeError(
+      (path.add_key("sources"), "Invalid consolidation source"),
+    )
   }
+  { value: @json.from_json(value, path~), }
 }
 
 ///|
-fn xlsx_data_edit(change : Json) -> @model.SheetEdit raise @failure.Failure {
-  let action = field_string(change, "action")
-  let keys = if action == "removeDuplicates" || action == "createSubtotals" {
+fn xlsx_data_edit(
+  action : String,
+  change : Json,
+) -> @model.SheetEdit raise @failure.Failure {
+  let overwrite = action == "textToColumns" || action == "consolidate"
+  let keys = if !overwrite {
     ["action", "settings", "sourceRevision"]
   } else {
     ["action", "settings", "sourceRevision", "overwrite"]
@@ -84,112 +86,143 @@ fn xlsx_data_edit(change : Json) -> @model.SheetEdit raise @failure.Failure {
   guard change is Object(fields) &&
     fields.length() == keys.length() &&
     fields.keys().all(key => keys.contains(key)) &&
-    fields.get("settings") is Some(settings) else {
+    (!overwrite || fields.get("overwrite") is Some(True | False)) else {
     @failure.reject("invalid-operation", "Invalid data operation command")
   }
-  let revision = field_int(change, "sourceRevision")
   match action {
-    "createSubtotals" =>
-      @model.CreateSubtotals(xlsx_subtotal_settings(settings), revision)
-    "removeDuplicates" =>
-      @model.RemoveDuplicates(xlsx_duplicate_settings(settings), revision)
-    "textToColumns" =>
+    "createSubtotals" => {
+      let command : DataEditRequest[SubtotalSettingsInput] = @common.request(
+        change,
+      )
+      @model.CreateSubtotals(
+        command.settings.value,
+        command.sourceRevision.value,
+      )
+    }
+    "removeDuplicates" => {
+      let command : DataEditRequest[DuplicateSettingsInput] = @common.request(
+        change,
+      )
+      @model.RemoveDuplicates(
+        command.settings.value,
+        command.sourceRevision.value,
+      )
+    }
+    "textToColumns" => {
+      let command : DataEditRequest[TextColumnSettingsInput] = @common.request(
+        change,
+      )
       @model.TextToColumns(
-        xlsx_column_settings(settings),
-        revision,
-        field_boolean(change, "overwrite"),
+        command.settings.value,
+        command.sourceRevision.value,
+        command.overwrite.unwrap_or(false),
       )
-    "consolidate" =>
+    }
+    "consolidate" => {
+      let command : DataEditRequest[ConsolidateSettingsInput] = @common.request(
+        change,
+      )
       @model.Consolidate(
-        xlsx_consolidate_settings(settings),
-        revision,
-        field_boolean(change, "overwrite"),
+        command.settings.value,
+        command.sourceRevision.value,
+        command.overwrite.unwrap_or(false),
       )
+    }
     _ => @failure.reject("invalid-operation", "Unknown data operation")
   }
 }
 
 ///|
-fn xlsx_column_settings(
-  value : Json,
-) -> @model.TextColumnSettings raise @failure.Failure {
+priv struct TextColumnSettingsInput {
+  value : @model.TextColumnSettings
+}
+
+///|
+impl @json.FromJson for TextColumnSettingsInput with fn from_json(value, path) {
   guard value is Object(fields) &&
-    fields.length() >= 2 &&
     fields.length() <= 4 &&
     fields
-    .keys()
-    .all(k => ["range", "delimiter", "breaks", "types", "formulas"].contains(k)) &&
+    .iter()
+    .all(pair => {
+      match pair {
+        (_, Null) => false
+        ("range" | "delimiter" | "breaks" | "types" | "formulas", _) => true
+        _ => false
+      }
+    }) &&
     fields.contains("delimiter") != fields.contains("breaks") else {
-    @failure.reject("invalid-operation", "Invalid text to columns settings")
+    raise @json.JsonDecodeError((path, "Invalid text to columns settings"))
   }
-  let split = if fields.contains("breaks") {
-    guard fields.get("breaks") is Some(Array(breaks)) &&
+  if fields.get("breaks") is Some(value) {
+    guard value is Array(breaks) &&
       !breaks.is_empty() &&
-      breaks.length() < 4096 else {
-      @failure.reject("invalid-operation", "Invalid fixed-width positions")
+      breaks.length() < @model.TextColumnCells else {
+      raise @json.JsonDecodeError(
+        (path.add_key("breaks"), "Invalid text to columns split"),
+      )
     }
-    @model.Fixed(
-      breaks.map(value => {
-        guard value is Number(number, ..) &&
-          number >= 1 &&
-          number <= 65534 &&
-          number == number.trunc() else {
-          @failure.reject("invalid-operation", "Invalid fixed-width position")
-        }
-        number.to_int()
-      }),
-    )
-  } else {
-    @model.Delimited(field_string(value, "delimiter"))
   }
-  let types = match fields.get("types") {
-    None => []
-    Some(Array(values)) if values.length() <= 4096 =>
-      values.map(value => {
-        guard value is String(kind) else {
-          @failure.reject("invalid-operation", "Invalid column type")
-        }
-        kind
-      })
-    _ => @failure.reject("invalid-operation", "Invalid column types")
+  if fields.get("types") is Some(value) {
+    guard value is Array(types) && types.length() <= @model.TextColumnCells else {
+      raise @json.JsonDecodeError(
+        (path.add_key("types"), "Invalid column types"),
+      )
+    }
+  }
+  let settings : TextColumnRequest = @json.from_json(value, path~)
+  let split = match (settings.delimiter, settings.breaks) {
+    (Some(delimiter), None) => @model.Delimited(delimiter)
+    (None, Some(breaks)) =>
+      @model.Fixed(
+        breaks.map(value => {
+          guard value.value >= 1 &&
+            value.value <= @model.TextColumnBreakPosition else {
+            raise @json.JsonDecodeError(
+              (path.add_key("breaks"), "Invalid fixed-width position"),
+            )
+          }
+          value.value
+        }),
+      )
+    _ => raise @json.JsonDecodeError((path, "Invalid text to columns split"))
   }
   {
-    range: field_string(value, "range"),
-    split,
-    types,
-    formulas: if fields.contains("formulas") {
-      field_boolean(value, "formulas")
-    } else {
-      false
+    value: {
+      range: settings.range,
+      split,
+      types: settings.types.unwrap_or([]),
+      formulas: settings.formulas.unwrap_or(false),
     },
   }
 }
 
 ///|
-fn xlsx_duplicate_settings(
-  value : Json,
-) -> @model.DuplicateSettings raise @failure.Failure {
+priv struct DuplicateSettingsInput {
+  value : @model.DuplicateSettings
+}
+
+///|
+impl @json.FromJson for DuplicateSettingsInput with fn from_json(value, path) {
   guard value is Object(fields) &&
     fields.length() == 3 &&
-    fields.keys().all(k => ["range", "header", "columns"].contains(k)) &&
     fields.get("columns") is Some(Array(columns)) &&
     !columns.is_empty() &&
-    columns.length() <= 4096 else {
-    @failure.reject("invalid-operation", "Invalid duplicate settings")
+    columns.length() <= @model.DuplicateCells else {
+    raise @json.JsonDecodeError((path, "Invalid duplicate settings"))
   }
+  let settings : DuplicateRequest = @json.from_json(value, path~)
   {
-    range: field_string(value, "range"),
-    header: field_boolean(value, "header"),
-    columns: columns.map(value => {
-      guard value is Number(number, ..) &&
-        number >= 1 &&
-        number <= 16384 &&
-        number == number.trunc() else {
-        @failure.reject(
-          "invalid-operation", "Invalid duplicate comparison column",
-        )
-      }
-      number.to_int()
-    }),
+    value: {
+      range: settings.range,
+      header: settings.header,
+      columns: settings.columns.map(value => {
+        guard value.value >= 1 && value.value <= @model.WorksheetColumns else {
+          raise @json.JsonDecodeError(
+            (path.add_key("columns"), "Invalid duplicate comparison column"),
+          )
+        }
+        value.value
+      }),
+    },
   }
 }

@@ -127,7 +127,7 @@ export function DocxStyleEdit({
             ),
           };
         controller.run(async () => {
-          await editor.updateStyle(choice.id, {
+          await editor.formatting.updateStyle(choice.id, {
             character: characterPatch,
             paragraph: paragraphPatch,
             name,

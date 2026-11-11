@@ -1,4 +1,10 @@
 ///|
+pub const ImageBytes : Int32 = 16777216
+
+///|
+pub const ImageDimension : Int32 = 4096
+
+///|
 pub(all) struct ImageResource {
   identity : String
   width : Int32
@@ -28,9 +34,9 @@ pub fn Images::add(
   guard !key.is_empty() &&
     key.length() <= 256 &&
     width > 0 &&
-    width <= 4096 &&
+    width <= ImageDimension &&
     height > 0 &&
-    height <= 4096 &&
+    height <= ImageDimension &&
     width.to_int64() * height.to_int64() * 4 == rgba.length().to_int64() else {
     @failure.reject(
       "invalid-image", "Invalid image dimensions or RGBA byte length",
@@ -43,7 +49,7 @@ pub fn Images::add(
   guard previous > 0 || self.entries.length() < 256 else {
     @failure.reject("limit-exceeded", "Image count budget exceeded")
   }
-  guard rgba.length() <= 16777216 - self.retained + previous else {
+  guard rgba.length() <= ImageBytes - self.retained + previous else {
     @failure.reject("limit-exceeded", "Decoded image budget exceeded")
   }
   let identity = StringBuilder()

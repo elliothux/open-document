@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { pptxFooterTextUnits } from "@open-document/wasm/engine-source";
 import type { PanelProps } from "./panels.js";
 import { messages } from "@open-document/ui/messages";
 
@@ -146,7 +147,7 @@ export function PptxFooter({ controller, state, file, disabled }: PanelProps) {
                   {t.slideDateText}
                   <input
                     type="text"
-                    maxLength={4096}
+                    maxLength={pptxFooterTextUnits}
                     value={date}
                     onChange={(event) => setDate(event.currentTarget.value)}
                   />
@@ -175,7 +176,7 @@ export function PptxFooter({ controller, state, file, disabled }: PanelProps) {
               {t.slideFooterValue}
               <input
                 type="text"
-                maxLength={4096}
+                maxLength={pptxFooterTextUnits}
                 value={footer}
                 onChange={(event) => setFooter(event.currentTarget.value)}
               />

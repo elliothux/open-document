@@ -26,6 +26,6 @@ export function clipboard(editor: SpreadsheetEditor): ClipboardActions {
     canCopy: true,
     textMode: true,
     readOnly: false,
-    paste: (text) => editor.paste(text),
+    paste: (text) => editor.clipboard.paste(text),
   };
 }

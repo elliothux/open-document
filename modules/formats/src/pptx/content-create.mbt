@@ -358,7 +358,7 @@ pub fn Session::create_content(
   probe : @layout.TextProbe,
   profile : Map[String, String],
 ) -> Session raise @failure.Failure {
-  guard !slides.is_empty() && slides.length() <= 256 else {
+  guard !slides.is_empty() && slides.length() <= SlideCountLimit else {
     @failure.reject(
       "limit-exceeded", "Imported presentation exceeds slide limits",
     )

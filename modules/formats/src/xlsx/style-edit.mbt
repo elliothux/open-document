@@ -144,7 +144,7 @@ fn Session::derive_formats(
   } else {
     created_parts[path] = document
   }
-  let styles = read_styles(document, self.theme)
+  let styles = read_styles(Tree::new(document), self.theme)
   let indices : Map[String, Int32] = Map([])
   for name, key in originals {
     indices[name] = mappings[key]

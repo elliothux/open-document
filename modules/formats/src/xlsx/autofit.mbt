@@ -81,8 +81,8 @@ fn Session::fit_sizes(
     for col in tree.all(columns.id, "col") {
       if flag(col, "hidden") {
         hidden[(
-          natural(col.attribute("min").unwrap_or(""), 16384),
-          natural(col.attribute("max").unwrap_or(""), 16384),
+          natural(col.attribute("min").unwrap_or(""), WorksheetColumns),
+          natural(col.attribute("max").unwrap_or(""), WorksheetColumns),
         )] = col
           .attribute("width")
           .map(value => dimension(value, 255))
@@ -184,7 +184,7 @@ fn Session::fit_sizes(
       )
     }
     let value = calculation.values
-      .get((index, cell.address.name()))
+      .get((index, cell.address))
       .unwrap_or(cell.value)
     guard cell.formula is None || value != Blank else {
       @failure.reject(
@@ -209,13 +209,17 @@ fn Session::fit_sizes(
     let spaced = number
       .map(section => section.spacing_units() > 0)
       .unwrap_or(false)
-    let text = current.view.display(
-      cell.formula,
-      value,
-      style.format,
-      self.date1904,
-      hidden=current.locked && style.formula_hidden,
-    )
+    let text = if number is Some(section) {
+      section.display()
+    } else {
+      current.view.display(
+        cell.formula,
+        value,
+        style.format,
+        self.date1904,
+        hidden=current.locked && style.formula_hidden,
+      )
+    }
     let icon_width = if style.icon is Some(_) { 16.5 } else { 0.0 }
     let text = if style.icon.map(icon => !icon.showValue).unwrap_or(false) {
       ""
@@ -418,7 +422,7 @@ pub fn Session::auto_fit(
   self.check_revision(revision)
   guard first >= 1 &&
     last >= first &&
-    last <= (if rows { 1048576 } else { 16384 }) else {
+    last <= (if rows { WorksheetRows } else { WorksheetColumns }) else {
     @failure.reject("invalid-operation", "Invalid automatic dimension range")
   }
   guard last - first < 4096 else {

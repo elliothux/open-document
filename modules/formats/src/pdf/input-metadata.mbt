@@ -1,4 +1,14 @@
 ///|
+pub struct PdfMetadata {
+  revision : Int32
+  fields : Map[String, String]
+  readOnlyReason : String
+} derive(ToJson)
+
+///|
+pub extend PdfMetadata with ToJson::{to_json}
+
+///|
 fn PdfSession::metadata_reason(self : PdfSession) -> String {
   if !self.readOnlyReason.is_empty() {
     return self.readOnlyReason
@@ -12,31 +22,27 @@ fn PdfSession::metadata_reason(self : PdfSession) -> String {
 }
 
 ///|
-pub fn PdfSession::metadata(self : PdfSession) -> Json raise @failure.Failure {
+pub fn PdfSession::metadata(
+  self : PdfSession,
+) -> PdfMetadata raise @failure.Failure {
   self.check(self.revision)
   pdf_bound(self.budget, () => {
     let info = get(self.document, self.document.trailer_dict(), "Info")
-    let fields : Map[String, Json] = Map([])
+    let fields : Map[String, String] = Map([])
     let xmp = self.xmp_metadata() catch { _ => None }
     for key in ["Title", "Author", "Subject", "Keywords"] {
       let value = get(self.document, info, key)
-      fields[key] = Json(
-        if value == @syntax.PdfNull {
-          match xmp {
-            Some((_, _, leaves)) =>
-              leaves.get(key).map(node => node.text).unwrap_or("")
-            None => ""
-          }
-        } else {
-          pdf_text_string(value)
-        },
-      )
+      fields[key] = if value == @syntax.PdfNull {
+        match xmp {
+          Some((_, _, leaves)) =>
+            leaves.get(key).map(node => node.text).unwrap_or("")
+          None => ""
+        }
+      } else {
+        pdf_text_string(value)
+      }
     }
-    {
-      "revision": self.revision,
-      "fields": fields,
-      "readOnlyReason": self.metadata_reason(),
-    }
+    { revision: self.revision, fields, readOnlyReason: self.metadata_reason(), }
   })
 }
 
@@ -58,7 +64,7 @@ pub fn PdfSession::set_metadata(
   }
   for key, value in fields {
     guard ["Title", "Author", "Subject", "Keywords"].contains(key) &&
-      value.length() <= 32767 else {
+      value.length() <= TextUnits else {
       @failure.reject(
         "invalid-operation", "Unknown or oversized PDF metadata field",
       )

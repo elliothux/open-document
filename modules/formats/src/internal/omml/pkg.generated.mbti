@@ -8,6 +8,8 @@ import {
 }
 
 // Values
+pub const LatexSourceUnits : Int32 = 131072
+
 pub fn latex(@layout.MathExpression) -> String
 
 pub fn markup(@layout.MathFormula, inherited? : Bool, drawing? : Bool) -> String raise @failure.Failure

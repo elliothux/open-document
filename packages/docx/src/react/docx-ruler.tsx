@@ -105,7 +105,7 @@ export function DocxRuler({
         return;
       }
       if (!current) return;
-      const next = await editor.ruler();
+      const next = await editor.pages.ruler();
       if (current) setSource(next);
     });
     return () => {
@@ -180,7 +180,7 @@ export function DocxRuler({
       pendingFocus.current = { kind: change.kind, position: change.position };
     controller.run(async () => {
       try {
-        await editor.editRuler(original, change);
+        await editor.pages.editRuler(original, change);
       } catch (error) {
         pendingFocus.current = undefined;
         throw error;

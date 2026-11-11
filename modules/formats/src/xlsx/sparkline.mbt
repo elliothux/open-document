@@ -1,4 +1,13 @@
 ///|
+pub const SparklineCount : Int32 = 256
+
+///|
+pub const SparklineSourceCells : Int32 = 256
+
+///|
+pub const SparklineSourceUnits : Int32 = 256
+
+///|
 let sparkline_uri = "http://schemas.microsoft.com/office/spreadsheetml/2009/9/main"
 
 ///|
@@ -28,10 +37,10 @@ fn Range::sparkline_offset(
   columns : Int32,
 ) -> Range {
   {
-    top: (self.top + rows).max(1).min(1048576),
-    bottom: (self.bottom + rows).max(1).min(1048576),
-    left: (self.left + columns).max(1).min(16384),
-    right: (self.right + columns).max(1).min(16384),
+    top: (self.top + rows).max(1).min(WorksheetRows),
+    bottom: (self.bottom + rows).max(1).min(WorksheetRows),
+    left: (self.left + columns).max(1).min(WorksheetColumns),
+    right: (self.right + columns).max(1).min(WorksheetColumns),
   }
 }
 
@@ -43,7 +52,7 @@ fn sparkline_source(
   if text == "#REF!" {
     return (None, None)
   }
-  guard text.length() <= 256 &&
+  guard text.length() <= SparklineSourceUnits &&
     parse_formula(text) is Reference(target, first, last) else {
     @failure.reject(
       "protected-content", "Sparkline requires a worksheet cell range",
@@ -54,9 +63,10 @@ fn sparkline_source(
   }
   let range = first.range(last.unwrap_or(first))
   guard (range.top == range.bottom || range.left == range.right) &&
-    range.bottom - range.top + range.right - range.left < 256 else {
+    range.bottom - range.top + range.right - range.left < SparklineSourceCells else {
     @failure.reject(
-      "limit-exceeded", "Sparkline requires at most 256 cells in one row or column",
+      "limit-exceeded",
+      "Sparkline requires at most \{SparklineSourceCells} cells in one row or column",
     )
   }
   (target.filter(name => name.to_lower() != sheet.to_lower()), Some(range))
@@ -170,7 +180,7 @@ fn read_sparklines(
         }
         filter_attributes(lines, [])
         for line in tree.children.get(lines.id).unwrap_or([]) {
-          guard items.length() < 256 &&
+          guard items.length() < SparklineCount &&
             line.uri == sparkline_uri &&
             line.name == "sparkline" else {
             @failure.reject("limit-exceeded", "Unknown or excessive sparklines")
@@ -237,7 +247,7 @@ fn sparkline_extension(tree : Tree, node : @xml.Node) -> Bool {
 fn Session::sparkline_query(
   self : Session,
   sheet : Sheet,
-) -> Json raise @failure.Failure {
+) -> QuerySparklines raise @failure.Failure {
   let reason = if !self.read_only.is_empty() {
     self.read_only
   } else if sheet.locked {
@@ -246,14 +256,11 @@ fn Session::sparkline_query(
     sparkline_reason(sheet, self.sheets)
   }
   {
-    "items": sheet.sparklines.items.map(item => {
-      let value : Json = {
-        "cell": item.cell.name(),
-        "source": item.source_name(),
-        "kind": item.kind,
-      }
-      value
+    items: sheet.sparklines.items.map(item => {
+      cell: item.cell.name(),
+      source: item.source_name(),
+      kind: item.kind,
     }),
-    "readOnlyReason": reason,
+    readOnlyReason: reason,
   }
 }

@@ -1,7 +1,4 @@
 import { record, integer } from "@open-document/wasm/abi/validation";
-import { FoundationMathSession } from "./docx-math.js";
-import { editState } from "./docx-format.js";
-import { drawingBatch } from "@open-document/wasm/abi/drawing";
 
 export interface DocxInkStroke {
   points: [number, number][];
@@ -60,7 +57,11 @@ export function checkInkPoint(x: unknown, y: unknown): void {
     throw new Error("Invalid ink coordinate");
 }
 
-export function checkInkStroke(value: unknown): asserts value is DocxInkStroke {
+/** Check stroke fields before reading the session's cached sample limit. */
+export function checkInkStroke(
+  value: unknown,
+  maxPoints: () => number,
+): asserts value is DocxInkStroke {
   const stroke = record(value);
   if (
     Object.keys(stroke).length !== 4 ||
@@ -73,76 +74,12 @@ export function checkInkStroke(value: unknown): asserts value is DocxInkStroke {
     typeof stroke.highlighter !== "boolean" ||
     !Array.isArray(stroke.points) ||
     stroke.points.length < 1 ||
-    stroke.points.length > 4096
+    stroke.points.length > maxPoints()
   )
     throw new Error("Invalid ink stroke");
   for (const point of stroke.points) {
     if (!Array.isArray(point) || point.length !== 2)
       throw new Error("Invalid ink sample");
     checkInkPoint(point[0], point[1]);
-  }
-}
-
-export class FoundationInkSession extends FoundationMathSession {
-  previewInk(
-    revision: number,
-    layoutId: number,
-    page: number,
-    stroke: DocxInkStroke,
-  ) {
-    checkInkTarget(revision, layoutId, page);
-    checkInkStroke(stroke);
-    return drawingBatch(
-      this.call({
-        operation: "docxInk",
-        action: "preview",
-        revision,
-        layoutId,
-        page,
-        stroke,
-      }),
-    );
-  }
-  insertInk(
-    revision: number,
-    layoutId: number,
-    page: number,
-    stroke: DocxInkStroke,
-    profile: Record<string, string> = {},
-  ) {
-    checkInkTarget(revision, layoutId, page);
-    checkInkStroke(stroke);
-    return editState(
-      this.call({
-        operation: "docxInk",
-        action: "insert",
-        revision,
-        layoutId,
-        page,
-        stroke,
-        profile,
-      }),
-    );
-  }
-  eraseInk(
-    revision: number,
-    layoutId: number,
-    page: number,
-    x: number,
-    y: number,
-  ) {
-    checkInkTarget(revision, layoutId, page);
-    checkInkPoint(x, y);
-    return editState(
-      this.call({
-        operation: "docxInk",
-        action: "erase",
-        revision,
-        layoutId,
-        page,
-        x,
-        y,
-      }),
-    );
   }
 }

@@ -40,12 +40,17 @@ export function stepTimelineEndpoint(
       ),
     );
     host.assign(
-      await client.editSheet(now.query.revision, sheet, {
-        action: "setTimelineEndpoint",
-        name: timeline.name,
-        handle,
-        level: navigation.level,
-        position,
+      await client.execute({
+        operation: "editXlsxSheet",
+        revision: now.query.revision,
+        sheet: sheet,
+        change: {
+          action: "setTimelineEndpoint",
+          name: timeline.name,
+          handle,
+          level: navigation.level,
+          position,
+        },
       }),
     );
     await host.render();

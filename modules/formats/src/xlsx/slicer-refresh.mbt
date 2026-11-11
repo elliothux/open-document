@@ -7,7 +7,7 @@ fn Session::rebuild_slicer_state(
   edits : Array[(String, @xml.Edit)],
 ) -> Unit raise @failure.Failure {
   let values = data.axis_items(cache.field)
-  guard !values.is_empty() && values.length() <= 4096 else {
+  guard !values.is_empty() && values.length() <= SlicerMembers else {
     @failure.reject("limit-exceeded", "Refreshed slicer members exceed budget")
   }
   if cache.members.length() == values.length() &&

@@ -1,6 +1,6 @@
 # P10 DOCX 核心功能
 
-状态：`implemented`。六批最低交付范围已接通核心、同步 Wasm/Worker SDK、默认 UI、历史及保存输出。实现从 [P4](p4-docx-editing.md) 和 [P9](p9-web-sdk-ui.md) 扩展；阶段范围不包含完整 Word 兼容。当前 API、原生字段、保护与预算归[格式合同](../references/formats.md#p10-当前格式编辑)，功能差距归 [G3](../g3-genoffice-sdk-gap.md#文档docx)；后续归[路线图](../references/roadmap.md)。
+状态：`implemented`。六批最低交付范围已接通核心、同步 Wasm/Worker SDK、默认 UI、历史及保存输出。实现从 [P4](p4-docx-editing.md) 和 [P9](p9-web-sdk-ui.md) 扩展；阶段范围不包含完整 Word 兼容。当前 API、原生字段、保护与预算归[格式合同](../references/formats/docx-editing.md#p10-当前格式编辑)，功能差距归 [G3](../g3-genoffice-sdk-gap.md#文档docx)；后续归[路线图](../references/roadmap.md)。
 
 ## 已交付结果
 

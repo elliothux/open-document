@@ -1,6 +1,6 @@
 # P8 PDF 页面操作、批注与表单保存
 
-状态：`implemented`，2026-10-14。在 [P7](p7-pdf-input.md) 的同一源对象会话中完成页面整理、便笺/高亮、普通文本字段/复选框、撤销和保存重开。实际 API 与嵌入示例归[格式合同](../references/formats.md#pdf-输入与文档操作)，阶段状态归[路线图](../references/roadmap.md)。
+状态：`implemented`，2026-10-14。在 [P7](p7-pdf-input.md) 的同一源对象会话中完成页面整理、便笺/高亮、普通文本字段/复选框、撤销和保存重开。实际 API 与嵌入示例归[格式合同](../references/formats/pdf.md#pdf-输入与文档操作)，阶段状态归[路线图](../references/roadmap.md)。
 
 ## 已交付结果
 
@@ -31,7 +31,7 @@
 
 不新增/复制页面，不跨文件合并，不编辑任意正文/图片，不设计表单、扁平化、OCR、签名或 PDF/A/PDF/UA 转换。文本 rich text、comb、password、file-select、格式/校验/计算动作、签名、列表/下拉、radio/pushbutton、XFA、NeedAppearances 全局修复和虚线/圆角等未支持 widget 属性受保护。现有 Off/on 外观缺失时不猜测复选框符号。
 
-默认每文档批注/widget 各 4096、字段树深度 64、字段/便笺 32767 UTF-16 单元、单高亮 4096 quad、单次候选及历史合计 8 MiB、输出 64 MiB。源 stream 共享，不在历史中重复保存图片。完整读取与资源限制归[格式合同](../references/formats.md#pdf-输入与文档操作)。
+默认每文档批注/widget 各 4096、字段树深度 64、字段/便笺 32767 UTF-16 单元、单高亮 4096 quad、单次候选及历史合计 8 MiB、输出 64 MiB。源 stream 共享，不在历史中重复保存图片。完整读取与资源限制归[格式合同](../references/formats/pdf.md#pdf-输入与文档操作)。
 
 ## 足够检查与依据
 

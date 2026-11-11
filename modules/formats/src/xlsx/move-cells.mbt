@@ -19,8 +19,8 @@ fn Session::move_cells(
     right: point.left + source.right - source.left,
   }
   ignore(target.name())
-  guard target.bottom <= 1048576 &&
-    target.right <= 16384 &&
+  guard target.bottom <= WorksheetRows &&
+    target.right <= WorksheetColumns &&
     (source.bottom - source.top + 1).to_int64() *
     (source.right - source.left + 1).to_int64() <=
     4096 else {

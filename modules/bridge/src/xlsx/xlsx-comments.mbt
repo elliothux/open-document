@@ -1,42 +1,103 @@
 ///|
-fn xlsx_comments_operation(
-  session : @model.Session,
-  operation : String,
-  request : Json,
-) -> Json raise @failure.Failure {
-  let revision = field_int(request, "revision")
-  let sheet = field_string(request, "sheet")
-  if operation == "threadsXlsx" {
-    return session.threads(revision, sheet, field_string(request, "cell"))
-  }
-  guard request is { "change": change, .. } else {
-    @failure.reject("invalid-operation", "Thread change is required")
-  }
-  let action = field_string(change, "action")
-  let edit : @model.ThreadEdit = match action {
-    "create" =>
-      CreateThread(
-        field_string(change, "cell"),
-        field_string(change, "text"),
-        field_string(change, "author"),
-        field_string(change, "date"),
+priv struct ThreadsRequest {
+  revision : @common.RequestInt
+  sheet : String
+  cell : String
+} derive(@json.FromJson)
+
+///|
+priv struct ThreadEditRequest {
+  revision : @common.RequestInt
+  sheet : String
+  change : Json
+} derive(@json.FromJson)
+
+///|
+priv struct ThreadActionRequest {
+  action : String
+} derive(@json.FromJson)
+
+///|
+priv struct ThreadCreateRequest {
+  cell : String
+  text : String
+  author : String
+  date : String
+} derive(@json.FromJson)
+
+///|
+priv struct ThreadReplyRequest {
+  id : String
+  text : String
+  author : String
+  date : String
+} derive(@json.FromJson)
+
+///|
+priv struct ThreadUpdateRequest {
+  id : String
+  text : String
+} derive(@json.FromJson)
+
+///|
+priv struct ThreadResolveRequest {
+  id : String
+  resolved : Bool
+} derive(@json.FromJson)
+
+///|
+priv struct ThreadDeleteRequest {
+  id : String
+} derive(@json.FromJson)
+
+///|
+fn xlsx_thread_edit(input : Json) -> @model.ThreadEdit raise @failure.Failure {
+  let command : ThreadActionRequest = @common.request(input)
+  match command.action {
+    "create" => {
+      let command : ThreadCreateRequest = @common.request(input)
+      @model.CreateThread(
+        command.cell,
+        command.text,
+        command.author,
+        command.date,
       )
-    "reply" =>
-      ReplyThread(
-        field_string(change, "id"),
-        field_string(change, "text"),
-        field_string(change, "author"),
-        field_string(change, "date"),
-      )
-    "update" =>
-      UpdateThread(field_string(change, "id"), field_string(change, "text"))
-    "resolve" =>
-      ResolveThread(
-        field_string(change, "id"),
-        field_boolean(change, "resolved"),
-      )
-    "delete" => DeleteThread(field_string(change, "id"))
+    }
+    "reply" => {
+      let command : ThreadReplyRequest = @common.request(input)
+      @model.ReplyThread(command.id, command.text, command.author, command.date)
+    }
+    "update" => {
+      let command : ThreadUpdateRequest = @common.request(input)
+      @model.UpdateThread(command.id, command.text)
+    }
+    "resolve" => {
+      let command : ThreadResolveRequest = @common.request(input)
+      @model.ResolveThread(command.id, command.resolved)
+    }
+    "delete" => {
+      let command : ThreadDeleteRequest = @common.request(input)
+      @model.DeleteThread(command.id)
+    }
     _ => @failure.reject("invalid-operation", "Unknown thread edit")
   }
-  session.edit_thread(revision, sheet, edit)
+}
+
+///|
+let thread_handlers : Map[
+  String,
+  (Context, @model.Session, Json) -> Json raise @failure.Failure,
+] = {
+  "threadsXlsx": (_context, session, input) => {
+    let command : ThreadsRequest = @common.request(input)
+    session.threads(command.revision.value, command.sheet, command.cell)
+  },
+  "editThreadXlsx": (_context, session, input) => {
+    let command : ThreadEditRequest = @common.request(input)
+    session.edit_thread(
+      command.revision.value,
+      command.sheet,
+      xlsx_thread_edit(command.change),
+    )
+  },
 }

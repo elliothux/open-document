@@ -77,6 +77,10 @@ fn Session::markup_lists(
     let range = match level.format {
       "lowerLetter" | "upperLetter" => value > 0 && value <= 26
       "lowerRoman" | "upperRoman" => value > 0 && value <= 3999
+      "ideographTraditional"
+      | "ideographZodiac"
+      | "ideographLegalTraditional"
+      | "taiwaneseCountingThousand" => false
       _ => true
     }
     let native = simple &&

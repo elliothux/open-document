@@ -10,7 +10,7 @@ fn layout_match_name(tree : Tree) -> String raise @failure.Failure {
   } else {
     matching_name
   }
-  guard name.length() <= 1024 else {
+  guard name.length() <= SourceNameUnits else {
     @failure.reject("limit-exceeded", "Layout matching name exceeds budget")
   }
   name

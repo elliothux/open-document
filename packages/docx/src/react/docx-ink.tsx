@@ -23,7 +23,7 @@ export function DocxInk({
   });
   const apply = (value: DocxInkTool) => {
     setOptions(value);
-    controller.run(() => editor.setInkTool(value));
+    controller.run(() => editor.objects.setInkTool(value));
   };
   return (
     <fieldset disabled={disabled}>

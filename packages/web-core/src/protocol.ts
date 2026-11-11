@@ -1,5 +1,22 @@
+export type WorkerInitialization = {
+  operation: "initialize";
+  module?: WebAssembly.Module;
+};
+
+export type WorkerControl =
+  | WorkerInitialization
+  | { operation: "font"; bytes: Uint8Array; identity: string };
+
+export type WorkerOperation<Command> = WorkerControl | Command;
+export type OfficeCommand<Command> = Command | { operation: "budget" };
+
+export interface Request<Operation> {
+  id: number;
+  command: Operation;
+}
+
 export type Response =
-  | { id: number; ok: true; value: unknown }
+  | { id: number; ok: true; value: unknown; reusable?: true }
   | {
       id: number;
       ok: false;

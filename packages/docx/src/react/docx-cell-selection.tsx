@@ -70,7 +70,7 @@ export function DocxCellSelection({
             }
             onClick={() =>
               controller.run(() =>
-                editor.editTable({ action: "cellVerticalAlign", value }),
+                editor.tables.editTable({ action: "cellVerticalAlign", value }),
               )
             }
           >
@@ -81,7 +81,10 @@ export function DocxCellSelection({
           type="button"
           onClick={() =>
             controller.run(() =>
-              editor.editTable({ action: "cellVerticalAlign", value: null }),
+              editor.tables.editTable({
+                action: "cellVerticalAlign",
+                value: null,
+              }),
             )
           }
         >
@@ -117,7 +120,7 @@ export function DocxCellSelection({
           onChange={(event) => {
             const value = event.currentTarget.checked;
             controller.run(() =>
-              editor.editTable({ action: "rowSplit", value }),
+              editor.tables.editTable({ action: "rowSplit", value }),
             );
           }}
         />
@@ -181,7 +184,7 @@ export function DocxRowHeight({
         event.preventDefault();
         if (valid)
           controller.run(() =>
-            editor.editTable({
+            editor.tables.editTable({
               action: "rowHeight",
               value: Number(value),
               rule: mode,

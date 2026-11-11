@@ -17,7 +17,7 @@ fn Expression::transpose(
         if first.fixed_row &&
           last.fixed_row &&
           first.address.row == 1 &&
-          last.address.row == 1048576 {
+          last.address.row == WorksheetRows {
           return Reference(
             sheet,
             {
@@ -26,7 +26,10 @@ fn Expression::transpose(
               fixed_column: true,
             },
             Some({
-              address: { row: top + last.address.column - left, column: 16384, },
+              address: {
+                row: top + last.address.column - left,
+                column: WorksheetColumns,
+              },
               fixed_row: last.fixed_column,
               fixed_column: true,
             }),
@@ -35,7 +38,7 @@ fn Expression::transpose(
         if first.fixed_column &&
           last.fixed_column &&
           first.address.column == 1 &&
-          last.address.column == 16384 {
+          last.address.column == WorksheetColumns {
           return Reference(
             sheet,
             {
@@ -44,7 +47,10 @@ fn Expression::transpose(
               fixed_column: first.fixed_row,
             },
             Some({
-              address: { row: 1048576, column: left + last.address.row - top, },
+              address: {
+                row: WorksheetRows,
+                column: left + last.address.row - top,
+              },
               fixed_row: true,
               fixed_column: last.fixed_row,
             }),

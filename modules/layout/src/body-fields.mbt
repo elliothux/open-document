@@ -54,6 +54,9 @@ fn Flow::resolve_body_fields(
 ) -> (Flow, Bool) raise @failure.Failure {
   let mut stable = true
   let resolve = fn(paragraph : Paragraph) raise @failure.Failure {
+    if paragraph.spans.all(span => span.field.is_empty()) {
+      return paragraph
+    }
     {
       ..paragraph,
       spans: paragraph.spans.map(span => {

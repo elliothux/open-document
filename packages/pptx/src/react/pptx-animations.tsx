@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { pptxSlideAnimationCount } from "@open-document/wasm/engine-source";
 import type { PresentationEditor } from "../web/presentation-editor.js";
 import type { PptxAnimation } from "../web/pptx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
@@ -304,7 +305,8 @@ export function PptxAnimations({
           disabled={
             !object ||
             (media && !targets.find((target) => target.id === object)?.media) ||
-            (editing === undefined && current.items.length >= 128)
+            (editing === undefined &&
+              current.items.length >= pptxSlideAnimationCount)
           }
         >
           {editing === undefined ? t.animationAdd : t.animationApply}

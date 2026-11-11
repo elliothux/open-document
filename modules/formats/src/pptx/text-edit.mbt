@@ -1,4 +1,22 @@
 ///|
+pub const TextFrameUnits : Int32 = 32767
+
+///|
+pub const TextParagraphUnits : Int32 = 4096
+
+///|
+pub const TextFrameParagraphs : Int32 = 256
+
+///|
+fn valid_text_frame_content(text : String) -> Bool {
+  @xml.valid_text(text) &&
+  !text.contains("\r") &&
+  text.length() <= TextFrameUnits &&
+  text.split("\n").count() <= TextFrameParagraphs &&
+  text.split("\n").all(p => p.length() <= TextParagraphUnits)
+}
+
+///|
 fn source_xml(source : Ref) -> String {
   source.tree.document.source()[source.node.start:source.node.end].to_owned()
 }
@@ -119,7 +137,7 @@ fn text_changes(
   selection : Selection,
   text : String,
 ) -> (Array[@xml.SourceChange], Selection) raise @failure.Failure {
-  guard @xml.valid_text(text) && text.length() <= 32767 else {
+  guard @xml.valid_text(text) && text.length() <= TextFrameUnits else {
     @failure.reject("invalid-text", "Invalid or excessive text input")
   }
   let a = selection.anchor.min(selection.focus)
@@ -130,7 +148,7 @@ fn text_changes(
     @failure.reject("invalid-position", "Edit must use grapheme boundaries")
   }
   let updated = original[:a].to_owned() + text + original[b:].to_owned()
-  guard updated.length() <= 32767 else {
+  guard updated.length() <= TextFrameUnits else {
     @failure.reject("limit-exceeded", "Text frame exceeds budget")
   }
   let focus = @layout.grapheme_boundaries(updated)

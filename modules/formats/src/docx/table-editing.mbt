@@ -1,4 +1,13 @@
 ///|
+pub const TableGridRows : Int32 = 1000
+
+///|
+pub const TableGridColumns : Int32 = 63
+
+///|
+pub const TableGridCells : Int32 = 4096
+
+///|
 fn Session::table_cell_markup(
   self : Session,
   tree : WordTree,
@@ -60,12 +69,13 @@ pub fn Session::insert_table(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   guard rows >= 1 &&
-    rows <= 1000 &&
+    rows <= TableGridRows &&
     columns >= 1 &&
-    columns <= 63 &&
-    rows.to_int64() * columns.to_int64() <= 4096L else {
+    columns <= TableGridColumns &&
+    rows.to_int64() * columns.to_int64() <= TableGridCells.to_int64() else {
     @failure.reject(
-      "invalid-operation", "Table dimensions require 1-1000 rows, 1-63 columns and at most 4096 cells",
+      "invalid-operation",
+      "Table dimensions require 1-\{TableGridRows} rows, 1-\{TableGridColumns} columns and at most \{TableGridCells} cells",
     )
   }
   let original = self.document()

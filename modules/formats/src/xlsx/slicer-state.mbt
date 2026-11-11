@@ -122,7 +122,7 @@ fn Session::sync_slicer_state(
   let items = tree.slicer_node(tabular.id, "items")
   let changes : Array[@xml.SourceChange] = []
   for node in tree.slicer_children(items.id, "i") {
-    let index = natural(node.attribute("x").unwrap_or(""), 4095)
+    let index = natural(node.attribute("x").unwrap_or(""), SlicerMembers - 1)
     let value = data.axis_items(cache.field)[index]
     let visible = selected
       .map(keys => keys.contains(pivot_item_key(value)))
@@ -149,7 +149,11 @@ fn Session::sync_slicer_state(
   let items = tree.slicer_node(tabular.id, "items")
   let before = tree.slicer_children(items.id, "i")
   let ordered = before.map(node => {
-    (node, natural(node.attribute("x").unwrap_or(""), 4095), flag(node, "nd"))
+    (
+      node,
+      natural(node.attribute("x").unwrap_or(""), SlicerMembers - 1),
+      flag(node, "nd"),
+    )
   })
   ordered.sort_by((a, b) => {
     let top = if cache.cross_filter == "showItemsWithDataAtTop" {

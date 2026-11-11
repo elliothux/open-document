@@ -1,9 +1,12 @@
 ///|
+pub const TextFragmentUnits : Int32 = 1048576
+
+///|
 fn read_text_fragment(
   source : String,
   budget : @archive.Budget,
 ) -> (Tree, Array[@xml.Node], Int32) raise @failure.Failure {
-  guard source.length() <= 1048576 else {
+  guard source.length() <= TextFragmentUnits else {
     @failure.reject(
       "limit-exceeded", "Presentation text clipboard exceeds 1Mi units",
     )
@@ -24,7 +27,7 @@ fn read_text_fragment(
     !source.contains("<!--") &&
     !source.contains("<?") &&
     !paragraphs.is_empty() &&
-    paragraphs.length() <= 256 &&
+    paragraphs.length() <= TextFrameParagraphs &&
     paragraphs.all(p => p.uri == drawing_uri && p.name == "p") else {
     @failure.reject("protected-content", "Invalid presentation text fragment")
   }
@@ -150,7 +153,7 @@ fn read_text_fragment(
       )
     }
   }
-  guard length <= 32767 else {
+  guard length <= TextFrameUnits else {
     @failure.reject("limit-exceeded", "Pasted text exceeds text frame budget")
   }
   (tree, paragraphs, length)
@@ -186,7 +189,7 @@ pub fn Session::paste_text_fragment(
   let boundaries = @layout.grapheme_boundaries(object.text())
   guard boundaries.contains(a) &&
     boundaries.contains(b) &&
-    object.text().length() - (b - a) + length <= 32767 else {
+    object.text().length() - (b - a) + length <= TextFrameUnits else {
     @failure.reject(
       "invalid-position", "Pasted range exceeds text frame or grapheme boundaries",
     )

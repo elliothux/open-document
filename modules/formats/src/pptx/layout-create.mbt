@@ -105,7 +105,7 @@ fn Session::add_layout(
   copy~ : Bool = false,
 ) -> Json raise @failure.Failure {
   let choice = self.source_choice(source)
-  guard self.layout_choices().length() < 256 else {
+  guard self.layout_choices().length() < LayoutCatalogCount else {
     @failure.reject("limit-exceeded", "Slide layout catalog exceeds budget")
   }
   let master = load_tree(self.opc, self.cache, choice.master, parts=self.parts)

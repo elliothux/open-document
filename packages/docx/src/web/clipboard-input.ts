@@ -19,10 +19,20 @@ export async function copyDocxSelection(
   const copied =
     mode === "cells"
       ? {
-          ...(await client.tableClipboard(revision, selection, cut)),
+          ...(await client.execute({
+            operation: "tableClipboard",
+            revision: revision,
+            selection: selection,
+            cut: cut,
+          })),
           kind: "cells" as const,
         }
-      : await client.clipboard(revision, selection, cut);
+      : await client.execute({
+          operation: "clipboard",
+          revision: revision,
+          selection: selection,
+          cut: cut,
+        });
   const text = copied.text;
   assertOpen();
   if (
@@ -46,10 +56,15 @@ export async function copyDocxSelection(
   } else await navigator.clipboard.writeText(text);
   assertOpen();
   if (!cut) return null;
-  const current = await client.editState();
+  const current = await client.execute({ operation: "editState" });
   assertOpen();
   assertDocxSelection(current, revision, selection);
-  return client.replaceRange(revision, copied.selection, "");
+  return client.execute({
+    operation: "replaceRange",
+    revision: revision,
+    selection: copied.selection,
+    text: "",
+  });
 }
 
 /** Pastes a core-owned cell fragment, or a plain-text matrix from other apps. */
@@ -88,14 +103,14 @@ async function pasteDocxClipboard(
     change = { action: "pasteFragment", fragment: await blob.text() };
   } else if (htmlItem) {
     const blob = await htmlItem.getType("text/html");
-    if (blob.size > 262144)
+    if (blob.size > editor.inputLimits.markupSourceUnits * 4)
       throw new Error("HTML clipboard exceeds byte budget");
     html = await blob.text();
     change = { action: "pasteCells", text: "" };
   } else {
     const plain = items.find((item) => item.types.includes("text/plain"));
     const blob = plain ? await plain.getType("text/plain") : null;
-    if (blob && blob.size > 262144)
+    if (blob && blob.size > editor.inputLimits.textCommandUnits * 4)
       throw new Error("Table clipboard exceeds byte budget");
     change = { action: "pasteCells", text: blob ? await blob.text() : "" };
   }
@@ -113,12 +128,12 @@ async function pasteDocxClipboard(
       JSON.stringify(before.data.selection)
   )
     throw new Error("Selection changed during clipboard read");
-  if (html !== undefined) return editor.pasteHtml(html);
+  if (html !== undefined) return editor.clipboard.pasteHtml(html);
   if (body && change.action === "pasteFragment")
-    return editor.pasteFragment(change.fragment);
+    return editor.clipboard.pasteFragment(change.fragment);
   if (!cells && !item && change.action === "pasteCells")
     return editor.paste(change.text);
-  return editor.editTable(change);
+  return editor.tables.editTable(change);
 }
 
 /** Uses native paste data and one queued asynchronous copy/cut path. */

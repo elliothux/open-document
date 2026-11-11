@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { pptxTextFrameUnits } from "@open-document/wasm/engine-source";
 import type {
   PresentationEditor,
   PresentationSearchResult,
@@ -51,7 +52,7 @@ export function PptxSearch({
           {t.findText}
           <input
             type="search"
-            maxLength={32767}
+            maxLength={pptxTextFrameUnits}
             value={text}
             disabled={disabled}
             onChange={(event) => {
@@ -104,7 +105,7 @@ export function PptxSearch({
         {t.replaceWith}
         <input
           value={replacement}
-          maxLength={32767}
+          maxLength={pptxTextFrameUnits}
           disabled={disabled}
           onChange={(event) => setReplacement(event.currentTarget.value)}
         />

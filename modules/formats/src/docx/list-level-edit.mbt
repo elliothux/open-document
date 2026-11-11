@@ -1,4 +1,7 @@
 ///|
+pub const ListLevelPatternUnits : Int32 = 256
+
+///|
 pub(all) struct ListLevelFormat {
   format : String
   pattern : String
@@ -44,7 +47,7 @@ pub fn Session::update_list_level(
       "upperLetter", "lowerRoman", "upperRoman", "bullet",
     ].contains(format.format) &&
     !format.pattern.is_empty() &&
-    format.pattern.length() <= 256 &&
+    format.pattern.length() <= ListLevelPatternUnits &&
     @xml.valid_text(format.pattern) &&
     !format.pattern
     .iter()

@@ -35,9 +35,12 @@ export class PdfFieldInputs {
     border: control("Field border width", "number"),
     background: control("Field background"),
   };
-  constructor(change: () => void) {
+  constructor(
+    change: () => void,
+    private readonly textUnits: number,
+  ) {
     this.controls.tooltip.setAttribute("aria-label", "Field tooltip");
-    this.controls.tooltip.maxLength = this.controls.name.maxLength = 32767;
+    this.controls.tooltip.maxLength = this.controls.name.maxLength = textUnits;
     this.controls.options.maxLength =
       this.controls.defaultText.maxLength = 1056768;
     this.controls.options.setAttribute(
@@ -76,7 +79,7 @@ export class PdfFieldInputs {
       if (input instanceof HTMLInputElement) input.checked = false;
     }
     this.controls.name.value = name;
-    this.controls.maxLength.value = "32767";
+    this.controls.maxLength.value = String(this.textUnits);
     this.controls.border.value = "1";
     this.controls.background.value = "FFFFFF";
     if (["radio", "choice", "list"].includes(kind))

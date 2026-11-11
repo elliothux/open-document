@@ -30,8 +30,11 @@ fn Session::prepare_fill_sparklines(
       if !target.contains(cell) {
         continue
       }
-      guard items.length() < 256 else {
-        @failure.reject("limit-exceeded", "Filled sparklines exceed 256")
+      guard items.length() < SparklineCount else {
+        @failure.reject(
+          "limit-exceeded",
+          "Filled sparklines exceed \{SparklineCount}",
+        )
       }
       guard !plan.sheets[index].merges.any(range => range.contains(cell)) else {
         @failure.reject(

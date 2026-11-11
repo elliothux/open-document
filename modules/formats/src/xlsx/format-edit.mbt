@@ -15,8 +15,8 @@ fn Session::format_reason(
   }
   if (range.bottom - range.top + 1).to_int64() *
     (range.right - range.left + 1).to_int64() >
-    4096L {
-    return "Formatting exceeds 4096 cells"
+    CellFragmentCells.to_int64() {
+    return "Formatting exceeds \{CellFragmentCells} cells"
   }
   for merge in sheet.merges {
     if merge.intersects(range) &&

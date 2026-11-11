@@ -1,6 +1,15 @@
 import { checkPptxConnectorEdit } from "./pptx-connectors.js";
 import { record } from "@open-document/wasm/abi/validation";
 import {
+  pptxDiagramItemCount,
+  pptxDiagramLabelUnits,
+  pptxDiagramTextUnits,
+  pptxObjectSelectionCount,
+  pptxTableCellCount,
+  pptxTableColumnCount,
+  pptxTableRowCount,
+} from "@open-document/wasm/engine-source";
+import {
   pptxInsertKinds,
   checkPptxShapeEdit,
   objectText,
@@ -9,17 +18,9 @@ import { checkPptxChartEdit } from "./pptx-chart.js";
 import { checkPptxMathEdit } from "./pptx-math.js";
 import { checkPptxMediaInput, checkMediaPlayback } from "./pptx-media.js";
 import { pptxPlaceholder, pptxPlaceholderTypes } from "./pptx-placeholder.js";
-import { drawingMatrix } from "@open-document/wasm/abi/drawing";
-import {
-  checkPptxSpacing,
-  checkPptxSizeMatches,
-  type PptxGuide,
-  type PptxSpacing,
-  type PptxSizeMatch,
-} from "./pptx-view.js";
+import type { PptxGuide, PptxSpacing, PptxSizeMatch } from "./pptx-view.js";
 import {
   checkPptxTableStyle,
-  checkPptxTableStyleQuery,
   type PptxTableStyleQuery,
 } from "./pptx-table-style.js";
 export type { PptxTableStyle } from "./pptx-table-style.js";
@@ -101,89 +102,6 @@ const tableOperations = [
   "unmerge",
 ] as const;
 
-export function checkPptxTable(
-  value: unknown,
-  selected: readonly string[],
-  active: unknown,
-): void {
-  if (value === null) return;
-  const table = record(value),
-    rows = number(table.rows, 1, 1000),
-    columns = number(table.columns, 1, 63);
-  const operations = record(table.operations);
-  checkPptxTableStyleQuery(table.style);
-  for (const key of ["rowHeight", "columnWidth"])
-    if (table[key] !== null) number(table[key], 1 / 12700, 14400);
-  const format = record(table.format);
-  for (const key of ["fill", "borderColor"]) {
-    const value = format[key];
-    if (
-      value !== null &&
-      (typeof value !== "string" ||
-        (value !== "" && !/^[0-9a-f]{6}$/i.test(value)))
-    )
-      throw new Error("Invalid PPTX cell color");
-  }
-  for (const key of ["left", "top", "right", "bottom", "borderWidth"])
-    if (format[key] !== null)
-      number(format[key], 0, key === "borderWidth" ? 1000 : 14400);
-  if (format.borderOpacity !== null) number(format.borderOpacity, 0, 1);
-  if (format.fillOpacity !== null) number(format.fillOpacity, 0, 1);
-  if (
-    ![null, "t", "ctr", "b"].some((value) => value === format.anchor) ||
-    ![null, "horz", "vert", "vert270"].some(
-      (value) => value === format.direction,
-    ) ||
-    !(
-      format.borderDash === null ||
-      pptxDashes.some((value) => value === format.borderDash)
-    ) ||
-    typeof format.reason !== "string" ||
-    typeof format.borderReason !== "string"
-  )
-    throw new Error("Invalid PPTX cell format");
-  if (
-    Object.keys(operations).length !== tableOperations.length ||
-    tableOperations.some(
-      (operation) => typeof operations[operation] !== "string",
-    )
-  )
-    throw new Error("Invalid PPTX table operation reasons");
-  const row = number(table.row, 0, rows - 1),
-    column = number(table.column, 0, columns - 1);
-  const firstRow = number(table.firstRow, 0, rows - 1),
-    lastRow = number(table.lastRow, firstRow, rows - 1),
-    firstColumn = number(table.firstColumn, 0, columns - 1),
-    lastColumn = number(table.lastColumn, firstColumn, columns - 1);
-  if (
-    ![
-      rows,
-      columns,
-      row,
-      column,
-      firstRow,
-      lastRow,
-      firstColumn,
-      lastColumn,
-    ].every(Number.isInteger) ||
-    row < firstRow ||
-    row > lastRow ||
-    column < firstColumn ||
-    column > lastColumn ||
-    rows * columns > 4096 ||
-    typeof table.object !== "string" ||
-    !table.object ||
-    table.object !== active ||
-    selected.length !== 1 ||
-    selected[0] !== table.object ||
-    typeof table.reason !== "string" ||
-    typeof table.sizeReason !== "string" ||
-    typeof table.rtl !== "boolean" ||
-    typeof table.splitReason !== "string"
-  )
-    throw new Error("Invalid PPTX table query");
-}
-
 export function imageInsets(value: unknown): void {
   if (
     !Array.isArray(value) ||
@@ -202,93 +120,6 @@ export function imageInsets(value: unknown): void {
     throw new Error("Image destination must retain positive area");
 }
 
-export function strings(value: unknown, count: number, units: number): void {
-  if (
-    !Array.isArray(value) ||
-    value.length > count ||
-    value.some((item) => typeof item !== "string" || item.length > units)
-  )
-    throw new Error("Invalid PPTX string array");
-}
-export function geometry(value: unknown): void {
-  const rect = record(value);
-  number(rect.x, -14400, 14400);
-  number(rect.y, -14400, 14400);
-  number(rect.width, 0, 14400);
-  number(rect.height, 0, 14400);
-  number(rect.rotation, -360, 360);
-  if (typeof rect.flipX !== "boolean" || typeof rect.flipY !== "boolean")
-    throw new Error("Invalid PPTX orientation");
-  drawingMatrix(rect.matrix);
-}
-export function points(value: unknown, max = 4): void {
-  if (!Array.isArray(value) || value.length > max)
-    throw new Error("Invalid PPTX polygon");
-  for (const point of value) {
-    const p = record(point);
-    number(p.x, -1e9, 1e9);
-    number(p.y, -1e9, 1e9);
-  }
-}
-export function checkPptxGeometry(value: unknown): void {
-  const selection = record(value);
-  checkPptxSpacing(selection.snapSpacing);
-  checkPptxSizeMatches(selection.snapSize);
-  if (!Array.isArray(selection.snapLines) || selection.snapLines.length > 128)
-    throw new Error("Invalid PPTX alignment marks");
-  for (const item of selection.snapLines) {
-    const line = record(item);
-    if (
-      Object.keys(line).length !== 2 ||
-      (line.orientation !== "vert" && line.orientation !== "horz")
-    )
-      throw new Error("Invalid PPTX alignment line");
-    number(line.position, 0, 14400);
-  }
-  for (const key of ["layoutId", "revision"])
-    if (!Number.isInteger(number(selection[key], 0, 0x7fffffff)))
-      throw new Error("Invalid PPTX geometry identity");
-  points(selection.outline);
-  points(selection.handles);
-  const handles = selection.adjustmentHandles;
-  if (!Array.isArray(handles))
-    throw new Error("Invalid PPTX adjustment handles");
-  points(handles, 3);
-  const adjustmentNames = handles.map((handle) => String(record(handle).name));
-  if (
-    new Set(adjustmentNames).size !== handles.length ||
-    adjustmentNames.some(
-      (name) => !["adj", "adj1", "adj2", "adj3"].includes(name),
-    )
-  )
-    throw new Error("Invalid PPTX adjustment handle");
-  if (!Array.isArray(selection.outlines) || selection.outlines.length > 256)
-    throw new Error("Invalid PPTX object outlines");
-  for (const outline of selection.outlines) points(outline);
-  if (!Array.isArray(selection.rects) || selection.rects.length > 32767)
-    throw new Error("Invalid PPTX selection rectangles");
-  for (const rect of selection.rects) points(rect);
-  if (selection.caret !== null) {
-    const caret = record(selection.caret);
-    for (const key of ["x", "y", "endX", "endY"]) number(caret[key], -1e9, 1e9);
-    number(caret.height, 0, 14400);
-  }
-  if (selection.grid !== null) {
-    const grid = record(selection.grid);
-    if (
-      Object.keys(grid).length !== 2 ||
-      typeof grid.cross !== "boolean" ||
-      !Array.isArray(grid.points) ||
-      grid.points.length > 16384
-    )
-      throw new Error("Invalid PPTX grid marks");
-    for (const point of grid.points) {
-      const p = record(point);
-      number(p.x, 0, 14400);
-      number(p.y, 0, 14400);
-    }
-  }
-}
 import { checkPptxShapeGradient } from "./pptx-background.js";
 import {
   checkPptxTextFormat,
@@ -307,28 +138,6 @@ export const pptxDashes = [
   "sysDashDotDot",
   "sysDot",
 ] as const;
-export function checkPptxImageFill(
-  appearance: Record<string, unknown>,
-  kind: unknown,
-): void {
-  if (
-    appearance.imageFill === null
-      ? appearance.imageFillMode !== null
-      : appearance.imageFillMode !== "stretch" &&
-        appearance.imageFillMode !== "tile"
-  )
-    throw new Error("Invalid image fill mode query");
-  if (
-    appearance.imageFill !== null &&
-    (typeof appearance.imageFill !== "string" ||
-      !appearance.imageFill ||
-      appearance.imageFill.length > 256 ||
-      kind !== "shape" ||
-      appearance.fill !== null ||
-      appearance.gradient !== null)
-  )
-    throw new Error("Invalid image fill appearance");
-}
 export type PptxDash = (typeof pptxDashes)[number];
 export const pptxCaps = ["flat", "rnd", "sq"] as const;
 export const pptxJoins = ["round", "bevel", "miter"] as const;
@@ -449,7 +258,7 @@ export function checkPptxObjectEdit(value: unknown): void {
       ) ||
       !Array.isArray(change.items) ||
       change.items.length < (change.template === "cycle" ? 3 : 2) ||
-      change.items.length > 16 ||
+      change.items.length > pptxDiagramItemCount ||
       Object.keys(change).some(
         (key) =>
           ![
@@ -467,11 +276,12 @@ export function checkPptxObjectEdit(value: unknown): void {
     const items: unknown[] = change.items;
     let units = 0;
     for (const item of items) {
-      if (typeof item !== "string" || item.length > 4096)
+      if (typeof item !== "string" || item.length > pptxDiagramLabelUnits)
         throw new Error("Invalid diagram label");
       units += item.length;
     }
-    if (units > 32767) throw new Error("Diagram labels exceed budget");
+    if (units > pptxDiagramTextUnits)
+      throw new Error("Diagram labels exceed budget");
     return;
   }
   if (
@@ -511,12 +321,12 @@ export function checkPptxObjectEdit(value: unknown): void {
     return;
   }
   if (change.action === "splitTableCell" || change.action === "fillTable") {
-    const rows = number(change.rows, 1, 1000),
-      columns = number(change.columns, 1, 63);
+    const rows = number(change.rows, 1, pptxTableRowCount),
+      columns = number(change.columns, 1, pptxTableColumnCount);
     if (
       !Number.isInteger(rows) ||
       !Number.isInteger(columns) ||
-      rows * columns > 4096 ||
+      rows * columns > pptxTableCellCount ||
       Object.keys(change).some(
         (key) => !["action", "rows", "columns"].includes(key),
       )
@@ -533,8 +343,8 @@ export function checkPptxObjectEdit(value: unknown): void {
     return;
   }
   if (change.action === "insertTable") {
-    const rows = number(change.rows, 1, 1000),
-      columns = number(change.columns, 1, 63);
+    const rows = number(change.rows, 1, pptxTableRowCount),
+      columns = number(change.columns, 1, pptxTableColumnCount);
     number(change.x, -14400, 14400);
     number(change.y, -14400, 14400);
     const width = number(change.width, 0.1, 14400);
@@ -542,7 +352,7 @@ export function checkPptxObjectEdit(value: unknown): void {
     if (
       !Number.isInteger(rows) ||
       !Number.isInteger(columns) ||
-      rows * columns > 4096 ||
+      rows * columns > pptxTableCellCount ||
       Math.floor(Math.round(width * 12700) / columns) <= 182880 ||
       Object.keys(change).some(
         (key) =>
@@ -641,18 +451,14 @@ export function checkPptxObjectEdit(value: unknown): void {
     change.action === "replaceImage" ||
     change.action === "imageFill"
   ) {
-    if (
-      !(change.bytes instanceof Uint8Array) ||
-      !change.bytes.length ||
-      change.bytes.length > 4194304
-    )
+    if (!(change.bytes instanceof Uint8Array) || !change.bytes.length)
       throw new Error("Invalid PPTX image input");
     if (change.action === "imageFill") {
       if (
         (change.mode !== "stretch" && change.mode !== "tile") ||
         !Array.isArray(change.objects) ||
         !change.objects.length ||
-        change.objects.length > 256 ||
+        change.objects.length > pptxObjectSelectionCount ||
         change.objects.some(
           (id) => typeof id !== "string" || !id || id.length > 1024,
         ) ||

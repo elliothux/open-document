@@ -275,7 +275,7 @@ fn Session::prepare_review_range(
     revision_author(author, date)
   }
   self.check_document_protection()
-  guard text.length() <= command_limit &&
+  guard text.length() <= TextCommandUnits &&
     valid_inline_input(text) &&
     !has_region_break(text) else {
     @failure.reject(

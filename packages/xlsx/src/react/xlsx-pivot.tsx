@@ -16,6 +16,10 @@ import {
 } from "../web/xlsx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import {
+  xlsxDefinedNameUnits,
+  xlsxPivotValueNameUnits,
+} from "@open-document/wasm/engine-source";
 import { PivotFilters } from "./xlsx-pivot-filters.js";
 import { PivotNumberGroups } from "./xlsx-pivot-number-groups.js";
 import { PivotDateGroups } from "./xlsx-pivot-date-groups.js";
@@ -326,7 +330,7 @@ export function XlsxPivotsPanel({
             {t.pivotCaption}
             <input
               value={value.name}
-              maxLength={255}
+              maxLength={xlsxPivotValueNameUnits}
               onChange={(event) =>
                 updateValue(index, { name: event.currentTarget.value })
               }
@@ -378,7 +382,7 @@ export function XlsxPivotsPanel({
         disabled={!valid}
         onClick={() =>
           controller.run(async () =>
-            setPreview(await editor.pivotPreview(settings, editing)),
+            setPreview(await editor.objects.pivotPreview(settings, editing)),
           )
         }
       >
@@ -506,7 +510,7 @@ export function XlsxPivotsPanel({
         <input
           disabled={!!editing}
           value={name}
-          maxLength={255}
+          maxLength={xlsxDefinedNameUnits}
           onChange={(event) => setName(event.currentTarget.value)}
         />
       </label>
@@ -529,7 +533,7 @@ export function XlsxPivotsPanel({
         onClick={() =>
           controller.run(async () => {
             if (!preview) return;
-            await editor.editSheet(
+            await editor.objects.editSheet(
               editing
                 ? {
                     action: "updatePivot",
@@ -545,7 +549,7 @@ export function XlsxPivotsPanel({
                     destination,
                   },
             );
-            setCatalog(await editor.pivots());
+            setCatalog(await editor.objects.pivots());
           })
         }
       >
@@ -565,7 +569,7 @@ export function XlsxPivotsPanel({
       <button
         type="button"
         onClick={() =>
-          controller.run(async () => setCatalog(await editor.pivots()))
+          controller.run(async () => setCatalog(await editor.objects.pivots()))
         }
       >
         {t.pivotList}
@@ -627,11 +631,11 @@ export function XlsxPivotsPanel({
                 disabled={!current || !!pivot.reason}
                 onClick={() =>
                   controller.run(async () => {
-                    await editor.editSheet({
+                    await editor.objects.editSheet({
                       action: "refreshPivot",
                       part: pivot.part,
                     });
-                    setCatalog(await editor.pivots());
+                    setCatalog(await editor.objects.pivots());
                   })
                 }
               >
@@ -642,7 +646,7 @@ export function XlsxPivotsPanel({
                 disabled={!current || (!pivot.settings && !pivot.recovery)}
                 onClick={() =>
                   controller.run(async () => {
-                    await editor.editSheet({
+                    await editor.objects.editSheet({
                       action: "deletePivot",
                       part: pivot.part,
                     });
@@ -650,7 +654,7 @@ export function XlsxPivotsPanel({
                       setEditing(undefined);
                       setPreview(undefined);
                     }
-                    setCatalog(await editor.pivots());
+                    setCatalog(await editor.objects.pivots());
                   })
                 }
               >

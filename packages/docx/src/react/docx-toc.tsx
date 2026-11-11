@@ -30,7 +30,7 @@ export function DocxToc({
     controller.run(async () => {
       await editor.whenIdle();
       if (!active) return;
-      const source = await editor.tableOfContents();
+      const source = await editor.pages.tableOfContents();
       if (active) setSource(source);
     });
     return () => {
@@ -49,8 +49,8 @@ export function DocxToc({
           event.preventDefault();
           controller.run(() =>
             kind === "headings"
-              ? editor.insertTableOfContents(levels)
-              : editor.insertTableOfFigures(sequence),
+              ? editor.pages.insertTableOfContents(levels)
+              : editor.pages.insertTableOfFigures(sequence),
           );
         }}
       >
@@ -109,7 +109,7 @@ export function DocxToc({
             type="button"
             onClick={() =>
               controller.run(() =>
-                editor.editTableOfContents(source, {
+                editor.pages.editTableOfContents(source, {
                   action: "update",
                   paragraph: item.paragraph,
                 }),
@@ -122,7 +122,7 @@ export function DocxToc({
             type="button"
             onClick={() =>
               controller.run(() =>
-                editor.editTableOfContents(source, {
+                editor.pages.editTableOfContents(source, {
                   action: "delete",
                   paragraph: item.paragraph,
                 }),

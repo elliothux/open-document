@@ -161,7 +161,7 @@ fn read_doc_comments(
     }
     let text = paragraphs.join("\n")
     units += text.length()
-    guard text.length() <= 32767 && units <= 1048576 else {
+    guard text.length() <= CommentTextUnits && units <= 1048576 else {
       @failure.reject("limit-exceeded", "Comments exceed text budget")
     }
     entries.push({

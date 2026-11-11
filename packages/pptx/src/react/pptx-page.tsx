@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { pptxNotesTextUnits } from "@open-document/wasm/engine-source";
 import type { PanelProps } from "./panels.js";
 import { messages } from "@open-document/ui/messages";
 import { ImageInsetsForm } from "./pptx-picture.js";
@@ -81,7 +82,7 @@ export function PptxNotes({ controller, state, file, disabled }: PanelProps) {
           {t.speakerNotes}
           <textarea
             aria-label={t.speakerNotes}
-            maxLength={32767}
+            maxLength={pptxNotesTextUnits}
             value={text}
             onChange={(e) => setText(e.currentTarget.value)}
           />
@@ -300,7 +301,10 @@ export function PptxBackground({
                     if (!input) return;
                     const slide = editor.query.slide;
                     controller.run(async () => {
-                      if (!input.size || input.size > 4194304)
+                      if (
+                        !input.size ||
+                        input.size > editor.inputLimits.imageBytes
+                      )
                         throw new Error(t.imageInputLimit);
                       const bytes = new Uint8Array(await input.arrayBuffer());
                       if (editor.query.slide !== slide)

@@ -1,6 +1,4 @@
-import { record, integer } from "@open-document/wasm/abi/validation";
-import { encodeBytes } from "@open-document/wasm/abi/session";
-import { checkPageSection } from "./docx-format.js";
+import { record } from "@open-document/wasm/abi/validation";
 
 export interface DocxTextWatermark {
   text: string;
@@ -71,9 +69,7 @@ export function checkDocxWatermark(
     ) ||
     !(
       imageKey(mark.image) ||
-      (mark.image instanceof Uint8Array &&
-        mark.image.length > 0 &&
-        mark.image.length <= 4194304)
+      (mark.image instanceof Uint8Array && mark.image.length > 0)
     ) ||
     ![mark.width, mark.height].every(
       (v) =>
@@ -90,7 +86,7 @@ export function checkDocxWatermark(
 export function encodeDocxWatermark(value: DocxWatermark | null): unknown {
   checkDocxWatermark(value);
   return value?.kind === "picture" && value.image instanceof Uint8Array
-    ? { ...value, image: { bytes: encodeBytes(value.image) } }
+    ? { ...value, image: { bytes: value.image } }
     : value;
 }
 
@@ -141,39 +137,4 @@ export function checkDocxTextWatermark(
     typeof mark.italic !== "boolean"
   )
     throw new Error("Invalid text watermark");
-}
-
-export function docxWatermarkState(input: unknown): DocxWatermarkState {
-  const state = record(input);
-  checkPageSection(state.section);
-  if (
-    typeof state.revision !== "number" ||
-    !integer(state.revision, 0, 0x7fffffff) ||
-    typeof state.mixed !== "boolean" ||
-    typeof state.reason !== "string" ||
-    state.reason.length > 8192 ||
-    (!!state.reason && (state.value !== null || state.mixed)) ||
-    Object.keys(state).length !== 6 ||
-    !Array.isArray(state.images) ||
-    state.images.length > 3072 ||
-    !state.images.every(imageKey) ||
-    new Set(state.images).size !== state.images.length
-  )
-    throw new Error("Invalid text watermark state");
-  checkDocxWatermark(state.value);
-  let value: DocxWatermarkValue | null;
-  if (state.value?.kind === "picture") {
-    const image = state.value.image;
-    if (typeof image !== "string" || !state.images.includes(image))
-      throw new Error("Invalid watermark image state");
-    value = { ...state.value, image };
-  } else value = state.value;
-  return {
-    revision: state.revision,
-    section: state.section,
-    value,
-    mixed: state.mixed,
-    reason: state.reason,
-    images: state.images,
-  };
 }

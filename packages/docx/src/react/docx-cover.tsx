@@ -1,4 +1,8 @@
 import { useState } from "react";
+import {
+  docxCoverSubtitleUnits,
+  docxCoverTitleUnits,
+} from "@open-document/wasm/engine-source";
 import type { DocumentEditor } from "../web/editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
@@ -23,7 +27,7 @@ export function DocxCover({
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          controller.run(() => editor.setCoverPage({ title, subtitle }));
+          controller.run(() => editor.pages.setCoverPage({ title, subtitle }));
         }}
       >
         <fieldset disabled={disabled}>
@@ -31,7 +35,7 @@ export function DocxCover({
             {t.coverTitle}
             <input
               value={title}
-              maxLength={256}
+              maxLength={docxCoverTitleUnits}
               required
               onChange={(event) => setTitle(event.currentTarget.value)}
             />
@@ -40,7 +44,7 @@ export function DocxCover({
             {t.coverSubtitle}
             <input
               value={subtitle}
-              maxLength={512}
+              maxLength={docxCoverSubtitleUnits}
               onChange={(event) => setSubtitle(event.currentTarget.value)}
             />
           </label>
@@ -49,7 +53,9 @@ export function DocxCover({
           </button>
           <button
             type="button"
-            onClick={() => controller.run(() => editor.setCoverPage(null))}
+            onClick={() =>
+              controller.run(() => editor.pages.setCoverPage(null))
+            }
           >
             {t.removeCover}
           </button>

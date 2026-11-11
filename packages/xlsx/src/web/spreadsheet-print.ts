@@ -1,11 +1,11 @@
 import { SpreadsheetCanvas } from "./spreadsheet-canvas.js";
 import type { XlsxClient } from "./xlsx.js";
-import type { PrintOptions, XlsxPrintLayout } from "../core/xlsx.js";
+import type { PrintOptions, XlsxPrintLayout, XlsxQuery } from "../core/xlsx.js";
 
 /** A bounded page surface for the core's independent print layout. */
 export class SpreadsheetPrint {
   readonly element = document.createElement("div");
-  private readonly surface = new SpreadsheetCanvas("pdf");
+  private readonly surface = new SpreadsheetCanvas("print");
   private readonly listeners = new AbortController();
   private layout: XlsxPrintLayout | undefined;
   private prepared: XlsxPrintLayout | undefined;
@@ -18,7 +18,11 @@ export class SpreadsheetPrint {
     return !this.element.hidden;
   }
 
-  constructor(private readonly changed: () => void) {
+  constructor(
+    private readonly client: XlsxClient,
+    private readonly profile: Record<string, string>,
+    private readonly changed: () => void,
+  ) {
     this.element.hidden = true;
     this.element.setAttribute("role", "region");
     this.element.setAttribute("aria-label", "Spreadsheet print preview");
@@ -41,15 +45,14 @@ export class SpreadsheetPrint {
   }
 
   async prepare(
-    client: XlsxClient,
-    revision: number,
-    sheet: string,
+    state: XlsxQuery,
     options: PrintOptions | null,
-    profile: Record<string, string>,
   ): Promise<XlsxPrintLayout> {
+    const { client, profile } = this;
+    const { revision, sheet } = state;
     const key = JSON.stringify([revision, sheet, options, profile]);
     if (this.prepared && this.key === key) return this.prepared;
-    const query = await client.query();
+    const query = await client.execute({ operation: "queryXlsx" });
     const sheets =
       options?.sheets === "visible"
         ? query.sheets
@@ -65,7 +68,13 @@ export class SpreadsheetPrint {
       profile,
       this.listeners.signal,
     );
-    const layout = await client.printLayout(revision, sheet, options, profile);
+    const layout = await client.execute({
+      operation: "printXlsx",
+      revision: revision,
+      sheet: sheet,
+      options: options,
+      profile: profile,
+    });
     this.listeners.signal.throwIfAborted();
     this.prepared = layout;
     this.key = key;

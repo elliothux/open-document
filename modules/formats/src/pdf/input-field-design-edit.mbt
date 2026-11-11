@@ -18,7 +18,7 @@ fn checked_field_edit(
   check_pdf_text(spec.tooltip)
   guard spec.kind == field.kind &&
     spec.maxLength >= 0 &&
-    spec.maxLength <= 32767 &&
+    spec.maxLength <= TextUnits &&
     spec.size >= 0 &&
     spec.size <= 14400 &&
     field_edit_color(spec.color) &&
@@ -199,8 +199,7 @@ pub fn PdfSession::update_field_design(
       originalWidgets,
     )
     let (name, options) = checked_field_edit(self, field, spec, widgets)
-    if field_design_json(spec) == field_design_json(originalSpec) &&
-      Json(widgets) == Json(originalWidgets) {
+    if spec == originalSpec && widgets == originalWidgets {
       return self.query()
     }
     let oldFlags = field.attributes.get("Ff").map(integer).unwrap_or(0)
@@ -439,7 +438,7 @@ pub fn PdfSession::update_field_design(
         )
         let target = tx.object(page.number)
         let refs = annotation_refs(self.document, target)
-        guard refs.length() < 4096 else {
+        guard refs.length() < PageAnnotationCount else {
           @failure.reject("limit-exceeded", "Moved widgets exceed page budget")
         }
         tx.objects[page.number] = target.with_entry(

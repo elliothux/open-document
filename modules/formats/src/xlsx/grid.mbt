@@ -1,10 +1,30 @@
 ///|
+priv struct GridKey {
+  revision : Int32
+  drawing_selection : (String, String)?
+  slicer_hover : (String, Int32)?
+  sheet : String
+  x : Double
+  y : Double
+  width : Double
+  height : Double
+  extent_width : Double
+  extent_height : Double
+  profile : Array[(String, String)]
+  fonts : Array[@layout.FontInfo]
+  screen_scale : Double?
+  chart_wire : Bool
+  compact_cells : Bool
+} derive(Eq)
+
+///|
 priv struct Grid {
   id : Int32
   revision : Int32
   sheet : String
-  key : String
+  key : GridKey
   dimensions : Dimensions
+  dimension_fonts : (@layout.TextProbe, Int32, Map[String, String])
   scroll_x : Double
   scroll_y : Double
   width : Double
@@ -13,6 +33,8 @@ priv struct Grid {
   header_height : Double
   rtl : Bool
   result : Json
+  visible_cells : Array[Address]
+  chart_tiles : Array[ViewportChartTile]
   rows : Array[GridBand]
   columns : Array[GridBand]
   objects : Array[SheetObject]
@@ -91,6 +113,8 @@ pub fn Session::viewport(
   images~ : @layout.Images = @layout.Images::new(),
   slicer_hover~ : (String, Int32)? = None,
   screen_scale~ : Double? = None,
+  chart_wire~ : Bool = false,
+  compact_cells~ : Bool = false,
 ) -> Json raise @failure.Failure {
   let index = self.sheet_index(sheet)
   if slicer_hover is Some((object, member_index)) {
@@ -116,7 +140,18 @@ pub fn Session::viewport(
   guard current.frozen.layout_reason.is_empty() else {
     @failure.reject("unsupported-view", current.frozen.layout_reason)
   }
-  let dimensions = self.resolved_dimensions(current, probe, profile)
+  let fonts = probe.font_info()
+  let dimensions = if self.grid is Some(grid) &&
+    grid.revision == self.revision &&
+    grid.sheet == sheet &&
+    grid.dimension_fonts is (previous_probe, previous_count, previous_profile) &&
+    physical_equal(previous_probe, probe) &&
+    previous_count == fonts.length() &&
+    previous_profile == profile {
+    grid.dimensions
+  } else {
+    self.resolved_dimensions(current, probe, profile)
+  }
   let mut picture_reason = ""
   let preview_diagnostics : Array[String] = []
   let objects = self.sheet_objects(current, dimensions, preview_diagnostics~) catch {
@@ -170,11 +205,11 @@ pub fn Session::viewport(
   let extent_row = (used.bottom
   .max(current.frozen.rows + 1)
   .max(if self.selection.0 == sheet { self.selection.1.bottom } else { 1 }) +
-  100).min(1048576)
+  100).min(WorksheetRows)
   let extent_column = (used.right
   .max(current.frozen.columns + 1)
   .max(if self.selection.0 == sheet { self.selection.1.right } else { 1 }) +
-  20).min(16384)
+  20).min(WorksheetColumns)
   let extent_width = dimensions.columns.position(extent_column + 1)
   let extent_height = dimensions.rows.position(extent_row + 1)
   let mut x = scroll_x.min((extent_width - width + header_width).max(0))
@@ -205,21 +240,23 @@ pub fn Session::viewport(
       }
     }
   }
-  let key = Json::array([
-    Json(self.revision),
-    Json(self.drawing_selection),
-    Json(slicer_hover),
-    Json(sheet),
-    Json(x),
-    Json(y),
-    Json(width),
-    Json(height),
-    Json(extent_width),
-    Json(extent_height),
-    Json(profile),
-    Json(probe.font_info()),
-    Json(screen_scale),
-  ]).stringify()
+  let key : GridKey = {
+    revision: self.revision,
+    drawing_selection: self.drawing_selection,
+    slicer_hover,
+    sheet,
+    x,
+    y,
+    width,
+    height,
+    extent_width,
+    extent_height,
+    profile: profile.iter().collect(),
+    fonts,
+    screen_scale,
+    chart_wire,
+    compact_cells,
+  }
   if self.grid is Some(grid) && grid.key == key {
     self.font_context = Some((probe, profile.copy()))
     return grid.result
@@ -247,18 +284,19 @@ pub fn Session::viewport(
   let (
     primitives,
     cells,
+    clips,
     row_headers,
     column_headers,
     visible_notes,
     conditional,
   ) = self.paint_grid(
     index, dimensions, rows, columns, width, height, probe, profile, notes, objects,
-    slicer_hover, screen_scale,
+    slicer_hover, screen_scale, chart_wire, compact_cells,
   )
   let document : @layout.PositionedDocument = {
     links: [],
     pages: [{ width, height, primitives, }],
-    fonts: probe.font_info(),
+    fonts,
   }
   guard self.grid_id < 2147483647 else {
     @failure.reject("limit-exceeded", "Grid identity exhausted")
@@ -278,20 +316,29 @@ pub fn Session::viewport(
       diagnostics.push("uncalculated-chart:" + current.id + ":" + object.id)
     }
   }
-  for cell in cells {
-    if cell is { "diagnostic": String(reason), .. } && !reason.is_empty() {
+  let visible_cells : Array[Address] = []
+  for (cell, _) in cells {
+    visible_cells.push({ row: cell.range.top, column: cell.range.left, })
+    let reason = cell.diagnostic
+    if !reason.is_empty() {
       let message = "cell-style:" + sheet + ":" + reason
       if !diagnostics.contains(message) {
         diagnostics.push(message)
       }
     }
   }
+  let profile_snapshot = profile.copy()
+  let chart_tiles : Array[ViewportChartTile] = []
   let grid : Grid = {
     id: self.grid_id,
     revision: self.revision,
     sheet,
-    key,
+    key: {
+      ..key,
+      fonts: fonts.map(font => { ..font, bbox: font.bbox.copy(), }),
+    },
     dimensions,
+    dimension_fonts: (probe, fonts.length(), profile_snapshot),
     scroll_x: x,
     scroll_y: y,
     width,
@@ -300,6 +347,8 @@ pub fn Session::viewport(
     header_height,
     rtl: current.view.rtl,
     result: Json::null(),
+    visible_cells,
+    chart_tiles,
     rows,
     columns,
     // Drawing commands still require a complete, validated drawing catalog.
@@ -309,7 +358,7 @@ pub fn Session::viewport(
       []
     },
   }
-  let result : Json = {
+  let fields : Map[String, Json] = {
     "id": self.grid_id,
     "revision": self.revision,
     "sheet": sheet,
@@ -320,10 +369,24 @@ pub fn Session::viewport(
     "headerWidth": header_width,
     "headerHeight": header_height,
     "rtl": current.view.rtl,
-    "regions": document.drawing(images),
+    "regions": document
+    .drawing(
+      images,
+      glyph_raster=if current.is_chart() {
+        FractionalGlyphs
+      } else {
+        IntegerGlyphs
+      },
+    )
+    .map(region => {
+      region.encode(grid_commands_json(region.commands, chart_tiles~))
+    }),
     "outlines": probe.outline_resources(),
     "images": document.drawing_images(images),
-    "cells": cells,
+    "cells": cells.map(pair => {
+      let clip = if compact_cells { Json(pair.1) } else { Json(clips[pair.1]) }
+      pair.0.viewport_json(clip, compact_cells)
+    }),
     "notes": visible_notes,
     "objects": grid.objects.map(picture => {
       picture.grid_object(
@@ -337,9 +400,26 @@ pub fn Session::viewport(
     "columns": column_headers,
     "diagnostics": diagnostics,
   }
+  if compact_cells {
+    fields["cellClips"] = Json(
+      clips.map(clip => (clip.x, clip.y, clip.width, clip.height)),
+    )
+  }
+  let result = Json::object(fields)
   self.grid = Some({ ..grid, result, })
-  self.font_context = Some((probe, profile.copy()))
+  self.font_context = Some((probe, profile_snapshot))
   result
+}
+
+///|
+/// Locations of encoded chart bodies in the current single-region viewport.
+pub fn Session::viewport_chart_tiles(
+  self : Session,
+) -> ArrayView[ViewportChartTile] {
+  match self.grid {
+    Some(grid) => grid.chart_tiles[:]
+    None => []
+  }
 }
 
 ///|
@@ -408,7 +488,7 @@ pub fn Session::invalidate_geometry(self : Session) -> Unit {
 pub fn Session::selection_geometry(
   self : Session,
   id : Int32,
-) -> Json raise @failure.Failure {
+) -> SelectionGeometry raise @failure.Failure {
   self.check()
   guard self.grid is Some(grid) &&
     grid.id == id &&
@@ -417,7 +497,7 @@ pub fn Session::selection_geometry(
     @failure.reject("stale-layout", "Selection requires current grid geometry")
   }
   if self.sheets[self.sheet_index(grid.sheet)].is_chart() {
-    return { "x": 0, "y": 0, "width": 0, "height": 0, "rects": [] }
+    return { x: 0, y: 0, width: 0, height: 0, rects: [], }
   }
   let range = self.selection.1
   let first = self.sheets[self.sheet_index(grid.sheet)].cell_range({

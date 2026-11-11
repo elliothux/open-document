@@ -7,19 +7,23 @@ export function imageSmoothing(
   width: number,
   height: number,
   interpolate: boolean | null,
-  fractional: boolean,
+  preservePixels: boolean,
 ): void {
+  if (
+    interpolate != null ||
+    !preservePixels ||
+    !(bitmap instanceof ImageBitmap)
+  ) {
+    context.imageSmoothingEnabled = interpolate ?? true;
+    return;
+  }
   const m = context.getTransform();
   // Native noninterpolated images keep source pixels when both axes enlarge.
-  context.imageSmoothingEnabled =
-    interpolate ??
-    !(
-      fractional &&
-      bitmap instanceof ImageBitmap &&
-      ((m.b === 0 && m.c === 0) || (m.a === 0 && m.d === 0)) &&
-      Math.hypot(m.a, m.b) * width >= bitmap.width &&
-      Math.hypot(m.c, m.d) * height >= bitmap.height
-    );
+  context.imageSmoothingEnabled = !(
+    ((m.b === 0 && m.c === 0) || (m.a === 0 && m.d === 0)) &&
+    Math.hypot(m.a, m.b) * width >= bitmap.width &&
+    Math.hypot(m.c, m.d) * height >= bitmap.height
+  );
 }
 
 function drawColorImage(
@@ -29,18 +33,16 @@ function drawColorImage(
   createTarget: (width: number, height: number) => CanvasRenderingContext2D,
   sourceColor?: ImageBitmap,
 ): boolean {
+  if (
+    !sourceColor ||
+    !(bitmap instanceof ImageBitmap) ||
+    image.interpolate !== null ||
+    !context.imageSmoothingEnabled
+  )
+    return false;
   const m = context.getTransform();
   // shortcut: actual source crops, rotation and shear keep Canvas sampling; extend on a native failure.
-  if (
-    sourceColor &&
-    bitmap instanceof ImageBitmap &&
-    image.interpolate === null &&
-    context.imageSmoothingEnabled &&
-    m.b === 0 &&
-    m.c === 0 &&
-    m.a > 0 &&
-    m.d > 0
-  ) {
+  if (m.b === 0 && m.c === 0 && m.a > 0 && m.d > 0) {
     if (
       sourceColor.width !== bitmap.width ||
       sourceColor.height !== bitmap.height
@@ -105,11 +107,14 @@ function drawReducedImage(
   createTarget: (width: number, height: number) => CanvasRenderingContext2D,
   sourcePixels?: Uint8Array,
 ): boolean {
+  if (
+    image.interpolate !== false ||
+    !sourcePixels ||
+    !(bitmap instanceof ImageBitmap)
+  )
+    return false;
   const m = context.getTransform();
   if (
-    image.interpolate === false &&
-    sourcePixels &&
-    bitmap instanceof ImageBitmap &&
     m.b === 0 &&
     m.c === 0 &&
     m.a > 0 &&
@@ -201,15 +206,12 @@ export function drawCroppedImage(
   context: CanvasRenderingContext2D,
   bitmap: ImageBitmap,
   image: Extract<DrawCommand, { op: "image" }>["image"],
-  rect: Extract<DrawCommand, { op: "clipRect" }>["rect"],
+  visible: Extract<DrawCommand, { op: "clipRect" }>["rect"],
   createTarget: (width: number, height: number) => CanvasRenderingContext2D,
   sourcePixels?: Uint8Array,
   sourceColor?: ImageBitmap,
 ): void {
-  const left = Math.max(rect.x, image.x),
-    top = Math.max(rect.y, image.y),
-    width = Math.min(rect.x + rect.width, image.x + image.width) - left,
-    height = Math.min(rect.y + rect.height, image.y + image.height) - top;
+  const { x: left, y: top, width, height } = visible;
   if (width <= 0 || height <= 0) return;
   if (sourcePixels && image.interpolate === false) {
     context.save();

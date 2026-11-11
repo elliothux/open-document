@@ -5,8 +5,9 @@ fn section_number_parts(
   places : Int32,
   grouped : Bool,
   percent : Int32,
+  scale : Int32,
 ) -> Array[NumberPart] {
-  let raw = number_digits(value, places + 2 * percent, 0)
+  let raw = number_digits(value, places + 2 * percent, scale)
   if raw == "########" {
     return [Visible(raw)]
   }
@@ -41,6 +42,7 @@ fn section_number_parts(
 
 ///|
 fn section_display(value : Value, format : String) -> NumberSection? {
+  guard value is (Number(_) | Text(_)) else { return None }
   guard section_format(format) is Some(sections) else { return None }
   let has_text = fn(section : NumberSection) {
     section.parts.any(part => part is SourceText)
@@ -95,7 +97,7 @@ fn section_display(value : Value, format : String) -> NumberSection? {
         }
       })
       .unwrap_or(0)
-    if number_digits(number, places + 2 * section.percent, 0) != "0" {
+    if number_digits(number, places + 2 * section.percent, section.scale) != "0" {
       parts.push(Visible("-"))
     }
   }
@@ -105,7 +107,14 @@ fn section_display(value : Value, format : String) -> NumberSection? {
       Digits(mask, places, grouped) =>
         if value is Number(number) {
           parts.append(
-            section_number_parts(number, mask, places, grouped, section.percent),
+            section_number_parts(
+              number,
+              mask,
+              places,
+              grouped,
+              section.percent,
+              section.scale,
+            ),
           )
         }
       Percent => parts.push(Visible("%"))
@@ -129,7 +138,7 @@ fn section_display(value : Value, format : String) -> NumberSection? {
       other => parts.push(other)
     }
   }
-  Some({ parts, color: section.color, percent: section.percent, })
+  Some({ ..section, parts, })
 }
 
 ///|

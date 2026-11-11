@@ -1,4 +1,5 @@
 import { record } from "@open-document/wasm/abi/validation";
+import { pptxParagraphTabCount } from "@open-document/wasm/engine-source";
 
 export interface PptxTextFormat {
   font?: string;
@@ -100,11 +101,7 @@ export interface PptxParagraphFormatting {
   reason: string;
 }
 
-function paragraphProperty(
-  key: string,
-  value: unknown,
-  imported = false,
-): boolean {
+function paragraphProperty(key: string, value: unknown): boolean {
   if (key === "defaultTab")
     return (
       value === null ||
@@ -115,7 +112,8 @@ function paragraphProperty(
     );
   if (key === "tabs") {
     if (value === null) return true;
-    if (!Array.isArray(value) || value.length > 32) return false;
+    if (!Array.isArray(value) || value.length > pptxParagraphTabCount)
+      return false;
     let previous = -1;
     for (const item of value) {
       const tab = record(item);
@@ -163,7 +161,6 @@ function paragraphProperty(
     const list = record(value),
       keys = Object.keys(list);
     if (list.kind === "none") return keys.length === 1;
-    if (list.kind === "picture") return imported && keys.length === 1;
     if (list.kind === "bullet")
       return (
         keys.length === 2 &&
@@ -220,33 +217,6 @@ export function checkPptxParagraphFormat(value: unknown): void {
     )
   )
     throw new Error("Invalid paragraph format");
-}
-
-export function checkPptxParagraphFormatting(value: unknown): void {
-  const format = record(value);
-  if (
-    typeof format.reason !== "string" ||
-    [
-      "left",
-      "right",
-      "first",
-      "before",
-      "after",
-      "line",
-      "list",
-      "level",
-      "rtl",
-      "listFont",
-      "listSize",
-      "listColor",
-      "tabs",
-      "defaultTab",
-    ].some(
-      (key) =>
-        format[key] !== null && !paragraphProperty(key, format[key], true),
-    )
-  )
-    throw new Error("Invalid paragraph format query");
 }
 
 function property(key: string, value: unknown): boolean {
@@ -306,27 +276,4 @@ export function checkPptxTextFormat(value: unknown): void {
     Object.entries(format).some(([key, value]) => !property(key, value))
   )
     throw new Error("Invalid text format");
-}
-
-export function checkPptxFormatting(value: unknown): void {
-  const format = record(value);
-  if (
-    typeof format.reason !== "string" ||
-    (format.alignment !== null &&
-      (typeof format.alignment !== "string" ||
-        !["left", "center", "right", "justify"].includes(format.alignment))) ||
-    [
-      "font",
-      "size",
-      "spacing",
-      "bold",
-      "italic",
-      "color",
-      "underline",
-      "strike",
-      "highlight",
-      "script",
-    ].some((key) => format[key] !== null && !property(key, format[key]))
-  )
-    throw new Error("Invalid text formatting query");
 }

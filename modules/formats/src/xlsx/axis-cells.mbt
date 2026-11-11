@@ -224,8 +224,8 @@ fn Sheet::axis_cells(
     let fragments : Array[(Int32, String)] = []
     let mut inherited : @xml.Node? = None
     for node in columns {
-      let first = natural(node.attribute("min").unwrap_or(""), 16384)
-      let last = natural(node.attribute("max").unwrap_or(""), 16384)
+      let first = natural(node.attribute("min").unwrap_or(""), WorksheetColumns)
+      let last = natural(node.attribute("max").unwrap_or(""), WorksheetColumns)
       if first <= change.first - 1 && change.first - 1 <= last {
         inherited = Some(node)
       }

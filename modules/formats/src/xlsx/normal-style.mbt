@@ -27,10 +27,7 @@ fn normal_xf(tree : Tree) -> (@xml.Node?, Int32?) raise @failure.Failure {
 }
 
 ///|
-fn normal_font(
-  document : @xml.Document,
-) -> (String, Double) raise @failure.Failure {
-  let tree = Tree::new(document)
+fn normal_font(tree : Tree) -> (String, Double) raise @failure.Failure {
   let (normal, _) = normal_xf(tree)
   let fonts = tree
     .one(tree.root("styleSheet").id, "fonts")
@@ -118,7 +115,7 @@ fn Session::normal_style(
     return (index, self.styles, [])
   }
   let (document, edit) = source.edit_source(pool.changes())
-  let styles = read_styles(document, self.theme)
+  let styles = read_styles(Tree::new(document), self.theme)
   guard styles[index].diagnostic.is_empty() else {
     @failure.reject(
       "protected-content",

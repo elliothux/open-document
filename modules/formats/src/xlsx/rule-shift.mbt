@@ -158,9 +158,9 @@ fn AxisChange::rule_ranges(
 ) -> Array[Range] raise @failure.Failure {
   let (low, high) = self.band.unwrap()
   let tail : Range = if self.rows {
-    { top: self.first, bottom: 1048576, left: low, right: high, }
+    { top: self.first, bottom: WorksheetRows, left: low, right: high, }
   } else {
-    { top: low, bottom: high, left: self.first, right: 16384, }
+    { top: low, bottom: high, left: self.first, right: WorksheetColumns, }
   }
   let result = []
   for range in before {

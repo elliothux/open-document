@@ -15,11 +15,11 @@
 | 保存与输出 | 保存绑定 revision 的 DOCX，重开核对正文与非目标内容；导出绑定当前布局的 PDF |
 | 失败与关闭 | 拒绝不安全编辑、旧 revision/layout 及超预算操作；停止后显式恢复，关闭等待已接受工作并释放资源 |
 
-排版范围沿用 [P3](p3-docx-preview.md)，API、位置规则和资源上限归[格式合同](../references/formats.md#p4-当前编辑-api-切片)。已实现能力与验证环境分别声明，系统输入的证据边界见下文。
+排版范围沿用 [P3](p3-docx-preview.md)，API、位置规则和资源上限归[格式合同](../references/formats/docx-editing.md#p4-当前编辑-api-切片)。已实现能力与验证环境分别声明，系统输入的证据边界见下文。
 
 ## 接入与实现边界
 
-浏览器通过 `FoundationClient.open(wasm, workerUrl)` 创建客户端。调用方供应字体并打开 DOCX，再调用 `DocumentEditor.create(root, client, profile, signal?)`。`saveDocx()` 和 `exportPdf()` 等待已接受输入，返回 `{ revision, bytes }`。调用方等待编辑器 `dispose()` 完成后，再复用或关闭客户端。实际入口和生命周期说明见[开发文档](../references/development.md#当前-foundation-api)。
+浏览器通过 `FoundationClient.open(wasm, workerUrl)` 创建客户端。调用方供应字体并打开 DOCX，再调用 `DocumentEditor.create(root, client, profile, signal?)`。`saveDocx()` 和 `exportPdf()` 等待已接受输入，返回 `{ revision, bytes }`。调用方等待编辑器 `dispose()` 完成后，再复用或关闭客户端。实际入口和生命周期说明见[开发文档](../references/development.md#公开入口与共享加载)。
 
 MoonBit 拥有文档、选区、历史、布局和序列化。源 XML/OPC 是文档权威；编辑使用局部源补丁，保留范围外样式、未知内容和非目标部件。命令先检查 revision 和保护范围，失败不半提交。书签、字段、内容控件、图片等不能被危险范围编辑静默删除。
 

@@ -7,6 +7,7 @@ import {
 } from "../web/xlsx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { xlsxNoteTextUnits } from "@open-document/wasm/engine-source";
 import { XlsxFormatPainter } from "./xlsx-format-painter.js";
 import { XlsxValidation } from "./xlsx-validation.js";
 import { XlsxFormatFields } from "./xlsx-format-fields.js";
@@ -155,7 +156,7 @@ export function XlsxFormat({ controller, state, editor, disabled }: Props) {
           }
           onClick={() =>
             controller.run(() =>
-              editor.editSheet({
+              editor.objects.editSheet({
                 action: "merge",
                 range: merging.range,
                 discard,
@@ -170,7 +171,10 @@ export function XlsxFormat({ controller, state, editor, disabled }: Props) {
           disabled={!merging.merged || !!merging.unmergeReason}
           onClick={() =>
             controller.run(() =>
-              editor.editSheet({ action: "unmerge", range: merging.range }),
+              editor.objects.editSheet({
+                action: "unmerge",
+                range: merging.range,
+              }),
             )
           }
         >
@@ -251,7 +255,7 @@ function XlsxNote({ controller, state, editor, disabled }: Props) {
             ...(author ? { author } : {}),
           } as const;
           checkXlsxSheetEdit(change);
-          return editor.editSheet(change, query.sheet);
+          return editor.objects.editSheet(change, query.sheet);
         });
       }}
     >
@@ -262,7 +266,7 @@ function XlsxNote({ controller, state, editor, disabled }: Props) {
           {t.cellNote}
           <textarea
             aria-label={t.cellNote}
-            maxLength={32767}
+            maxLength={xlsxNoteTextUnits}
             value={text}
             onChange={(event) => setText(event.currentTarget.value)}
           />
@@ -282,7 +286,7 @@ function XlsxNote({ controller, state, editor, disabled }: Props) {
           disabled={!note.exists}
           onClick={() =>
             controller.run(() =>
-              editor.editSheet(
+              editor.objects.editSheet(
                 { action: "note", cell: note.address, text: null },
                 query.sheet,
               ),
@@ -314,7 +318,7 @@ function XlsxHyperlink({ controller, state, editor, disabled }: Props) {
           event.preventDefault();
           controller.run(() => {
             checkXlsxHyperlinkTarget(address);
-            return editor.editSheet({
+            return editor.objects.editSheet({
               action: "hyperlink",
               range: query.selection.address,
               target: address,
@@ -343,7 +347,7 @@ function XlsxHyperlink({ controller, state, editor, disabled }: Props) {
             disabled={!link.target && !link.mixed}
             onClick={() =>
               controller.run(() =>
-                editor.editSheet({
+                editor.objects.editSheet({
                   action: "hyperlink",
                   range: query.selection.address,
                   target: null,
@@ -365,7 +369,7 @@ function XlsxHyperlink({ controller, state, editor, disabled }: Props) {
             disabled={disabled || !!link.navigationReason}
             onClick={() =>
               controller.run(() =>
-                editor.editSheet({
+                editor.objects.editSheet({
                   action: "openHyperlink",
                   range: query.selection.address,
                   sourceRevision: query.revision,

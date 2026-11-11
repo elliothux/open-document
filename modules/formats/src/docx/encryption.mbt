@@ -42,7 +42,7 @@ fn required_office_password(
       "docx-password-required", "A password is required to open this DOCX",
     )
   }
-  guard password.length() <= 255 else {
+  guard password.length() <= @protection.PasswordUnits else {
     @failure.reject(
       "invalid-operation", "Office passwords require at most 255 UTF-16 units",
     )

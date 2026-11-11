@@ -238,6 +238,7 @@ pub fn PdfSession::invalidate(self : PdfSession) -> Unit {
     display.probe.close()
   }
   self.views.clear()
+  self.encodedDisplay = None
   self.display = None
 }
 

@@ -1,6 +1,19 @@
 import type { PptxQuery } from "../core/pptx.js";
 import { focusedElement } from "@open-document/web-core/editor-state";
 
+export function presentationSnapshot(state: PptxQuery) {
+  return {
+    revision: state.revision,
+    canUndo: state.canUndo,
+    canRedo: state.canRedo,
+    page: state.slides.findIndex((slide) => slide.id === state.editView.slide),
+    pageCount: state.slides.length,
+    selection: state.selection.object,
+    readOnlyReason: state.readOnlyReason,
+    data: state,
+  };
+}
+
 export function updatePresentationObjects(
   list: HTMLOListElement,
   input: HTMLTextAreaElement,

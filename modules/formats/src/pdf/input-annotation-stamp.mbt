@@ -122,7 +122,7 @@ pub fn PdfSession::add_stamp_annotation(
     ])
     let reference = tx.add(stamp_annotation_appearance(tx, object))
     let refs = annotation_refs(self.document, tx.object(page.number))
-    guard refs.length() < 4096 else {
+    guard refs.length() < PageAnnotationCount else {
       @failure.reject("limit-exceeded", "PDF stamps exceed annotation budget")
     }
     tx.objects[page.number] = tx

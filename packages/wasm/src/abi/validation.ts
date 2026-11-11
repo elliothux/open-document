@@ -1,5 +1,3 @@
-import type { ShapeBatch } from "./shape.js";
-
 export interface Budget {
   fileBytes: number;
   entryBytes: number;
@@ -28,43 +26,6 @@ export function hasFields(
       (key) => typeof object[key] === "number" && Number.isFinite(object[key]),
     )
   );
-}
-
-export function arrayOf(
-  value: unknown,
-  check: (entry: unknown) => boolean,
-): boolean {
-  return Array.isArray(value) && value.every(check);
-}
-
-export function glyphs(value: unknown): ShapeBatch["glyphs"] {
-  if (
-    !arrayOf(
-      value,
-      (entry) =>
-        hasFields(
-          entry,
-          ["outline"],
-          [
-            "id",
-            "cluster",
-            "font",
-            "strokeWidth",
-            "x",
-            "y",
-            "scale",
-            "advance",
-            "yAdvance",
-            "xOffset",
-            "yOffset",
-          ],
-        ) &&
-        Number(record(entry).strokeWidth) >= 0 &&
-        Number(record(entry).strokeWidth) <= 1024,
-    )
-  )
-    throw new Error("Invalid glyphs returned by Wasm");
-  return value as ShapeBatch["glyphs"];
 }
 
 export function integer(value: unknown, min: number, max: number): boolean {

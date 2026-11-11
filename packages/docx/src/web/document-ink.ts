@@ -100,13 +100,14 @@ export class DocumentInkGesture {
     if (options.tool === "eraser")
       return this.host.run(async () => {
         const latest = this.host.current();
-        const state = await this.client.eraseInk(
-          latest.state.revision,
-          latest.layout.id,
-          latest.page,
-          local.x,
-          local.y,
-        );
+        const state = await this.client.execute({
+          operation: "eraseInk",
+          revision: latest.state.revision,
+          layoutId: latest.layout.id,
+          page: latest.page,
+          x: local.x,
+          y: local.y,
+        });
         if (state.revision !== latest.state.revision)
           await this.host.selected(state);
       });
@@ -119,7 +120,7 @@ export class DocumentInkGesture {
       return Promise.resolve();
     const previous = draft.stroke.points.at(-1);
     if (!previous || previous[0] !== local.x || previous[1] !== local.y) {
-      if (draft.stroke.points.length === 4096) {
+      if (draft.stroke.points.length === this.client.inputLimits().inkPoints) {
         this.pointer.finish();
         return Promise.resolve();
       }
@@ -128,12 +129,13 @@ export class DocumentInkGesture {
     const stroke = { ...draft.stroke, points: draft.stroke.points.slice() };
     return this.host.run(async () => {
       if (this.draft !== draft) return;
-      const batch = await this.client.previewInk(
-        draft.revision,
-        draft.layoutId,
-        draft.page,
-        stroke,
-      );
+      const batch = await this.client.execute({
+        operation: "previewInk",
+        revision: draft.revision,
+        layoutId: draft.layoutId,
+        page: draft.page,
+        stroke: stroke,
+      });
       if (this.draft === draft) this.surface.drawOverlay(batch, draft.scale);
     });
   }
@@ -151,13 +153,14 @@ export class DocumentInkGesture {
             current.layout.id !== draft.layoutId
           )
             return;
-          const state = await this.client.insertInk(
-            draft.revision,
-            draft.layoutId,
-            draft.page,
-            draft.stroke,
-            this.host.ink().profile,
-          );
+          const state = await this.client.execute({
+            operation: "insertInk",
+            revision: draft.revision,
+            layoutId: draft.layoutId,
+            page: draft.page,
+            stroke: draft.stroke,
+            profile: this.host.ink().profile,
+          });
           await this.host.selected(state);
         });
       }

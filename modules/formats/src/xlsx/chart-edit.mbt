@@ -1,4 +1,7 @@
 ///|
+pub const ChartSeriesCount : Int32 = 32
+
+///|
 pub(all) struct SheetChartSettings {
   kind : String
   title : String
@@ -33,7 +36,7 @@ fn Session::chart_from_settings(
     )
   }
   guard settings.names.length() >= 1 &&
-    settings.names.length() <= 32 &&
+    settings.names.length() <= ChartSeriesCount &&
     settings.names.length() == settings.values.length() else {
     @failure.reject(
       "invalid-chart", "Chart references require 1-32 matching series",

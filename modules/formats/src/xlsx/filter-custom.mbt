@@ -225,10 +225,7 @@ fn FilterColumn::json(self : FilterColumn) -> Json raise @failure.Failure {
         "kind": "custom",
         "column": self.column,
         "all": all,
-        "conditions": conditions.map(c => {
-          let value : Json = { "operator": c.operator, "value": c.value }
-          value
-        }),
+        "conditions": conditions,
       }
   }
 }

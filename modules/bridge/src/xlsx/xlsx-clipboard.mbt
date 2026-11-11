@@ -1,4 +1,78 @@
 ///|
+priv struct CopiedCellsOriginRequest {
+  top : @common.RequestInt
+  left : @common.RequestInt
+  date1904 : Bool
+} derive(@json.FromJson)
+
+///|
+priv struct CopiedCellRequest {
+  value : CellValueRequest
+  formula : @common.RequiredNullable[String]
+  format : CellFormatRequest
+} derive(@json.FromJson)
+
+///|
+priv struct CopiedAddressRequest {
+  row : @common.RequestInt
+  column : @common.RequestInt
+} derive(@json.FromJson)
+
+///|
+fn copied_address(value : Json) -> @model.Address raise @failure.Failure {
+  guard value is Object(fields) && fields.length() == 2 else {
+    @failure.reject("invalid-operation", "Invalid copied cell address")
+  }
+  let input : CopiedAddressRequest = @common.request(value)
+  { row: input.row.value, column: input.column.value, }
+}
+
+///|
+priv struct CopiedRangeRequest {
+  top : @common.RequestInt
+  left : @common.RequestInt
+  bottom : @common.RequestInt
+  right : @common.RequestInt
+} derive(@json.FromJson)
+
+///|
+fn copied_range(value : Json) -> @model.Range raise @failure.Failure {
+  guard value is Object(fields) && fields.length() == 4 else {
+    @failure.reject("invalid-operation", "Invalid copied range")
+  }
+  let input : CopiedRangeRequest = @common.request(value)
+  {
+    top: input.top.value,
+    left: input.left.value,
+    bottom: input.bottom.value,
+    right: input.right.value,
+  }
+}
+
+///|
+priv struct CopiedSparklineRequest {
+  cell : Json
+  source : Json
+  kind : String
+} derive(@json.FromJson)
+
+///|
+priv struct CopiedHyperlinkRequest {
+  range : Json
+  target : String
+  display : @common.RequiredNullable[String]
+  tooltip : @common.RequiredNullable[String]
+} derive(@json.FromJson)
+
+///|
+priv struct CopiedNotesRequest {
+  comments : String
+  vml : @common.RequiredNullable[String]
+  threads : @common.RequiredNullable[String]
+  people : @common.RequiredNullable[String]
+} derive(@json.FromJson)
+
+///|
 fn xlsx_copied_cells(value : Json) -> @model.CopiedCells raise @failure.Failure {
   guard value is Object(fields) &&
     fields.length() == 10 &&
@@ -13,12 +87,12 @@ fn xlsx_copied_cells(value : Json) -> @model.CopiedCells raise @failure.Failure 
       "sparklines": Array(sparklines),
       ..
     } &&
-    conditional.length() <= 4096 &&
-    validations.length() <= 4096 &&
-    hyperlinks.length() <= 4096 &&
-    sparklines.length() <= 256 &&
+    conditional.length() <= @model.CopiedRuleRanges &&
+    validations.length() <= @model.CopiedRuleRanges &&
+    hyperlinks.length() <= @model.CopiedHyperlinkCount &&
+    sparklines.length() <= @model.SparklineCount &&
     !rows.is_empty() &&
-    rows.length() <= 4096 else {
+    rows.length() <= @model.CellFragmentCells else {
     @failure.reject("invalid-operation", "Expected copied cells")
   }
   let mut count = 0
@@ -26,78 +100,43 @@ fn xlsx_copied_cells(value : Json) -> @model.CopiedCells raise @failure.Failure 
     guard row is Array(columns) && !columns.is_empty() else {
       @failure.reject("invalid-operation", "Expected copied cell columns")
     }
-    count += columns.length()
-    guard count <= 4096 else {
+    guard columns.length() <= @model.CellFragmentCells - count else {
       @failure.reject("limit-exceeded", "Copied cells exceed budget")
     }
+    count += columns.length()
     columns.map(cell => {
-      guard cell is Object(fields) &&
-        fields.length() == 3 &&
-        cell is { "value": content, "formula": formula, "format": format, .. } &&
-        content is Object(parts) &&
-        parts.length() == 2 else {
+      guard cell is Object(fields) && fields.length() == 3 else {
         @failure.reject("invalid-operation", "Invalid copied cell fields")
       }
-      let value = xlsx_value(content)
-      let formula = match formula {
-        Null => None
-        String(value) => Some(value)
-        _ =>
-          @failure.reject("invalid-operation", "Expected copied cell formula")
+      let input : CopiedCellRequest = @common.request(cell)
+      @model.CopiedCell::{
+        value: input.value.value,
+        formula: input.formula.value,
+        format: input.format.value,
       }
-      @model.CopiedCell::{ value, formula, format: xlsx_cell_format(format), }
     })
   })
-  let (_, ranges) = xlsx_copied_format({
-    "cells": rows.map(row => {
-      if row is Array(columns) {
-        columns.map(cell => {
-          if cell is { "format": format, .. } {
-            format
-          } else {
-            Json::null()
-          }
-        })
-      } else {
-        []
-      }
-    }),
-    "merges": merges,
-  })
+  let ranges = copied_merge_items(merges).map(copied_range)
+  let origin : CopiedCellsOriginRequest = @common.request(value)
   {
-    top: field_int(value, "top"),
-    left: field_int(value, "left"),
-    date1904: field_boolean(value, "date1904"),
+    top: origin.top.value,
+    left: origin.left.value,
+    date1904: origin.date1904,
     cells,
     merges: ranges,
     sparklines: sparklines.map(item => {
-      guard item is Object(fields) &&
-        fields.length() == 3 &&
-        item is { "cell": Object(cell), "source": source, .. } &&
-        cell.length() == 2 else {
+      guard item is Object(fields) && fields.length() == 3 else {
         @failure.reject("invalid-operation", "Invalid copied sparkline fields")
       }
-      let source = match source {
-        Null => None
-        Object(fields) if fields.length() == 4 =>
-          Some(@model.Range::{
-            top: field_int(source, "top"),
-            left: field_int(source, "left"),
-            bottom: field_int(source, "bottom"),
-            right: field_int(source, "right"),
-          })
-        _ =>
-          @failure.reject(
-            "invalid-operation", "Invalid copied sparkline source",
-          )
-      }
+      let input : CopiedSparklineRequest = @common.request(item)
       @model.CopiedSparkline::{
-        cell: {
-          row: field_int(Json::object(cell), "row"),
-          column: field_int(Json::object(cell), "column"),
+        cell: copied_address(input.cell),
+        source: if input.source is Null {
+          None
+        } else {
+          Some(copied_range(input.source))
         },
-        source,
-        kind: field_string(item, "kind"),
+        kind: input.kind,
       }
     }),
     conditional: conditional.map(rule => {
@@ -113,79 +152,34 @@ fn xlsx_copied_cells(value : Json) -> @model.CopiedCells raise @failure.Failure 
       @model.CopiedValidation::{
         ranges,
         anchor,
-        settings: xlsx_validation_settings(settings),
+        settings: @common.request(settings),
       }
     }),
     hyperlinks: hyperlinks.map(link => {
-      guard link is Object(fields) &&
-        fields.length() == 4 &&
-        link
-        is {
-          "range": Object(range),
-          "display": display,
-          "tooltip": tooltip,
-          ..
-        } &&
-        range.length() == 4 else {
+      guard link is Object(fields) && fields.length() == 4 else {
         @failure.reject("invalid-operation", "Invalid copied hyperlink fields")
       }
-      let optional = fn(value : Json) raise @failure.Failure {
-        match value {
-          Null => None
-          String(value) => Some(value)
-          _ =>
-            @failure.reject(
-              "invalid-operation", "Invalid copied hyperlink text",
-            )
-        }
-      }
+      let input : CopiedHyperlinkRequest = @common.request(link)
       @model.CopiedHyperlink::{
-        range: {
-          top: field_int(Json::object(range), "top"),
-          left: field_int(Json::object(range), "left"),
-          bottom: field_int(Json::object(range), "bottom"),
-          right: field_int(Json::object(range), "right"),
-        },
-        target: field_string(link, "target"),
-        display: optional(display),
-        tooltip: optional(tooltip),
+        range: copied_range(input.range),
+        target: input.target,
+        display: input.display.value,
+        tooltip: input.tooltip.value,
       }
     }),
     notes: match notes {
       Null => None
       Object(fields) if fields.length() == 4 => {
-        guard fields.get("vml") is Some(vml) else {
-          @failure.reject("invalid-operation", "Missing copied note VML")
-        }
-        let vml = match vml {
-          Null => None
-          String(value) => Some(value)
-          _ => @failure.reject("invalid-operation", "Invalid copied note VML")
-        }
+        let input : CopiedNotesRequest = @common.request(notes)
         Some(@model.CopiedNotes::{
-          comments: field_string(notes, "comments"),
-          vml,
-          threads: copied_thread_xml(fields, "threads"),
-          people: copied_thread_xml(fields, "people"),
+          comments: input.comments,
+          vml: input.vml.value,
+          threads: input.threads.value,
+          people: input.people.value,
         })
       }
       _ => @failure.reject("invalid-operation", "Invalid copied note fields")
     },
-  }
-}
-
-///|
-fn copied_thread_xml(
-  fields : Map[String, Json],
-  name : String,
-) -> String? raise @failure.Failure {
-  match fields.get(name) {
-    Some(Null) => None
-    Some(String(text)) => Some(text)
-    _ =>
-      @failure.reject(
-        "invalid-operation", "Invalid copied native thread fields",
-      )
   }
 }
 
@@ -198,24 +192,8 @@ fn xlsx_copied_rule(
     value
     is { "ranges": Array(ranges), "anchor": anchor, "settings": settings, .. } &&
     !ranges.is_empty() &&
-    ranges.length() <= 4096 &&
-    anchor is Object(point) &&
-    point.length() == 2 else {
+    ranges.length() <= @model.CopiedRuleRanges else {
     @failure.reject("invalid-operation", "Invalid copied rule")
   }
-  (
-    ranges.map(value => {
-      guard value is Object(fields) && fields.length() == 4 else {
-        @failure.reject("invalid-operation", "Invalid copied rule range")
-      }
-      @model.Range::{
-        top: field_int(value, "top"),
-        left: field_int(value, "left"),
-        bottom: field_int(value, "bottom"),
-        right: field_int(value, "right"),
-      }
-    }),
-    { row: field_int(anchor, "row"), column: field_int(anchor, "column"), },
-    settings,
-  )
+  (ranges.map(copied_range), copied_address(anchor), settings)
 }

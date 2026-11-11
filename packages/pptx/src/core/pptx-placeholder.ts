@@ -39,10 +39,3 @@ export function pptxPlaceholder(value: unknown): PptxPlaceholder | null {
     throw new Error("Invalid placeholder definition");
   return value as PptxPlaceholder;
 }
-
-export function checkPptxPlaceholderQuery(value: unknown): void {
-  const result = record(value);
-  if (typeof result.reason !== "string" || result.reason.length > 8192)
-    throw new Error("Invalid placeholder protection reason");
-  pptxPlaceholder(result.value);
-}

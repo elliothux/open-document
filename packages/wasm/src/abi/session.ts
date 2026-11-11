@@ -1,5 +1,6 @@
 import { record, hasFields } from "./validation.js";
 import type { Budget } from "./validation.js";
+import { OutlineDelta } from "./outline-delta.js";
 
 export type DocumentStage =
   | "worker"
@@ -26,43 +27,72 @@ export class DocumentError extends Error {
   }
 }
 
-export function resourceBudget(value: unknown): Budget {
-  if (
-    !hasFields(
-      value,
-      [],
-      [
-        "fileBytes",
-        "entryBytes",
-        "totalBytes",
-        "retainedBytes",
-        "entries",
-        "xmlDepth",
-        "outputBytes",
-      ],
-    )
-  )
-    throw new Error("Invalid resource budget returned by Wasm");
-  return value as Budget;
-}
+const byteWordDecoder = new TextDecoder(
+  new Uint8Array(new Uint16Array([1]).buffer)[0] === 1
+    ? "utf-16le"
+    : "utf-16be",
+);
 
 export function binaryString(bytes: Uint8Array): string {
+  const words = new Uint16Array(Math.min(bytes.length, 32768));
   let binary = "";
-  for (let start = 0; start < bytes.length; start += 32768)
-    binary += Reflect.apply(
-      String.fromCharCode,
-      null,
-      bytes.subarray(start, start + 32768),
-    ) as string;
+  // Widen each octet without applying a legacy character encoding.
+  for (let start = 0; start < bytes.length; start += words.length) {
+    const chunk = bytes.subarray(start, start + words.length);
+    words.set(chunk);
+    binary += byteWordDecoder.decode(words.subarray(0, chunk.length));
+  }
   return binary;
 }
 
-export function encodeBytes(bytes: Uint8Array): string {
-  return btoa(binaryString(bytes));
+export interface InputLimits {
+  readonly fontBytes: number;
 }
 
-export class WasmSession {
+/** Reject host input before encoding or structured cloning. */
+export function checkByteInput(
+  bytes: unknown,
+  ceiling: number,
+): asserts bytes is Uint8Array {
+  if (!(bytes instanceof Uint8Array))
+    throw new DocumentError("invalid-operation", "Invalid byte input", "", -1);
+  if (bytes.length > ceiling)
+    throw new DocumentError(
+      "limit-exceeded",
+      "Byte input exceeds budget",
+      "",
+      -1,
+    );
+}
+
+/** Apply core limits before allocating a byte string or cloning host input. */
+export function checkFontInput(
+  bytes: unknown,
+  identity: unknown,
+  limits: InputLimits,
+): void {
+  if (!(bytes instanceof Uint8Array))
+    throw new DocumentError("invalid-operation", "Invalid byte input", "", -1);
+  if (bytes.length > limits.fontBytes)
+    throw new DocumentError(
+      "limit-exceeded",
+      "Font input exceeds budget",
+      "",
+      -1,
+    );
+  if (typeof identity !== "string")
+    throw new DocumentError(
+      "invalid-operation",
+      "Invalid string field: identity",
+      "",
+      -1,
+    );
+}
+
+export class WasmSession<Limits extends InputLimits = InputLimits> {
   private closed = false;
+  private limits: Limits | undefined;
+  private readonly outlines = new OutlineDelta();
 
   constructor(
     private readonly exports: WebAssembly.Exports,
@@ -74,14 +104,18 @@ export class WasmSession {
     if (this.closed) throw new Error("Session is closed");
   }
 
-  protected invoke(name: string, ...args: unknown[]): unknown {
+  private invokeRaw(name: string, ...args: unknown[]): unknown {
     this.checkOpen();
     const fn = this.exports[name];
     if (typeof fn !== "function") throw new Error(`Missing ${name} export`);
-    const output: unknown = fn(this.handle, ...args);
+    return fn(this.handle, ...args);
+  }
+
+  protected invoke(name: string, ...args: unknown[]): unknown {
+    const output = this.invokeRaw(name, ...args);
     if (typeof output !== "string") throw new Error("Invalid Wasm response");
     const result = record(JSON.parse(output));
-    if (result.ok === true) return result.value;
+    if (result.ok === true) return this.outlines.update(result.value);
     const error = record(result.error);
     if (
       result.ok !== false ||
@@ -103,35 +137,76 @@ export class WasmSession {
     throw new Error("Invalid Wasm error");
   }
 
-  protected call(request: object): unknown {
+  protected call<T = unknown>(request: object): T {
     this.checkOpen();
-    return this.invoke(`${this.format}_call`, JSON.stringify(request));
+    const attachments: Uint8Array[] = [];
+    const input = JSON.stringify(
+      request,
+      function (this: object, key, value: unknown) {
+        // JSON calls Buffer.toJSON before the replacer receives its value.
+        const bytes: unknown =
+          value !== null &&
+          typeof value === "object" &&
+          !(value instanceof Uint8Array)
+            ? Object.getOwnPropertyDescriptor(this, key)?.value
+            : value;
+        if (!(bytes instanceof Uint8Array)) return value;
+        if (!bytes.length) return "";
+        if (attachments.length === 2)
+          throw new DocumentError(
+            "invalid-operation",
+            "Too many byte attachments",
+            "",
+            -1,
+          );
+        const index = attachments.length;
+        attachments.push(bytes);
+        return { $bytes: index };
+      },
+    );
+    const [first, second] = attachments;
+    return this.invoke(
+      `${this.format}_call`,
+      input,
+      first ? binaryString(first) : "",
+      second ? binaryString(second) : "",
+    ) as T;
+  }
+
+  inputLimits(): Limits {
+    this.checkOpen();
+    return (this.limits ??= Object.freeze(
+      this.call<Limits>({ operation: "inputLimits" }),
+    ));
   }
 
   addFont(bytes: Uint8Array, identity: string): void {
-    if (bytes.length > 33554432)
-      throw new DocumentError(
-        "limit-exceeded",
-        "Font input exceeds budget",
-        "",
-        -1,
-      );
-    this.checkOpen();
-    if (typeof identity !== "string")
-      throw new DocumentError(
-        "invalid-operation",
-        "Invalid string field: identity",
-        "",
-        -1,
-      );
+    checkFontInput(bytes, identity, this.inputLimits());
     this.invoke(`${this.format}_add_font`, binaryString(bytes), identity);
   }
 
   protected bytes(request: Record<string, unknown>): Uint8Array {
-    const result = record(this.call(request));
-    if (typeof result.bytes !== "string")
-      throw new Error("Invalid saved bytes");
-    return Uint8Array.from(atob(result.bytes), (char) => char.charCodeAt(0));
+    const result = this.call<{ bytes: number }>(request);
+    return this.outputBytes(result.bytes);
+  }
+
+  protected outputString(slot: number): string {
+    if (!Number.isSafeInteger(slot) || slot < 0 || slot > 2147483647)
+      throw new Error("Invalid Wasm byte output slot");
+    const output = this.invokeRaw(`${this.format}_output`, slot);
+    if (typeof output !== "string") throw new Error("Missing Wasm byte output");
+    return output;
+  }
+
+  protected outputBytes(slot: number): Uint8Array {
+    const output = this.outputString(slot);
+    const bytes = new Uint8Array(output.length);
+    for (let index = 0; index < bytes.length; index++) {
+      const byte = output.charCodeAt(index);
+      if (byte > 255) throw new Error("Invalid Wasm byte output");
+      bytes[index] = byte;
+    }
+    return bytes;
   }
 
   close(): void {
@@ -140,13 +215,16 @@ export class WasmSession {
     if (typeof fn !== "function")
       throw new Error(`Missing ${this.format}_close export`);
     fn(this.handle);
+    this.outlines.clear();
     this.closed = true;
   }
 }
 
-export class OfficeSession extends WasmSession {
+export class OfficeSession<
+  Limits extends InputLimits = InputLimits,
+> extends WasmSession<Limits> {
   defaultBudget(): Budget {
-    return resourceBudget(this.call({ operation: "budget" }));
+    return this.call<Budget>({ operation: "budget" });
   }
 }
 

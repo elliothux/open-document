@@ -1,5 +1,8 @@
+import {
+  xlsxWorksheetColumns,
+  xlsxWorksheetRows,
+} from "@open-document/wasm/engine-source";
 import type { DrawRect } from "@open-document/wasm/abi/drawing";
-import { record } from "@open-document/wasm/abi/validation";
 
 export function xlsxBounds(
   value: unknown,
@@ -24,9 +27,9 @@ export function xlsxBounds(
   };
   if (
     result.top > result.bottom ||
-    result.bottom > 1048576 ||
+    result.bottom > xlsxWorksheetRows ||
     result.left > result.right ||
-    result.right > 16384 ||
+    result.right > xlsxWorksheetColumns ||
     (result.bottom - result.top + 1) * (result.right - result.left + 1) >
       maxCells
   )
@@ -36,25 +39,4 @@ export function xlsxBounds(
 
 export interface XlsxSelectionGeometry extends DrawRect {
   rects: DrawRect[];
-}
-
-export function xlsxRect(value: unknown): DrawRect {
-  const rect = record(value);
-  for (const key of ["x", "y", "width", "height"])
-    if (
-      typeof rect[key] !== "number" ||
-      !Number.isFinite(rect[key]) ||
-      ((key === "width" || key === "height") && rect[key] < 0)
-    )
-      throw new Error("Invalid selection rectangle");
-  return value as DrawRect;
-}
-
-export function xlsxSelection(value: unknown): XlsxSelectionGeometry {
-  xlsxRect(value);
-  const selection = record(value);
-  if (!Array.isArray(selection.rects) || selection.rects.length > 4)
-    throw new Error("Invalid selection regions");
-  for (const rect of selection.rects) xlsxRect(rect);
-  return value as XlsxSelectionGeometry;
 }

@@ -95,13 +95,27 @@ fn Session::editable_chart(
 }
 
 ///|
+priv struct ChartQuery {
+  id : Int32
+  width : Double
+  height : Double
+  settings : Json
+  anchor : Json
+  selected : Bool
+  reason : String
+  deleteReason : String
+  sizeReason : String
+  positionReason : String
+} derive(ToJson)
+
+///|
 pub fn Session::charts(
   self : Session,
   revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
-  let items : Array[Json] = []
+  let items : Array[ChartQuery] = []
   for id in tree.order {
     let node = tree.nodes[id]
     if node.uri != word_uri ||
@@ -114,31 +128,22 @@ pub fn Session::charts(
     guard items.length() < 256 else {
       @failure.reject("limit-exceeded", "Chart catalog exceeds256 items")
     }
-    let item : Map[String, Json] = {
-      "id": Json(id),
-      "width": 0,
-      "height": 0,
-      "settings": Json::null(),
-      "anchor": Json::null(),
-      "selected": false,
-    }
-    let retained = try {
+    let (width, height, settings, anchor, selected, retained) = try {
       let (_, chart) = self.editable_chart(tree, id, operation=ChartRetain)
       let frame = self.drawing_frame(tree, id)
-      item["width"] = Json(frame.width)
-      item["height"] = Json(frame.height)
-      item["settings"] = chart.data.query()
-      item["anchor"] = frame.anchor
-        .map(anchor => anchor.to_json())
-        .unwrap_or(Json::null())
-      item["selected"] = Json(
+      (
+        frame.width,
+        frame.height,
+        chart.data.query(),
+        frame.anchor.map(anchor => anchor.to_json()).unwrap_or(Json::null()),
         self.selected_drawing(tree) == Some(id) &&
         !tree.shape_locked(id, "noSelect"),
+        "",
       )
-      ""
     } catch {
       @failure.Failure(code="limit-exceeded", ..) as error => raise error
-      @failure.Failure(message~, ..) => message
+      @failure.Failure(message~, ..) =>
+        (0, 0, Json::null(), Json::null(), false, message)
     }
     fn reason(operation : ChartOperation) -> String raise @failure.Failure {
       if !retained.is_empty() {
@@ -156,11 +161,18 @@ pub fn Session::charts(
         @failure.Failure(message~, ..) => message
       }
     }
-    item["reason"] = Json(reason(ChartContent))
-    item["deleteReason"] = Json(reason(ChartDelete))
-    item["sizeReason"] = Json(reason(ChartResize))
-    item["positionReason"] = Json(reason(ChartPosition))
-    items.push(Json(item))
+    items.push({
+      id,
+      width,
+      height,
+      settings,
+      anchor,
+      selected,
+      reason: reason(ChartContent),
+      deleteReason: reason(ChartDelete),
+      sizeReason: reason(ChartResize),
+      positionReason: reason(ChartPosition),
+    })
   }
-  { "revision": revision, "items": items }
+  ToJson::to_json(DrawingCatalog::{ revision, items, })
 }

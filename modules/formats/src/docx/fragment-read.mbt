@@ -21,7 +21,7 @@ fn check_fragment_content(
       )
     }
     if node.name == "t" {
-      guard node.text.length() <= command_limit - units else {
+      guard node.text.length() <= TextCommandUnits - units else {
         @failure.reject(
           "limit-exceeded", "Rich table text exceeds UTF-16 budget",
         )

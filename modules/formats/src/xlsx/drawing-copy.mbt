@@ -42,8 +42,8 @@ fn Session::duplicate_drawing(
     @failure.reject("limit-exceeded", "Worksheet drawing identities exhausted")
   }
   let rect = { ..object.rect, x: object.rect.x + 12, y: object.rect.y + 12, }
-  guard rect.x + rect.width <= dimensions.columns.position(16385) &&
-    rect.y + rect.height <= dimensions.rows.position(1048577) else {
+  guard rect.x + rect.width <= dimensions.columns.position(WorksheetColumns + 1) &&
+    rect.y + rect.height <= dimensions.rows.position(WorksheetRows + 1) else {
     @failure.reject(
       "invalid-operation", "Copied drawing would exceed the worksheet",
     )

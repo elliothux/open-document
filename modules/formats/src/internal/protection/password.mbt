@@ -1,6 +1,9 @@
 ///|
+pub const PasswordUnits : Int32 = 255
+
+///|
 pub fn password(password : String) -> Unit raise @failure.Failure {
-  guard password.length() <= 255 && @xml.valid_text(password) else {
+  guard password.length() <= PasswordUnits && @xml.valid_text(password) else {
     @failure.reject(
       "invalid-operation", "Protection passwords require at most 255 valid UTF-16 units",
     )

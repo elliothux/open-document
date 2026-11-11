@@ -51,7 +51,10 @@ pub(all) struct FontInfo {
   bbox : Array[Int32]
   capHeight : Int32
   italicAngle : Double
-} derive(ToJson)
+} derive(Eq, ToJson)
+
+///|
+pub extend FontInfo with Eq::{equal, not_equal}
 
 ///|
 pub extend FontInfo with ToJson::{to_json}

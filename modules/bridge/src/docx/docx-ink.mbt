@@ -1,39 +1,63 @@
 ///|
+priv struct InkStrokeStyle {
+  color : String
+  width : @common.RequestNumber
+  highlighter : Bool
+} derive(@json.FromJson)
+
+///|
 fn ink_stroke(request : Json) -> @model.InkStroke raise @failure.Failure {
   guard request is { "stroke": stroke, .. } &&
     stroke is { "points": Array(points), .. } else {
     @failure.reject("invalid-operation", "Ink samples are required")
   }
-  guard points.length() > 0 && points.length() <= 4096 else {
-    @failure.reject("limit-exceeded", "Ink requires 1 to 4096 points")
+  guard points.length() > 0 && points.length() <= @model.InkStrokePoints else {
+    @failure.reject(
+      "limit-exceeded",
+      "Ink requires 1 to \{@model.InkStrokePoints} points",
+    )
   }
+  let samples = points.map(point => {
+    guard point is [Number(x, ..), Number(y, ..)] else {
+      @failure.reject(
+        "invalid-operation", "Ink samples require coordinate pairs",
+      )
+    }
+    (x, y)
+  })
+  let style : InkStrokeStyle = @common.request(stroke)
   {
-    points: points.map(point => {
-      guard point is [Number(x, ..), Number(y, ..)] else {
-        @failure.reject(
-          "invalid-operation", "Ink samples require coordinate pairs",
-        )
-      }
-      (x, y)
-    }),
-    color: field_string(stroke, "color"),
-    width: field_number(stroke, "width"),
-    highlighter: field_boolean(stroke, "highlighter"),
+    points: samples,
+    color: style.color,
+    width: style.width.value,
+    highlighter: style.highlighter,
   }
 }
 
 ///|
+priv struct InkOperationRequest {
+  action : String
+  page : @common.RequestInt
+  profile : Json?
+} derive(@json.FromJson)
+
+///|
+priv struct InkEraseRequest {
+  x : @common.RequestNumber
+  y : @common.RequestNumber
+} derive(@json.FromJson)
+
+///|
 fn Context::ink_operation(
   self : Context,
+  session : @model.Session,
   request : Json,
 ) -> Json raise @failure.Failure {
-  guard self.docx is Some(session) else {
-    @failure.reject("invalid-operation", "Open a DOCX session first")
-  }
-  let revision = field_int(request, "revision")
+  let revision = @common.request_revision(request)
   let layout = self.current_layout(request)
-  let page = field_int(request, "page")
-  let action = field_string(request, "action")
+  let command : InkOperationRequest = @common.request(request)
+  let page = command.page.value
+  let action = command.action
   if action == "preview" {
     return session.preview_ink(revision, layout, page, ink_stroke(request))
   }
@@ -45,22 +69,14 @@ fn Context::ink_operation(
         page,
         ink_stroke(request),
         probe=self.probe,
-        profile=font_profile(request),
+        profile=drawing_profile(command.profile),
         images=self.images,
       )
-    "erase" =>
-      session.erase_ink(
-        revision,
-        layout,
-        page,
-        field_number(request, "x"),
-        field_number(request, "y"),
-      )
+    "erase" => {
+      let point : InkEraseRequest = @common.request(request)
+      session.erase_ink(revision, layout, page, point.x.value, point.y.value)
+    }
     _ => @failure.reject("invalid-operation", "Unknown ink action")
   }
-  if result is { "revision": Number(current, ..), .. } &&
-    current != revision.to_double() {
-    self.layout = None
-  }
-  result
+  self.clear_edit_layout(result, previous=revision)
 }

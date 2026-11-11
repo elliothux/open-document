@@ -9,11 +9,7 @@ fn object_markup(
   text : String,
 ) -> String raise @failure.Failure {
   guard (kind == "text" || supported_shape(kind)) &&
-    @xml.valid_text(text) &&
-    !text.contains("\r") &&
-    text.length() <= 32767 &&
-    text.split("\n").count() <= 256 &&
-    text.split("\n").all(p => p.length() <= 4096) &&
+    valid_text_frame_content(text) &&
     (kind != "line" || text.is_empty()) else {
     @failure.reject("invalid-operation", "Invalid object kind or text")
   }

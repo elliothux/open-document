@@ -1,4 +1,5 @@
 import type { DrawCommand } from "@open-document/wasm/abi/drawing";
+import { tileReplayWork } from "@open-document/wasm/engine-source";
 
 function resampleBitmapCell(
   source: Uint8ClampedArray,
@@ -40,7 +41,7 @@ function resampleBitmapCell(
 export function drawBitmapPattern(
   context: CanvasRenderingContext2D,
   command: Extract<DrawCommand, { op: "patternRect" }>,
-  pdf: boolean,
+  coverage: boolean,
   createTarget: (width: number, height: number) => CanvasRenderingContext2D,
 ): void {
   const colors = [command.zero, command.one].map((color) => [
@@ -58,12 +59,12 @@ export function drawBitmapPattern(
   const axisAligned = m.b === 0 && m.c === 0;
   // Office chart hatches keep their bitmap pixels and start at the paint bounds.
   const screenTile =
-    !pdf && command.screenDevice && axisAligned && m.a > 0 && m.d > 0;
+    !coverage && command.screenDevice && axisAligned && m.a > 0 && m.d > 0;
   const width = m.a * command.period,
     height = m.d * command.period;
-  // shortcut: integer-sized axis-aligned PDF tiles use the native grid for fractional source pixels; retain existing sampling for other transforms.
+  // shortcut: fractional source pixels use the native grid for integer-sized axis-aligned tiles; retain existing sampling for other transforms.
   const deviceTile =
-    pdf &&
+    coverage &&
     axisAligned &&
     [width, height].every(
       (size) => Number.isInteger(size) && size >= 8 && size < 31,
@@ -94,7 +95,7 @@ export function drawBitmapPattern(
   try {
     context.imageSmoothingEnabled =
       !deviceTile &&
-      (!pdf ||
+      (!coverage ||
         command.period * Math.min(Math.hypot(m.a, m.b), Math.hypot(m.c, m.d)) <
           8);
     context.fillStyle = pattern;
@@ -107,7 +108,6 @@ export function drawBitmapPattern(
 export function drawTile(
   context: CanvasRenderingContext2D,
   command: Extract<DrawCommand, { op: "tile" }>,
-  pdf: boolean,
   createTarget: (
     width: number,
     height: number,
@@ -152,9 +152,9 @@ export function drawTile(
   // Keep the existing surface budget check before replaying native cells.
   // shortcut: larger replay programs retain the cache; extend with a measured native case.
   if (
-    pdf &&
+    command.replay &&
     repeatX * repeatY <= 4 &&
-    columns * rows * command.commands.length <= 1048576
+    columns * rows * command.commands.length <= tileReplayWork
   ) {
     for (let row = 0; row < rows; row++)
       for (let column = 0; column < columns; column++) {

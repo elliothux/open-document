@@ -1,4 +1,7 @@
 ///|
+pub const RedactionRegionCount : Int32 = 4096
+
+///|
 pub(all) struct PdfRedactionRegion {
   page : String
   x : Double
@@ -100,7 +103,7 @@ fn PdfSession::redaction_regions(
   guard self.readOnlyReason.is_empty() else {
     @failure.reject("protected-content", self.readOnlyReason)
   }
-  guard !regions.is_empty() && regions.length() <= 4096 else {
+  guard !regions.is_empty() && regions.length() <= RedactionRegionCount else {
     @failure.reject("invalid-selection", "Choose bounded PDF redaction regions")
   }
   for region in regions {

@@ -1,4 +1,29 @@
 ///|
+priv struct PlaceholderKindRequest {
+  kind : String
+} derive(@json.FromJson(fields(kind(rename="type"))))
+
+///|
+priv struct PlaceholderDefinitionRequest {
+  kind : String
+  index : @common.RequestNumber
+} derive(@json.FromJson(fields(kind(rename="type"))))
+
+///|
+priv struct InsertShapeKindRequest {
+  kind : String
+} derive(@json.FromJson)
+
+///|
+priv struct InsertObjectFrameRequest {
+  x : @common.RequestNumber
+  y : @common.RequestNumber
+  width : @common.RequestNumber
+  height : @common.RequestNumber
+  text : String
+} derive(@json.FromJson)
+
+///|
 fn pptx_placeholder(change : Json) -> @model.ObjectEdit raise @failure.Failure {
   guard change is Object(fields) &&
     fields.length() == 2 &&
@@ -11,30 +36,25 @@ fn pptx_placeholder(change : Json) -> @model.ObjectEdit raise @failure.Failure {
   guard value is Object(fields) && fields.length() == 2 else {
     @failure.reject("invalid-operation", "Invalid placeholder definition")
   }
-  @model.Placeholder(
-    Some(field_string(value, "type")),
-    field_number(value, "index"),
-  )
+  let request : PlaceholderDefinitionRequest = @common.request(value)
+  @model.Placeholder(Some(request.kind), request.index.value)
 }
 
 ///|
 fn pptx_insert_object(
+  action : String,
   change : Json,
 ) -> @model.ObjectEdit raise @failure.Failure {
-  let action = field_string(change, "action")
-  let x = field_number(change, "x")
-  let y = field_number(change, "y")
-  let width = field_number(change, "width")
-  let height = field_number(change, "height")
-  let text = field_string(change, "text")
+  let frame : InsertObjectFrameRequest = @common.request(change)
   if action == "insert" {
+    let request : InsertShapeKindRequest = @common.request(change)
     return @model.Insert(
-      field_string(change, "kind"),
-      x,
-      y,
-      width,
-      height,
-      text,
+      request.kind,
+      frame.x.value,
+      frame.y.value,
+      frame.width.value,
+      frame.height.value,
+      frame.text,
     )
   }
   guard action == "insertPlaceholder" &&
@@ -42,12 +62,13 @@ fn pptx_insert_object(
     fields.length() == 7 else {
     @failure.reject("invalid-operation", "Invalid placeholder insertion fields")
   }
+  let request : PlaceholderKindRequest = @common.request(change)
   @model.InsertPlaceholder(
-    field_string(change, "type"),
-    x,
-    y,
-    width,
-    height,
-    text,
+    request.kind,
+    frame.x.value,
+    frame.y.value,
+    frame.width.value,
+    frame.height.value,
+    frame.text,
   )
 }

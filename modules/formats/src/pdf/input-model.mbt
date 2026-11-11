@@ -1,4 +1,7 @@
 ///|
+pub const PageOperationCount : Int32 = 1024
+
+///|
 pub(all) struct PdfBudget {
   fileBytes : Int32
   objects : Int32
@@ -60,6 +63,65 @@ priv struct TextSpan {
 }
 
 ///|
+pub struct PdfText {
+  page : String
+  revision : Int32
+  text : String
+  priv spans : Array[TextSpan]
+  complete : Bool
+  diagnostics : Array[String]
+} derive(ToJson)
+
+///|
+pub extend PdfText with ToJson::{to_json}
+
+///|
+pub struct PdfSearchHit {
+  start : Int32
+  end : Int32
+  quads : Array[Array[Double]]
+} derive(ToJson)
+
+///|
+pub extend PdfSearchHit with ToJson::{to_json}
+
+///|
+pub struct PdfSearch {
+  page : String
+  revision : Int32
+  complete : Bool
+  hits : Array[PdfSearchHit]
+  diagnostics : Array[String]
+} derive(ToJson)
+
+///|
+pub extend PdfSearch with ToJson::{to_json}
+
+///|
+pub struct PdfSelection {
+  page : String
+  layoutId : Int32
+  revision : Int32
+  anchor : Int32
+  focus : Int32
+  quads : Array[Array[Double]]
+} derive(ToJson)
+
+///|
+pub extend PdfSelection with ToJson::{to_json}
+
+///|
+pub struct PdfHit {
+  page : String
+  layoutId : Int32
+  revision : Int32
+  offset : Int32
+} derive(ToJson)
+
+///|
+pub extend PdfHit with ToJson::{to_json}
+
+///|
 impl ToJson for TextSpan with fn to_json(self) {
   {
     "start": self.start,
@@ -73,10 +135,50 @@ impl ToJson for TextSpan with fn to_json(self) {
 }
 
 ///|
+type PdfDisplaySpan = (Int32, Int32, String, Array[Double], String, Bool, Bool)
+
+///|
+fn TextSpan::display_span(self : TextSpan) -> PdfDisplaySpan {
+  let quad = match self.quad {
+    [x0, y0, x1, y1, x2, y2, x3, y3] if x0.reinterpret_as_uint64() ==
+      x1.reinterpret_as_uint64() &&
+      y1.reinterpret_as_uint64() == y2.reinterpret_as_uint64() &&
+      x2.reinterpret_as_uint64() == x3.reinterpret_as_uint64() &&
+      y3.reinterpret_as_uint64() == y0.reinterpret_as_uint64() =>
+      [x0, y0, x2, y2]
+    _ => self.quad
+  }
+  (
+    self.start,
+    self.end,
+    self.text,
+    quad,
+    self.source,
+    self.mapped,
+    self.invisible,
+  )
+}
+
+///|
+priv struct PdfDisplayContent {
+  revision : Int32
+  page : String
+  regions : Array[Json]
+  images : Array[String]
+  text : String
+  spans : Array[PdfDisplaySpan]
+  textComplete : Bool
+  displayComplete : Bool
+  diagnostics : Array[String]
+} derive(ToJson)
+
+///|
 struct PageDisplay {
+  mut response : (PdfDisplayContent, Json)?
   extraction : PdfExtractionData?
   sources : Array[PdfSourceObject]
   profile : Map[String, String]
+  supplied_fonts : String
   resources : @layout.Images
   imageBytes : Int32
   page : String
@@ -99,6 +201,7 @@ priv struct JpegImage {
   bytes : Bytes
   width : Int32
   height : Int32
+  blocks : Int32
   decode : Array[Double]
   alpha : Bytes?
   matte : Array[Double]?
@@ -137,6 +240,7 @@ pub struct PdfSession {
   mut layoutId : Int32
   mut display : PageDisplay?
   views : Map[Int32, PageDisplay]
+  priv mut encodedDisplay : (PdfDisplayContent, String)?
   mut current : String
   mut selection : (Int32, Int32)
   mut textRange : (String, Int32, String, Int32)?
@@ -225,6 +329,7 @@ pub fn PdfSession::close(self : PdfSession) -> Unit {
     display.probe.close()
   }
   self.views.clear()
+  self.encodedDisplay = None
   self.display = None
   self.document.sdk_clear()
   self.generations.clear()

@@ -23,9 +23,9 @@ export function AnnotationCommands({
       }
       onStamp={(file, signature) =>
         controller.run(async () => {
-          if (file.size > 16777216)
+          if (file.size > editor.inputLimits.rgbaBytes)
             throw new Error("Stamp image exceeds budget");
-          const result = await editor.insertStamp(
+          const result = await editor.operations.insertStamp(
             new Uint8Array(await file.arrayBuffer()),
             signature,
           );

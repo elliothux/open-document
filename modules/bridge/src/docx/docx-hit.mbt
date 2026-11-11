@@ -1,23 +1,24 @@
 ///|
-fn select_docx(
-  session : @model.Session,
-  request : Json,
-  all : Bool,
-) -> Json raise @failure.Failure {
-  let revision = field_int(request, "revision")
-  if all {
-    session.select_all(revision)
-  } else {
-    session.select(revision, field_selection(request))
-  }
-}
+priv struct HitResponse {
+  layoutId : Int32
+  revision : Int32
+  page : Int32
+  line : Int32
+  position : Json
+  drawing : Json
+  editable : Bool
+  reason : String
+  x : Double
+  y : Double
+  height : Double
+} derive(ToJson)
 
 ///|
 fn Context::hit_result(
   self : Context,
   session : @model.Session,
   hit : @layout.Hit,
-) -> Json raise @failure.Failure {
+) -> HitResponse raise @failure.Failure {
   let position : @model.Position = {
     paragraph: hit.paragraph,
     offset: hit.offset,
@@ -63,16 +64,16 @@ fn Context::hit_result(
     Json::null()
   }
   {
-    "layoutId": self.layout_id,
-    "revision": self.layout.unwrap().revision,
-    "page": hit.page,
-    "line": hit.line,
-    "position": logical,
-    "drawing": drawing,
-    "editable": reason.is_empty(),
-    "reason": reason,
-    "x": hit.x,
-    "y": hit.y,
-    "height": hit.height,
+    layoutId: self.layout_id,
+    revision: self.layout.unwrap().revision,
+    page: hit.page,
+    line: hit.line,
+    position: logical,
+    drawing,
+    editable: reason.is_empty(),
+    reason,
+    x: hit.x,
+    y: hit.y,
+    height: hit.height,
   }
 }

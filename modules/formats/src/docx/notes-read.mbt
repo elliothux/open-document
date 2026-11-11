@@ -110,7 +110,7 @@ fn read_doc_note(
     reason = "protected-content:note-reference-marker"
   }
   let text = content.join("\n")
-  guard text.length() <= 32767 else {
+  guard text.length() <= NoteTextUnits else {
     @failure.reject("limit-exceeded", "Note text exceeds32767 units")
   }
   { key, node: id, paragraphs, texts, text, reason, }

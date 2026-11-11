@@ -1,4 +1,16 @@
 ///|
+pub const SourceNameUnits : Int32 = 1024
+
+///|
+const MasterCatalogCount : Int32 = 256
+
+///|
+const LayoutCatalogCount : Int32 = 256
+
+///|
+const SourceCatalogUnits : Int32 = 1048576
+
+///|
 fn Session::master_choices(
   self : Session,
 ) -> Array[(Tree, String)] raise @failure.Failure {
@@ -9,7 +21,7 @@ fn Session::master_choices(
     uri=presentation_uri,
   )
   let items = self.main.all(list.id, "sldMasterId", uri=presentation_uri)
-  guard items.length() <= 256 else {
+  guard items.length() <= MasterCatalogCount else {
     @failure.reject("limit-exceeded", "Slide master catalog exceeds budget")
   }
   let seen : Map[String, Bool] = Map([])
@@ -32,7 +44,7 @@ fn Session::master_choices(
       .required(tree.root("sldMaster").id, "cSld", uri=presentation_uri)
       .attribute("name")
       .unwrap_or("")
-    guard name.length() <= 1024 else {
+    guard name.length() <= SourceNameUnits else {
       @failure.reject("limit-exceeded", "Slide master name exceeds budget")
     }
     (tree, name)
@@ -68,7 +80,7 @@ fn Session::source_choices(
     .fold(init=0, (sum, item) => {
       sum + item.tree.part.length() + item.name.length() + item.master.length()
     })
-  guard units <= 1048576 else {
+  guard units <= SourceCatalogUnits else {
     @failure.reject("limit-exceeded", "Source catalog exceeds budget")
   }
   choices
@@ -127,48 +139,63 @@ fn Session::source_slide(
 }
 
 ///|
-fn Session::edit_view_query(self : Session, current : Slide) -> Json {
+priv struct SourceChoiceQuery {
+  id : String
+  name : String
+  kind : String
+  master : String
+} derive(ToJson)
+
+///|
+priv struct EditViewQuery {
+  kind : String
+  slide : String
+  choices : Array[SourceChoiceQuery]
+  reason : String
+  operations : SourceOperationsQuery
+  textStyles : MasterTextStylesQuery
+} derive(ToJson)
+
+///|
+fn Session::edit_view_query(self : Session, current : Slide) -> EditViewQuery {
   let kind = match current.tree.document.nodes()[0].name {
     "sldMaster" => "master"
     "sldLayout" => "layout"
     _ => "slide"
   }
   try {
-    let choices = self
+    let choices : Array[SourceChoiceQuery] = self
       .source_choices()
       .map(item => {
-        let choice : Json = {
-          "id": item.tree.part,
-          "name": item.name,
-          "kind": item.kind,
-          "master": item.master,
-        }
-        choice
+        id: item.tree.part,
+        name: item.name,
+        kind: item.kind,
+        master: item.master,
       })
     {
-      "kind": kind,
-      "slide": self.last_slide,
-      "choices": choices,
-      "reason": "",
-      "operations": self.source_operations(current),
-      "textStyles": self.master_text_styles(current),
+      kind,
+      slide: self.last_slide,
+      choices,
+      reason: "",
+      operations: self.source_operations(current),
+      textStyles: self.master_text_styles(current),
     }
   } catch {
     @failure.Failure(message~, ..) =>
       {
-        "kind": kind,
-        "slide": self.last_slide,
-        "choices": [],
-        "textStyles": { "items": [], "reason": message },
-        "reason": message,
-        "operations": {
-          "rename": message,
-          "addLayout": message,
-          "copyLayout": message,
-          "deleteLayout": message,
-          "deleteMaster": message,
-          "addMaster": message,
-          "copyMaster": message,
+        kind,
+        slide: self.last_slide,
+        choices: [],
+        textStyles: { items: [], reason: message, },
+        reason: message,
+        operations: {
+          rename: message,
+          addLayout: message,
+          copyLayout: message,
+          deleteLayout: message,
+          deleteMaster: message,
+          addMaster: message,
+          copyMaster: message,
         },
       }
   }

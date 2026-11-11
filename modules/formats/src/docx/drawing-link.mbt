@@ -115,25 +115,30 @@ fn Session::editable_drawing_link(
 }
 
 ///|
+priv struct DrawingLinkQuery {
+  target : Json
+  reason : String
+} derive(ToJson)
+
+///|
 fn Session::drawing_link_summary(
   self : Session,
   tree : WordTree,
   id : Int32,
   links? : Map[String, @opc.Relationship],
   bookmarks? : Map[String, Bool],
-) -> Json {
+) -> DrawingLinkQuery {
   try {
     ignore(self.editable_drawing_link(tree, id))
     {
-      "target": self
+      target: self
       .drawing_link_target(tree, id, links?, bookmarks?)
       .map(value => Json(value))
       .unwrap_or(Json::null()),
-      "reason": "",
+      reason: "",
     }
   } catch {
-    @failure.Failure(message~, ..) =>
-      { "target": Json::null(), "reason": message }
+    @failure.Failure(message~, ..) => { target: Json::null(), reason: message, }
   }
 }
 

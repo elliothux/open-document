@@ -1,42 +1,35 @@
 ///|
+priv struct ShowMediaChangeRequest {
+  object : String
+  token : @common.RequestInt
+  action : String
+} derive(@json.FromJson)
+
+///|
+priv struct ShowMediaErrorRequest {
+  message : String
+} derive(@json.FromJson)
+
+///|
 fn pptx_show_media(
-  session : @model.Session,
-  request : Json,
-) -> Json raise @failure.Failure {
-  guard request is { "change": change, .. } else {
-    @failure.reject("invalid-operation", "Missing media change")
-  }
-  let keys = if field_string(change, "action") == "error" {
-    ["object", "token", "action", "message"]
-  } else {
-    ["object", "token", "action"]
-  }
+  change : Json,
+) -> @model.ShowMediaChange raise @failure.Failure {
+  let request : ShowMediaChangeRequest = @common.request(change)
+  let error = request.action == "error"
   guard change is Object(fields) &&
-    fields.length() == keys.length() &&
-    fields.keys().all(key => keys.contains(key)) else {
+    fields.length() == (if error { 4 } else { 3 }) else {
     @failure.reject("invalid-operation", "Invalid media change fields")
   }
-  let layout = match request {
-    { "layoutId": Number(_, ..), .. } => Some(field_int(request, "layoutId"))
-    { "layoutId": _, .. } =>
-      @failure.reject("invalid-operation", "Invalid media frame")
-    _ => None
+  let message = if error {
+    let error_request : ShowMediaErrorRequest = @common.request(change)
+    error_request.message
+  } else {
+    ""
   }
-  let message = match change {
-    { "message": String(message), .. } => message
-    { "message": _, .. } =>
-      @failure.reject("invalid-operation", "Invalid media error")
-    _ => ""
+  {
+    object: request.object,
+    token: request.token.value,
+    action: request.action,
+    message,
   }
-  session.media_show(
-    field_int(request, "revision"),
-    layout,
-    field_number(request, "time"),
-    {
-      object: field_string(change, "object"),
-      token: field_int(change, "token"),
-      action: field_string(change, "action"),
-      message,
-    },
-  )
 }

@@ -77,7 +77,9 @@ pub fn write(
   text_groups~ : Array[PdfTextGroup] = [],
   image_smoothing~ : Bool = true,
 ) -> Bytes raise @failure.Failure {
-  guard !layout.pages.is_empty() && output_limit > 0 && output_limit <= 67108864 else {
+  guard !layout.pages.is_empty() &&
+    output_limit > 0 &&
+    output_limit <= @layout.ExportBytes else {
     @failure.reject(
       "invalid-budget", "Invalid PDF output budget or empty layout",
     )
@@ -155,6 +157,10 @@ pub fn write(
         }
         match primitive {
           PixelCenters | IntegerScreenGlyphs => ()
+          CachedDrawing(_, _) =>
+            @failure.reject(
+              "unsupported-drawing", "Screen drawing requires a vector source",
+            )
           PatternRectangle(rect, period, mask, zero, one, ..) => {
             @layout.validate_pattern(rect, period, mask, zero, one)
             ignore(world.inverse())
@@ -228,8 +234,11 @@ pub fn write(
             } else {
               rect
             }
-            // ONLYOFFICE starts radial gradients at a one-millimetre inner circle.
-            let inner = if radial { 72.0 / 25.4 / side } else { 0.0 }
+            let inner = if radial {
+              @layout.RADIAL_GRADIENT_INNER_RADIUS / side
+            } else {
+              0.0
+            }
             let key = radial.to_string() +
               inner.to_string() +
               Json(stops).stringify()

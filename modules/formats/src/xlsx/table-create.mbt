@@ -52,8 +52,8 @@ fn Session::create_table(
   }
   let labels : Array[String] = []
   for column in range.left..<=range.right {
-    let address = Address::{ row: range.top, column, }.name()
-    let cell = current.cells.get(address)
+    let address : Address = { row: range.top, column, }
+    let cell = current.cells.get(address.name())
     guard cell
       .map(cell => cell.read_only.is_empty() && cell.group is None)
       .unwrap_or(true) else {

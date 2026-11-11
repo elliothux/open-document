@@ -9,6 +9,7 @@ fn SheetObject::paint(
   view~ : Bool = false,
   after_bar3d~ : Bool = false,
   screen_scale~ : Double? = None,
+  chart_tiles~ : ChartTiles? = None,
 ) -> Unit raise @failure.Failure {
   if self.timeline is Some(timeline) {
     if self.visible && rect.width > 0 && rect.height > 0 {
@@ -28,21 +29,31 @@ fn SheetObject::paint(
       primitives.push(
         Transform({ a: 1, b: 0, c: 0, d: 1, e: rect.x, f: rect.y, }),
       )
-      let painted = chart.paint(
-        rect.width,
-        rect.height,
-        probe,
-        profile,
-        visible=self.chart_visibility,
-        after_bar3d~,
-        print=!view,
-      )
-      if view &&
-        (chart.native_circular is Some(_) || chart.native_bubble is Some(_)) &&
-        screen_scale is Some(scale) {
-        probe.fit_screen_text(painted, scale)
+      let key = (self.id, rect.width, rect.height)
+      if chart_tiles.bind(tiles => tiles.entries.get(key)) is Some(painted) {
+        primitives.append(painted)
+      } else {
+        let painted = chart.paint(
+          rect.width,
+          rect.height,
+          probe,
+          profile,
+          visible=self.chart_visibility,
+          after_bar3d~,
+          print=!view,
+        )
+        if view &&
+          (chart.native_circular is Some(_) || chart.native_bubble is Some(_)) &&
+          screen_scale is Some(scale) {
+          probe.fit_screen_text(painted, scale)
+        }
+        primitives.append(
+          match chart_tiles {
+            Some(tiles) => tiles.keep(key, painted, probe)
+            None => painted
+          },
+        )
       }
-      primitives.append(painted)
       primitives.push(Restore)
       primitives.push(Restore)
     }

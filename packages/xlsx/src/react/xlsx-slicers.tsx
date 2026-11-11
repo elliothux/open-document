@@ -26,7 +26,7 @@ export function XlsxSlicersPanel({
   const [catalog, setCatalog] = useState<XlsxSlicers>();
   const current =
     catalog?.revision === query.revision && catalog.sheet === query.sheet;
-  const load = async () => setCatalog(await editor.slicers());
+  const load = async () => setCatalog(await editor.objects.slicers());
   return (
     <fieldset disabled={disabled}>
       <legend>{t.slicers}</legend>
@@ -57,7 +57,7 @@ export function XlsxSlicersPanel({
             disabled={disabled || !current}
             remove={() =>
               controller.run(async () => {
-                await editor.editSheet({
+                await editor.objects.editSheet({
                   action: "deleteSlicer",
                   name: item.name,
                 });
@@ -66,7 +66,7 @@ export function XlsxSlicersPanel({
             }
             apply={(indices) =>
               controller.run(async () => {
-                await editor.editSheet({
+                await editor.objects.editSheet({
                   action: "filterSlicer",
                   name: item.name,
                   indices,
@@ -83,7 +83,7 @@ export function XlsxSlicersPanel({
                 disabled={item.lockedPosition}
                 apply={(frame) =>
                   controller.run(async () => {
-                    await editor.setSlicerFrame(drawing.id, frame);
+                    await editor.objects.setSlicerFrame(drawing.id, frame);
                     await load();
                   })
                 }
@@ -136,7 +136,7 @@ function CreateSlicer({
         type="button"
         onClick={() =>
           controller.run(async () => {
-            const next = await editor.pivots();
+            const next = await editor.objects.pivots();
             setPivots(next);
             if (!next.items.some((item) => item.part === pivot))
               setPivot(next.items[0]?.part ?? "");
@@ -216,7 +216,7 @@ function CreateSlicer({
         disabled={!valid}
         onClick={() =>
           controller.run(async () => {
-            await editor.insertSlicer(settings);
+            await editor.objects.insertSlicer(settings);
             await created();
           })
         }

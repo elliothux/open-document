@@ -1,4 +1,8 @@
 import { record, integer } from "@open-document/wasm/abi/validation";
+import {
+  xlsxConditionalTextUnits,
+  xlsxFormulaSourceUnits,
+} from "@open-document/wasm/engine-source";
 import { checkXlsxCellFormat, type XlsxCellFormat } from "./xlsx-format.js";
 import { validationOperators } from "./xlsx-validation.js";
 
@@ -186,7 +190,8 @@ export function checkXlsxConditionalFormat(value: unknown): void {
     const text = rule[key];
     if (
       typeof text !== "string" ||
-      text.length > 8192 ||
+      text.length >
+        (key === "text" ? xlsxConditionalTextUnits : xlsxFormulaSourceUnits) ||
       !text.isWellFormed() ||
       Array.from(text).some((c) => {
         const n = c.codePointAt(0)!;
@@ -353,7 +358,7 @@ function checkConditionalStop(value: unknown): void {
     !Object.keys(stop).every((k) => ["kind", "value", "color"].includes(k)) ||
     !conditionalThresholds.some((k) => k === stop.kind) ||
     typeof stop.value !== "string" ||
-    stop.value.length > 8192 ||
+    stop.value.length > xlsxFormulaSourceUnits ||
     !stop.value.isWellFormed() ||
     Array.from(stop.value).some((c) => {
       const n = c.codePointAt(0)!;
@@ -375,52 +380,4 @@ function checkConditionalStop(value: unknown): void {
       (Number(stop.value) < 0 || Number(stop.value) > 100))
   )
     throw new Error("Invalid color scale threshold");
-}
-export function xlsxConditionalState(value: unknown): XlsxConditionalState {
-  const state = record(value);
-  if (
-    typeof state.readOnlyReason !== "string" ||
-    !Array.isArray(state.rules) ||
-    state.rules.length > 4096
-  )
-    throw new Error("Invalid conditional formatting query");
-  let units = 0;
-  const seen = new Set<number>();
-  for (const item of state.rules) {
-    const rule = record(item);
-    if (
-      typeof rule.priority !== "number" ||
-      !integer(rule.priority, 1, 2147483647) ||
-      seen.has(rule.priority) ||
-      typeof rule.ranges !== "string" ||
-      !rule.ranges ||
-      rule.ranges.length > 262144 ||
-      typeof rule.readOnlyReason !== "string"
-    )
-      throw new Error("Invalid conditional rule query");
-    seen.add(rule.priority);
-    checkXlsxConditionalFormat(rule.rule);
-    const settings = record(rule.rule);
-    units +=
-      rule.ranges.length +
-      String(settings.formula1).length +
-      String(settings.formula2).length;
-    if (Array.isArray(settings.stops))
-      for (const item of settings.stops)
-        units += String(record(item).value).length;
-    if (settings.bar !== undefined) {
-      const bar = record(settings.bar);
-      units +=
-        String(record(bar.minimum).value).length +
-        String(record(bar.maximum).value).length;
-    }
-    if (settings.icons !== undefined) {
-      const icons = record(settings.icons);
-      if (Array.isArray(icons.thresholds))
-        for (const threshold of icons.thresholds)
-          units += String(record(threshold).value).length;
-    }
-  }
-  if (units > 1048576) throw new Error("Conditional query exceeds text budget");
-  return value as XlsxConditionalState;
 }

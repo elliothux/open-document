@@ -78,7 +78,7 @@ fn Session::adjacent_fill(
   guard width.to_int64() * (source.bottom - source.top + 1).to_int64() <= 4096 else {
     @failure.reject("limit-exceeded", "Fill preview exceeds 4096 cells")
   }
-  if source.bottom == 1048576 {
+  if source.bottom == WorksheetRows {
     return source
   }
   let count = sheet.fill_row_count(source.bottom + 1, source)
@@ -87,7 +87,8 @@ fn Session::adjacent_fill(
       return source
     }
     let mut bottom = source.bottom
-    while bottom < 1048576 && sheet.fill_row_count(bottom + 1, source) == width {
+    while bottom < WorksheetRows &&
+          sheet.fill_row_count(bottom + 1, source) == width {
       bottom += 1
       guard width.to_int64() * (bottom - source.top + 1).to_int64() <= 4096 else {
         @failure.reject("limit-exceeded", "Fill preview exceeds 4096 cells")
@@ -99,7 +100,7 @@ fn Session::adjacent_fill(
   let columns : Map[Int32, Array[Int32]] = Map([])
   for cell in sheet.cells.values() {
     let value = self.calculation
-      .bind(c => c.values.get((index, cell.address.name())))
+      .bind(c => c.values.get((index, cell.address)))
       .unwrap_or(cell.value)
     if value == Blank || value == Text("") {
       continue
@@ -115,7 +116,12 @@ fn Session::adjacent_fill(
   for values in columns.values() {
     values.sort()
   }
-  let book : Range = { top: 1, left: 1, bottom: 1048576, right: 16384, }
+  let book : Range = {
+    top: 1,
+    left: 1,
+    bottom: WorksheetRows,
+    right: WorksheetColumns,
+  }
   let mut region = fill_region(source, book, rows, columns)
   if read_filter(sheet) is Some(filter) && region.intersects(filter.bounds) {
     let cut = filter.bounds

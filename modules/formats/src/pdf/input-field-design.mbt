@@ -17,7 +17,10 @@ pub(all) struct PdfFieldDesign {
   color : String
   background : String
   border : Double
-}
+} derive(Eq)
+
+///|
+pub extend PdfFieldDesign with Eq::{equal, not_equal}
 
 ///|
 fn design_value(
@@ -224,7 +227,7 @@ pub fn PdfSession::create_field(
     spec.placement.x + spec.placement.width <= page.width &&
     spec.placement.y + spec.placement.height <= page.height &&
     spec.maxLength >= 0 &&
-    spec.maxLength <= 32767 &&
+    spec.maxLength <= TextUnits &&
     spec.size >= 0 &&
     spec.size <= 14400 &&
     spec.border >= 0 &&

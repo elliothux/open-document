@@ -203,6 +203,22 @@ fn Session::read_sheet_notes(
   sheet : Sheet,
   allow_threads~ : Bool = false,
 ) -> SheetNotes? raise @failure.Failure {
+  let cache = self.read_cache()
+  let key = (sheet.id, allow_threads)
+  if cache.notes.get(key) is Some(notes) {
+    return notes
+  }
+  let notes = self.parse_sheet_notes(sheet, allow_threads~)
+  cache.notes[key] = notes
+  notes
+}
+
+///|
+fn Session::parse_sheet_notes(
+  self : Session,
+  sheet : Sheet,
+  allow_threads~ : Bool,
+) -> SheetNotes? raise @failure.Failure {
   let links = self.relationships()
   guard !links.any(l => {
     l.owner == sheet.id &&
@@ -255,7 +271,7 @@ fn Session::note_query(
   self : Session,
   sheet : Sheet,
   requested : Range,
-) -> Json {
+) -> QueryNote {
   try {
     let notes = self.read_sheet_notes(sheet, allow_threads=true)
     let range = sheet.merge_target(requested)
@@ -272,19 +288,19 @@ fn Session::note_query(
     let address : Address = { row: range.top, column: range.left, }
     let threaded = note.bind(n => thread_placeholder_id(n.author)) is Some(_)
     {
-      "address": address.name(),
-      "text": if threaded {
+      address: address.name(),
+      text: if threaded {
         ""
       } else {
         note.map(n => n.text).unwrap_or("")
       },
-      "author": if threaded {
+      author: if threaded {
         ""
       } else {
         note.map(n => n.author).unwrap_or("")
       },
-      "exists": note is Some(_) && !threaded,
-      "reason": if !reason.is_empty() {
+      exists: note is Some(_) && !threaded,
+      reason: if !reason.is_empty() {
         reason
       } else if !one {
         "Select one cell or merged cell for a note"
@@ -296,12 +312,6 @@ fn Session::note_query(
     }
   } catch {
     @failure.Failure(message~, ..) =>
-      {
-        "address": "",
-        "text": "",
-        "author": "",
-        "exists": false,
-        "reason": message,
-      }
+      { address: "", text: "", author: "", exists: false, reason: message, }
   }
 }

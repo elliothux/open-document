@@ -95,7 +95,7 @@ fn Tree::read_math_run(
     }
     output.write_string(node.text)
     units += node.text.length()
-    guard units <= 4096 else {
+    guard units <= @layout.MathTextUnits else {
       @failure.reject("limit-exceeded", "Fraction text exceeds budget")
     }
   }

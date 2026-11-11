@@ -1,5 +1,6 @@
 import { useLayoutEffect, useState } from "react";
 import { Command, Group } from "@open-document/ui/controls";
+import { pdfRedactionRegionCount } from "@open-document/wasm/engine-source";
 import { downloadBytes } from "@open-document/web-core/download";
 import type { PdfRedactionPreview, PdfRedactionRegion } from "../core/pdf.js";
 import type { PanelProps } from "./context.js";
@@ -24,7 +25,10 @@ export function RedactionPanel({
   const [regions, setRegions] = useState<PdfRedactionRegion[]>([]);
   const [preview, setPreview] = useState<PdfRedactionPreview>();
   const [accepted, setAccepted] = useState(false);
-  useLayoutEffect(() => () => editor.clearRedactionPreview(), [editor]);
+  useLayoutEffect(
+    () => () => editor.operations.clearRedactionPreview(),
+    [editor],
+  );
   useLayoutEffect(() => {
     setPreview(undefined);
     setAccepted(false);
@@ -37,7 +41,7 @@ export function RedactionPanel({
   const invalidate = () => {
     setPreview(undefined);
     setAccepted(false);
-    editor.clearRedactionPreview();
+    editor.operations.clearRedactionPreview();
   };
   const ready =
     preview?.revision === revision && !preview.readOnlyReason && accepted;
@@ -76,7 +80,7 @@ export function RedactionPanel({
       </div>
       <Command
         label={chinese ? "标记当前页区域" : "Mark current page region"}
-        disabled={disabled || regions.length >= 4096}
+        disabled={disabled || regions.length >= pdfRedactionRegionCount}
         action={() => {
           invalidate();
           setRegions((before) => [
@@ -116,7 +120,7 @@ export function RedactionPanel({
         disabled={disabled || regions.length === 0}
         action={() =>
           controller.run(async () => {
-            const result = await editor.previewRedaction(regions);
+            const result = await editor.operations.previewRedaction(regions);
             setAccepted(false);
             setPreview(result);
           })
@@ -173,7 +177,7 @@ export function RedactionPanel({
         disabled={disabled || !ready}
         action={() =>
           controller.run(async () => {
-            const result = await editor.exportRedaction(regions);
+            const result = await editor.operations.exportRedaction(regions);
             downloadBytes(
               result.output.bytes,
               "application/pdf",

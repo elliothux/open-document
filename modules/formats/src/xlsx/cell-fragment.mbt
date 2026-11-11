@@ -1,4 +1,16 @@
 ///|
+pub const CellFragmentCells : Int32 = 4096
+
+///|
+pub const CellFragmentMerges : Int32 = 1024
+
+///|
+pub const CellFragmentTextUnits : Int32 = 1048576
+
+///|
+pub const CellClipboardJsonUnits : Int32 = 4194304
+
+///|
 pub(all) struct CopiedCell {
   value : Value
   formula : String?
@@ -63,7 +75,7 @@ pub impl ToJson for CopiedCells with fn to_json(self) {
           Json::null()
         },
         "format": Json::object(
-          cell.format.applied(default_style()).format_values(),
+          cell.format.applied(default_style()).cell_format().format_values(),
         ),
       })
     }),
@@ -71,7 +83,7 @@ pub impl ToJson for CopiedCells with fn to_json(self) {
     "conditional": self.conditional.map(rule => {
       "ranges": Json(rule.ranges),
       "anchor": { "row": rule.anchor.row, "column": rule.anchor.column },
-      "settings": rule.settings.json(),
+      "settings": Json(rule.settings),
     }),
     "validations": self.validations.map(rule => {
       "ranges": Json(rule.ranges),
@@ -113,12 +125,15 @@ pub extend CopiedCells with ToJson::{to_json}
 fn CopiedCells::validate(self : CopiedCells) -> Unit raise @failure.Failure {
   guard !self.cells.is_empty() &&
     !self.cells[0].is_empty() &&
-    self.cells.length().to_int64() * self.cells[0].length().to_int64() <= 4096 &&
+    self.cells.length().to_int64() * self.cells[0].length().to_int64() <=
+    CellFragmentCells.to_int64() &&
     self.cells.all(row => row.length() == self.cells[0].length()) &&
     self.top >= 1 &&
     self.left >= 1 &&
-    self.top.to_int64() + self.cells.length().to_int64() - 1 <= 1048576 &&
-    self.left.to_int64() + self.cells[0].length().to_int64() - 1 <= 16384 else {
+    self.top.to_int64() + self.cells.length().to_int64() - 1 <=
+    WorksheetRows.to_int64() &&
+    self.left.to_int64() + self.cells[0].length().to_int64() - 1 <=
+    WorksheetColumns.to_int64() else {
     @failure.reject("invalid-operation", "Expected a bounded cell fragment")
   }
   check_format_merges(self.merges, self.cells.length(), self.cells[0].length())
@@ -131,7 +146,7 @@ fn CopiedCells::validate(self : CopiedCells) -> Unit raise @failure.Failure {
     for cell in row {
       cell.format.complete()
       let text = cell.value.display()
-      guard text.length() <= 32767 && @xml.valid_text(text) else {
+      guard text.length() <= CellTextUnits && @xml.valid_text(text) else {
         @failure.reject("invalid-operation", "Invalid copied cell value")
       }
       if cell.value is Number(value) {
@@ -149,14 +164,14 @@ fn CopiedCells::validate(self : CopiedCells) -> Unit raise @failure.Failure {
         }
       }
       if cell.formula is Some(formula) {
-        guard !formula.is_empty() && formula.length() <= 8192 else {
+        guard !formula.is_empty() && formula.length() <= FormulaSourceUnits else {
           @failure.reject("limit-exceeded", "Copied formula exceeds budget")
         }
         ignore(parse_formula(formula))
       }
       units += text.length().to_int64() +
         cell.formula.map(value => value.length().to_int64()).unwrap_or(0L)
-      guard units <= 1048576 else {
+      guard units <= CellFragmentTextUnits.to_int64() else {
         @failure.reject("limit-exceeded", "Copied cell text exceeds budget")
       }
     }
@@ -195,7 +210,7 @@ pub fn Session::capture_cells(
       let cell = sheet.cells.get(key)
       cells.push({
         value: calculation.values
-        .get((index, key))
+        .get((index, address))
         .unwrap_or(cell.map(cell => cell.value).unwrap_or(Blank)),
         formula: cell.bind(cell => cell.formula),
         format: self.styles[sheet.style_at(address)].copied_format(),
@@ -265,7 +280,7 @@ pub fn Session::paste_cells(
     bottom: self.selection.1.top + rows - 1,
     right: self.selection.1.left + columns - 1,
   }
-  guard target.bottom <= 1048576 && target.right <= 16384 else {
+  guard target.bottom <= WorksheetRows && target.right <= WorksheetColumns else {
     @failure.reject("invalid-address", "Copied cells leave the worksheet")
   }
   let reason = self.format_reason(sheet, target)

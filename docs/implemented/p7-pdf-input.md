@@ -1,6 +1,6 @@
 # P7 PDF 输入、预览与文字查询
 
-状态：`implemented`，2026-10-14。用户可以在本地打开 PDF、切页、缩放、选择复制、提取文字和逐页搜索。只覆盖 Chrome/Chromium。操作与保存见 [P8](p8-pdf-operations.md)，实际 API 和预算归[格式合同](../references/formats.md#pdf-输入与文档操作)。
+状态：`implemented`，2026-10-14。用户可以在本地打开 PDF、切页、缩放、选择复制、提取文字和逐页搜索。只覆盖 Chrome/Chromium。操作与保存见 [P8](p8-pdf-operations.md)，实际 API 和预算归[格式合同](../references/formats/pdf.md#pdf-输入与文档操作)。
 
 ## 已交付范围
 
@@ -29,7 +29,7 @@ MoonBit 拥有源对象图、内容解释、源字形与几何；TypeScript 只�
 
 不含 OCR、任意正文编辑、密码解密、签名验证或 PDF 2.0。CFF/Type1/Type3、竖排 CMap、文字描边/裁剪、inline image、CMYK/ICC/专色、渐变/图案、透明组、其他混合模式、复杂 mask、JPX/JBIG2/CCITT 和可选内容层不在正向显示范围。JPEG 仅支持 8-bit Gray/RGB 分量、匹配尺寸、无 ICC profile、无 DecodeParms 的 DCT 图片。
 
-读取预算在词法、对象深度、xref、流分配、Flate、Predictor、CMap/CID 范围和内容循环前检查。嵌套操作共享耗尽状态，依赖的错误回退不能重置预算。默认单流 16 MiB、累计解码 64 MiB、100000 个对象、1024 页、10000000 步；完整上限归[格式合同](../references/formats.md#pdf-输入与文档操作)。这些是工作量与载荷限制，不是堆峰值或延迟保证。同步 Wasm 不能被抢占。
+读取预算在词法、对象深度、xref、流分配、Flate、Predictor、CMap/CID 范围和内容循环前检查。嵌套操作共享耗尽状态，依赖的错误回退不能重置预算。默认单流 16 MiB、累计解码 64 MiB、100000 个对象、1024 页、10000000 步；完整上限归[格式合同](../references/formats/pdf.md#pdf-输入与文档操作)。这些是工作量与载荷限制，不是堆峰值或延迟保证。同步 Wasm 不能被抢占。
 
 ## 足够检查与依据
 

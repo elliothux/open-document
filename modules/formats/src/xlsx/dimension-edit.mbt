@@ -107,7 +107,7 @@ fn Session::resize_dimensions(
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   guard first >= 1 &&
     last >= first &&
-    last <= (if rows { 1048576 } else { 16384 }) &&
+    last <= (if rows { WorksheetRows } else { WorksheetColumns }) &&
     !size.is_nan() &&
     !size.is_inf() &&
     size >= 0 &&

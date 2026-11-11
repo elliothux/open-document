@@ -63,7 +63,7 @@ export function ImageInput({
           event.currentTarget.value = "";
           if (source)
             controller.run(async () => {
-              if (source.size > 16777216)
+              if (source.size > file.editor.inputLimits.rgbaBytes)
                 throw new Error("PDF image input exceeds budget");
               await file.editor.insertImage(
                 new Uint8Array(await source.arrayBuffer()),

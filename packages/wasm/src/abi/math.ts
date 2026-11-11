@@ -1,5 +1,6 @@
 import type { TextStyle } from "./shape.js";
 import { record } from "./validation.js";
+import { mathTextUnits } from "@open-document/wasm/engine-source";
 
 export interface MathFormat {
   family: string;
@@ -151,7 +152,8 @@ export function checkMathContent(value: unknown): void {
         if (typeof term.text !== "string")
           throw new Error("Invalid mathematical text");
         units += term.text.length;
-        if (units > 4096) throw new Error("Mathematical text exceeds budget");
+        if (units > mathTextUnits)
+          throw new Error("Mathematical text exceeds budget");
         if (
           !term.text.length ||
           !term.text.isWellFormed() ||

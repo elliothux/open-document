@@ -147,6 +147,9 @@ fn series_fit(
 }
 
 ///|
+pub const DateSeriesStepMax : Int32 = 2958465
+
+///|
 fn Session::fill_series(
   self : Session,
   sheet : String,
@@ -163,7 +166,7 @@ fn Session::fill_series(
     guard ["day", "weekday", "month", "year"].contains(unit) &&
       !step.is_nan() &&
       !step.is_inf() &&
-      step.abs() <= 2958465 &&
+      step.abs() <= DateSeriesStepMax.to_double() &&
       (unit == "day" || step == step.trunc()) else {
       @failure.reject("invalid-operation", "Invalid date series unit or step")
     }
@@ -385,7 +388,7 @@ fn Session::fill_series(
         .map(text => text.length())
         .unwrap_or(value.display().length())
       guard units <= 1048576 &&
-        formula.map(text => text.length() <= 8192).unwrap_or(true) else {
+        formula.map(text => text.length() <= FormulaSourceUnits).unwrap_or(true) else {
         @failure.reject("limit-exceeded", "Series exceeds cell text budget")
       }
       let key = address.name()

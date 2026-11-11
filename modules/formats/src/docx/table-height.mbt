@@ -39,7 +39,7 @@ fn WordTree::row_grid_after(
     self.children[id].is_empty() &&
     node.text.trim().is_empty() &&
     value >= 0 &&
-    value <= 63 else {
+    value <= TableGridColumns else {
     @failure.reject("invalid-table", "Invalid trailing table grid")
   }
   value

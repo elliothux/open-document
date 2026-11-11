@@ -23,7 +23,7 @@ export function XlsxTimelinesPanel({
 }) {
   const t = messages(state.locale);
   const [catalog, setCatalog] = useState<XlsxTimelines>();
-  const load = async () => setCatalog(await editor.timelines());
+  const load = async () => setCatalog(await editor.objects.timelines());
   const current =
     catalog?.revision === editor.currentState.revision &&
     catalog.sheet === editor.currentState.sheet;
@@ -85,7 +85,7 @@ export function XlsxTimelinesPanel({
                   onChange={(event) => {
                     const level = Number(event.currentTarget.value);
                     controller.run(async () => {
-                      await editor.editSheet({
+                      await editor.objects.editSheet({
                         action: "setTimelineLevel",
                         name: item.name,
                         level,
@@ -115,7 +115,7 @@ export function XlsxTimelinesPanel({
                 }
                 onClick={() =>
                   controller.run(async () => {
-                    await editor.editSheet({
+                    await editor.objects.editSheet({
                       action: "deleteTimeline",
                       name: item.name,
                     });
@@ -137,7 +137,7 @@ export function XlsxTimelinesPanel({
                 }
                 apply={(range) =>
                   controller.run(async () => {
-                    await editor.editSheet({
+                    await editor.objects.editSheet({
                       action: "filterTimeline",
                       name: item.name,
                       range,
@@ -159,7 +159,7 @@ export function XlsxTimelinesPanel({
                   }
                   apply={(frame) =>
                     controller.run(async () => {
-                      await editor.setTimelineFrame(drawing.id, frame);
+                      await editor.objects.setTimelineFrame(drawing.id, frame);
                       await load();
                     })
                   }

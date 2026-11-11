@@ -1,4 +1,8 @@
 import { record } from "@open-document/wasm/abi/validation";
+import {
+  xlsxDefinedNameUnits,
+  xlsxFormulaSourceUnits,
+} from "@open-document/wasm/engine-source";
 
 export interface XlsxName {
   name: string;
@@ -39,11 +43,12 @@ export function checkXlsxNameEdit(value: unknown): void {
     set = change.action === "name";
   if (
     !["name", "nameDelete", "nameSelect"].includes(String(change.action)) ||
-    !text(change.name, 255) ||
+    !text(change.name, xlsxDefinedNameUnits) ||
     (change.scope !== null && !text(change.scope, 65535)) ||
     (set &&
-      ((change.original !== null && !text(change.original, 255)) ||
-        !text(change.formula, 8192))) ||
+      ((change.original !== null &&
+        !text(change.original, xlsxDefinedNameUnits)) ||
+        !text(change.formula, xlsxFormulaSourceUnits))) ||
     Object.keys(change).some(
       (key) =>
         !(
@@ -54,41 +59,4 @@ export function checkXlsxNameEdit(value: unknown): void {
     )
   )
     throw new Error("Invalid defined name command");
-}
-
-export function xlsxNames(value: unknown): XlsxNames {
-  const state = record(value);
-  if (
-    !Array.isArray(state.entries) ||
-    state.entries.length > 4096 ||
-    typeof state.readOnlyReason !== "string"
-  )
-    throw new Error("Invalid defined names state");
-  let units = 0;
-  const keys = new Set<string>();
-  const entries = state.entries.map((value: unknown): XlsxName => {
-    const item = record(value);
-    if (
-      !text(item.name, 255) ||
-      (item.scope !== null && !text(item.scope, 65535)) ||
-      typeof item.formula !== "string" ||
-      !item.formula.isWellFormed() ||
-      typeof item.hidden !== "boolean" ||
-      typeof item.readOnlyReason !== "string"
-    )
-      throw new Error("Invalid defined name entry");
-    units += item.name.length + item.formula.length + (item.scope?.length ?? 0);
-    const key = JSON.stringify([item.scope, item.name.toUpperCase()]);
-    if (units > 1048576 || keys.has(key))
-      throw new Error("Invalid defined names budget or identity");
-    keys.add(key);
-    return {
-      name: item.name,
-      scope: item.scope,
-      formula: item.formula,
-      hidden: item.hidden,
-      readOnlyReason: item.readOnlyReason,
-    };
-  });
-  return { entries, readOnlyReason: state.readOnlyReason };
 }

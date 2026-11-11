@@ -110,14 +110,41 @@ fn Session::ruler_context(
 }
 
 ///|
+priv struct RulerMarker {
+  kind : String
+  position : Double
+  index : Int32
+  align : String
+  leader : String
+} derive(ToJson)
+
+///|
+pub struct RulerResponse {
+  revision : Int32
+  selection : Selection
+  page : Int32
+  width : Double
+  origin : Double
+  extent : Double
+  rtl : Bool
+  priv markers : Array[RulerMarker]
+  reason : String
+  layoutId : Int32
+} derive(ToJson)
+
+///|
+pub extend RulerResponse with ToJson::{to_json}
+
+///|
 pub fn Session::ruler(
   self : Session,
   revision : Int32,
   layout : @layout.Layout,
-) -> Json raise @failure.Failure {
+  layout_id : Int32,
+) -> RulerResponse raise @failure.Failure {
   let context = self.ruler_context(revision, layout)
   let p = context.paragraph
-  let markers : Array[Json] = []
+  let markers : Array[RulerMarker] = []
   for
     (kind, value) in [
       ("first", p.left + p.first),
@@ -126,20 +153,20 @@ pub fn Session::ruler(
       ("right", context.extent - p.right),
     ] {
     markers.push({
-      "kind": kind,
-      "position": context.origin + context.direction * value,
-      "index": -1,
-      "align": "",
-      "leader": "",
+      kind,
+      position: context.origin + context.direction * value,
+      index: -1,
+      align: "",
+      leader: "",
     })
   }
   for index, stop in p.tabs {
     markers.push({
-      "kind": "tab",
-      "position": context.origin + context.direction * stop.position,
-      "index": index,
-      "align": stop.align,
-      "leader": stop.leader,
+      kind: "tab",
+      position: context.origin + context.direction * stop.position,
+      index,
+      align: stop.align,
+      leader: stop.leader,
     })
   }
   let page_editable = try {
@@ -154,30 +181,21 @@ pub fn Session::ruler(
         ("marginLeft", context.pageLeft),
         ("marginRight", context.pageRight),
       ] {
-      markers.push({
-        "kind": kind,
-        "position": position,
-        "index": -1,
-        "align": "",
-        "leader": "",
-      })
+      markers.push({ kind, position, index: -1, align: "", leader: "", })
     }
   }
-  let formatting = self.query_formatting(revision, context.selection)
-  let reason = match formatting {
-    { "reason": String(reason), .. } => reason
-    _ => "Ruler formatting is unavailable"
-  }
+  let reason = self.formatting_query(revision, context.selection).reason
   {
-    "revision": revision,
-    "selection": context.selection,
-    "page": context.page,
-    "width": context.width,
-    "origin": context.origin,
-    "extent": context.extent,
-    "rtl": p.rtl,
-    "markers": markers,
-    "reason": reason,
+    revision,
+    selection: context.selection,
+    page: context.page,
+    width: context.width,
+    origin: context.origin,
+    extent: context.extent,
+    rtl: p.rtl,
+    markers,
+    reason,
+    layoutId: layout_id,
   }
 }
 

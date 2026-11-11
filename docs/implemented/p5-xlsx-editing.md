@@ -6,7 +6,7 @@
 
 开发者可以挂载 XLSX 编辑器，打开工作簿，切表、滚动、缩放及定位单元格。修改数量后，同表乘积、SUM 合计和跨表引用更新。用户可以撤销/重做、输入组合草稿、复制/粘贴纯文本、保存重开，并预览及导出当前表矩形的分页 PDF。
 
-嵌入代码归[开发说明](../references/development.md#xlsx-嵌入入口)，API、输入语义、保真及预算归[格式合同](../references/formats.md#p5-xlsx-合同)。
+嵌入代码归[开发说明](../references/development.md#公开入口与共享加载)，API、输入语义、保真及预算归[格式合同](../references/formats/xlsx-editing.md#p5-xlsx-合同)。
 
 ## 已实现范围
 

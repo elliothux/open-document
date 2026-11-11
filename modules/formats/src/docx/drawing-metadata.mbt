@@ -1,4 +1,32 @@
 ///|
+fn WordTree::disabled_picture_dpi(self : WordTree, id : Int32) -> Bool {
+  guard self.children[id] is [list] &&
+    self.children[list] is [extension] &&
+    self.children[extension] is [dpi] &&
+    self.children[dpi].is_empty() else {
+    return false
+  }
+  let list = self.nodes[list]
+  let extension = self.nodes[extension]
+  let dpi = self.nodes[dpi]
+  list.uri == picture_drawing_uri &&
+  list.name == "extLst" &&
+  list.attributes.is_empty() &&
+  list.text.trim().is_empty() &&
+  extension.uri == picture_drawing_uri &&
+  extension.name == "ext" &&
+  extension.attributes.length() == 1 &&
+  extension.attribute("uri").map(value => value.to_upper()) ==
+  Some("{28A0092B-C50C-407E-A947-70E740481C1C}") &&
+  extension.text.trim().is_empty() &&
+  dpi.uri == "http://schemas.microsoft.com/office/drawing/2010/main" &&
+  dpi.name == "useLocalDpi" &&
+  dpi.attributes.length() == 1 &&
+  (dpi.attribute("val") == Some("0") || dpi.attribute("val") == Some("false")) &&
+  dpi.text.trim().is_empty()
+}
+
+///|
 fn WordTree::zero_relative_size(
   self : WordTree,
   id : Int32,

@@ -1,16 +1,29 @@
 ///|
+pub struct PdfRedactionAffected {
+  page : String
+  kind : String
+  x : Double
+  y : Double
+  width : Double
+  height : Double
+} derive(ToJson)
+
+///|
+pub extend PdfRedactionAffected with ToJson::{to_json}
+
+///|
 fn redaction_affected(
   page : String,
   kind : String,
   bounds : RedactionBounds,
-) -> Json {
+) -> PdfRedactionAffected {
   {
-    "page": page,
-    "kind": kind,
-    "x": bounds.x,
-    "y": bounds.y,
-    "width": bounds.width,
-    "height": bounds.height,
+    page,
+    kind,
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
   }
 }
 

@@ -1,30 +1,55 @@
 ///|
-fn find_options(request : Json) -> @model.FindOptions raise @failure.Failure {
-  guard request is { "options": Object(fields), .. } &&
-    fields.keys().all(key => key == "matchCase" || key == "wholeWord") else {
-    @failure.reject("invalid-operation", "Invalid literal search options")
-  }
-  let boolean = fn(key : String) raise @failure.Failure {
-    match fields.get(key) {
-      None | Some(False) => false
-      Some(True) => true
-      _ => @failure.reject("invalid-operation", "Invalid search option: " + key)
-    }
-  }
-  @model.FindOptions::new(
-    matchCase=boolean("matchCase"),
-    wholeWord=boolean("wholeWord"),
-  )
-}
+priv struct FindRequest {
+  revision : @common.RequestInt
+  text : String
+  options : Map[String, Bool]
+} derive(@json.FromJson)
 
 ///|
-fn replacement_matches(
-  request : Json,
-) -> Array[@model.Selection] raise @failure.Failure {
-  guard request is { "matches": Array(matches), .. } && matches.length() <= 1000 else {
-    @failure.reject(
-      "invalid-operation", "Expected at most 1000 replacement ranges",
+priv struct ReplaceMatchesRequest {
+  revision : @common.RequestInt
+  text : String
+  matches : Array[SelectionRequest]
+} derive(@json.FromJson)
+
+///|
+let search_handlers : Map[
+  String,
+  (Context, @model.Session, Json) -> Json raise @failure.Failure,
+] = {
+  "findDocx": (_context, session, input) => {
+    guard input is { "options": Object(fields), .. } &&
+      fields.length() <= 2 &&
+      fields.keys().all(key => key == "matchCase" || key == "wholeWord") else {
+      @failure.reject("invalid-operation", "Invalid literal search options")
+    }
+    let command : FindRequest = @common.request(input)
+    session.find(
+      command.revision.value,
+      command.text,
+      @model.FindOptions::new(
+        matchCase=command.options.get("matchCase").unwrap_or(false),
+        wholeWord=command.options.get("wholeWord").unwrap_or(false),
+      ),
     )
-  }
-  matches.map(selection => field_selection({ "selection": selection }))
+  },
+  "replaceDocxMatches": (context, session, input) => {
+    guard input is { "matches": Array(matches), .. } &&
+      matches.length() <= @model.SearchMatchLimit else {
+      @failure.reject(
+        "invalid-operation",
+        "Expected at most \{@model.SearchMatchLimit} replacement ranges",
+      )
+    }
+    let command : ReplaceMatchesRequest = @common.request(input)
+    let revision = command.revision.value
+    context.clear_edit_layout(
+      session.replace_matches(
+        revision,
+        command.matches.map(selection => selection.selection()),
+        command.text,
+      ),
+      previous=revision,
+    )
+  },
 }

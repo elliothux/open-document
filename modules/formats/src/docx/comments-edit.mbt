@@ -11,11 +11,12 @@ pub(all) enum CommentEdit {
 
 ///|
 fn comment_text(value : String) -> String raise @failure.Failure {
-  guard value.length() <= 32767 &&
+  guard value.length() <= CommentTextUnits &&
     !value.trim().is_empty() &&
     @xml.valid_text(value) else {
     @failure.reject(
-      "invalid-text", "Comment text must be nonempty and within 32767 UTF-16 units",
+      "invalid-text",
+      "Comment text must be nonempty and within \{CommentTextUnits} UTF-16 units",
     )
   }
   value.replace_all(old="\r\n", new="\n").replace_all(old="\r", new="\n")
@@ -409,3 +410,6 @@ pub fn Session::edit_comment(
   )
   self.edit_result(affected)
 }
+
+///|
+pub const CommentTextUnits : Int32 = 32767

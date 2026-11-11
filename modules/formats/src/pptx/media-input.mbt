@@ -1,10 +1,13 @@
 ///|
+pub const MediaInputBytes : Int32 = 16777216
+
+///|
 fn check_media_input(
   kind : String,
   content_type : String,
   bytes : Bytes,
 ) -> String raise @failure.Failure {
-  guard bytes.length() > 0 && bytes.length() <= 16777216 else {
+  guard bytes.length() > 0 && bytes.length() <= MediaInputBytes else {
     @failure.reject(
       "limit-exceeded", "Media input must contain 1 to 16777216 bytes",
     )

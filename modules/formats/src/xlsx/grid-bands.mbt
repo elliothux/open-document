@@ -21,7 +21,23 @@ fn grid_rect(
 }
 
 ///|
-fn Grid::range_geometry(self : Grid, range : Range, frozen : Frozen) -> Json {
+pub struct SelectionGeometry {
+  x : Double
+  y : Double
+  width : Double
+  height : Double
+  rects : Array[@layout.Border]
+} derive(ToJson)
+
+///|
+pub extend SelectionGeometry with ToJson::{to_json}
+
+///|
+fn Grid::range_geometry(
+  self : Grid,
+  range : Range,
+  frozen : Frozen,
+) -> SelectionGeometry {
   let header_width = self.header_width
   let header_height = self.header_height
   let rects : Array[@layout.Border] = []
@@ -32,7 +48,7 @@ fn Grid::range_geometry(self : Grid, range : Range, frozen : Frozen) -> Json {
         if row.frozen {
           frozen.rows
         } else {
-          1048576
+          WorksheetRows
         },
       )
       let left = range.left.max(
@@ -46,7 +62,7 @@ fn Grid::range_geometry(self : Grid, range : Range, frozen : Frozen) -> Json {
         if column.frozen {
           frozen.columns
         } else {
-          16384
+          WorksheetColumns
         },
       )
       if top > bottom || left > right {
@@ -76,13 +92,7 @@ fn Grid::range_geometry(self : Grid, range : Range, frozen : Frozen) -> Json {
     }
   }
   let rect = self.range_rect(range, frozen)
-  {
-    "x": rect.x,
-    "y": rect.y,
-    "width": rect.width,
-    "height": rect.height,
-    "rects": rects,
-  }
+  { x: rect.x, y: rect.y, width: rect.width, height: rect.height, rects, }
 }
 
 ///|
@@ -163,6 +173,59 @@ fn append_grid_paint(
 }
 
 ///|
+pub struct ViewportChartTile {
+  index : Int32
+  key : String
+  body : Json
+}
+
+///|
+fn grid_commands_json(
+  commands : Array[@layout.DrawCommand],
+  chart_tiles? : Array[ViewportChartTile],
+) -> Json {
+  let output : Array[Json] = []
+  let mut index = 0
+  while index < commands.length() {
+    let command = commands[index]
+    index += 1
+    if command is StrokeRect(rect, color, width, screen_fractional=false) &&
+      commands.get(index)
+      is Some(StrokeRect(_, next_color, next_width, screen_fractional=false)) &&
+      color == next_color &&
+      width == next_width {
+      let bands = [(rect.y, rect.height, [(rect.x, rect.width)])]
+      while commands.get(index)
+            is Some(
+              StrokeRect(next, next_color, next_width, screen_fractional=false)
+            ) &&
+            color == next_color &&
+            width == next_width {
+        let (y, height, spans) = bands[bands.length() - 1]
+        if y == next.y && height == next.height {
+          spans.push((next.x, next.width))
+        } else {
+          bands.push((next.y, next.height, [(next.x, next.width)]))
+        }
+        index += 1
+      }
+      output.push({
+        "op": "strokeBands",
+        "color": color,
+        "lineWidth": width,
+        "bands": bands,
+      })
+    } else {
+      if chart_tiles is Some(tiles) && command is CachedDrawing(key, body) {
+        tiles.push({ index: output.length(), key, body, })
+      }
+      output.push(Json(command))
+    }
+  }
+  Json::array(output)
+}
+
+///|
 fn grid_header(
   page : PagePaint,
   text : String,
@@ -227,9 +290,12 @@ fn Session::paint_grid(
   objects : Array[SheetObject],
   slicer_hover : (String, Int32)?,
   screen_scale : Double?,
+  chart_wire : Bool,
+  compact_cells : Bool,
 ) -> (
   Array[@layout.PositionedPrimitive],
-  Array[Json],
+  Array[(PaintedCell, Int32)],
+  Array[@layout.Border],
   Array[Json],
   Array[Json],
   Array[Json],
@@ -238,7 +304,8 @@ fn Session::paint_grid(
   let (header_width, header_height) = self.sheets[index].view.header_size()
   let rtl = self.sheets[index].view.rtl
   let primitives : Array[@layout.PositionedPrimitive] = []
-  let cells : Array[Json] = []
+  let cells : Array[(PaintedCell, Int32)] = []
+  let clips : Array[@layout.Border] = []
   let visible_notes : Array[Json] = []
   let seen : Map[String, Bool] = Map([])
   let count = rows.fold(init=0L, (sum, row) => {
@@ -258,12 +325,21 @@ fn Session::paint_grid(
     origin: { row: 1, column: 1, },
     names: self.formula_names(),
   }
-  let conditional = self.conditional_rules(
-    self.sheets[index],
-    index,
-    self.sheets,
-    work,
-  )
+  let conditional = self.read_conditional_rules(index, work)
+  let chart_tiles = if objects.any(object => object.chart is Some(_)) {
+    Some(
+      self.chart_tiles(
+        self.sheets[index].id,
+        probe,
+        profile,
+        screen_scale,
+        objects,
+        chart_wire,
+      ),
+    )
+  } else {
+    None
+  }
   for row in rows {
     for column in columns {
       let page : PagePaint = {
@@ -287,6 +363,8 @@ fn Session::paint_grid(
         width,
         rtl,
       )
+      let clip_index = clips.length()
+      clips.push(clip)
       for
         item in (if self.sheets[index].is_chart() {
           []
@@ -305,32 +383,20 @@ fn Session::paint_grid(
             width,
             conditional,
             work,
+            compact=compact_cells,
           )
         }) {
-        guard item is Object(fields) &&
-          fields["cell"] is { "address": String(address), .. } &&
-          fields["display"] is String(display) &&
-          fields["rect"]
-          is {
-            "x": Number(x, ..),
-            "y": Number(y, ..),
-            "width": Number(w, ..),
-            "height": Number(h, ..),
-            ..
-          } else {
-          abort("Grid cell invariant")
-        }
-        units += display.length()
+        let address = item.address
+        units += item.text.length()
         guard units <= 262144 else {
           @failure.reject("limit-exceeded", "Visible text exceeds budget")
         }
         if !seen.contains(address) {
-          fields["clip"] = Json(clip)
-          cells.push(item)
+          cells.push((item, clip_index))
           seen[address] = true
         }
         if notes.get(address) is Some(note) {
-          let rect : @layout.Border = { x, y, width: w, height: h, }
+          let rect = item.rect
           let visible = grid_intersection(rect, clip)
           if visible.width > 0 && visible.height > 0 {
             visible_notes.push({
@@ -369,6 +435,7 @@ fn Session::paint_grid(
             profile,
             view=true,
             screen_scale~,
+            chart_tiles~,
             slicer_hover=slicer_hover
               .filter(item => item.0 == picture.id)
               .map(item => item.1),
@@ -538,5 +605,7 @@ fn Session::paint_grid(
       )
     }
   }
-  (primitives, cells, row_headers, column_headers, visible_notes, conditional)
+  (
+    primitives, cells, clips, row_headers, column_headers, visible_notes, conditional,
+  )
 }

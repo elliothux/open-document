@@ -1,4 +1,13 @@
 ///|
+pub const CopiedHyperlinkCount : Int32 = 4096
+
+///|
+pub const CopiedHyperlinkLabelUnits : Int32 = 32767
+
+///|
+pub const CopiedHyperlinkTextUnits : Int32 = 1048576
+
+///|
 pub(all) struct CopiedHyperlink {
   range : Range
   target : String
@@ -10,7 +19,7 @@ pub(all) struct CopiedHyperlink {
 fn CopiedCells::check_copied_hyperlinks(
   self : CopiedCells,
 ) -> Unit raise @failure.Failure {
-  guard self.hyperlinks.length() <= 4096 else {
+  guard self.hyperlinks.length() <= CopiedHyperlinkCount else {
     @failure.reject("limit-exceeded", "Copied hyperlinks exceed budget")
   }
   let bounds : Range = {
@@ -32,7 +41,8 @@ fn CopiedCells::check_copied_hyperlinks(
     units += link.target.length()
     for text in [link.display, link.tooltip] {
       if text is Some(text) {
-        guard text.length() <= 32767 && @xml.valid_text(text) else {
+        guard text.length() <= CopiedHyperlinkLabelUnits &&
+          @xml.valid_text(text) else {
           @failure.reject(
             "invalid-operation", "Invalid copied hyperlink metadata",
           )
@@ -40,7 +50,7 @@ fn CopiedCells::check_copied_hyperlinks(
         units += text.length()
       }
     }
-    guard units <= 1048576 else {
+    guard units <= CopiedHyperlinkTextUnits else {
       @failure.reject("limit-exceeded", "Copied hyperlink text exceeds budget")
     }
     for row in r.top..<=r.bottom {

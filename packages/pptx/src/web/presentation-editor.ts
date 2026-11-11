@@ -1,3 +1,5 @@
+import { CommandQueue } from "@open-document/web-core/command-queue";
+import { pptxTextFrameUnits } from "@open-document/wasm/engine-source";
 import { createPresentationElements } from "./presentation-elements.js";
 import { presentationKey } from "./presentation-keyboard.js";
 import {
@@ -8,16 +10,16 @@ import {
 } from "./presentation-search.js";
 import type { PptxFindOptions } from "../core/pptx.js";
 export type { PresentationSearchResult } from "./presentation-search.js";
-import { updatePresentationObjects } from "./presentation-semantics.js";
+import {
+  presentationSnapshot,
+  updatePresentationObjects,
+} from "./presentation-semantics.js";
 import {
   objectSelection,
   exitTextSelection,
 } from "./presentation-selection.js";
 import { PresentationCanvas } from "./presentation-canvas.js";
-import {
-  presentationOutputs,
-  PresentationOutput,
-} from "./presentation-output.js";
+import { presentationOutputs } from "./presentation-output.js";
 import { PresentationInput } from "./presentation-input.js";
 import {
   PresentationPointer,
@@ -33,7 +35,6 @@ import {
 import {
   EditorState,
   type EditorOutput,
-  type EditorSnapshot,
 } from "@open-document/web-core/editor-state";
 import type { PptxClient } from "./pptx.js";
 import { documentFailure } from "@open-document/web-core/connection";
@@ -46,8 +47,9 @@ import type {
   PptxSlideEdit,
   PptxImportInfo,
 } from "../core/pptx.js";
-export class PresentationEditor extends PresentationOutput {
+export class PresentationEditor {
   readonly slideshow: PresentationShow;
+  readonly inputLimits: ReturnType<PptxClient["inputLimits"]>;
   private readonly container: HTMLDivElement;
   private readonly viewport: HTMLDivElement;
   private readonly holder: HTMLDivElement;
@@ -67,21 +69,21 @@ export class PresentationEditor extends PresentationOutput {
   private zoomValue = 1;
   private gridVisibleValue = false;
   private scale = 96 / 72;
-  private tail: Promise<void> = Promise.resolve();
-  private pending = 0;
+  private readonly queue = new CommandQueue(
+    64,
+    () => new Error("Editor queue exceeds budget"),
+  );
   private closed = false;
   private closing = false;
   private blocked = false;
   private frame = 0;
   private readonly gestures: PresentationGestures;
-
   private constructor(
     private readonly root: HTMLElement,
     private readonly client: PptxClient,
     private readonly profile: Record<string, string>,
     state: PptxQuery,
   ) {
-    super((...args) => this.outputs(...args));
     const elements = createPresentationElements(
       this.surface.canvas,
       this.surface.overlay,
@@ -92,6 +94,7 @@ export class PresentationEditor extends PresentationOutput {
     this.input = elements.input;
     this.objectList = elements.objectList;
     this.state = state;
+    this.inputLimits = client.inputLimits();
     this.slideshow = new PresentationShow(
       client,
       profile,
@@ -108,17 +111,8 @@ export class PresentationEditor extends PresentationOutput {
       root,
     );
     this.observable = new EditorState("pptx", {
-      revision: state.revision,
-      canUndo: state.canUndo,
-      canRedo: state.canRedo,
-      page: state.slides.findIndex(
-        (slide) => slide.id === state.editView.slide,
-      ),
-      pageCount: state.slides.length,
-      selection: state.selection.object,
-      readOnlyReason: state.readOnlyReason,
+      ...presentationSnapshot(state),
       diagnostics: [],
-      data: state,
     });
     this.inputEvents = new PresentationInput(
       this.input,
@@ -126,7 +120,7 @@ export class PresentationEditor extends PresentationOutput {
       client,
       {
         state: () => this.state,
-        limit: () => 32767,
+        limit: () => pptxTextFrameUnits,
         available: () =>
           this.available &&
           !this.state.readOnlyReason &&
@@ -143,26 +137,20 @@ export class PresentationEditor extends PresentationOutput {
     this.input.addEventListener("keydown", this.key, {
       signal: this.listeners.signal,
     });
-    bindClipboard(
-      this.input,
-      this.listeners.signal,
-      (cut) => this.handle(() => this.copy(cut)),
-      (text) => this.handle(() => this.paste(text)),
-      (error) => this.fail(error),
-      () => this.inputEvents.active,
-      () => false,
-      () => this.handle(() => this.pasteClipboard()),
-    );
-    bindClipboard(
-      this.objectList,
-      this.listeners.signal,
-      (cut) => this.handle(() => this.copy(cut)),
-      () => this.handle(() => this.pasteClipboard()),
-      (error) => this.fail(error),
-      () => false,
-      () => false,
-      () => this.handle(() => this.pasteClipboard()),
-    );
+    for (const target of [this.input, this.objectList])
+      bindClipboard(
+        target,
+        this.listeners.signal,
+        (cut) => this.handle(() => this.copy(cut)),
+        (text) =>
+          this.handle(() =>
+            target === this.input ? this.paste(text) : this.pasteClipboard(),
+          ),
+        (error) => this.fail(error),
+        () => target === this.input && this.inputEvents.active,
+        () => false,
+        () => this.handle(() => this.pasteClipboard()),
+      );
     this.gestures = new PresentationGestures(client, profile, {
       state: () => this.state,
       geometry: () => this.geometry,
@@ -248,8 +236,7 @@ export class PresentationEditor extends PresentationOutput {
   get gridVisible(): boolean {
     return this.gridVisibleValue;
   }
-  readonly getSnapshot = (): EditorSnapshot<PptxQuery> =>
-    this.observable.getSnapshot();
+  readonly getSnapshot = () => this.observable.getSnapshot();
   readonly subscribe = (listener: () => void): (() => void) =>
     this.observable.subscribe(listener);
   markSaved(output: EditorOutput): void {
@@ -264,36 +251,27 @@ export class PresentationEditor extends PresentationOutput {
   }
   async setPaused(paused: boolean): Promise<void> {
     this.assertOpen();
-    if (paused) await this.tail;
+    if (paused) await this.queue.whenIdle();
     if (paused) await this.slideshow.end();
     this.paused = paused;
     this.container.inert = paused;
     this.objectList.inert = paused;
     this.input.readOnly = paused || this.blocked;
     this.publish();
-    if (paused) await this.tail;
+    if (paused) await this.queue.whenIdle();
   }
   private publish(): void {
     this.observable.update({
-      revision: this.state.revision,
-      canUndo: this.state.canUndo,
-      canRedo: this.state.canRedo,
-      page: this.state.slides.findIndex(
-        (slide) => slide.id === this.state.editView.slide,
-      ),
-      pageCount: this.state.slides.length,
+      ...presentationSnapshot(this.state),
       zoom: this.zoomValue,
-      selection: this.state.selection.object,
       composition: this.inputEvents?.active ?? false,
       dragging: this.gestures?.active || (this.pointer?.active ?? false),
-      busy: this.pending,
+      busy: this.queue.pending,
       paused: this.paused,
       stopped: this.blocked,
       closed: this.closed,
       error: this.errorMessage,
-      readOnlyReason: this.state.readOnlyReason,
       diagnostics: this.drawing?.diagnostics ?? this.state.diagnostics,
-      data: this.state,
     });
   }
   private assertOpen(): void {
@@ -331,28 +309,26 @@ export class PresentationEditor extends PresentationOutput {
       return Promise.reject(
         new Error("Complete or cancel the active gesture first"),
       );
-    if (this.pending >= 64)
-      return Promise.reject(new Error("Editor queue exceeds budget"));
-    this.pending++;
-    this.publish();
-    const result = this.tail.then(operation);
-    this.tail = result.then(
-      () => {
-        this.pending--;
-        if (output && !this.blocked) this.errorMessage = "";
-        this.publish();
-      },
-      (error) => {
-        this.pending--;
-        if (output && !this.blocked) {
-          this.errorMessage =
-            error instanceof Error ? error.message : String(error);
+    return this.queue.enqueue(
+      operation,
+      () => this.publish(),
+      (result) => {
+        if (result.status === "fulfilled") {
+          if (output && !this.blocked) this.errorMessage = "";
           this.publish();
-        } else
-          this.fail(error instanceof Error ? error : new Error(String(error)));
+        } else {
+          const error: unknown = result.reason;
+          if (output && !this.blocked) {
+            this.errorMessage =
+              error instanceof Error ? error.message : String(error);
+            this.publish();
+          } else
+            this.fail(
+              error instanceof Error ? error : new Error(String(error)),
+            );
+        }
       },
     );
-    return result;
   }
   private async changed(state: PptxQuery, relayout = false): Promise<void> {
     const content =
@@ -521,9 +497,37 @@ export class PresentationEditor extends PresentationOutput {
       }
     });
   }
+  async save(): Promise<EditorOutput> {
+    return (await this.outputs("pptx"))[0]!;
+  }
+  async exportPdf(
+    all = true,
+    hidden = false,
+    outputBytes?: number,
+  ): Promise<EditorOutput> {
+    return (await this.outputs("pdf", outputBytes, 1, all, hidden))[0]!;
+  }
+  async exportPng(scale = 1, outputBytes?: number): Promise<EditorOutput> {
+    return (await this.outputs("png", outputBytes, scale))[0]!;
+  }
+  async exportJpeg(scale = 1, outputBytes?: number): Promise<EditorOutput> {
+    return (await this.outputs("jpeg", outputBytes, scale))[0]!;
+  }
+  /** Exports visible slides in order at one revision, with a shared byte budget. */
+  exportPageImages(
+    scale = 1,
+    outputBytes?: number,
+    hidden = false,
+    format: "png" | "jpeg" = "png",
+  ): Promise<readonly EditorOutput[]> {
+    if (format !== "png" && format !== "jpeg")
+      return Promise.reject(new Error("Unsupported image output format"));
+    const kind = format === "jpeg" ? "jpegs" : "images";
+    return this.outputs(kind, outputBytes, scale, true, hidden);
+  }
   private outputs(
     format: "pptx" | "pdf" | "png" | "jpeg" | "images" | "jpegs",
-    outputBytes = 67108864,
+    outputBytes = this.inputLimits.exportBytes,
     scale = 1,
     all = true,
     hidden = false,
@@ -779,7 +783,7 @@ export class PresentationEditor extends PresentationOutput {
     this.observable.close();
     this.cleanup = (async () => {
       try {
-        await this.tail;
+        await this.queue.whenIdle();
         await this.slideshow.dispose();
         await this.cancelNow();
       } finally {

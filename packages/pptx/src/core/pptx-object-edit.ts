@@ -1,3 +1,8 @@
+import {
+  pptxTextFrameParagraphs,
+  pptxTextFrameUnits,
+  pptxTextParagraphUnits,
+} from "@open-document/wasm/engine-source";
 import type {
   PptxPlaceholder,
   PptxPlaceholderType,
@@ -351,7 +356,7 @@ export function objectText(text: unknown): string {
   if (
     typeof text !== "string" ||
     !text.isWellFormed() ||
-    text.length > 32767 ||
+    text.length > pptxTextFrameUnits ||
     Array.from(text).some((character) => {
       const code = character.charCodeAt(0);
       return (
@@ -360,8 +365,8 @@ export function objectText(text: unknown): string {
         code === 65535
       );
     }) ||
-    text.split("\n").length > 256 ||
-    text.split("\n").some((p) => p.length > 4096)
+    text.split("\n").length > pptxTextFrameParagraphs ||
+    text.split("\n").some((p) => p.length > pptxTextParagraphUnits)
   )
     throw new Error("Invalid PPTX object text");
   return text;

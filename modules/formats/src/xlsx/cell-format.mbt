@@ -2,7 +2,7 @@
 pub(all) struct CellBorder {
   style : String
   color : String
-} derive(ToJson, Eq, Hash)
+} derive(ToJson, Eq, Hash, @json.FromJson)
 
 ///|
 pub extend CellBorder with ToJson::{to_json}
@@ -12,6 +12,9 @@ pub extend CellBorder with Eq::{equal, not_equal}
 
 ///|
 pub extend CellBorder with Hash::{hash, hash_combine}
+
+///|
+pub extend CellBorder with @json.FromJson::{from_json}
 
 ///|
 pub struct CellFormat {
@@ -37,13 +40,16 @@ pub struct CellFormat {
   right : CellBorder?
   top : CellBorder?
   bottom : CellBorder?
-} derive(Eq, Hash)
+} derive(Eq, Hash, @json.FromJson)
 
 ///|
 pub extend CellFormat with Eq::{equal, not_equal}
 
 ///|
 pub extend CellFormat with Hash::{hash, hash_combine}
+
+///|
+pub extend CellFormat with @json.FromJson::{from_json}
 
 ///|
 fn CellFormat::complete(self : CellFormat) -> Unit raise @failure.Failure {

@@ -98,7 +98,8 @@ fn Session::fill_cells(
   } else {
     last + (if adjacent { 1 } else { 0 })
   }
-  if seed < 1 || seed > (if vertical { 1048576 } else { 16384 }) {
+  if seed < 1 ||
+    seed > (if vertical { WorksheetRows } else { WorksheetColumns }) {
     return self.query(sheet=Some(sheet), range=Some(selected.name()))
   }
   let edge = if vertical {

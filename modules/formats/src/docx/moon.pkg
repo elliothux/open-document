@@ -15,6 +15,7 @@ import {
   "open_document/layout",
   "moonbitlang/core/string",
   "moonbitlang/core/math",
+  "moonbitlang/core/json",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/encoding/utf16",
   "moonbitlang/core/encoding/base64",

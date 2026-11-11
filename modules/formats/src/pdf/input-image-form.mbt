@@ -7,10 +7,10 @@ fn PdfTransaction::image_form(
 ) -> @syntax.PdfObject raise {
   guard width > 0 &&
     height > 0 &&
-    width <= 4096 &&
-    height <= 4096 &&
+    width <= @layout.ImageDimension &&
+    height <= @layout.ImageDimension &&
     width.to_int64() * height.to_int64() * 4 == rgba.length().to_int64() &&
-    rgba.length() <= 16777216 else {
+    rgba.length() <= @layout.ImageBytes else {
     @failure.reject("invalid-image", "PDF image requires bounded RGBA pixels")
   }
   let rgb = Bytes::makei(width * height * 3, i => rgba[i / 3 * 4 + i % 3])

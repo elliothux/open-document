@@ -10,6 +10,11 @@ import type { ChartSettings } from "@open-document/wasm/abi/chart";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { ChartFields } from "@open-document/ui/chart-fields";
 import { messages } from "@open-document/ui/messages";
+import {
+  xlsxChartReferenceUnits,
+  xlsxDrawingDescriptionUnits,
+  xlsxDrawingNameUnits,
+} from "@open-document/wasm/engine-source";
 
 function settings(value: XlsxChart): XlsxChartSettings {
   if (value.kind === "bubble" || value.kind === "surface")
@@ -45,7 +50,7 @@ export function XlsxCharts({
   const [catalog, setCatalog] = useState<Catalog>();
   const [draft, setDraft] = useState<XlsxChart>();
   const load = async (last = false) => {
-    const value = await editor.charts();
+    const value = await editor.objects.charts();
     setCatalog(value);
     setDraft(
       (last
@@ -92,7 +97,7 @@ export function XlsxCharts({
         onSubmit={(event) => {
           event.preventDefault();
           controller.run(async () => {
-            await editor.insertChartRange(
+            await editor.objects.insertChartRange(
               range || editor.currentState.selection.address,
               kind,
               title,
@@ -209,7 +214,7 @@ export function XlsxCharts({
               onSubmit={(event) => {
                 event.preventDefault();
                 controller.run(async () => {
-                  await editor.setChart(draft.id, settings(draft));
+                  await editor.objects.setChart(draft.id, settings(draft));
                   await load();
                 });
               }}
@@ -243,7 +248,7 @@ export function XlsxCharts({
                     {t.chartCategorySource}
                     <input
                       required
-                      maxLength={1024}
+                      maxLength={xlsxChartReferenceUnits}
                       value={draft.categories}
                       onChange={(event) =>
                         setDraft({
@@ -294,7 +299,7 @@ export function XlsxCharts({
             onSubmit={(event) => {
               event.preventDefault();
               controller.run(async () => {
-                await editor.setChartFrame(draft.id, draft);
+                await editor.objects.setChartFrame(draft.id, draft);
                 await load();
               });
             }}
@@ -305,7 +310,7 @@ export function XlsxCharts({
                 {t.xlsxShapeName}
                 <input
                   required
-                  maxLength={255}
+                  maxLength={xlsxDrawingNameUnits}
                   value={draft.name}
                   onChange={(event) =>
                     setDraft({ ...draft, name: event.currentTarget.value })
@@ -315,7 +320,7 @@ export function XlsxCharts({
               <label>
                 {t.xlsxPictureAlt}
                 <input
-                  maxLength={1024}
+                  maxLength={xlsxDrawingDescriptionUnits}
                   value={draft.description}
                   onChange={(event) =>
                     setDraft({
@@ -382,7 +387,7 @@ export function XlsxCharts({
                 type="button"
                 onClick={() =>
                   controller.run(async () => {
-                    await editor.deleteChart(draft.id);
+                    await editor.objects.deleteChart(draft.id);
                     await load();
                   })
                 }
@@ -393,7 +398,7 @@ export function XlsxCharts({
                 type="button"
                 onClick={() =>
                   controller.run(async () => {
-                    await editor.editSheet({
+                    await editor.objects.editSheet({
                       action: "duplicateDrawing",
                       objectId: draft.id,
                     });
@@ -406,7 +411,7 @@ export function XlsxCharts({
               <button
                 type="button"
                 onClick={() =>
-                  controller.run(() => editor.copyDrawing(draft.id))
+                  controller.run(() => editor.clipboard.copyDrawing(draft.id))
                 }
               >
                 {t.copyDrawing}
@@ -414,7 +419,7 @@ export function XlsxCharts({
               <button
                 type="button"
                 onClick={() =>
-                  controller.run(() => editor.cutDrawing(draft.id))
+                  controller.run(() => editor.clipboard.cutDrawing(draft.id))
                 }
               >
                 {t.cutDrawing}

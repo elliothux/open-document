@@ -49,7 +49,7 @@ fn WordTree::check_cell_format_properties(
           ) catch {
             _ => 0
           }
-          guard span >= 1 && span <= 63 else {
+          guard span >= 1 && span <= TableGridColumns else {
             @failure.reject("protected-content", "Invalid cell grid span")
           }
         } else {

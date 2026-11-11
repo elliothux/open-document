@@ -69,11 +69,14 @@ C01 原件的 11 个版式按源顺序可用。继承标题输入、精确历史
 
 C13 第 28 页的原生表格与 WMF 图标已恢复正常显示及 PDF 导出。普通标题沿演示稿默认样式读取 Arial Bold，表格显式 Calibri 保持。原件与去除双色效果的整页控制均通过输入、精确历史、新 Worker 重开、完整单元格属性和 282 个非目标部件保留。获批参考下的两条正式用例及原色、双色 WMF 组件均为 0/0。参考范围见[测试说明](testing.md#当前兼容证据入口)。
 
-| 证据入口（私有 `test-lab/`） | 已记录范围 | 本次审计结论 |
+下表由私有 `cases/documentation.json` 和 `cases/ledger.json` 生成，列出已有证据的范围。更新方式见[测试说明](testing.md#文档与证据索引)。
+
+<!-- compatibility-evidence:start -->
+| 证据入口（私有 `test-lab/`） | 已记录范围 | 证据边界 |
 | --- | --- | --- |
-| `cases/compatibility.json` | P2/P3 六案：三份有限 DOCX 正向、一份浮动图片拒绝、两份 PDF 准备记录 | 历史清单，不能继续充当四格式当前总矩阵 |
-| `cases/lo-docx.json` | 20 份 LibreOffice DOCX 的读取/保留 | 不授予完整分页、编辑或视觉通过 |
-| `cases/p5-xlsx.json`、`p6-pptx.json` | ONLYOFFICE new/sample 原件与功能派生输入 | 基础编辑、保护和源保留；复杂 sample 不等于整文件渲染通过 |
+| `cases/compatibility.json` | 三份有限 P3 DOCX 正向、WithGIF 原件的 C1 浮动图片与编辑复核、两份 PDF 准备记录 | WithGIF 视觉证据限于图片像素及尺寸，其他结果沿原记录范围 |
+| `cases/lo-docx.json` | 20 份 LibreOffice DOCX 的读取/保留，四份 CJK 原件的编号和 18 pt 行网格，cjklist34 原件编辑重开 | 行网格核对限于行框、相对行位和页数，整页视觉仍待验证 |
+| `cases/p5-xlsx.json`、`cases/p6-pptx.json` | ONLYOFFICE new/sample 原件与功能派生输入 | 基础编辑、保护和源保留；复杂 sample 不等于整文件渲染通过 |
 | `cases/p7-p8-pdf.json` | P7/P8 功能链及 P13 checkpoint | 支持范围内的功能证据；P13 多轮定向结果不能合并成当前全量资格 |
 | `cases/p14-xlsx.json` | 四份 XLSX，共享公式和删行引用 | 准备记录与 `p14-current.json` 的执行记录分开读取 |
 | `cases/p14-office.json` | 三份 DOCX：分栏、嵌套表、框架；两份 PPTX：文字自动适配 | 不能推导任意文档、演示稿的布局覆盖 |
@@ -81,8 +84,10 @@ C13 第 28 页的原生表格与 WMF 图标已恢复正常显示及 PDF 导出�
 | `cases/p14-current.json` | A 构建 2749 项完整运行；B 优化后 132 项布局和 13 条 Chromium 定向结果 | 均为已记录结果。本次未重跑；本机未找到所指原始运行目录，不能称本轮复核通过 |
 | `cases/c0-upstream-candidates.json` | 固定上游 revision、原件 hash、测试入口及候选范围 | 保留候选准备时的状态；后续执行另记 |
 | `cases/c0-current.json` | 51 份固定候选；251 项登记核心与四格式 128 条浏览器流程 | `finalCompatibilityQualification` 记录当前构建及适用的共享 Renderer 复查。48 份正向通过、3 份控制按预期拒绝；C13 130 组、C17 28 组、C43 原始 30 组及重算后 32 组严格比较全部为 0/0。历史失败、参考身份与未支持边界分别保留 |
+| `cases/ledger.json` | 98 个唯一输入，48 份 C0 原件打开通过，3 份控制按预期拒绝 | 打开、视觉、编辑和重开按文件与运行分别记录。缺少运行关联的条目只登记输入身份 |
+<!-- compatibility-evidence:end -->
 
-P14 的 13 份文件实际为 **12 份上游原件 + 1 份派生 PDF**。2749 项是多层测试执行数，既不等于 2749 份真实文件，也不覆盖下列所有组合。A/B 和原始记录边界详见[测试说明](testing.md#p14-素材环境与当前结果)。
+P14 的 13 份文件实际为 **12 份上游原件 + 1 份派生 PDF**。2749 项是多层测试执行数，既不等于 2749 份真实文件，也不覆盖下列所有组合。A/B 和原始记录边界详见[测试说明](../../test-lab/cases/history/testing-p14.json)。
 
 ## 按格式维护的能力矩阵
 
@@ -133,9 +138,10 @@ C13 SmartArt 第 14 页的字号与空格混排行高已修正。整稿的 48 �
 | 项目及固定测试入口 | 目录与可用文件 | 应复用的检查方式 |
 | --- | --- | --- |
 | [ONLYOFFICE core x2tTester](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/Test/Applications/x2tTester/README.md) | `Test/`、`OOXML/`、`PdfFile/`：DOCX 1、XLSX 34、XLS 1；本次范围无 PPTX/PDF 文件 | 格式转出矩阵、逐文件报告、固定字体和超时；转出成功后仍需内容检查 |
-| [ONLYOFFICE sdkjs PDF demo](https://github.com/ONLYOFFICE/sdkjs/tree/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/pdf/test) | 该快照没有顶层 `tests/`、`test/` 语料；`pdf/test/` 为页面与脚本入口 | 仍是实现/交互参考；这些入口不足以证明存在可直接搬用的完整四格式矩阵 |
+| [ONLYOFFICE sdkjs 测试套件](https://github.com/ONLYOFFICE/sdkjs/tree/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/tests) | 本机 `references/onlyoffice/DesktopEditors/sdkjs/tests`（v9.3.1.11）：`cell/spreadsheet-calculation/formula-tests` 11 个文件 159,957 行、544 个 QUnit 块、60,539 条断言；另有 `NumFormatParse`、`conditionalFormattingTests`、`DataValidationTests`、`PivotTests`、`DynamicArraysTests`、`common/color-mods`、`ChartsDrawTest`，以及 `word/` 的 numbering、styles、revisions、document-calculation、math-ml、forms。浅克隆 `DocumentServer/sdkjs` 没有 `tests/` | AGPL-3.0：不复制代码，只在私有 `test-lab` 提取 `(公式, 输入, 期望)` 数据向量并记录来源行号；作为首选参考归 [C1.2](../c1-corpus-and-producer-compatibility.md#c12-xlsx-公式数字格式与引用黄金集) |
 | [ONLYOFFICE-QA x2t-testing](https://github.com/ONLYOFFICE-QA/x2t-testing/blob/540e4308ce1fd4d7ea41220cc66b85fd03a74ae7/README.md) | 全树 DOCX 1、XLSX 2、PPTX 1，其中含错误扩展名输入；大语料走 S3 | 旧仓库已归档；后继 [wrapper](https://github.com/ONLYOFFICE-QA/x2ttester_wrapper/blob/master/readme.md)支持选择文件和格式，但字体库是私有的，不能宣称完整语料已可复现 |
 | [LibreOffice Writer 测试说明](https://github.com/LibreOffice/core/blob/2821d29a87b28785d74fa64d975465e4c99d4416/sw/qa/extras/README) | `sw/qa`、`sd/qa`、`sc/qa`、`vcl/qa`、`filter/qa`：DOCX 2159、XLSX 396、PPTX 441、PDF 59；另 DOC 351、XLS 344、PPT 72 | 导入模型、布局 XML、导出 OOXML XPath、保存后重载；不能只搬文件、不搬对应断言 |
+| [LibreOffice 函数自校验表与布局 dump](https://github.com/LibreOffice/core/tree/2821d29a87b28785d74fa64d975465e4c99d4416/sc/qa/unit/data/functions) | `sc/qa/unit/data/functions/<类别>/fods` 548 份（statistical 147、mathematical 79、financial 51、addin 49、spreadsheet 45、text 44、date_time 32 等）；`sw/qa/extras/layout/data` 468、`sw/qa/core/layout/data` 96、`sw/qa/core/text/data` 81 份 DOCX 配 `parseLayoutDump()` XPath 断言；`sd/qa/unit/data/pptx` 433、`chart2/qa/extras/data` xlsx 159 / docx 69 / pptx 41 | 函数表用固定 LibreOffice headless 转 XLSX 后由核心清缓存重算，对比汇总列；布局 dump 作为 DOCX 分页与浮动对象的独立几何黄金；MPL-2.0 随资产保留，归 [C1.2](../c1-corpus-and-producer-compatibility.md#c12-xlsx-公式数字格式与引用黄金集) 与 [C1.6](../c1-corpus-and-producer-compatibility.md#c16-libreoffice-布局-dump-黄金集) |
 | [Apache POI slideshow 测试](https://github.com/apache/poi/tree/ae62bb5116b9aee19ebd5834e3a82066132c9f7f/poi-ooxml/src/test/java/org/apache/poi/xslf) | `test-data/`：DOCX 181、XLSX 371、PPTX 103、PDF 1；另 DOC 175、XLS 420、PPT 146 | 完整示例、文本/对象读取、关系和写回；结构断言不代替 Office 布局参考 |
 | [PDFium pixel runner](https://github.com/chromium/pdfium/blob/a84323421e94f484faca52dd9d027934eba42ab8/testing/tools/run_pixel_tests.py) | `testing/resources/`：PDF 301、`.in` 模板 508 | embedder API、像素参考与资源限制；`.in` 用上游生成器，不能算现成 PDF；[DEPS](https://github.com/chromium/pdfium/blob/a84323421e94f484faca52dd9d027934eba42ab8/DEPS)还指向独立 `pdfium_tests` corpus，本轮未导入 |
 | [PDF.js manifest](https://github.com/mozilla/pdf.js/blob/24de17e81b3357b30ffd710ec080be00d65ac98d/test/test_manifest.json) / [runner](https://github.com/mozilla/pdf.js/blob/24de17e81b3357b30ffd710ec080be00d65ac98d/test/test.mjs) | `test/pdfs/`：PDF 989、`.link` 460；manifest 1403 条：eq 1240、text 80、load 57、other 20、fbf 2、highlight 2、extract 2 | `eq` 比较参考图；`text` 检查文字层的栅格结果；`load` 不授予像素一致；同文件可多条，523 个 link 条目不等于 523 个已下载文件 |
@@ -177,5 +183,12 @@ C13 SmartArt 第 14 页的字号与空格混排行高已修正。整稿的 48 �
 | [Open Preservation format-corpus](https://github.com/openpreserve/format-corpus) | `office`、`office-examples`、`fully-featured-pdf` 等，补生产工具与格式版本 | README 声明除另有说明外 CC0；逐文件查元数据和例外；不是像素参考库 |
 | [PDF Association pdf-corpora](https://github.com/pdf-association/pdf-corpora) | 查找 PDFium、PDF.js、其他公开 PDF 集 | 这是索引；链接公开不等于允许再分发，也不等于本机已有文件 |
 | [veraPDF corpus](https://github.com/veraPDF/veraPDF-corpus) | PDF/A、PDF/UA 与部分 ISO 32000 条款的原子 pass/fail 输入 | CC BY 4.0；用于声明对应标准范围时，不能替代视觉或编辑兼容检查 |
+| [SheetJS test_files](https://github.com/SheetJS/test_files) | 多生产工具 XLSX/XLS/ODS，含 POI、roo、ParseXLSX、LibreOffice 导出变体与损坏 CFB 等边界文件；另有 CC0 的 `enron_xls` | 根目录 Apache-2.0，外部来源文件许可不一且默认目标已排除来源不明者；逐文件核对后登记 |
+| [PDF Association Stressful PDF Corpus](https://pdfa.org/stressful-pdf-corpus) | 35 个 issue tracker 的 32,500 份畸形 PDF（PDFBox 3,832、qpdf 111、pdfcpu 100 等） | 31 GB、未过滤、含恶意样本；只在隔离环境抽样用于预算与恢复检查，不入仓 |
+| [Digital Corpora govdocs1](https://digitalcorpora.org/corpora/file-corpora/files/) | 近 100 万份可再分发政府文档，含 DOC/DOCX/XLS/PPT/PDF | 公共领域；下载链接曾报 403，先验证可达再抽样 |
+| [openjpeg-data](https://github.com/uclouvain/openjpeg-data) 与 [jbig2dec UBC 位流](https://jbig2dec.com/tests/) | JPEG 2000 一致性（约 1 GB）与 JBIG2 UBC 位流 | 分别为 BSD 与 UBC 测试条款；补 C0 的 JPX/JBIG2 覆盖 |
+| [unicode-org/text-rendering-tests](https://github.com/unicode-org/text-rendering-tests) | OpenType 塑形与渲染一致性用例，HarfBuzz 自动导入该套件 | Apache-2.0 与 OFL 字体；作为塑形与轮廓的独立黄金 |
+| [ooxmlsdk-test-suite](https://docs.rs/crate/ooxmlsdk) | 5,477 份来自 POI、LibreOffice、Open-XML-SDK、Pandoc、ClosedXML 的容器往返语料索引 | 指向 Pandoc 与 ClosedXML 两个尚未使用的生产工具语料 |
+| [python-docx 测试文件](https://github.com/python-openxml/python-docx/tree/master/tests/test_files)、python-pptx、openpyxl | 脚本生成器产出的 DOCX/PPTX/XLSX | MIT；补 C1.5 的脚本工具生成一类 |
 
 不批量抓取 `.link`、不先镜像海量 corpus，也不扩建多浏览器验收。完整文件与定向回归原件搭配，按下一批缺口增加。

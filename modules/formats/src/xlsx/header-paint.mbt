@@ -1,13 +1,17 @@
 ///|
+pub const HeaderFooterTextUnits : Int32 = 255
+
+///|
 fn header_sections(
   source : String,
   page : Int32,
   total : Int32,
   sheet : String,
 ) -> Array[String] raise @failure.Failure {
-  guard source.length() <= 255 && @xml.valid_text(source) else {
+  guard source.length() <= HeaderFooterTextUnits && @xml.valid_text(source) else {
     @failure.reject(
-      "invalid-header-footer", "Header/footer text must contain at most 255 valid XML text units",
+      "invalid-header-footer",
+      "Header/footer text must contain at most \{HeaderFooterTextUnits} valid XML text units",
     )
   }
   let sections = [StringBuilder(), StringBuilder(), StringBuilder()]
@@ -96,7 +100,7 @@ fn Session::paint_header_footer(
     }) /
     scale
   let width = setup.width / scale - left - right
-  guard width > 0 && width <= 14400 else {
+  guard width > 0 && width <= PrintPageMaxPoints.to_double() else {
     @failure.reject(
       "print-overflow", "Header/footer width exceeds supported page area",
     )

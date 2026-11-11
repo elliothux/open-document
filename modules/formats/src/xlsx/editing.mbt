@@ -1,4 +1,10 @@
 ///|
+pub const RectangularEditCells : Int32 = 4096
+
+///|
+const RectangularEditTextUnits : Int32 = 1048576
+
+///|
 fn escaped_attribute(value : String) -> String raise @failure.Failure {
   @xml.escape_text(value).replace_all(old="\"", new="&quot;")
 }
@@ -218,7 +224,8 @@ fn Sheet::prepare(
         .all(self.data, "row")
         .iter()
         .find_first(node => {
-          natural(node.attribute("r").unwrap_or("0"), 1048576) > row_number
+          natural(node.attribute("r").unwrap_or("0"), WorksheetRows) >
+          row_number
         })
       let offset = next
         .map(node => node.start - data.start)
@@ -277,11 +284,12 @@ pub fn Session::replace(
   }
   let count = (target.bottom - target.top + 1).to_int64() *
     (target.right - target.left + 1).to_int64()
-  guard count <= 4096 &&
+  guard count <= RectangularEditCells.to_int64() &&
     values.length() == target.bottom - target.top + 1 &&
     values.all(row => row.length() == target.right - target.left + 1) else {
     @failure.reject(
-      "limit-exceeded", "Rectangular edit exceeds 4096 cells or has invalid dimensions",
+      "limit-exceeded",
+      "Rectangular edit exceeds \{RectangularEditCells} cells or has invalid dimensions",
     )
   }
   let single = count == 1
@@ -309,10 +317,10 @@ pub fn Session::replace(
       guard reason.is_empty() else {
         @failure.reject("protected-content", reason)
       }
-      units += text.length()
-      guard units <= 1048576 else {
+      guard text.length() <= RectangularEditTextUnits - units else {
         @failure.reject("limit-exceeded", "Edit input exceeds UTF-16 budget")
       }
+      units += text.length()
       let value = cell_content(text, literal)
       if value.formula is Some(formula) &&
         cell.bind(cell => cell.formula) == Some(formula) {
@@ -617,7 +625,7 @@ fn cell_sources(
   for row in tree.all(data, "row") {
     let row_number = natural(
       row.attribute("r").unwrap_or((previous_row + 1).to_string()),
-      1048576,
+      WorksheetRows,
     )
     previous_row = row_number
     let mut previous_column = 0

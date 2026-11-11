@@ -19,7 +19,7 @@ pub fn Session::print_drawing(
   }
   {
     "revision": self.revision,
-    "regions": document.drawing(images),
+    "regions": document.drawing(images, glyph_raster=FractionalGlyphs),
     "outlines": probe.outline_resources(),
     "images": resources,
   }

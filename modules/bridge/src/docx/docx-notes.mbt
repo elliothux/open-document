@@ -1,122 +1,164 @@
 ///|
-fn is_docx_note_operation(operation : String) -> Bool {
-  [
-    "docxNotes", "editDocxNote", "insertDocxNote", "removeDocxNote", "setEndnotePosition",
-    "noteNumbering", "setNoteNumbering",
-  ].contains(operation)
+priv struct NoteNumberingRequest {
+  revision : @common.RequestInt
+  kind : String
+  section : @common.RequestInt
+} derive(@json.FromJson)
+
+///|
+priv struct NoteNumberingInput {
+  format : String
+  start : @common.RequestNumber
+  restart : String
+} derive(@json.FromJson)
+
+///|
+priv struct SetNoteNumberingRequest {
+  revision : @common.RequestInt
+  kind : String
+  section : @common.RequestInt
+  numbering : NoteNumberingInput
+  profile : @common.RequestProfile
+} derive(@json.FromJson)
+
+///|
+priv struct EndnotePositionRequest {
+  revision : @common.RequestInt
+  position : String
+  profile : @common.RequestProfile
+} derive(@json.FromJson)
+
+///|
+priv struct NoteEditRequest[T] {
+  revision : @common.RequestInt
+  note : T
+  profile : @common.RequestProfile
+} derive(@json.FromJson)
+
+///|
+priv struct NoteInsertInput {
+  kind : String
+  text : String
+} derive(@json.FromJson)
+
+///|
+priv struct NoteRemoveInput {
+  kind : String
+  id : String
+} derive(@json.FromJson)
+
+///|
+priv struct NoteEditInput {
+  kind : String
+  id : String
+  text : String
+} derive(@json.FromJson)
+
+///|
+fn[T : @json.FromJson] note_edit_request(
+  input : Json,
+  field_count : Int32,
+) -> NoteEditRequest[T] raise @failure.Failure {
+  guard input is { "note": Object(fields), .. } &&
+    fields.length() == field_count else {
+    @failure.reject("invalid-operation", "Invalid native note fields")
+  }
+  @common.request(input)
 }
 
 ///|
-fn Context::docx_note_operation(
-  self : Context,
-  operation : String,
-  request : Json,
-) -> Json raise @failure.Failure {
-  guard self.docx is Some(session) else {
-    @failure.reject("invalid-operation", "Open a DOCX session first")
-  }
-  let revision = field_int(request, "revision")
-  if operation == "docxNotes" {
-    return session.notes(revision)
-  }
-  if operation == "noteNumbering" {
-    return session.note_numbering(
-      revision,
-      field_string(request, "kind"),
-      field_int(request, "section"),
+let note_handlers : Map[
+  String,
+  (Context, @model.Session, Json) -> Json raise @failure.Failure,
+] = {
+  "docxNotes": (_context, session, input) => {
+    session.notes(@common.request_revision(input))
+  },
+  "noteNumbering": (_context, session, input) => {
+    let command : NoteNumberingRequest = @common.request(input)
+    session.note_numbering(
+      command.revision.value,
+      command.kind,
+      command.section.value,
     )
-  }
-  if operation == "setNoteNumbering" {
-    guard request is { "numbering": Object(fields) as value, .. } &&
-      fields.length() == 3 &&
-      fields.keys().all(key => ["format", "start", "restart"].contains(key)) else {
+  },
+  "setNoteNumbering": (self, session, input) => {
+    guard input is { "numbering": Object(fields), .. } && fields.length() == 3 else {
       @failure.reject("invalid-operation", "Invalid note numbering fields")
     }
-    let start = field_number(value, "start")
-    guard start >= 0 && start <= 4294967295 && start.floor() == start else {
+    let command : SetNoteNumberingRequest = @common.request(input)
+    let start = command.numbering.start.value
+    guard start >= 0 &&
+      start <= @layout.NumberingStartMax.to_double() &&
+      start.floor() == start else {
       @failure.reject("invalid-operation", "Invalid note numbering start")
     }
+    let revision = command.revision.value
     let result = session.set_note_numbering(
       revision,
-      field_string(request, "kind"),
-      field_int(request, "section"),
+      command.kind,
+      command.section.value,
       @layout.PageNumbering::new(
         start=start.to_int64(),
-        format=field_string(value, "format"),
+        format=command.numbering.format,
       ),
-      field_string(value, "restart"),
+      command.numbering.restart,
       probe=self.probe,
-      profile=font_profile(request),
+      profile=command.profile.value,
       images=self.images,
     )
-    if result is { "revision": Number(current, ..), .. } &&
-      current != revision.to_double() {
-      self.layout = None
-    }
-    return result
-  }
-  if operation == "setEndnotePosition" {
+    self.clear_edit_layout(result, previous=revision)
+  },
+  "setEndnotePosition": (self, session, input) => {
+    let command : EndnotePositionRequest = @common.request(input)
+    let revision = command.revision.value
     let result = session.set_endnote_position(
       revision,
-      field_string(request, "position"),
+      command.position,
       probe=self.probe,
-      profile=font_profile(request),
+      profile=command.profile.value,
       images=self.images,
     )
-    if result is { "revision": Number(current, ..), .. } &&
-      current != revision.to_double() {
-      self.layout = None
-    }
-    return result
-  }
-  let keys = if operation == "insertDocxNote" {
-    ["kind", "text"]
-  } else if operation == "removeDocxNote" {
-    ["kind", "id"]
-  } else {
-    ["kind", "id", "text"]
-  }
-  guard request is { "note": Object(fields) as note, .. } &&
-    fields.length() == keys.length() &&
-    fields.keys().all(key => keys.contains(key)) else {
-    @failure.reject("invalid-operation", "Invalid native note fields")
-  }
-  let kind = field_string(note, "kind")
-  let profile = font_profile(request)
-  let result = match operation {
-    "insertDocxNote" =>
-      session.insert_note(
-        revision,
-        kind,
-        field_string(note, "text"),
-        probe=self.probe,
-        profile~,
-        images=self.images,
-      )
-    "removeDocxNote" =>
-      session.remove_note(
-        revision,
-        kind,
-        field_string(note, "id"),
-        probe=self.probe,
-        profile~,
-        images=self.images,
-      )
-    "editDocxNote" =>
-      session.edit_note(
-        revision,
-        kind,
-        field_string(note, "id"),
-        field_string(note, "text"),
-        probe=self.probe,
-        profile~,
-        images=self.images,
-      )
-    _ => @failure.reject("invalid-operation", "Unknown native note operation")
-  }
-  if result is { "revision": Number(current, ..), .. } &&
-    current != revision.to_double() {
-    self.layout = None
-  }
-  result
+    self.clear_edit_layout(result, previous=revision)
+  },
+  "insertDocxNote": (self, session, input) => {
+    let command : NoteEditRequest[NoteInsertInput] = note_edit_request(input, 2)
+    let revision = command.revision.value
+    let result = session.insert_note(
+      revision,
+      command.note.kind,
+      command.note.text,
+      probe=self.probe,
+      profile=command.profile.value,
+      images=self.images,
+    )
+    self.clear_edit_layout(result, previous=revision)
+  },
+  "removeDocxNote": (self, session, input) => {
+    let command : NoteEditRequest[NoteRemoveInput] = note_edit_request(input, 2)
+    let revision = command.revision.value
+    let result = session.remove_note(
+      revision,
+      command.note.kind,
+      command.note.id,
+      probe=self.probe,
+      profile=command.profile.value,
+      images=self.images,
+    )
+    self.clear_edit_layout(result, previous=revision)
+  },
+  "editDocxNote": (self, session, input) => {
+    let command : NoteEditRequest[NoteEditInput] = note_edit_request(input, 3)
+    let revision = command.revision.value
+    let result = session.edit_note(
+      revision,
+      command.note.kind,
+      command.note.id,
+      command.note.text,
+      probe=self.probe,
+      profile=command.profile.value,
+      images=self.images,
+    )
+    self.clear_edit_layout(result, previous=revision)
+  },
 }

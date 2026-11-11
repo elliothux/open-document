@@ -1,10 +1,13 @@
 ///|
+pub const HyperlinkTargetUnits : Int32 = 2048
+
+///|
 fn check_hyperlink_target(target : String) -> Unit raise @failure.Failure {
   if target.has_prefix("#") {
     check_bookmark_name(target[1:].to_owned())
     return
   }
-  guard target.length() <= 2048 else {
+  guard target.length() <= HyperlinkTargetUnits else {
     @failure.reject(
       "invalid-operation", "Hyperlink address exceeds 2048 UTF-16 units",
     )

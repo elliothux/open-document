@@ -73,6 +73,18 @@ pub fn stroke_contour(
   join : String,
   miter : Double,
 ) -> Array[PathSegment] raise @failure.Failure {
+  stroke_contour_impl(path, width, cap, join, miter, false)
+}
+
+///|
+fn stroke_contour_impl(
+  path : Array[PathSegment],
+  width : Double,
+  cap : String,
+  join : String,
+  miter : Double,
+  linear_paint : Bool,
+) -> Array[PathSegment] raise @failure.Failure {
   let radius = width / 2
   let result : Array[PathSegment] = []
   guard radius > 0 else { return result }
@@ -83,7 +95,15 @@ pub fn stroke_contour(
       let b = points[(i + 1) % points.length()]
       area += a.0 * b.1 - a.1 * b.0
     }
-    let points = if area < 0 { points.rev() } else { points }
+    let points = if area < 0 {
+      if linear_paint {
+        [points[0], ..points[1:].to_owned().rev()]
+      } else {
+        points.rev()
+      }
+    } else {
+      points
+    }
     for i, (x, y) in points {
       result.push(if i == 0 { Move(x, y) } else { Line(x, y) })
     }
@@ -112,7 +132,11 @@ pub fn stroke_contour(
   let direction = fn(a : (Double, Double), b : (Double, Double)) {
     let dx = b.0 - a.0
     let dy = b.1 - a.1
-    let length = (dx * dx + dy * dy).sqrt()
+    let length = if linear_paint {
+      @math.hypot(dx, dy)
+    } else {
+      (dx * dx + dy * dy).sqrt()
+    }
     (dx / length, dy / length)
   }
   let ring = fn(points : Array[(Double, Double)]) {
@@ -231,10 +255,14 @@ pub fn stroke_contour(
       let divisor = 1.0 + a.0 * b.0 + a.1 * b.1
       let corner = ((first.0 + last.0) / divisor, (first.1 + last.1) / divisor)
       let points = [center, (center.0 + first.0, center.1 + first.1)]
-      if join == "miter" &&
+      let within_miter = if linear_paint {
+        divisor >= 0.0001 && @math.hypot(corner.0, corner.1) <= radius * miter
+      } else {
         divisor > 0 &&
         corner.0 * corner.0 + corner.1 * corner.1 <=
-        radius * radius * miter * miter {
+        radius * radius * miter * miter
+      }
+      if join == "miter" && within_miter {
         points.push((center.0 + corner.0, center.1 + corner.1))
       }
       points.push((center.0 + last.0, center.1 + last.1))

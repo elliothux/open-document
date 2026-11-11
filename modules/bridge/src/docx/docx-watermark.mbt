@@ -1,10 +1,24 @@
 ///|
-fn text_watermark_value(
-  request : Json,
-) -> @model.Watermark? raise @failure.Failure {
-  guard request is { "value": value, .. } else {
-    @failure.reject("invalid-operation", "Watermark value is required")
-  }
+priv struct PictureWatermarkRequest {
+  width : @common.RequestNumber
+  height : @common.RequestNumber
+  opacity : @common.RequestNumber
+} derive(@json.FromJson)
+
+///|
+priv struct TextWatermarkRequest {
+  text : String
+  font : String
+  size : @common.RequestNumber
+  color : String
+  opacity : @common.RequestNumber
+  diagonal : Bool
+  bold : Bool
+  italic : Bool
+} derive(@json.FromJson)
+
+///|
+fn watermark_value(value : Json) -> @model.Watermark? raise @failure.Failure {
   if value is Null {
     return None
   }
@@ -18,16 +32,20 @@ fn text_watermark_value(
     }
     let image = match image {
       String(key) => @model.WatermarkImage::Resource(key)
-      Object(fields) if fields.length() == 1 && fields.contains("bytes") =>
-        @model.WatermarkImage::Data(input_bytes(image, 4194304))
+      { "bytes": String(bytes), .. } as input if input is Object(fields) &&
+        fields.length() == 1 =>
+        @model.WatermarkImage::Data(
+          @common.byte_input(bytes, @model.ImageInputBytes),
+        )
       _ => @failure.reject("invalid-operation", "Invalid watermark image")
     }
+    let picture : PictureWatermarkRequest = @common.request(value)
     return Some(
       @model.Watermark::Picture(
         image,
-        field_number(value, "width"),
-        field_number(value, "height"),
-        field_number(value, "opacity"),
+        picture.width.value,
+        picture.height.value,
+        picture.opacity.value,
       ),
     )
   }
@@ -37,27 +55,20 @@ fn text_watermark_value(
     @failure.reject("invalid-operation", "Invalid watermark kind")
   }
   let value = text
-  guard value is Object(fields) &&
-    fields.length() == 8 &&
-    fields
-    .keys()
-    .all(key => {
-      ["text", "font", "size", "color", "opacity", "diagonal", "bold", "italic"].contains(
-        key,
-      )
-    }) else {
+  guard value is Object(fields) && fields.length() == 8 else {
     @failure.reject("invalid-operation", "Invalid watermark fields")
   }
+  let text : TextWatermarkRequest = @common.request(value)
   Some(
     @model.Watermark::Text({
-      text: field_string(value, "text"),
-      font: field_string(value, "font"),
-      size: field_number(value, "size"),
-      color: field_string(value, "color"),
-      opacity: field_number(value, "opacity"),
-      diagonal: field_boolean(value, "diagonal"),
-      bold: field_boolean(value, "bold"),
-      italic: field_boolean(value, "italic"),
+      text: text.text,
+      font: text.font,
+      size: text.size.value,
+      color: text.color,
+      opacity: text.opacity.value,
+      diagonal: text.diagonal,
+      bold: text.bold,
+      italic: text.italic,
     }),
   )
 }

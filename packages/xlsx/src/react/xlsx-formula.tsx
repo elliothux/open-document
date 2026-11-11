@@ -75,7 +75,7 @@ export function XlsxFormula({
           const range = field.current?.value.trim() ?? "";
           const submitted = draft;
           controller.run(async () => {
-            await editor.select(range);
+            await editor.objects.select(range);
             setDraft((current) =>
               current === submitted ? undefined : current,
             );
@@ -113,7 +113,7 @@ export function XlsxFormula({
       <button
         type="button"
         disabled={disabled}
-        onClick={() => controller.run(() => editor.recalculate())}
+        onClick={() => controller.run(() => editor.data.recalculate())}
       >
         {t.calculateNow}
       </button>

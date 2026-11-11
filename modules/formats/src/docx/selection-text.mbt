@@ -256,7 +256,7 @@ pub fn Session::selected_text(
     }
     let text = self.range_paragraph_text(tree, range, paragraph, fields)
     units += separator.length() + text.length()
-    guard units <= command_limit else {
+    guard units <= TextCommandUnits else {
       @failure.reject("limit-exceeded", "Selection text exceeds UTF-16 budget")
     }
     output.write_string(separator)

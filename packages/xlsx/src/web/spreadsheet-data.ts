@@ -1,4 +1,5 @@
-import { SpreadsheetClipboard } from "./spreadsheet-clipboard-host.js";
+import type { SpreadsheetHost } from "./spreadsheet-host.js";
+import type { XlsxClient } from "./xlsx.js";
 import type {
   XlsxSubtotalSettings,
   XlsxDuplicateSettings,
@@ -6,46 +7,58 @@ import type {
   XlsxConsolidateSettings,
 } from "../core/xlsx.js";
 
-export abstract class SpreadsheetData extends SpreadsheetClipboard {
-  recalculate(): Promise<void> {
-    return this.change(() =>
-      this.client.recalculate(this.currentState.revision),
-    );
-  }
-  subtotals(settings: XlsxSubtotalSettings) {
-    return this.read(() =>
-      this.client.subtotals(
-        this.currentState.revision,
-        this.currentState.sheet,
-        settings,
-      ),
-    );
-  }
-  duplicates(settings: XlsxDuplicateSettings) {
-    return this.read(() =>
-      this.client.duplicates(
-        this.currentState.revision,
-        this.currentState.sheet,
-        settings,
-      ),
-    );
-  }
-  textColumns(settings: XlsxTextColumnSettings) {
-    return this.read(() =>
-      this.client.textColumns(
-        this.currentState.revision,
-        this.currentState.sheet,
-        settings,
-      ),
-    );
-  }
-  consolidation(settings: XlsxConsolidateSettings) {
-    return this.read(() =>
-      this.client.consolidation(
-        this.currentState.revision,
-        this.currentState.sheet,
-        settings,
-      ),
-    );
-  }
+export function createSpreadsheetData(
+  client: XlsxClient,
+  host: SpreadsheetHost,
+) {
+  return {
+    recalculate(): Promise<void> {
+      return host.change(() =>
+        client.execute({
+          operation: "recalculateXlsx",
+          revision: host.state().revision,
+        }),
+      );
+    },
+    subtotals(settings: XlsxSubtotalSettings) {
+      return host.read(() =>
+        client.execute({
+          operation: "subtotalsXlsx",
+          revision: host.state().revision,
+          sheet: host.state().sheet,
+          settings: settings,
+        }),
+      );
+    },
+    duplicates(settings: XlsxDuplicateSettings) {
+      return host.read(() =>
+        client.execute({
+          operation: "duplicatesXlsx",
+          revision: host.state().revision,
+          sheet: host.state().sheet,
+          settings: settings,
+        }),
+      );
+    },
+    textColumns(settings: XlsxTextColumnSettings) {
+      return host.read(() =>
+        client.execute({
+          operation: "textColumnsXlsx",
+          revision: host.state().revision,
+          sheet: host.state().sheet,
+          settings: settings,
+        }),
+      );
+    },
+    consolidation(settings: XlsxConsolidateSettings) {
+      return host.read(() =>
+        client.execute({
+          operation: "consolidationXlsx",
+          revision: host.state().revision,
+          sheet: host.state().sheet,
+          settings: settings,
+        }),
+      );
+    },
+  };
 }

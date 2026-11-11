@@ -11,7 +11,7 @@ pub fn Session::replace_picture(
   images? : @layout.Images,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
-  guard bytes.length() <= 2097152 else {
+  guard bytes.length() <= ImageInputBytes else {
     @failure.reject("limit-exceeded", "Worksheet image input exceeds 2 MiB")
   }
   let current = self.sheets[self.sheet_index(sheet)]
@@ -26,13 +26,12 @@ pub fn Session::replace_picture(
       @failure.reject("invalid-operation", "Worksheet picture no longer exists")
     })
   picture.check_change(false)
-  let (part, mime) = self.new_picture_part(bytes)
+  let (part, mime, width, height) = self.new_picture_part(bytes)
   if self.picture_bytes(picture.media.unwrap()) == bytes {
     return self.query()
   }
   if images is Some(images) {
     let decoded = images.get(picture_key(part))
-    let (_, _, width, height) = @image.type_info(bytes)
     guard decoded.width == width && decoded.height == height else {
       @failure.reject(
         "missing-image", "Decoded worksheet picture dimensions differ",

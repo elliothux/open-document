@@ -1,4 +1,7 @@
 ///|
+pub const TextBoxInsetPoints : Int32 = 14400
+
+///|
 /// Edits a native text box's text area as one source transaction, preserving content and selection.
 pub fn Session::edit_text_box(
   self : Session,
@@ -12,7 +15,10 @@ pub fn Session::edit_text_box(
   self.check_revision(revision)
   guard properties.insets.length() == 4 &&
     properties.insets.all(v => {
-      !v.is_nan() && !v.is_inf() && v >= 0 && v <= 14400
+      !v.is_nan() &&
+      !v.is_inf() &&
+      v >= 0 &&
+      v <= TextBoxInsetPoints.to_double()
     }) &&
     ["t", "ctr", "b"].contains(properties.anchor) else {
     @failure.reject("invalid-operation", "Invalid text box properties")

@@ -81,8 +81,20 @@ fn WordTree::picture_content(
   let extents : Array[Int32] = []
   let fills : Array[Int32] = []
   let crops : Array[Int32] = []
+  let mut metadata_end = 0
   for child in tree.descendants(id) {
     let node = tree.nodes[child]
+    if node.start < metadata_end {
+      continue
+    }
+    if node.uri == drawing_2010_uri &&
+      ["sizeRelH", "sizeRelV"].contains(node.name) &&
+      tree.nodes[node.parent].uri == picture_inline_uri &&
+      tree.nodes[node.parent].name == "anchor" {
+      tree.zero_relative_size(child)
+      metadata_end = node.end
+      continue
+    }
     guard [
         word_uri, picture_drawing_uri, picture_inline_uri, "http://schemas.openxmlformats.org/drawingml/2006/picture",
       ].contains(node.uri) &&
@@ -109,9 +121,12 @@ fn WordTree::picture_content(
     if node.uri == picture_drawing_uri &&
       node.name == "blip" &&
       !tree.children[child].is_empty() {
-      @failure.reject(
-        "protected-content", "Picture color effects require editing support",
-      )
+      guard tree.disabled_picture_dpi(child) else {
+        @failure.reject(
+          "protected-content", "Picture color effects require editing support",
+        )
+      }
+      metadata_end = node.end
     }
     if (node.uri == picture_inline_uri && node.name == "extent") ||
       (node.uri == picture_drawing_uri && node.name == "ext") {
@@ -180,13 +195,35 @@ fn WordTree::picture_content(
 }
 
 ///|
+priv struct PictureQuery {
+  id : Int32
+  selected : Bool
+  name : String
+  width : Double
+  height : Double
+  crop : Array[Double]
+  reason : String
+  deleteReason : String
+  replaceReason : String
+  anchor : Json
+  positionReason : String
+  hyperlink : DrawingLinkQuery
+} derive(ToJson)
+
+///|
+priv struct PictureCatalog {
+  revision : Int32
+  images : Array[PictureQuery]
+} derive(ToJson)
+
+///|
 pub fn Session::pictures(
   self : Session,
   revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
-  let images : Array[Json] = []
+  let images : Array[PictureQuery] = []
   let selected = self.selected_drawing(tree)
   let links = self.hyperlink_relationships()
   let bookmarks = tree.bookmark_targets()
@@ -234,24 +271,24 @@ pub fn Session::pictures(
       @failure.Failure(message~, ..) => (None, message)
     }
     images.push({
-      "id": id,
-      "selected": selected == Some(id),
-      "name": name,
-      "width": image.map(image => image.width).unwrap_or(0),
-      "height": image.map(image => image.height).unwrap_or(0),
-      "crop": image.map(image => image.crop).unwrap_or([0, 0, 0, 0]),
-      "reason": reason,
-      "deleteReason": delete_reason,
-      "replaceReason": replace_reason,
-      "anchor": position_image
+      id,
+      selected: selected == Some(id),
+      name,
+      width: image.map(image => image.width).unwrap_or(0),
+      height: image.map(image => image.height).unwrap_or(0),
+      crop: image.map(image => image.crop).unwrap_or([0, 0, 0, 0]),
+      reason,
+      deleteReason: delete_reason,
+      replaceReason: replace_reason,
+      anchor: position_image
       .bind(image => image.anchor)
       .map(anchor => anchor.to_json())
       .unwrap_or(Json::null()),
-      "positionReason": position_reason,
-      "hyperlink": self.drawing_link_summary(tree, id, links~, bookmarks~),
+      positionReason: position_reason,
+      hyperlink: self.drawing_link_summary(tree, id, links~, bookmarks~),
     })
   }
-  { "revision": revision, "images": images }
+  ToJson::to_json(PictureCatalog::{ revision, images, })
 }
 
 ///|

@@ -3,6 +3,7 @@ import type { SpreadsheetEditor } from "../web/spreadsheet-editor.js";
 import type { XlsxSparklineKind } from "../web/xlsx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { xlsxSparklineSourceUnits } from "@open-document/wasm/engine-source";
 
 export function XlsxSparkline({
   controller,
@@ -25,7 +26,7 @@ export function XlsxSparkline({
     disabled || !!query.sparklines.readOnlyReason || cell.includes(":");
   const apply = (source: string | null) =>
     controller.run(() =>
-      editor.editSheet({ action: "sparkline", cell, source, kind }),
+      editor.objects.editSheet({ action: "sparkline", cell, source, kind }),
     );
   return (
     <form
@@ -42,7 +43,7 @@ export function XlsxSparkline({
           <input
             aria-label={t.sparklineSource}
             value={source}
-            maxLength={256}
+            maxLength={xlsxSparklineSourceUnits}
             onChange={(event) => setSource(event.currentTarget.value)}
           />
         </label>

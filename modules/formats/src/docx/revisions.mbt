@@ -1,4 +1,10 @@
 ///|
+pub const RevisionEntries : Int32 = 4096
+
+///|
+pub const RevisionAuthorUnits : Int32 = 255
+
+///|
 priv struct RevisionEntry {
   node : Int32
   source_id : String
@@ -10,6 +16,30 @@ priv struct RevisionEntry {
   paragraph : Int32?
   reason : String
 }
+
+///|
+impl ToJson for RevisionEntry with fn to_json(self) {
+  {
+    "id": self.node.to_string(),
+    "sourceId": self.source_id,
+    "kind": self.kind,
+    "element": self.element,
+    "author": self.author,
+    "date": self.date,
+    "text": self.text,
+    "paragraph": self.paragraph
+    .map(value => Json(value))
+    .unwrap_or(Json::null()),
+    "reason": self.reason,
+  }
+}
+
+///|
+priv struct RevisionCatalog {
+  revision : Int32
+  reason : String
+  items : Array[RevisionEntry]
+} derive(ToJson)
 
 ///|
 fn revision_element(name : String) -> Bool {
@@ -107,8 +137,11 @@ fn WordTree::revision_entries(
   for id in self.descendants(body) {
     let node = self.nodes[id]
     guard node.uri == word_uri && revision_element(node.name) else { continue }
-    guard entries.length() < 4096 else {
-      @failure.reject("limit-exceeded", "Revision catalog exceeds 4096 entries")
+    guard entries.length() < RevisionEntries else {
+      @failure.reject(
+        "limit-exceeded",
+        "Revision catalog exceeds \{RevisionEntries} entries",
+      )
     }
     let (paragraph, reason) = try {
       let paragraph = if node.name == "tcPrChange" {
@@ -163,7 +196,7 @@ fn WordTree::revision_entries(
     let author = node.attribute("author", uri=word_uri).unwrap_or("")
     let date = node.attribute("date", uri=word_uri).unwrap_or("")
     let source_id = node.attribute("id", uri=word_uri).unwrap_or("")
-    guard author.length() <= 255 &&
+    guard author.length() <= RevisionAuthorUnits &&
       date.length() <= 128 &&
       source_id.length() <= 128 else {
       @failure.reject(
@@ -243,25 +276,8 @@ pub fn Session::revisions(
   } catch {
     @failure.Failure(message~, ..) => message
   }
-  {
-    "revision": revision,
-    "reason": reason,
-    "items": entries.map(fn(entry) -> Json {
-      {
-        "id": entry.node.to_string(),
-        "sourceId": entry.source_id,
-        "kind": entry.kind,
-        "element": entry.element,
-        "author": entry.author,
-        "date": entry.date,
-        "text": entry.text,
-        "paragraph": entry.paragraph
-        .map(value => Json(value))
-        .unwrap_or(Json::null()),
-        "reason": entry.reason,
-      }
-    }),
-  }
+  let catalog : RevisionCatalog = { revision, reason, items: entries, }
+  ToJson::to_json(catalog)
 }
 
 ///|
@@ -325,8 +341,11 @@ pub fn Session::resolve_revisions(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   self.check_revision_protection()
-  guard !ids.is_empty() && ids.length() <= 4096 else {
-    @failure.reject("invalid-operation", "Select 1–4096 revisions")
+  guard !ids.is_empty() && ids.length() <= RevisionEntries else {
+    @failure.reject(
+      "invalid-operation",
+      "Select 1–\{RevisionEntries} revisions",
+    )
   }
   let wanted : Map[String, Bool] = Map([])
   for id in ids {

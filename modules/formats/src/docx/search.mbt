@@ -1,4 +1,7 @@
 ///|
+pub const SearchMatchLimit : Int32 = 1000
+
+///|
 pub(all) struct FindOptions {
   matchCase : Bool
   wholeWord : Bool
@@ -20,10 +23,18 @@ priv struct SearchGroup {
 }
 
 ///|
+priv struct SearchMatch {
+  selection : Selection
+  snippet : String
+  reason : String
+} derive(ToJson)
+
+///|
 priv struct SearchResult {
-  matches : Array[(Selection, String, String)]
+  revision : Int32
   truncated : Bool
-}
+  matches : Array[SearchMatch]
+} derive(ToJson)
 
 ///|
 fn SearchGroup::position(
@@ -195,7 +206,7 @@ fn Session::find_matches(
   options : FindOptions,
 ) -> SearchResult raise @failure.Failure {
   guard !text.is_empty() &&
-    text.length() <= command_limit &&
+    text.length() <= TextCommandUnits &&
     @xml.valid_text(
       text.replace_all(old="\u000b", new="").replace_all(old="\u000c", new=""),
     ) else {
@@ -226,11 +237,11 @@ fn Session::find_matches(
     value => Ok(value)
   }
   let reasons : Map[Int32, String] = Map([])
-  let matches : Array[(Selection, String, String)] = []
+  let matches : Array[SearchMatch] = []
   for group in self.search_groups(tree) {
     for (start, end) in pattern.matches(group.text) {
-      if matches.length() == 1000 {
-        return { matches, truncated: true, }
+      if matches.length() == SearchMatchLimit {
+        return { revision: self.revision, truncated: true, matches, }
       }
       let selection = {
         anchor: group.position(start, "after"),
@@ -287,10 +298,10 @@ fn Session::find_matches(
       let snippet = group.text[(start - 16).max(0):(end + 32)
       .min(start + 80)
       .min(group.text.length())].to_owned()
-      matches.push((selection, snippet, reason))
+      matches.push({ selection, snippet, reason, })
     }
   }
-  { matches, truncated: false, }
+  { revision: self.revision, truncated: false, matches, }
 }
 
 ///|
@@ -302,14 +313,5 @@ pub fn Session::find(
   options : FindOptions,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
-  let result = self.find_matches(text, options)
-  {
-    "revision": revision,
-    "truncated": result.truncated,
-    "matches": result.matches.map(item => {
-      "selection": item.0.to_json(),
-      "snippet": Json(item.1),
-      "reason": Json(item.2),
-    }),
-  }
+  ToJson::to_json(self.find_matches(text, options))
 }

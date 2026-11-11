@@ -14,8 +14,8 @@ fn Session::add_slide(
   index : Int32,
   copy~ : Bool = false,
 ) -> Json raise @failure.Failure {
-  guard self.slides.length() < 256 else {
-    @failure.reject("limit-exceeded", "Slides exceed 256")
+  guard self.slides.length() < SlideCountLimit else {
+    @failure.reject("limit-exceeded", "Slides exceed \{SlideCountLimit}")
   }
   let root = self.main.root("presentation")
   let list = self.main.required(root.id, "sldIdLst", uri=presentation_uri)

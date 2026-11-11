@@ -36,6 +36,7 @@ fn Session::unmerge_reason(
   self : Session,
   sheet : Sheet,
   target : Range,
+  tree? : Tree,
 ) -> String {
   if !self.read_only.is_empty() {
     return self.read_only
@@ -49,7 +50,7 @@ fn Session::unmerge_reason(
     return "Merge editing exceeds 4096 cells"
   }
   try {
-    check_merge_markup(Tree::new(sheet.document))
+    check_merge_markup(tree.unwrap_or_else(() => Tree::new(sheet.document)))
     ""
   } catch {
     @failure.Failure(message~, ..) => message
@@ -61,8 +62,9 @@ fn Session::merge_reason(
   self : Session,
   sheet : Sheet,
   range : Range,
+  tree? : Tree,
 ) -> String {
-  let reason = self.unmerge_reason(sheet, range)
+  let reason = self.unmerge_reason(sheet, range, tree?)
   if !reason.is_empty() {
     return reason
   }
@@ -74,7 +76,7 @@ fn Session::merge_reason(
     return "Select two or more cells to merge"
   }
   try {
-    let tree = Tree::new(sheet.document)
+    let tree = tree.unwrap_or_else(() => Tree::new(sheet.document))
     // shortcut: Non-anchor links and table cells need ownership support before merging.
     for node in tree.children.get(tree.root("worksheet").id).unwrap_or([]) {
       if node.uri != spreadsheet_uri ||
@@ -106,10 +108,15 @@ fn Session::merge_reason(
 }
 
 ///|
-fn Sheet::merge_discarded(self : Sheet, target : Range) -> Int32 {
-  self.cells
-  .values()
-  .fold(init=0, (count, cell) => {
+fn Sheet::merge_discarded(
+  self : Sheet,
+  target : Range,
+  selected? : Array[Cell],
+) -> Int32 {
+  let cells = selected
+    .map(items => items.iter())
+    .unwrap_or_else(() => self.cells.values())
+  cells.fold(init=0, (count, cell) => {
     if target.contains(cell.address) &&
       !(cell.address.row == target.top && cell.address.column == target.left) &&
       (cell.value != Blank || cell.formula is Some(_)) {
@@ -125,17 +132,20 @@ fn Session::merging(
   self : Session,
   sheet : Sheet,
   range : Range,
-) -> Json raise @failure.Failure {
+  selected : Array[Cell],
+  tree : Tree,
+) -> QueryMerging raise @failure.Failure {
   let target = sheet.merge_target(range)
+  let selected = if target == range { Some(selected) } else { None }
   let notes = self.read_sheet_notes(sheet, allow_threads=true) catch {
     @failure.Failure(..) => None
   }
   {
-    "range": target.name(),
-    "merged": sheet.merges.any(merge => merge.intersects(target)),
-    "discarded": sheet.merge_discarded(target),
-    "discardedNotes": notes.map(n => n.merge_discarded(target)).unwrap_or(0),
-    "mergeReason": self.merge_reason(sheet, target),
-    "unmergeReason": self.unmerge_reason(sheet, target),
+    range: target.name(),
+    merged: sheet.merges.any(merge => merge.intersects(target)),
+    discarded: sheet.merge_discarded(target, selected?),
+    discardedNotes: notes.map(n => n.merge_discarded(target)).unwrap_or(0),
+    mergeReason: self.merge_reason(sheet, target, tree~),
+    unmergeReason: self.unmerge_reason(sheet, target, tree~),
   }
 }

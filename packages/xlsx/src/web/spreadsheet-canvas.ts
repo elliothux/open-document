@@ -1,42 +1,43 @@
 import { CanvasSurface } from "@open-document/web-core/canvas-surface";
-import { decodeImage } from "@open-document/web-core/image";
+import { materializeImage } from "@open-document/web-core/image";
+import type { ImagePreparation } from "@open-document/wasm/abi/drawing";
 import type { XlsxClient } from "./xlsx.js";
 
 /** Keeps decoded worksheet resources with the existing Canvas surface. */
 export class SpreadsheetCanvas extends CanvasSurface {
-  private readonly keys = new Map<string, string>();
-
-  constructor(private readonly mode: "integer" | "pdf" = "integer") {
-    super(mode);
+  constructor(private readonly mode: "screen" | "print" = "screen") {
+    super();
   }
 
   private async add(
     client: XlsxClient,
     revision: number,
     key: string,
-    bytes: Uint8Array,
+    image: ImagePreparation,
     signal?: AbortSignal,
+    registerPixels = false,
   ): Promise<void> {
-    const { bitmap, rgba } = await decodeImage(bytes, signal);
+    const { bitmap, rgba } = await materializeImage(image, signal);
+    let identity: string;
     try {
-      const identity = await client.addImage(
-        revision,
-        key,
-        bitmap.width,
-        bitmap.height,
-        rgba,
-      );
+      identity =
+        image.kind === "rgba" && !registerPixels
+          ? image.key
+          : await client.execute({
+              operation: "imageXlsx",
+              revision,
+              key,
+              width: bitmap.width,
+              height: bitmap.height,
+              bytes: rgba,
+            });
       signal?.throwIfAborted();
-      if (this.images.has(identity)) bitmap.close();
-      else {
-        this.images.set(identity, bitmap);
-        if (this.mode === "pdf") this.imagePixels.set(identity, rgba);
-      }
-      this.keys.set(key, identity);
     } catch (error) {
       bitmap.close();
       throw error;
     }
+    this.cacheImage(identity, bitmap, this.mode === "print" ? rgba : undefined);
+    this.imageKeys.set(key, identity);
   }
 
   async addPicture(
@@ -45,8 +46,28 @@ export class SpreadsheetCanvas extends CanvasSurface {
     bytes: Uint8Array,
     signal?: AbortSignal,
   ): Promise<void> {
-    const resource = await client.pictureResource(revision, bytes);
-    await this.add(client, revision, resource.key, bytes, signal);
+    const resource = await client.execute({
+      operation: "pictureResourceXlsx",
+      revision,
+      bytes,
+      preparePixels: true,
+    });
+    await this.add(
+      client,
+      revision,
+      resource.key,
+      resource.bytes
+        ? {
+            kind: "rgba",
+            key: resource.key,
+            width: resource.width,
+            height: resource.height,
+            bytes: resource.bytes,
+          }
+        : { kind: "encoded", bytes, header: resource },
+      signal,
+      true,
+    );
   }
 
   async prepare(
@@ -59,34 +80,29 @@ export class SpreadsheetCanvas extends CanvasSurface {
     signal?.throwIfAborted();
     const keys = new Set<string>();
     for (const sheet of sheets) {
-      const pictures = await client.pictures(revision, sheet, profile);
+      const pictures = await client.execute({
+        operation: "picturesXlsx",
+        revision: revision,
+        sheet: sheet,
+        profile: profile,
+      });
       for (const item of pictures.items) keys.add(item.key);
     }
-    for (const key of this.keys.keys())
-      if (!keys.has(key)) this.keys.delete(key);
-    const retained = new Set(this.keys.values());
-    for (const [identity, bitmap] of this.images) {
-      if (!retained.has(identity)) {
-        bitmap.close();
-        this.images.delete(identity);
-        this.imagePixels.delete(identity);
-      }
-    }
+    this.retainImageKeys(keys);
     for (const key of keys) {
-      if (!this.keys.has(key))
+      if (!this.imageKeys.has(key))
         await this.add(
           client,
           revision,
           key,
-          await client.imageBytes(revision, key),
+          await client.execute({
+            operation: "prepareImageXlsx",
+            revision: revision,
+            key: key,
+          }),
           signal,
         );
     }
     signal?.throwIfAborted();
-  }
-
-  override dispose(): void {
-    this.keys.clear();
-    super.dispose();
   }
 }

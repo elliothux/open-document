@@ -1,4 +1,11 @@
-import type { DrawCommand, PathSegment } from "@open-document/wasm/abi/drawing";
+import type {
+  ClipBounds,
+  DrawCommand,
+  GradientClip,
+  PathSegment,
+  RectangleDashSpan,
+} from "@open-document/wasm/abi/drawing";
+export type { ClipBounds } from "@open-document/wasm/abi/drawing";
 
 export function aligned(matrix: DOMMatrix): boolean {
   return (
@@ -20,152 +27,105 @@ export function pixelEdges(
   return [first, last];
 }
 
-function rectangleCorners(path: PathSegment[]): DOMPoint[] | undefined {
-  if (path.length !== 5 || path[0]?.op !== "move") return undefined;
-  const end = path[4];
+type RectanglePoint = Pick<DOMPoint, "x" | "y">;
+type RectangleCorners = [
+  RectanglePoint,
+  RectanglePoint,
+  RectanglePoint,
+  RectanglePoint,
+];
+
+function rectangleCorners(
+  path: PathSegment[],
+  offset: number,
+  generated: boolean,
+): RectangleCorners | undefined {
+  const a = path[offset],
+    b = path[offset + 1],
+    c = path[offset + 2],
+    d = path[offset + 3];
   if (
-    end?.op !== "close" &&
-    !(end?.op === "line" && end.x === path[0].x && end.y === path[0].y)
+    a?.op !== "move" ||
+    b?.op !== "line" ||
+    c?.op !== "line" ||
+    d?.op !== "line"
   )
     return undefined;
-  const points = [new DOMPoint(path[0].x, path[0].y)];
-  for (const point of path.slice(1, 4)) {
-    if (point.op !== "line") return undefined;
-    points.push(new DOMPoint(point.x, point.y));
-  }
-  for (let i = 0; i < 4; i++) {
-    const a = points[i]!,
-      b = points[(i + 1) % 4]!;
-    if ((a.x === b.x) === (a.y === b.y)) return undefined;
-  }
-  return points;
-}
-
-/** Opaque same-color diamond fill and stroke have one outer coverage edge. */
-export function fillStrokeDiamond(
-  context: CanvasRenderingContext2D,
-  command: Extract<DrawCommand, { op: "path" }>,
-): boolean {
-  if (
-    !command.fill ||
-    command.fill.toLowerCase() !== command.stroke.toLowerCase() ||
-    command.lineWidth <= 0 ||
-    context.globalAlpha !== 1 ||
-    context.globalCompositeOperation !== "source-over" ||
-    context.lineJoin !== "miter" ||
-    context.getLineDash().length ||
-    command.path.length !== 5 ||
-    command.path[0]?.op !== "move" ||
-    command.path[4]?.op !== "close"
-  )
-    return false;
-  const points = [new DOMPoint(command.path[0].x, command.path[0].y)];
-  for (const point of command.path.slice(1, 4)) {
-    if (point.op !== "line") return false;
-    points.push(new DOMPoint(point.x, point.y));
-  }
-  const left = Math.min(...points.map((p) => p.x)),
-    right = Math.max(...points.map((p) => p.x));
-  const top = Math.min(...points.map((p) => p.y)),
-    bottom = Math.max(...points.map((p) => p.y));
-  const cx = (left + right) / 2,
-    cy = (top + bottom) / 2;
-  const rx = (right - left) / 2,
-    ry = (bottom - top) / 2;
-  const diagonal = Math.hypot(rx, ry);
-  if (
-    !rx ||
-    !ry ||
-    diagonal / Math.min(rx, ry) > context.miterLimit ||
-    !points.every((p, i) => {
-      const next = points[(i + 1) % 4]!;
-      return (
-        p.x !== next.x &&
-        p.y !== next.y &&
-        ((p.x === cx && (p.y === top || p.y === bottom)) ||
-          (p.y === cy && (p.x === left || p.x === right)))
-      );
-    })
-  )
-    return false;
-  const dx = (command.lineWidth * diagonal) / (2 * ry),
-    dy = (command.lineWidth * diagonal) / (2 * rx);
-  if (![dx, dy].every(Number.isFinite)) return false;
-  const path = new Path2D();
-  points.forEach((point, index) => {
-    const x = point.x === cx ? cx : point.x + (point.x === left ? -dx : dx);
-    const y = point.y === cy ? cy : point.y + (point.y === top ? -dy : dy);
-    if (index === 0) path.moveTo(x, y);
-    else path.lineTo(x, y);
-  });
-  path.closePath();
-  context.fill(path);
-  return true;
-}
-
-/** PDF rasterizers hint rectangular clipping edges in device coordinates. */
-export function pdfClipPath(
-  context: CanvasRenderingContext2D,
-  path: PathSegment[],
-  mode: "integer" | "fractional" | "pdf",
-  commands: readonly DrawCommand[],
-  index: number,
-): PathSegment[] {
-  let following = index + 1,
-    next = commands[following];
-  const matrix = context.getTransform();
-  let shading = matrix;
-  if (mode === "pdf") {
-    while (next?.op === "style" || next?.op === "transform") {
-      if (next.op === "transform") {
-        const m = next.matrix;
-        shading = shading.multiply(
-          new DOMMatrix([m.a, m.b, m.c, m.d, m.e, m.f]),
-        );
-      }
-      next = commands[++following];
+  const corners: RectangleCorners = [a, b, c, d];
+  if (generated) {
+    const end = path[offset + 4];
+    if (
+      end?.op !== "close" &&
+      !(end?.op === "line" && end.x === a.x && end.y === a.y)
+    )
+      return undefined;
+    for (let i = 0; i < 4; i++) {
+      const first = corners[i]!,
+        next = corners[(i + 1) % 4]!;
+      if ((first.x === next.x) === (first.y === next.y)) return undefined;
     }
   }
-  const gradient =
-    next?.op === "gradientRect" ||
-    next?.op === "radialGradientRect" ||
-    (next?.op === "transform" && commands[index + 2]?.op === "gradientRect");
-  if (mode === "fractional" || (mode !== "pdf" && !gradient)) return path;
-  const points = rectangleCorners(path);
-  if (!points || !aligned(matrix)) return path;
+  return corners;
+}
+
+function rectanglePath([left, top, right, bottom]: ClipBounds): Path2D {
+  const path = new Path2D();
+  path.moveTo(left, top);
+  path.lineTo(right, top);
+  path.lineTo(right, bottom);
+  path.lineTo(left, bottom);
+  path.closePath();
+  return path;
+}
+
+function transformClipBounds(
+  matrix: DOMMatrix,
+  [left, top, right, bottom]: ClipBounds,
+): ClipBounds {
+  const first = matrix.transformPoint({ x: left, y: top });
+  const last = matrix.transformPoint({ x: right, y: bottom });
+  return [
+    Math.min(first.x, last.x),
+    Math.min(first.y, last.y),
+    Math.max(first.x, last.x),
+    Math.max(first.y, last.y),
+  ];
+}
+
+/** Hint the core's rectangular clip in device coordinates. */
+export function pixelClipRectangle(
+  context: CanvasRenderingContext2D,
+  rectangle: ClipBounds,
+  deviceClips: boolean,
+  domain?: GradientClip,
+): { path: Path2D; bounds?: ClipBounds } {
+  const original = () => ({ path: rectanglePath(rectangle) });
+  if (
+    rectangle[0] === rectangle[2] ||
+    rectangle[1] === rectangle[3] ||
+    (!deviceClips && !domain)
+  )
+    return original();
+  const matrix = context.getTransform();
+  if (!aligned(matrix)) return original();
   const inverse = matrix.inverse();
   if (
     ![inverse.a, inverse.b, inverse.c, inverse.d, inverse.e, inverse.f].every(
       Number.isFinite,
     )
   )
-    return path;
-  const device = points.map((point) => matrix.transformPoint(point));
-  if (
-    !device.every(
-      (point) => Number.isFinite(point.x) && Number.isFinite(point.y),
-    )
-  )
-    return path;
-  const left = Math.min(...device.map((point) => point.x)),
-    right = Math.max(...device.map((point) => point.x));
-  const top = Math.min(...device.map((point) => point.y)),
-    bottom = Math.max(...device.map((point) => point.y));
-  if (
-    mode === "pdf" &&
-    next?.op === "gradientRect" &&
-    aligned(shading) &&
-    next.rect.width > 0 &&
-    next.stops.length >= 2
-  ) {
-    const first = next.stops[0]!,
-      last = next.stops[next.stops.length - 1]!;
-    const start = shading.transformPoint(
-      new DOMPoint(next.rect.x + next.rect.width * first.position, next.rect.y),
-    );
-    const end = shading.transformPoint(
-      new DOMPoint(next.rect.x + next.rect.width * last.position, next.rect.y),
-    );
+    return original();
+  const device = transformClipBounds(matrix, rectangle);
+  if (!device.every(Number.isFinite)) return original();
+  const [left, top, right, bottom] = device;
+  const axial = deviceClips ? domain?.axial : undefined;
+  let shading = matrix;
+  if (axial)
+    for (const m of axial.transforms)
+      shading = shading.multiply(new DOMMatrix([m.a, m.b, m.c, m.d, m.e, m.f]));
+  if (axial && aligned(shading)) {
+    const start = shading.transformPoint(new DOMPoint(axial.startX, axial.y));
+    const end = shading.transformPoint(new DOMPoint(axial.endX, axial.y));
     let y0 = Math.floor(top),
       y3 = Math.ceil(bottom),
       y1 = y0 + 1,
@@ -222,67 +182,42 @@ export function pdfClipPath(
         else if (edge.y > inside.y) maxY = Math.floor(edge.y) + 1;
       };
       // Unextended shading ends test integer pixel positions before color sampling.
-      if (first.position === 0) limit(start, end);
-      if (last.position === 1) limit(end, start);
-      return [
-        ...polygon.map(([x, y], i): PathSegment => {
-          const p = inverse.transformPoint(
-            new DOMPoint(
-              Math.max(minX, Math.min(maxX, x!)),
-              Math.max(minY, Math.min(maxY, y!)),
-            ),
-          );
-          return { op: i === 0 ? "move" : "line", x: p.x, y: p.y };
-        }),
-        { op: "close" },
-      ];
+      if (axial.startBounded) limit(start, end);
+      if (axial.endBounded) limit(end, start);
+      const path = new Path2D();
+      for (const [i, [x, y]] of polygon.entries()) {
+        const p = inverse.transformPoint({
+          x: Math.max(minX, Math.min(maxX, x!)),
+          y: Math.max(minY, Math.min(maxY, y!)),
+        });
+        if (i === 0) path.moveTo(p.x, p.y);
+        else path.lineTo(p.x, p.y);
+      }
+      path.closePath();
+      return { path };
     }
   }
-  const pdf = mode === "pdf" && !gradient;
-  const [x0, x1] = pdf ? [left, right] : pixelEdges(left, right);
-  const [y0, y1] = pdf
+  const fractional = deviceClips && !domain;
+  const [x0, x1] = fractional ? [left, right] : pixelEdges(left, right);
+  const [y0, y1] = fractional
     ? [Math.floor(top), Math.ceil(bottom)]
     : pixelEdges(top, bottom);
-  return [
-    ...device.map((point, index): PathSegment => {
-      const local = inverse.transformPoint(
-        new DOMPoint(point.x === left ? x0 : x1, point.y === top ? y0 : y1),
-      );
-      return { op: index === 0 ? "move" : "line", x: local.x, y: local.y };
-    }),
-    { op: "close" },
-  ];
-}
-
-export type ClipBounds = [
-  left: number,
-  top: number,
-  right: number,
-  bottom: number,
-];
-
-export function fractionalClipBounds(
-  context: CanvasRenderingContext2D,
-  path: PathSegment[],
-): ClipBounds | undefined {
-  const matrix = context.getTransform();
-  const points = rectangleCorners(path);
-  if (!points || !aligned(matrix)) return undefined;
-  const device = points.map((point) => matrix.transformPoint(point));
-  const x = device.map((point) => point.x);
-  const y = device.map((point) => point.y);
-  const left = Math.min(...x),
-    right = Math.max(...x);
-  const top = Math.min(...y),
-    bottom = Math.max(...y);
-  if (
-    ![left, top, right, bottom].every(Number.isFinite) ||
-    left >= right ||
-    top >= bottom ||
-    [left, top, right, bottom].every(Number.isInteger)
-  )
-    return undefined;
-  return [left, top, right, bottom];
+  const local = transformClipBounds(inverse, [
+    x0,
+    y0,
+    left === right ? x0 : x1,
+    top === bottom ? y0 : y1,
+  ]);
+  const path = rectanglePath(local);
+  if (!deviceClips) return { path };
+  // Preserve the device round trip before choosing deferred fractional coverage.
+  const bounds = transformClipBounds(matrix, local);
+  return bounds.every(Number.isFinite) &&
+    bounds[0] < bounds[2] &&
+    bounds[1] < bounds[3] &&
+    !bounds.every(Number.isInteger)
+    ? { path, bounds }
+    : { path };
 }
 
 export function clipDeviceRectangle(
@@ -349,12 +284,13 @@ export function pixelRectangleFill(
 
 function rectangleDashClip(
   context: CanvasRenderingContext2D,
-  local: DOMPoint[],
+  local: RectangleCorners,
   device: DOMPoint[],
   wx: number,
   wy: number,
   pdf: boolean,
   open: boolean,
+  prepared: RectangleDashSpan[] | undefined,
 ): Path2D | undefined {
   const dash = context.getLineDash();
   if (
@@ -370,6 +306,37 @@ function rectangleDashClip(
     const [y0, y1] = pixelEdges(point.y - wy, point.y + wy, pdf);
     path.rect(x0, y0, x1 - x0, y1 - y0);
   };
+  for (let edge = 0; edge < 4; edge++) {
+    const p = device[edge]!,
+      q = device[(edge + 1) % 4]!;
+    if ((p.x === q.x) === (p.y === q.y)) return undefined;
+  }
+  const span = (
+    edge: number,
+    length: number,
+    at: number,
+    end: number,
+    join: boolean,
+  ) => {
+    const p = device[edge]!,
+      q = device[(edge + 1) % 4]!;
+    if (p.x === q.x) {
+      const [x0, x1] = pixelEdges(p.x - wx, p.x + wx, pdf);
+      const y0 = Math.round(p.y + ((q.y - p.y) * at) / length);
+      const y1 = Math.round(p.y + ((q.y - p.y) * end) / length);
+      path.rect(x0, Math.min(y0, y1), x1 - x0, Math.abs(y1 - y0));
+    } else {
+      const [y0, y1] = pixelEdges(p.y - wy, p.y + wy, pdf);
+      const x0 = Math.round(p.x + ((q.x - p.x) * at) / length);
+      const x1 = Math.round(p.x + ((q.x - p.x) * end) / length);
+      path.rect(Math.min(x0, x1), y0, Math.abs(x1 - x0), y1 - y0);
+    }
+    if (join) corner(q);
+  };
+  if (prepared) {
+    for (const piece of prepared) span(...piece);
+    return path;
+  }
   let index = 0,
     remaining = dash[0]!,
     steps = 0,
@@ -377,9 +344,6 @@ function rectangleDashClip(
   for (let edge = 0; edge < 4; edge++) {
     const a = local[edge]!,
       b = local[(edge + 1) % 4]!;
-    const p = device[edge]!,
-      q = device[(edge + 1) % 4]!;
-    if ((p.x === q.x) === (p.y === q.y)) return undefined;
     const length = Math.hypot(b.x - a.x, b.y - a.y);
     let at = 0;
     while (at < length) {
@@ -390,20 +354,8 @@ function rectangleDashClip(
       const atEnd = step === length - at;
       const end = atEnd ? length : at + step;
       endsOn = index % 2 === 0;
-      if (endsOn) {
-        if (p.x === q.x) {
-          const [x0, x1] = pixelEdges(p.x - wx, p.x + wx, pdf);
-          const y0 = Math.round(p.y + ((q.y - p.y) * at) / length);
-          const y1 = Math.round(p.y + ((q.y - p.y) * end) / length);
-          path.rect(x0, Math.min(y0, y1), x1 - x0, Math.abs(y1 - y0));
-        } else {
-          const [y0, y1] = pixelEdges(p.y - wy, p.y + wy, pdf);
-          const x0 = Math.round(p.x + ((q.x - p.x) * at) / length);
-          const x1 = Math.round(p.x + ((q.x - p.x) * end) / length);
-          path.rect(Math.min(x0, x1), y0, Math.abs(x1 - x0), y1 - y0);
-        }
-        if (edge < 3 && atEnd && remaining > step) corner(q);
-      }
+      if (endsOn)
+        span(edge, length, at, end, edge < 3 && atEnd && remaining > step);
       at = end;
       remaining -= step;
       if (remaining === 0) {
@@ -421,30 +373,22 @@ export function pixelRectangleStroke(
   context: CanvasRenderingContext2D,
   command: Extract<DrawCommand, { op: "path" | "strokeRect" }>,
   pdf = false,
+  generated = false,
+  prepared?: RectangleDashSpan[],
 ): boolean {
-  const segments: PathSegment[] =
-    command.op === "strokeRect"
-      ? [
-          { op: "move", x: command.rect.x, y: command.rect.y },
-          {
-            op: "line",
-            x: command.rect.x + command.rect.width,
-            y: command.rect.y,
-          },
-          {
-            op: "line",
-            x: command.rect.x + command.rect.width,
-            y: command.rect.y + command.rect.height,
-          },
-          {
-            op: "line",
-            x: command.rect.x,
-            y: command.rect.y + command.rect.height,
-          },
-          { op: "close" },
-        ]
-      : command.path;
-  const open = segments.length === 5 && segments[4]?.op === "line";
+  if (
+    !generated &&
+    command.op === "path" &&
+    command.strokeGeometry !== "rectangles" &&
+    command.strokeGeometry !== "openRectangle"
+  )
+    return false;
+  const length = command.op === "path" ? command.path.length : 5;
+  const open =
+    command.op === "path" &&
+    (generated
+      ? length === 5 && command.path[4]?.op === "line"
+      : command.strokeGeometry === "openRectangle");
   if (open && (context.lineCap !== "butt" || context.lineJoin !== "miter"))
     return false;
   // Native open rectangle strokes round both edges, including collapsed subpixel pens.
@@ -455,12 +399,13 @@ export function pixelRectangleStroke(
     command.lineWidth <= 0 ||
     (!round &&
       (context.lineJoin !== "miter" || context.miterLimit < Math.SQRT2)) ||
-    (dashed && segments.length !== 5) ||
-    !segments.length ||
-    segments.length % 5 ||
-    (segments.length > 5 &&
-      segments.some((segment, i) => i % 5 === 4 && segment.op !== "close")) ||
-    (!pdf && segments.length !== 5)
+    ((open || dashed || !pdf) && length !== 5) ||
+    !length ||
+    length % 5 ||
+    (generated &&
+      length > 5 &&
+      command.op === "path" &&
+      command.path.some((segment, i) => i % 5 === 4 && segment.op !== "close"))
   )
     return false;
   const m = context.getTransform();
@@ -490,38 +435,70 @@ export function pixelRectangleStroke(
     return false;
   const path = new Path2D();
   let dashClip: Path2D | undefined;
-  for (let index = 0; index < segments.length; index += 5) {
-    const corners = rectangleCorners(segments.slice(index, index + 5));
-    if (!corners) return false;
-    const points = corners.map((point) => m.transformPoint(point));
-    if (!points.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y)))
-      return false;
+  for (let index = 0; index < length; index += 5) {
+    let corners: RectangleCorners;
+    if (command.op === "strokeRect") {
+      const { x, y, width, height } = command.rect;
+      const right = x + width,
+        bottom = y + height;
+      if (x === right || y === bottom) return false;
+      corners = [
+        { x, y },
+        { x: right, y },
+        { x: right, y: bottom },
+        { x, y: bottom },
+      ];
+    } else {
+      // Only device-flattened curves need geometric classification here.
+      const found = rectangleCorners(command.path, index, generated);
+      if (!found) return false;
+      corners = found;
+    }
+    const [start, , opposite] = corners;
+    let points: DOMPoint[] = [];
+    let bounds: ClipBounds;
+    if (
+      !dashed &&
+      !open &&
+      aligned(m) &&
+      start.x !== opposite.x &&
+      start.y !== opposite.y
+    ) {
+      bounds = transformClipBounds(m, [
+        start.x,
+        start.y,
+        opposite.x,
+        opposite.y,
+      ]);
+    } else {
+      points = corners.map((point) => m.transformPoint(point));
+      bounds = [Infinity, Infinity, -Infinity, -Infinity];
+      for (const { x, y } of points) {
+        bounds[0] = Math.min(bounds[0], x);
+        bounds[1] = Math.min(bounds[1], y);
+        bounds[2] = Math.max(bounds[2], x);
+        bounds[3] = Math.max(bounds[3], y);
+      }
+    }
+    if (!bounds.every(Number.isFinite)) return false;
+    const [minX, minY, maxX, maxY] = bounds;
     if (dashed) {
-      dashClip = rectangleDashClip(context, corners, points, wx, wy, pdf, open);
+      dashClip = rectangleDashClip(
+        context,
+        corners,
+        points,
+        wx,
+        wy,
+        pdf,
+        open,
+        prepared,
+      );
       if (!dashClip) return false;
     }
-    const xs = points.map((point) => point.x),
-      ys = points.map((point) => point.y);
-    const [left, innerLeft] = pixelEdges(
-      Math.min(...xs) - wx,
-      Math.min(...xs) + wx,
-      pdf,
-    );
-    const [innerRight, right] = pixelEdges(
-      Math.max(...xs) - wx,
-      Math.max(...xs) + wx,
-      pdf,
-    );
-    const [top, innerTop] = pixelEdges(
-      Math.min(...ys) - wy,
-      Math.min(...ys) + wy,
-      pdf,
-    );
-    const [innerBottom, bottom] = pixelEdges(
-      Math.max(...ys) - wy,
-      Math.max(...ys) + wy,
-      pdf,
-    );
+    const [left, innerLeft] = pixelEdges(minX - wx, minX + wx, pdf);
+    const [innerRight, right] = pixelEdges(maxX - wx, maxX + wx, pdf);
+    const [top, innerTop] = pixelEdges(minY - wy, minY + wy, pdf);
+    const [innerBottom, bottom] = pixelEdges(maxY - wy, maxY + wy, pdf);
     if (round)
       path.roundRect(left, top, right - left, bottom - top, { x: wx, y: wy });
     else if (open) {
@@ -530,8 +507,8 @@ export function pixelRectangleStroke(
       const start = points[0]!;
       const x = Math.max(left, Math.min(right, Math.round(start.x)));
       const y = Math.max(top, Math.min(bottom, Math.round(start.y)));
-      const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
-      const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+      const cx = (minX + maxX) / 2;
+      const cy = (minY + maxY) / 2;
       const area = points.reduce((sum, p, i) => {
         const next = points[(i + 1) % 4]!;
         return sum + p.x * next.y - p.y * next.x;

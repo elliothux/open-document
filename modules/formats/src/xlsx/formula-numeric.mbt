@@ -28,6 +28,20 @@ fn rounded_decimal(value : Double, places : Double, mode : String) -> Value {
   } else {
     mode == "ROUND" && keep >= 0 && digits[keep] >= 53
   }
+  if mode == "ROUND" && keep >= 0 && digits[keep] == 52 {
+    // Restore a half lost to arithmetic noise beyond 15 significant digits.
+    let precision = for index in 0..<digits.length() {
+      if digits[index] != 48 {
+        break index + 15
+      }
+    } nobreak {
+      digits.length()
+    }
+    carry = keep < precision &&
+      precision < digits.length() &&
+      digits[precision] >= 53 &&
+      digits[keep + 1:precision].iter().all(character => character == '9')
+  }
   let retained = digits[:keep.max(0)].to_owned().to_array()
   for index = retained.length() - 1; carry && index >= 0; index = index - 1 {
     if retained[index] == '9' {
@@ -125,7 +139,7 @@ fn numeric_function(
   args : Array[Expression],
   sheets : Array[Sheet],
   sheet : Int32,
-  values : Map[(Int32, String), Value],
+  values : Map[(Int32, Address), Value],
   work : FormulaWork,
   depth : Int32,
 ) -> Value raise @failure.Failure {

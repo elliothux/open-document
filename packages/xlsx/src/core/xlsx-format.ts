@@ -1,4 +1,8 @@
 import { record, integer } from "@open-document/wasm/abi/validation";
+import {
+  xlsxCellFragmentCells,
+  xlsxCellFragmentMerges,
+} from "@open-document/wasm/engine-source";
 import type { CellRange } from "./xlsx.js";
 
 export const xlsxBorderStyles = [
@@ -93,16 +97,16 @@ export function copiedCellFormat(value: unknown): CopiedCellFormat {
     Object.keys(format).length !== 2 ||
     Object.keys(format).some((key) => !["cells", "merges"].includes(key)) ||
     !Array.isArray(format.merges) ||
-    format.merges.length > 1024
+    format.merges.length > xlsxCellFragmentMerges
   )
     throw new Error("Invalid copied cell format");
   if (
     !Array.isArray(cells) ||
     cells.length === 0 ||
-    cells.length > 4096 ||
+    cells.length > xlsxCellFragmentCells ||
     !Array.isArray(cells[0]) ||
     cells[0].length === 0 ||
-    cells.length * cells[0].length > 4096
+    cells.length * cells[0].length > xlsxCellFragmentCells
   )
     throw new Error("Invalid copied cell format size");
   for (const row of cells) {
@@ -211,18 +215,34 @@ function integerNumberFormat(value: string): boolean {
 function dateNumberFormat(value: string): boolean {
   if (!numberFormatSource(value)) return false;
   const locale = /^\[\$-([0-9a-f]{1,4})\]/iu.exec(value);
+  let localized = false;
   if (locale) {
     const id = Number.parseInt(locale[1]!, 16);
-    if (id === 0xf800 || ((id & 0x3ff) !== 9 && id < 0xf000)) return false;
+    localized = [
+      0x404, 0x804, 0xc04, 0x1004, 0x1404, 0x7804, 0x7c04, 0x11, 0x411, 0x12,
+      0x412,
+    ].includes(id);
+    if (!localized && (id === 0xf800 || ((id & 0x3ff) !== 9 && id < 0xf000)))
+      return false;
     value = value.slice(locale[0].length);
+    if (localized && value.endsWith(";@")) value = value.slice(0, -2);
   }
   const tokens = value.match(
-    /AM\/PM|(?:yyyy|yy)(?!y)|m{1,4}(?!m)|d{1,2}(?!d)|h{1,2}(?!h)|s{1,2}(?!s)(?:\.000)?|"[^"]*"|\\[\s\S]|[ /:,.-]/giu,
+    /AM\/PM|a{3,4}(?!a)|(?:yyyy|yy)(?!y)|m{1,5}(?!m)|d{1,4}(?!d)|h{1,2}(?!h)|\[(?:hh?|mm?)\]|(?:\[ss?\]|s{1,2}(?!s))(?:\.0{1,3})?|"[^"]*"|\\[\s\S]|[ /:,.-]/giu,
   );
+  if (tokens === null || tokens.join("") !== value) return false;
+  if (!localized && tokens.some((token) => /^a{3,4}$/iu.test(token)))
+    return false;
+  const elapsed = tokens.filter((token) => token.startsWith("[")).length;
+  if (elapsed > 0)
+    return (
+      elapsed === 1 &&
+      !tokens.some((token) => /^(?:[yda]|m{3})/iu.test(token)) &&
+      tokens.filter((token) => /s\]?\.0+$/iu.test(token)).length <= 1
+    );
   return (
-    tokens !== null &&
-    tokens.join("") === value &&
-    tokens.some((token) => /^[ymdhs]|^AM\/PM$/iu.test(token))
+    !tokens.some((token) => /^s{1,2}\.0{1,2}$/iu.test(token)) &&
+    tokens.some((token) => /^[aymdhs]/iu.test(token))
   );
 }
 
@@ -269,7 +289,7 @@ function sectionNumberFormat(value: string): boolean {
       percent = true;
     } else if (/^[#0?]/u.test(token)) {
       if (numeric || text) return false;
-      const mask = /^([#?0]+(?:,[#?0]+)*)(?:\.(0{1,30}))?$/u.exec(token);
+      const mask = /^([#?0]+(?:,[#?0]+)*)(?:\.(0{1,30}))?,*$/u.exec(token);
       if (!mask || !/^[#?]*0*$/u.test(mask[1]!.replaceAll(",", "")))
         return false;
       numeric = true;
@@ -361,32 +381,4 @@ export function checkXlsxCellFormat(value: unknown): void {
     }
     if (!valid) throw new Error(`Invalid cell format property: ${key}`);
   }
-}
-
-export function xlsxFormatting(value: unknown): XlsxFormatting {
-  const fields = record(value);
-  const patch = Object.fromEntries(
-    Object.entries(fields).filter(
-      ([key, value]) =>
-        key !== "fontKeys" && key !== "readOnlyReason" && value !== null,
-    ),
-  );
-  checkXlsxCellFormat(patch);
-  for (const key of cellFormatFields) {
-    if (!(key in fields)) throw new Error("Missing cell format property");
-  }
-  if (
-    typeof fields.readOnlyReason !== "string" ||
-    !Array.isArray(fields.fontKeys) ||
-    fields.fontKeys.length > 4096 ||
-    !fields.fontKeys.every(
-      (key) =>
-        typeof key === "string" &&
-        key.length > 0 &&
-        key.length <= 512 &&
-        key.isWellFormed(),
-    )
-  )
-    throw new Error("Invalid cell format state");
-  return value as XlsxFormatting;
 }

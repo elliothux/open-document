@@ -1,4 +1,8 @@
-import type { DrawGlyph, DrawMatrix } from "@open-document/wasm/abi/drawing";
+import type {
+  DrawGlyphRun,
+  DrawMatrix,
+  PdfGlyphCommand,
+} from "@open-document/wasm/abi/drawing";
 import type { CanvasRasterMode } from "./drawing.js";
 import { strokeCoverage } from "./pdf-stroke.js";
 
@@ -173,7 +177,7 @@ function flattenGlyphStroke(
 
 export function drawGlyphs(
   context: CanvasRenderingContext2D,
-  glyphs: DrawGlyph[],
+  commands: DrawGlyphRun[] | PdfGlyphCommand,
   mode: CanvasRasterMode,
   pixelSize: boolean,
   sourceMatrix: DrawMatrix | undefined,
@@ -189,133 +193,153 @@ export function drawGlyphs(
     matrix.c === 0 &&
     Math.abs(matrix.a) === nativeScale &&
     Math.abs(matrix.d) === nativeScale;
-  for (const glyph of glyphs) {
-    const outline = paths.get(glyph.outline);
-    if (!outline) throw new Error(`Missing outline: ${glyph.outline}`);
-    const screenOutline =
-      nativeScreen && glyph.strokeWidth === 0
-        ? paths.get(
-            `${glyph.outline}:screen:${Math.round(Math.abs(glyph.scaleY) * glyph.upem * (2540 / 72))}`,
-          )
-        : undefined;
-    const path = screenOutline?.path ?? outline.path;
-    context.save();
-    try {
-      context.translate(glyph.x, glyph.y);
-      context.scale(glyph.scaleX, glyph.scaleY);
-      // Canvas stores its current transform at float precision; retain source origins for the PDF grid.
-      let m =
-        mode === "pdf" && !pixelSize && sourceMatrix
-          ? {
-              a: sourceMatrix.a * glyph.scaleX,
-              b: sourceMatrix.b * glyph.scaleX,
-              c: sourceMatrix.c * glyph.scaleY,
-              d: sourceMatrix.d * glyph.scaleY,
-              e:
-                sourceMatrix.a * glyph.x +
-                sourceMatrix.c * glyph.y +
-                sourceMatrix.e,
-              f:
-                sourceMatrix.b * glyph.x +
-                sourceMatrix.d * glyph.y +
-                sourceMatrix.f,
-            }
-          : context.getTransform();
-      if (pixelSize && m.b === 0 && m.c === 0) {
-        const size = Math.abs(m.d) * glyph.upem;
-        const height = Math.round(size);
-        if (height === 0) continue;
-        // Snap the em height to pixel rows while preserving the logical width.
-        const scale = screenOutline ? 1 : height / glyph.upem;
-        context.setTransform(
-          screenOutline ? Math.sign(m.a) : m.a,
-          0,
-          0,
-          Math.sign(m.d) * scale,
-          m.e,
-          m.f,
-        );
-        m = context.getTransform();
-      }
-      // Quarter-turn text shares the PDF row grid.
-      const quarterTurn = m.a === 0 && m.d === 0;
-      const rasterMode = quarterTurn && mode === "fractional" ? "pdf" : mode;
-      if (
-        (glyph.strokeWidth === 0 || pixelSize) &&
-        ((m.b === 0 && m.c === 0) ||
-          (rasterMode === "pdf" && m.a === 0 && m.d === 0))
-      ) {
-        // Native glyph caches drop horizontal phases when the padded font bounds exceed 50px.
-        const bounds = glyph.fontBounds;
-        const axis = quarterTurn ? 0 : 1;
-        const scale = quarterTurn ? m.b : m.d;
-        const cacheHeight = bounds
-          ? Math.abs(
-              Math.trunc(scale * bounds[axis + 2]!) -
-                Math.trunc(scale * bounds[axis]),
-            ) + 3
-          : 0;
-        const phases = !pixelSize && cacheHeight > 50 ? 1 : 4;
-        const phasedTurn =
-          rasterMode === "pdf" && quarterTurn && bounds !== null && !pixelSize;
-        context.setTransform(
-          m.a,
-          m.b,
-          m.c,
-          m.d,
-          rasterMode === "fractional" ||
-            phasedTurn ||
-            (rasterMode === "pdf" && m.b === 0 && m.c === 0 && !pixelSize)
-            ? Math.floor(m.e * phases + (pixelSize ? 0.5 : 0)) / phases
-            : rasterMode === "pdf"
-              ? m.e
-              : Math.trunc(m.e),
-          screenOutline
-            ? Math.floor(m.f * 4 + 0.5) / 4
-            : pixelSize
-              ? Math.floor(m.f + 0.5)
-              : rasterMode === "integer"
-                ? Math.trunc(m.f)
-                : Math.floor(m.f),
-        );
-      }
-      context.fill(path);
-      if (glyph.strokeWidth > 0) {
-        context.strokeStyle = context.fillStyle;
-        context.lineWidth = glyph.strokeWidth;
-        context.lineJoin = "miter";
-        context.miterLimit = 10;
-        context.setLineDash([]);
-        const budget = {
-          samples: Math.min(4194304, remainingWork - work),
-          pixels: availablePixels,
-          inclusive: false,
-        };
-        const before = budget.samples;
+  const pdf = Array.isArray(commands) ? undefined : commands;
+  const runs = Array.isArray(commands) ? commands : [commands.run];
+  for (const [upem, bounds, strokeWidth, scaleX, scaleY, glyphs] of runs) {
+    for (const [resource, tx, ty] of glyphs) {
+      const key =
+        typeof resource === "string" ? resource : pdf?.outlines[resource];
+      if (key === undefined) throw new Error("Invalid PDF outline index");
+      const outline = paths.get(key);
+      if (!outline) throw new Error(`Missing outline: ${key}`);
+      const screenOutline =
+        nativeScreen && strokeWidth === 0
+          ? paths.get(
+              `${key}:screen:${Math.round(Math.abs(scaleY) * upem * (2540 / 72))}`,
+            )
+          : undefined;
+      const path = screenOutline?.path ?? outline.path;
+      context.save();
+      try {
+        const x = pdf ? pdf.origin[0] : tx;
+        const y = pdf ? pdf.origin[1] : ty;
+        let source = sourceMatrix;
+        if (pdf) {
+          const [a, b, c, d] = pdf.matrix;
+          context.transform(a, b, c, d, tx, ty);
+          if (source) {
+            source = {
+              a: source.a * a + source.c * b,
+              b: source.b * a + source.d * b,
+              c: source.a * c + source.c * d,
+              d: source.b * c + source.d * d,
+              e: source.a * tx + source.c * ty + source.e,
+              f: source.b * tx + source.d * ty + source.f,
+            };
+          }
+        }
+        context.translate(x, y);
+        context.scale(scaleX, scaleY);
+        // Canvas stores its current transform at float precision; retain source origins for the PDF grid.
+        let m =
+          mode === "pdf" && !pixelSize && source
+            ? {
+                a: source.a * scaleX,
+                b: source.b * scaleX,
+                c: source.c * scaleY,
+                d: source.d * scaleY,
+                e: source.a * x + source.c * y + source.e,
+                f: source.b * x + source.d * y + source.f,
+              }
+            : context.getTransform();
+        if (pixelSize && m.b === 0 && m.c === 0) {
+          const size = Math.abs(m.d) * upem;
+          const height = Math.round(size);
+          if (height === 0) continue;
+          // Snap the em height to pixel rows while preserving the logical width.
+          const scale = screenOutline ? 1 : height / upem;
+          context.setTransform(
+            screenOutline ? Math.sign(m.a) : m.a,
+            0,
+            0,
+            Math.sign(m.d) * scale,
+            m.e,
+            m.f,
+          );
+          m = context.getTransform();
+        }
+        // Quarter-turn text shares the PDF row grid.
+        const quarterTurn = m.a === 0 && m.d === 0;
+        const rasterMode = quarterTurn && mode === "fractional" ? "pdf" : mode;
         if (
-          pixelSize ||
-          !outline.bounds ||
-          context.globalAlpha !== 1 ||
-          context.globalCompositeOperation !== "source-over" ||
-          m.a === 0 ||
-          m.b !== 0 ||
-          m.c !== 0 ||
-          Math.abs(m.a) !== Math.abs(m.d) ||
-          !strokeCoverage(
-            context,
-            path,
-            [outline.bounds],
-            (glyph.strokeWidth * context.miterLimit) / 2,
-            context.getTransform(),
-            budget,
-            (samples) => flattenGlyphStroke(outline, Math.abs(m.a), samples),
+          (strokeWidth === 0 || pixelSize) &&
+          ((m.b === 0 && m.c === 0) ||
+            (rasterMode === "pdf" && m.a === 0 && m.d === 0))
+        ) {
+          // Native glyph caches drop horizontal phases when the padded font bounds exceed 50px.
+          const axis = quarterTurn ? 0 : 1;
+          const scale = quarterTurn ? m.b : m.d;
+          const cacheHeight = bounds
+            ? Math.abs(
+                Math.trunc(scale * bounds[axis + 2]!) -
+                  Math.trunc(scale * bounds[axis]),
+              ) + 3
+            : 0;
+          const phases = !pixelSize && cacheHeight > 50 ? 1 : 4;
+          const phasedTurn =
+            rasterMode === "pdf" &&
+            quarterTurn &&
+            bounds !== null &&
+            !pixelSize;
+          context.setTransform(
+            m.a,
+            m.b,
+            m.c,
+            m.d,
+            rasterMode === "fractional" ||
+              phasedTurn ||
+              (rasterMode === "pdf" && m.b === 0 && m.c === 0 && !pixelSize)
+              ? Math.floor(m.e * phases + (pixelSize ? 0.5 : 0)) / phases
+              : rasterMode === "pdf"
+                ? m.e
+                : Math.trunc(m.e),
+            screenOutline
+              ? Math.floor(m.f * 4 + 0.5) / 4
+              : pixelSize
+                ? Math.floor(m.f + 0.5)
+                : rasterMode === "integer"
+                  ? Math.trunc(m.f)
+                  : Math.floor(m.f),
+          );
+        }
+        context.fill(path);
+        if (strokeWidth > 0) {
+          context.strokeStyle = context.fillStyle;
+          context.lineWidth = strokeWidth;
+          context.lineJoin = "miter";
+          context.miterLimit = 10;
+          context.setLineDash([]);
+          const budget = {
+            samples: Math.min(4194304, remainingWork - work),
+            pixels: availablePixels,
+            inclusive: false,
+          };
+          const before = budget.samples;
+          if (
+            pixelSize ||
+            !outline.bounds ||
+            context.globalAlpha !== 1 ||
+            context.globalCompositeOperation !== "source-over" ||
+            m.a === 0 ||
+            m.b !== 0 ||
+            m.c !== 0 ||
+            Math.abs(m.a) !== Math.abs(m.d) ||
+            !strokeCoverage(
+              context,
+              path,
+              [outline.bounds],
+              (strokeWidth * context.miterLimit) / 2,
+              context.getTransform(),
+              budget,
+              (samples) => flattenGlyphStroke(outline, Math.abs(m.a), samples),
+            )
           )
-        )
-          context.stroke(path);
-        else work += before - budget.samples;
+            context.stroke(path);
+          else work += before - budget.samples;
+        }
+      } finally {
+        context.restore();
       }
-    } finally {
-      context.restore();
     }
   }
   return work;

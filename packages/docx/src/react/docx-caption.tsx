@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { docxCaptionTextUnits } from "@open-document/wasm/engine-source";
 import type { DocumentEditor } from "../web/editor.js";
 import { listFormats, type DocxCaption } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
@@ -31,7 +32,7 @@ export function DocxCaption({
         onSubmit={(event) => {
           event.preventDefault();
           controller.run(() =>
-            editor.insertCaption({
+            editor.pages.insertCaption({
               label,
               text,
               position,
@@ -57,7 +58,7 @@ export function DocxCaption({
             {t.captionText}
             <input
               value={text}
-              maxLength={1024}
+              maxLength={docxCaptionTextUnits}
               onChange={(event) => setText(event.currentTarget.value)}
             />
           </label>

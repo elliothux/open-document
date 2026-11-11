@@ -46,7 +46,9 @@ fn Sheet::column_metadata_changes(
   let columns = container
     .map(node => tree.all(node.id, "col"))
     .unwrap_or([])
-    .map(node => (natural(node.attribute("min").unwrap_or(""), 16384), node))
+    .map(node => {
+      (natural(node.attribute("min").unwrap_or(""), WorksheetColumns), node)
+    })
   columns.sort_by((a, b) => a.0.compare(b.0))
   let prefix = root.qualified[:root.qualified.length() - 9].to_owned()
   let segment = fn(
@@ -91,7 +93,7 @@ fn Sheet::column_metadata_changes(
   let changes : Array[@xml.SourceChange] = []
   let mut cursor = first
   for (start, node) in columns {
-    let end = natural(node.attribute("max").unwrap_or(""), 16384)
+    let end = natural(node.attribute("max").unwrap_or(""), WorksheetColumns)
     if end < first || start > last {
       continue
     }

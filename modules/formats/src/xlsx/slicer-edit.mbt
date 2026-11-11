@@ -70,7 +70,7 @@ pub fn Session::filter_slicer(
       "protected-content", "Slicer worksheet is protected or hidden",
     )
   }
-  guard !indices.is_empty() && indices.length() <= 4096 else {
+  guard !indices.is_empty() && indices.length() <= SlicerMembers else {
     @failure.reject("invalid-operation", "Select one or more slicer members")
   }
   guard self

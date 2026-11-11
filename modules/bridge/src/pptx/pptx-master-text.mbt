@@ -1,24 +1,27 @@
 ///|
+priv struct MasterTextStyleRequest {
+  kind : String
+  level : @common.RequestInt
+  format : Json
+} derive(@json.FromJson)
+
+///|
 fn pptx_master_text_style(
+  action : String,
   change : Json,
 ) -> @model.SlideEdit raise @failure.Failure {
-  guard change is Object(fields) &&
-    fields.length() == 4 &&
-    fields.get("format") is Some(format) else {
+  guard change is Object(fields) && fields.length() == 4 else {
     @failure.reject("invalid-operation", "Invalid master text style fields")
   }
-  let level = field_number(change, "level")
-  guard level >= 0 && level <= 8 && level.round() == level else {
+  let request : MasterTextStyleRequest = @common.request(change)
+  let level = request.level.value
+  let format = request.format
+  guard level <= 8 else {
     @failure.reject("invalid-operation", "Invalid master text style level")
   }
-  if field_string(change, "action") == "masterParagraphStyle" {
+  if action == "masterParagraphStyle" {
     if format is Null {
-      return @model.MasterParagraphStyle(
-        field_string(change, "kind"),
-        level.to_int(),
-        None,
-        None,
-      )
+      return @model.MasterParagraphStyle(request.kind, level, None, None)
     }
     guard format is Object(properties) &&
       !properties.is_empty() &&
@@ -27,14 +30,12 @@ fn pptx_master_text_style(
         "invalid-operation", "Invalid master paragraph properties",
       )
     }
-    let alignment = properties
-      .get("alignment")
-      .map(_ => field_string(format, "alignment"))
     let rest = properties.copy()
+    let alignment = rest.get("alignment").map(@common.request)
     ignore(rest.remove("alignment"))
     return @model.MasterParagraphStyle(
-      field_string(change, "kind"),
-      level.to_int(),
+      request.kind,
+      level,
       if rest.is_empty() {
         None
       } else {
@@ -44,12 +45,13 @@ fn pptx_master_text_style(
     )
   }
   @model.MasterTextStyle(
-    field_string(change, "kind"),
-    level.to_int(),
+    request.kind,
+    level,
     if format is Null {
       None
     } else {
-      Some(pptx_text_format(format))
+      let format : TextFormatInput = @common.request(format)
+      Some(format.value)
     },
   )
 }

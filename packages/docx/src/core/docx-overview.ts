@@ -1,4 +1,4 @@
-import { integer, record } from "@open-document/wasm/abi/validation";
+import { record } from "@open-document/wasm/abi/validation";
 import type { DocxSelection } from "./docx-hit.js";
 import { isDocxSelection } from "./docx-search.js";
 
@@ -66,60 +66,4 @@ export interface DocxOverview {
     paragraphs: number;
     reason: string;
   };
-}
-
-export function docxOverview(value: unknown): DocxOverview {
-  const result = record(value),
-    stats = record(result.statistics);
-  if (
-    !integer(result.revision, 0, 2147483647) ||
-    !Array.isArray(result.bookmarks) ||
-    result.bookmarks.length > 4096 ||
-    typeof result.truncated !== "boolean" ||
-    !Array.isArray(result.headings) ||
-    result.headings.length > 4096 ||
-    !Array.isArray(result.diagnostics) ||
-    result.diagnostics.length > 4096 ||
-    !result.diagnostics.every(
-      (v) => typeof v === "string" && v.length <= 8192,
-    ) ||
-    typeof stats.reason !== "string" ||
-    ![
-      stats.words,
-      stats.characters,
-      stats.charactersNoSpaces,
-      stats.paragraphs,
-    ].every((v) => integer(v, 0, 1048576)) ||
-    Number(stats.charactersNoSpaces) > Number(stats.characters) ||
-    Number(stats.words) > Number(stats.charactersNoSpaces) ||
-    Number(stats.paragraphs) > Number(stats.words)
-  )
-    throw new Error("Invalid DOCX overview");
-  for (const item of result.bookmarks) {
-    const bookmark = record(item);
-    if (
-      typeof bookmark.name !== "string" ||
-      typeof bookmark.reason !== "string" ||
-      (bookmark.selection !== null && !isDocxSelection(bookmark.selection)) ||
-      (!bookmark.reason && (!bookmark.name || bookmark.selection === null))
-    )
-      throw new Error("Invalid DOCX bookmark");
-  }
-  const seen = new Set<number>();
-  for (const value of result.headings) {
-    const heading = record(value);
-    if (
-      !integer(heading.paragraph, 0, 2147483647) ||
-      seen.has(Number(heading.paragraph)) ||
-      !integer(heading.level, 1, 9) ||
-      typeof heading.text !== "string" ||
-      !heading.text ||
-      heading.text.length > 256 ||
-      !heading.text.isWellFormed() ||
-      typeof heading.reason !== "string"
-    )
-      throw new Error("Invalid DOCX heading");
-    seen.add(Number(heading.paragraph));
-  }
-  return value as DocxOverview;
 }

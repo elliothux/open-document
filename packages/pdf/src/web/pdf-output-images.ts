@@ -1,3 +1,4 @@
+import { pdfPageOperationCount } from "@open-document/wasm/engine-source";
 import { PdfCanvas } from "./pdf-canvas.js";
 import type { PdfClient } from "./pdf.js";
 
@@ -11,7 +12,7 @@ export async function preparePdfOutputImages(
 ): Promise<void> {
   if (
     !pages.length ||
-    pages.length > 1024 ||
+    pages.length > pdfPageOperationCount ||
     new Set(pages).size !== pages.length
   )
     throw new Error("Choose bounded, distinct PDF pages");

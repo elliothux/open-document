@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { docxHyperlinkTargetUnits } from "@open-document/wasm/engine-source";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 
@@ -35,7 +36,7 @@ export function DocxDrawingLink({
             <input
               type="text"
               inputMode="url"
-              maxLength={2048}
+              maxLength={docxHyperlinkTargetUnits}
               required
               value={target}
               onChange={(event) => setTarget(event.currentTarget.value)}

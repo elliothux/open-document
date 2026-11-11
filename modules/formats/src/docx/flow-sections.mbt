@@ -5,7 +5,7 @@ fn Session::flow_sections(
   styles : Styles,
   diagnostics : Array[String],
   background : String,
-) -> Array[@layout.SectionBreak] raise @failure.Failure {
+) -> (Array[@layout.SectionBreak], Array[Double]) raise @failure.Failure {
   let body = tree.child(0, "body").unwrap()
   let ends : Array[(Int32, Int32, Int32)] = []
   let mut paragraphs = 0
@@ -50,6 +50,7 @@ fn Session::flow_sections(
     @failure.reject("limit-exceeded", "Section count exceeds page budget")
   }
   let profiles : Array[@layout.SectionBreak] = []
+  let grids : Array[Double] = []
   let headers : Map[String, @layout.RunningStory] = Map([])
   let footers : Map[String, @layout.RunningStory] = Map([])
   let identities : Map[(String, Int32), Int32] = Map([])
@@ -208,6 +209,12 @@ fn Session::flow_sections(
       numbering = { ..numbering, start: numbering.start + 1L, }
       numbering.validate()
     }
+    let pitch = if id >= 0 && tree.child(id, "docGrid") is Some(grid) {
+      tree.line_grid_pitch(grid)
+    } else {
+      0
+    }
+    grids.push(pitch)
     profiles.push({
       beforeParagraph: previous.map(e => e.1).unwrap_or(0),
       beforeTable: previous.map(e => e.2).unwrap_or(0),
@@ -226,5 +233,29 @@ fn Session::flow_sections(
       differentEven: even,
     })
   }
-  profiles
+  if tables > 0 &&
+    grids.iter().any(pitch => pitch > 0) &&
+    self.table_grid_enabled() is Some(part) {
+    diagnostics.push(
+      "unsupported-layout:" + part + ":w:adjustLineHeightInTable",
+    )
+  }
+  (profiles, grids)
+}
+
+///|
+fn WordTree::line_grid_pitch(self : WordTree, id : Int32) -> Double {
+  let grid = self.nodes[id]
+  guard grid.attribute("type", uri=word_uri) == Some("lines") &&
+    grid.attribute("charSpace", uri=word_uri).unwrap_or("0") == "0" &&
+    grid.text.trim().is_empty() else {
+    return 0
+  }
+  let value = grid.attribute("linePitch", uri=word_uri).unwrap_or("")
+  let pitch = @string.parse_int(value[:]) catch { _ => 0 }
+  if pitch > 0 && pitch <= 31680 {
+    pitch.to_double() / 20
+  } else {
+    0
+  }
 }

@@ -2,6 +2,11 @@ import { useState } from "react";
 import type { PresentationEditor } from "../web/presentation-editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import {
+  pptxTableCellCount,
+  pptxTableColumnCount,
+  pptxTableRowCount,
+} from "@open-document/wasm/engine-source";
 import { PptxDashFields } from "./pptx-dash.js";
 
 export function PptxTableStyle({
@@ -177,11 +182,11 @@ export function PptxSplitCell({
   const valid =
     Number.isInteger(Number(rows)) &&
     Number(rows) >= 1 &&
-    Number(rows) <= 1000 &&
+    Number(rows) <= pptxTableRowCount &&
     Number.isInteger(Number(columns)) &&
     Number(columns) >= 1 &&
-    Number(columns) <= 63 &&
-    Number(rows) * Number(columns) <= 4096;
+    Number(columns) <= pptxTableColumnCount &&
+    Number(rows) * Number(columns) <= pptxTableCellCount;
   return (
     <form
       onSubmit={(event) => {
@@ -202,7 +207,7 @@ export function PptxSplitCell({
           <input
             type="number"
             min={1}
-            max={1000}
+            max={pptxTableRowCount}
             step={1}
             required
             value={rows}
@@ -214,7 +219,7 @@ export function PptxSplitCell({
           <input
             type="number"
             min={1}
-            max={63}
+            max={pptxTableColumnCount}
             step={1}
             required
             value={columns}

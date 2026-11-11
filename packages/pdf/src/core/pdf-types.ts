@@ -1,4 +1,7 @@
-import type { DrawingBatch } from "@open-document/wasm/abi/drawing";
+import type {
+  DrawingBatch,
+  RasterHeader,
+} from "@open-document/wasm/abi/drawing";
 import type { Budget } from "@open-document/wasm/abi/validation";
 export type { Budget as PdfOfficeBudget } from "@open-document/wasm/abi/validation";
 
@@ -280,18 +283,24 @@ export interface PdfHit {
   revision: number;
   offset: number;
 }
-export interface PdfImage {
-  kind: "rgba" | "jpeg";
+export type PdfImage = {
   bytes: Uint8Array;
   width: number;
   height: number;
-}
+} & ({ kind: "rgba" } | { kind: "jpeg"; header: RasterHeader });
 type PageRequest = {
   revision: number;
   page: string;
   profile: Record<string, string>;
 };
 export type PdfCommand =
+  | {
+      operation: "rasterHeaderPdf";
+      bytes: Uint8Array;
+      offset: number;
+      total: number;
+      decode?: true;
+    }
   | { operation: "defaultPdfOfficeBudget" }
   | {
       operation: "convertPdfOffice";
@@ -678,4 +687,15 @@ type Result<O extends PdfCommand["operation"]> =
                                                   bytes: Uint8Array;
                                                 }
                                               : PdfQuery;
-export type PdfResult<C extends PdfCommand> = Result<C["operation"]>;
+export type PdfResult<C extends PdfCommand> =
+  C["operation"] extends "rasterHeaderPdf"
+    ? C extends { decode: true }
+      ? RasterHeader | { nextOffset: number } | PdfRasterPixels
+      : RasterHeader | { nextOffset: number }
+    : Result<C["operation"]>;
+
+export interface PdfRasterPixels {
+  width: number;
+  height: number;
+  bytes: Uint8Array;
+}

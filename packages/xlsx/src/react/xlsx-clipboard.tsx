@@ -22,21 +22,21 @@ export function XlsxClipboard({
       <button
         type="button"
         onMouseDown={(event) => event.preventDefault()}
-        onClick={() => controller.run(() => editor.pasteDrawing())}
+        onClick={() => controller.run(() => editor.clipboard.pasteDrawing())}
       >
         {t.pasteDrawing}
       </button>
       <button
         type="button"
         onMouseDown={(event) => event.preventDefault()}
-        onClick={() => controller.run(() => editor.copyCells())}
+        onClick={() => controller.run(() => editor.clipboard.copyCells())}
       >
         {t.copyCells}
       </button>
       <button
         type="button"
         onMouseDown={(event) => event.preventDefault()}
-        onClick={() => controller.run(() => editor.copyCells(true))}
+        onClick={() => controller.run(() => editor.clipboard.copyCells(true))}
       >
         {t.cutCells}
       </button>
@@ -61,7 +61,7 @@ export function XlsxClipboard({
           key={mode}
           onMouseDown={(event) => event.preventDefault()}
           onClick={() =>
-            controller.run(() => editor.pasteCells(mode, transpose))
+            controller.run(() => editor.clipboard.pasteCells(mode, transpose))
           }
         >
           {label}

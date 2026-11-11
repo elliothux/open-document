@@ -66,7 +66,12 @@ export async function pastePptxSelection(
   const blob = await item.getType(
     objects ? pptxObjectsMime : rich ? pptxTextMime : "text/plain",
   );
-  if (blob.size > (objects ? 104857600 : rich ? 4194304 : 131068))
+  const byteLimit = objects
+    ? 104857600
+    : rich
+      ? client.inputLimits().textFragmentUnits * 4
+      : 131068;
+  if (blob.size > byteLimit)
     throw new Error("Presentation clipboard exceeds byte budget");
   const text = await blob.text();
   assertOpen();

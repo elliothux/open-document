@@ -287,7 +287,7 @@ export function XlsxConditional({
   };
   const apply = (settings: XlsxConditionalFormat | null, target = priority) =>
     controller.run(() =>
-      editor.editSheet({
+      editor.objects.editSheet({
         action: "conditionalRule",
         ranges:
           target === null && settings === null
@@ -727,7 +727,7 @@ export function XlsxConditional({
               onClick={() => {
                 if (priority !== null)
                   controller.run(() =>
-                    editor.editSheet({
+                    editor.objects.editSheet({
                       action: "conditionalPriority",
                       priority,
                       position,

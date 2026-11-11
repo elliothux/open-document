@@ -1,39 +1,59 @@
 ///|
-fn Context::math_operation(
+priv struct MathEditCommandRequest {
+  revision : @common.RequestInt
+  profile : @common.RequestProfile
+  math : Json?
+  script : Json?
+  fraction : Json?
+} derive(@json.FromJson)
+
+///|
+priv struct MathFontRequest {
+  family : String
+  color : String
+} derive(@json.FromJson)
+
+///|
+priv struct MathExpressionRequest {
+  latex : String
+} derive(@json.FromJson)
+
+///|
+priv struct MathScriptRequest {
+  base : String
+  subscript : String
+  superscript : String
+} derive(@json.FromJson)
+
+///|
+priv struct MathFractionRequest {
+  numerator : String
+  denominator : String
+} derive(@json.FromJson)
+
+///|
+fn Context::edit_math_command(
   self : Context,
-  operation : String,
+  session : @model.Session,
+  kind : String,
   request : Json,
 ) -> Json raise @failure.Failure {
-  guard self.docx is Some(session) else {
-    @failure.reject("invalid-operation", "Open a DOCX session first")
+  let input : MathEditCommandRequest = @common.request(request)
+  let revision = input.revision.value
+  let expression = kind == "math"
+  let scripts = kind == "script"
+  let settings = if expression {
+    input.math
+  } else if scripts {
+    input.script
+  } else {
+    input.fraction
   }
-  let revision = field_int(request, "revision")
-  if operation == "docxMathFractions" {
-    return session.math_fractions(revision)
-  }
-  if operation == "docxMathScripts" {
-    return session.math_scripts(revision)
-  }
-  if operation == "docxMathExpressions" {
-    return session.math_expressions(revision)
-  }
-  let expression = operation == "editDocxMath"
-  let scripts = operation == "editDocxMathScript"
-  guard request is Object(requests) &&
-    requests.get(
-      if expression {
-        "math"
-      } else if scripts {
-        "script"
-      } else {
-        "fraction"
-      },
-    )
-    is Some(fraction) &&
-    fraction is Object(fields) else {
+  guard settings is Some(Object(fields) as fraction) else {
     @failure.reject("invalid-operation", "Math settings are required")
   }
-  let action = field_string(fraction, "action")
+  let command : @common.ActionRequest = @common.request(fraction)
+  let action = command.action
   guard ["insert", "update", "delete"].contains(action) else {
     @failure.reject("invalid-operation", "Unknown math action")
   }
@@ -42,7 +62,8 @@ fn Context::math_operation(
     action == "insert" &&
     fields.contains("display") {
     keys.push("display")
-    field_boolean(fraction, "display")
+    let display : Bool = @common.request(fields["display"])
+    display
   } else {
     false
   }
@@ -75,61 +96,74 @@ fn Context::math_operation(
         values.keys().all(key => ["family", "size", "color"].contains(key)) else {
         @failure.reject("invalid-operation", "Invalid fraction format")
       }
+      let font : MathFontRequest = @common.request(value)
       @model.CharacterFormat::new(
-        family=Set(field_string(value, "family")),
+        family=Set(font.family),
         size=format_number(values, "size"),
-        color=Set(field_string(value, "color")),
+        color=Set(font.color),
       )
     })
-  let id = if action == "insert" { -1 } else { field_int(fraction, "id") }
-  let argument = fn(key) raise @failure.Failure {
-    if action == "delete" {
-      ""
-    } else {
-      field_string(fraction, key)
-    }
+  let id = if action == "insert" {
+    -1
+  } else {
+    let id : @common.RequestInt = @common.request(fields["id"])
+    id.value
   }
   let result = if expression {
+    let latex = if action == "delete" {
+      ""
+    } else {
+      let input : MathExpressionRequest = @common.request(fraction)
+      input.latex
+    }
     session.edit_math(
       revision,
       action,
       id,
-      argument("latex"),
+      latex,
       probe=self.probe,
-      profile=font_profile(request),
+      profile=input.profile.value,
       images=self.images,
       format?,
       display~,
     )
   } else if scripts {
+    let (base, subscript, superscript) = if action == "delete" {
+      ("", "", "")
+    } else {
+      let input : MathScriptRequest = @common.request(fraction)
+      (input.base, input.subscript, input.superscript)
+    }
     session.edit_math_script(
       revision,
       action,
       id,
-      argument("base"),
-      argument("subscript"),
-      argument("superscript"),
+      base,
+      subscript,
+      superscript,
       probe=self.probe,
-      profile=font_profile(request),
+      profile=input.profile.value,
       images=self.images,
       format?,
     )
   } else {
+    let (numerator, denominator) = if action == "delete" {
+      ("", "")
+    } else {
+      let input : MathFractionRequest = @common.request(fraction)
+      (input.numerator, input.denominator)
+    }
     session.edit_math_fraction(
       revision,
       action,
       id,
-      argument("numerator"),
-      argument("denominator"),
+      numerator,
+      denominator,
       probe=self.probe,
-      profile=font_profile(request),
+      profile=input.profile.value,
       images=self.images,
       format?,
     )
   }
-  if result is { "revision": Number(current, ..), .. } &&
-    current != revision.to_double() {
-    self.layout = None
-  }
-  result
+  self.clear_edit_layout(result, previous=revision)
 }

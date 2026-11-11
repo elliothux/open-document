@@ -1,72 +1,82 @@
 ///|
+priv struct SortRequest {
+  range : String
+  rows : Bool
+  header : Bool
+  caseSensitive : Bool
+  keys : Array[SortKeyRequest]
+} derive(@json.FromJson)
+
+///|
+priv struct SortKeyRequest {
+  index : @common.RequestInt
+  descending : Bool
+  customList : Array[String]?
+  sortBy : String?
+  color : String?
+  iconSet : String?
+  iconId : @common.RequestInt?
+} derive(@json.FromJson)
+
+///|
 fn xlsx_sort(change : Json) -> @model.SheetEdit raise @failure.Failure {
   guard change is { "keys": Array(keys), .. } &&
     keys.length() >= 1 &&
-    keys.length() <= 16 else {
+    keys.length() <= @model.SortKeys else {
     @failure.reject("invalid-operation", "Sorting requires bounded keys")
   }
-  @model.Sort(field_string(change, "range"), {
-    rows: field_boolean(change, "rows"),
-    header: field_boolean(change, "header"),
-    case_sensitive: field_boolean(change, "caseSensitive"),
-    keys: keys.map(key => {
-      guard key is Object(fields) &&
-        fields
-        .keys()
-        .all(name => {
-          [
-            "index", "descending", "customList", "sortBy", "color", "iconSet", "iconId",
-          ].contains(name)
-        }) else {
-        @failure.reject("invalid-operation", "Unknown sort key fields")
+  for key in keys {
+    guard key is Object(fields) &&
+      fields
+      .iter()
+      .all(pair => {
+        match pair {
+          (_, Null) => false
+          (
+            "index"
+            | "descending"
+            | "customList"
+            | "sortBy"
+            | "color"
+            | "iconSet"
+            | "iconId",
+            _,
+          ) => true
+          _ => false
+        }
+      }) else {
+      @failure.reject("invalid-operation", "Unknown sort key fields")
+    }
+    if fields.get("customList") is Some(value) {
+      guard value is Array(items) && items.length() <= @model.SortListLabels else {
+        @failure.reject("invalid-operation", "Invalid custom sort list")
       }
-      let custom_list = match fields.get("customList") {
-        None => []
-        Some(Array(values)) if values.length() <= 4096 =>
-          values.map(value => {
-            guard value is String(text) else {
-              @failure.reject(
-                "invalid-operation", "Custom sort labels must be strings",
-              )
-            }
-            text
-          })
-        _ => @failure.reject("invalid-operation", "Invalid custom sort list")
-      }
-      if fields.contains("iconSet") || fields.contains("iconId") {
-        guard fields.get("sortBy") == Some(Json("icon")) &&
-          fields.get("iconSet") is Some(String(set)) &&
+    }
+  }
+  let command : SortRequest = @common.request(change)
+  @model.Sort(command.range, {
+    rows: command.rows,
+    header: command.header,
+    case_sensitive: command.caseSensitive,
+    keys: command.keys.map(key => {
+      if key.iconSet is Some(_) || key.iconId is Some(_) {
+        guard key.sortBy == Some("icon") &&
+          key.iconSet is Some(set) &&
           !set.is_empty() &&
-          fields.contains("iconId") else {
+          key.iconId is Some(_) else {
           @failure.reject(
             "invalid-operation", "Conflicting or incomplete sort icon",
           )
         }
       }
       {
-        index: field_int(key, "index"),
-        descending: field_boolean(key, "descending"),
-        custom_list,
-        sort_by: match fields.get("sortBy") {
-          None => "value"
-          Some(String(kind)) => kind
-          _ => @failure.reject("invalid-operation", "Invalid sort kind")
-        },
-        color: match fields.get("color") {
-          None => ""
-          Some(String(color)) => color
-          _ => @failure.reject("invalid-operation", "Invalid sort color")
-        },
-        icon_set: match fields.get("iconSet") {
-          None => ""
-          Some(String(set)) => set
-          _ => @failure.reject("invalid-operation", "Invalid sort icon set")
-        },
-        icon_id: if fields.contains("iconId") {
-          field_int(key, "iconId")
-        } else {
-          0
-        },
+        index: key.index.value,
+        descending: key.descending,
+        custom_list: key.customList.unwrap_or([]),
+        sort_by: key.sortBy.unwrap_or("value"),
+        color: key.color.unwrap_or(""),
+        icon_set: key.iconSet.unwrap_or(""),
+        icon_id: key.iconId.map(icon => icon.value).unwrap_or(0),
       }
     }),
   })

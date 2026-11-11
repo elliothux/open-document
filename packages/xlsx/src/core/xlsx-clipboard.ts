@@ -1,5 +1,21 @@
 import { record, integer } from "@open-document/wasm/abi/validation";
 import {
+  xlsxCellFragmentCells,
+  xlsxCellFragmentTextUnits,
+  xlsxCellTextUnits,
+  xlsxCopiedHyperlinkCount,
+  xlsxCopiedHyperlinkLabelUnits,
+  xlsxCopiedHyperlinkTextUnits,
+  xlsxCopiedNoteSourceUnits,
+  xlsxCopiedRuleRanges,
+  xlsxCopiedRuleTextUnits,
+  xlsxFormulaSourceUnits,
+  xlsxSparklineCount,
+  xlsxSparklineSourceCells,
+  xlsxWorksheetColumns,
+  xlsxWorksheetRows,
+} from "@open-document/wasm/engine-source";
+import {
   checkXlsxConditionalFormat,
   type XlsxConditionalFormat,
 } from "./xlsx-conditional.js";
@@ -80,12 +96,12 @@ export function copiedCells(value: unknown): CopiedCells {
     fragment.left < 1 ||
     !Array.isArray(rows) ||
     !rows.length ||
-    rows.length > 4096 ||
+    rows.length > xlsxCellFragmentCells ||
     !Array.isArray(rows[0]) ||
     !rows[0].length ||
-    rows.length * rows[0].length > 4096 ||
-    fragment.top + rows.length - 1 > 1048576 ||
-    fragment.left + rows[0].length - 1 > 16384
+    rows.length * rows[0].length > xlsxCellFragmentCells ||
+    fragment.top + rows.length - 1 > xlsxWorksheetRows ||
+    fragment.left + rows[0].length - 1 > xlsxWorksheetColumns
   )
     throw new Error("Invalid copied cells rectangle");
   let units = 0;
@@ -109,7 +125,7 @@ export function copiedCells(value: unknown): CopiedCells {
           (content.kind === "boolean" && typeof content.value === "boolean") ||
           (content.kind === "text" &&
             typeof content.value === "string" &&
-            content.value.length <= 32767) ||
+            content.value.length <= xlsxCellTextUnits) ||
           (content.kind === "error" &&
             typeof content.value === "string" &&
             [
@@ -126,14 +142,15 @@ export function copiedCells(value: unknown): CopiedCells {
           cell.formula === null ||
           (typeof cell.formula === "string" &&
             cell.formula.length > 0 &&
-            cell.formula.length <= 8192)
+            cell.formula.length <= xlsxFormulaSourceUnits)
         )
       )
         throw new Error("Invalid copied cell value or formula");
       units +=
         String(content.value ?? "").length +
         (typeof cell.formula === "string" ? cell.formula.length : 0);
-      if (units > 1048576) throw new Error("Copied cell text exceeds budget");
+      if (units > xlsxCellFragmentTextUnits)
+        throw new Error("Copied cell text exceeds budget");
       styles.push(cell.format);
     }
     formats.push(styles);
@@ -143,7 +160,7 @@ export function copiedCells(value: unknown): CopiedCells {
     ruleUnits = 0;
   for (const key of ["conditional", "validations"] as const) {
     const rules: unknown = fragment[key];
-    if (!Array.isArray(rules) || rules.length > 4096)
+    if (!Array.isArray(rules) || rules.length > xlsxCopiedRuleRanges)
       throw new Error("Invalid copied cell rules");
     for (const value of rules) {
       const rule = record(value),
@@ -152,11 +169,11 @@ export function copiedCells(value: unknown): CopiedCells {
       if (
         Object.keys(rule).length !== 3 ||
         Object.keys(anchor).length !== 2 ||
-        !integer(anchor.row, 1, 1048576) ||
-        !integer(anchor.column, 1, 16384) ||
+        !integer(anchor.row, 1, xlsxWorksheetRows) ||
+        !integer(anchor.column, 1, xlsxWorksheetColumns) ||
         !Array.isArray(ranges) ||
         ranges.length === 0 ||
-        ranges.length > 4096
+        ranges.length > xlsxCopiedRuleRanges
       )
         throw new Error("Invalid copied rule geometry");
       for (const value of ranges) {
@@ -186,12 +203,15 @@ export function copiedCells(value: unknown): CopiedCells {
       else checkXlsxDataValidation(rule.settings);
       count += ranges.length;
       ruleUnits += JSON.stringify(rule.settings).length;
-      if (count > 4096 || ruleUnits > 1048576)
+      if (count > xlsxCopiedRuleRanges || ruleUnits > xlsxCopiedRuleTextUnits)
         throw new Error("Copied cell rules exceed budget");
     }
   }
   const hyperlinks: unknown = fragment.hyperlinks;
-  if (!Array.isArray(hyperlinks) || hyperlinks.length > 4096)
+  if (
+    !Array.isArray(hyperlinks) ||
+    hyperlinks.length > xlsxCopiedHyperlinkCount
+  )
     throw new Error("Invalid copied hyperlinks");
   const occupied = new Set<number>();
   let linkUnits = 0;
@@ -220,11 +240,15 @@ export function copiedCells(value: unknown): CopiedCells {
     linkUnits += link.target.length;
     for (const key of ["display", "tooltip"] as const) {
       const text = link[key];
-      if (text !== null && (typeof text !== "string" || text.length > 32767))
+      if (
+        text !== null &&
+        (typeof text !== "string" ||
+          text.length > xlsxCopiedHyperlinkLabelUnits)
+      )
         throw new Error("Invalid copied hyperlink metadata");
       if (typeof text === "string") linkUnits += text.length;
     }
-    if (linkUnits > 1048576)
+    if (linkUnits > xlsxCopiedHyperlinkTextUnits)
       throw new Error("Copied hyperlink text exceeds budget");
     for (let row = Number(range.top); row <= Number(range.bottom); row++)
       for (
@@ -264,12 +288,12 @@ export function copiedCells(value: unknown): CopiedCells {
         (typeof notes.vml === "string" ? notes.vml.length : 0) +
         (typeof notes.threads === "string" ? notes.threads.length : 0) +
         (typeof notes.people === "string" ? notes.people.length : 0) >
-        2097152
+        xlsxCopiedNoteSourceUnits
     )
       throw new Error("Invalid copied cell notes");
   }
   const sparklines: unknown = fragment.sparklines;
-  if (!Array.isArray(sparklines) || sparklines.length > 256)
+  if (!Array.isArray(sparklines) || sparklines.length > xlsxSparklineCount)
     throw new Error("Invalid copied sparklines");
   const destinations = new Set<number>();
   for (const value of sparklines) {
@@ -307,16 +331,16 @@ export function copiedCells(value: unknown): CopiedCells {
       const source = record(item.source);
       if (
         Object.keys(source).length !== 4 ||
-        !integer(source.top, 1, 1048576) ||
-        !integer(source.bottom, Number(source.top), 1048576) ||
-        !integer(source.left, 1, 16384) ||
-        !integer(source.right, Number(source.left), 16384) ||
+        !integer(source.top, 1, xlsxWorksheetRows) ||
+        !integer(source.bottom, Number(source.top), xlsxWorksheetRows) ||
+        !integer(source.left, 1, xlsxWorksheetColumns) ||
+        !integer(source.right, Number(source.left), xlsxWorksheetColumns) ||
         !(source.top === source.bottom || source.left === source.right) ||
         Number(source.bottom) -
           Number(source.top) +
           Number(source.right) -
           Number(source.left) >=
-          256
+          xlsxSparklineSourceCells
       )
         throw new Error("Invalid copied sparkline source");
     }

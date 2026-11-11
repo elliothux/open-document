@@ -6,7 +6,7 @@ fn ConditionalRules::alignment_ranges(
   rows : Map[Int32, Bool],
   sheets : Array[Sheet],
   index : Int32,
-  values : Map[(Int32, String), Value],
+  values : Map[(Int32, Address), Value],
   work : FormulaWork,
 ) -> Array[Range] raise @failure.Failure {
   if !styles.any(style => {

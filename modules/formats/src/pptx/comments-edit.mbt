@@ -1,10 +1,11 @@
 ///|
 fn comment_text(text : String) -> String raise @failure.Failure {
-  guard text.length() <= 32767 &&
+  guard text.length() <= CommentTextUnits &&
     !text.trim().is_empty() &&
     @xml.valid_text(text) else {
     @failure.reject(
-      "invalid-text", "Comments require nonempty text within 32767 UTF-16 units",
+      "invalid-text",
+      "Comments require nonempty text within \{CommentTextUnits} UTF-16 units",
     )
   }
   text.replace_all(old="\r\n", new="\n").replace_all(old="\r", new="\n")
@@ -140,3 +141,6 @@ fn Session::edit_comments(
   )
   self.query()
 }
+
+///|
+pub const CommentTextUnits : Int32 = 32767

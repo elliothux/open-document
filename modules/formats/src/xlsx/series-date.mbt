@@ -1,28 +1,18 @@
 ///|
-fn series_weekday(serial : Int32, date1904 : Bool) -> Int32 {
-  let value = (serial + (if date1904 { 5 } else { 6 })) % 7
-  if value < 0 {
-    value + 7
-  } else {
-    value
-  }
-}
-
-///|
 fn series_workday(serial : Int32, step : Int32, date1904 : Bool) -> Int32 {
   if step == 0 {
     return serial
   }
   let direction = if step > 0 { 1 } else { -1 }
   let mut result = serial + direction
-  while [0, 6].contains(series_weekday(result, date1904)) {
+  while [0, 6].contains(date_weekday(result, date1904)) {
     result += direction
   }
   let remaining = step.abs() - 1
   result += remaining / 5 * 7 * direction
   for _ in 0..<(remaining % 5) {
     result += direction
-    while [0, 6].contains(series_weekday(result, date1904)) {
+    while [0, 6].contains(date_weekday(result, date1904)) {
       result += direction
     }
   }

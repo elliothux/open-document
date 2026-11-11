@@ -9,7 +9,7 @@ fn Expression::scalar_argument(
   self : Expression,
   sheets : Array[Sheet],
   sheet : Int32,
-  values : Map[(Int32, String), Value],
+  values : Map[(Int32, Address), Value],
   work : FormulaWork,
   depth : Int32,
 ) -> Value raise @failure.Failure {
@@ -51,7 +51,9 @@ fn Expression::aggregate_range(
 fn FormulaRange::fit(self : FormulaRange, shape : Range) -> FormulaRange? {
   let bottom = self.bounds.top + shape.bottom - shape.top
   let right = self.bounds.left + shape.right - shape.left
-  guard bottom <= 1048576 && right <= 16384 else { return None }
+  guard bottom <= WorksheetRows && right <= WorksheetColumns else {
+    return None
+  }
   Some({ sheet: self.sheet, bounds: { ..self.bounds, bottom, right, }, })
 }
 
@@ -73,7 +75,7 @@ fn FormulaRange::value(
   self : FormulaRange,
   offset : Int64,
   sheets : Array[Sheet],
-  calculated : Map[(Int32, String), Value],
+  calculated : Map[(Int32, Address), Value],
   work : FormulaWork,
 ) -> Value raise @failure.Failure {
   work.spend()

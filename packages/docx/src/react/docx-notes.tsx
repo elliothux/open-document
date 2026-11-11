@@ -7,6 +7,7 @@ import type {
 } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { docxNoteTextUnits } from "@open-document/wasm/engine-source";
 
 export function DocxNotes({
   controller,
@@ -27,7 +28,7 @@ export function DocxNotes({
   const [newText, setNewText] = useState("");
   const [position, setPosition] = useState<DocxEndnotePosition>("docEnd");
   const load = async (created?: DocxNoteKind) => {
-    const value = await editor.notes();
+    const value = await editor.review.notes();
     const selected = created
       ? value.entries.filter((entry) => entry.kind === created).at(-1)
       : undefined;
@@ -47,7 +48,7 @@ export function DocxNotes({
         onSubmit={(event) => {
           event.preventDefault();
           controller.run(async () => {
-            await editor.insertNote({ kind, text: newText });
+            await editor.review.insertNote({ kind, text: newText });
             await load(kind);
             setNewText("");
           });
@@ -71,7 +72,7 @@ export function DocxNotes({
           {t.newDocxNoteText}
           <textarea
             value={newText}
-            maxLength={32767}
+            maxLength={docxNoteTextUnits}
             disabled={disabled}
             onChange={(event) => setNewText(event.currentTarget.value)}
           />
@@ -93,7 +94,7 @@ export function DocxNotes({
             onSubmit={(event) => {
               event.preventDefault();
               controller.run(async () => {
-                await editor.setEndnotePosition(source, position);
+                await editor.review.setEndnotePosition(source, position);
                 await load();
               });
             }}
@@ -156,7 +157,7 @@ export function DocxNotes({
               onSubmit={(event) => {
                 event.preventDefault();
                 controller.run(async () => {
-                  await editor.editNote(source, {
+                  await editor.review.editNote(source, {
                     kind: selected.kind,
                     id: selected.id,
                     text,
@@ -175,7 +176,7 @@ export function DocxNotes({
                   {t.docxNoteText}
                   <textarea
                     value={text}
-                    maxLength={32767}
+                    maxLength={docxNoteTextUnits}
                     disabled={disabled || stale}
                     onChange={(event) => setText(event.currentTarget.value)}
                   />
@@ -192,7 +193,7 @@ export function DocxNotes({
                 disabled={disabled || stale || !!selected.reason}
                 onClick={() =>
                   controller.run(async () => {
-                    await editor.removeNote(source, {
+                    await editor.review.removeNote(source, {
                       kind: selected.kind,
                       id: selected.id,
                     });

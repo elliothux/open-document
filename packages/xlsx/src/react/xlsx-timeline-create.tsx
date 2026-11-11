@@ -44,7 +44,7 @@ export function CreateTimeline({
         type="button"
         onClick={() =>
           controller.run(async () => {
-            const next = await editor.pivots();
+            const next = await editor.objects.pivots();
             setPivots(next);
             if (!next.items.some((item) => item.part === pivot && !item.reason))
               setPivot(next.items.find((item) => !item.reason)?.part ?? "");
@@ -126,7 +126,7 @@ export function CreateTimeline({
         disabled={!valid}
         onClick={() =>
           controller.run(async () => {
-            await editor.insertTimeline(settings);
+            await editor.objects.insertTimeline(settings);
             await created();
           })
         }

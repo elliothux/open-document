@@ -78,7 +78,7 @@ fn Session::change_table_property(
     return self.edit_state()
   }
   if header_rows is Some(count) {
-    guard count >= 0 && count <= 1000 && count <= grid.rows.length() else {
+    guard count >= 0 && count <= TableGridRows && count <= grid.rows.length() else {
       @failure.reject(
         "invalid-operation", "Header row count is outside the table",
       )

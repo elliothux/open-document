@@ -1,4 +1,7 @@
 ///|
+pub const ParagraphTabCount : Int32 = 32
+
+///|
 pub(all) struct ParagraphTab {
   position : Double
   align : String
@@ -14,7 +17,7 @@ pub extend ParagraphTab with ToJson::{to_json}
 fn paragraph_tabs_check(
   tabs : Array[ParagraphTab],
 ) -> Unit raise @failure.Failure {
-  guard tabs.length() <= 32 else {
+  guard tabs.length() <= ParagraphTabCount else {
     @failure.reject("limit-exceeded", "DrawingML allows at most 32 tab stops")
   }
   @layout.validate_tabs(
@@ -38,7 +41,7 @@ fn read_paragraph_tabs(
         )
       }
       let nodes = list.tree.children.get(list.node.id).unwrap_or([])
-      guard nodes.length() <= 32 else {
+      guard nodes.length() <= ParagraphTabCount else {
         @failure.reject("limit-exceeded", "Too many paragraph tabs")
       }
       for node in nodes {

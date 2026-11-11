@@ -1,3 +1,4 @@
+import { CommandQueue } from "@open-document/web-core/command-queue";
 import {
   createGridElements,
   gridScrollChanged,
@@ -5,12 +6,7 @@ import {
   prepareGridViewport,
   updateGridScroll,
 } from "./spreadsheet-elements.js";
-import {
-  replaceSpreadsheetMatches,
-  findSpreadsheet,
-  selectSpreadsheetMatch,
-  type SpreadsheetSearchResult,
-} from "./spreadsheet-search.js";
+import { createSpreadsheetSearch } from "./spreadsheet-search.js";
 export type { SpreadsheetSearchResult } from "./spreadsheet-search.js";
 import {
   updateGridSemantics,
@@ -22,7 +18,9 @@ import {
 export type { SpreadsheetEditorData } from "./spreadsheet-semantics.js";
 import { SpreadsheetPrint } from "./spreadsheet-print.js";
 import { SpreadsheetCanvas } from "./spreadsheet-canvas.js";
-import { SpreadsheetData } from "./spreadsheet-data.js";
+import { createSpreadsheetData } from "./spreadsheet-data.js";
+import { createSpreadsheetObjects } from "./spreadsheet-objects.js";
+import { createSpreadsheetClipboard } from "./spreadsheet-clipboard-host.js";
 import { SpreadsheetFormula } from "./spreadsheet-formula.js";
 import { SpreadsheetPointer } from "./spreadsheet-pointer.js";
 import {
@@ -42,12 +40,10 @@ import { bindSpreadsheetClipboard } from "./spreadsheet-clipboard.js";
 import {
   EditorState,
   type EditorOutput,
-  type EditorSnapshot,
 } from "@open-document/web-core/editor-state";
 import type { XlsxClient } from "./xlsx.js";
 import type {
   XlsxQuery,
-  XlsxPivotSettings,
   XlsxViewport,
   XlsxPrintLayout,
   PrintOptions,
@@ -55,17 +51,21 @@ import type {
   CopiedCellFormat,
   XlsxClearMode,
   XlsxSelectionGeometry,
-  XlsxFindOptions,
 } from "../core/xlsx.js";
-export class SpreadsheetEditor extends SpreadsheetData {
+export class SpreadsheetEditor {
+  readonly objects: ReturnType<typeof createSpreadsheetObjects>;
+  readonly clipboard: ReturnType<typeof createSpreadsheetClipboard>;
+  readonly data: ReturnType<typeof createSpreadsheetData>;
+  acceptValidationWarnings = false;
+  readonly search: ReturnType<typeof createSpreadsheetSearch>;
   private readonly container: HTMLDivElement;
   private readonly viewport: HTMLDivElement;
   private readonly holder: HTMLDivElement;
   private readonly spacer: HTMLDivElement;
   private readonly input: HTMLTextAreaElement;
   private readonly semantics: HTMLDivElement;
-  protected override readonly surface = new SpreadsheetCanvas();
-  private readonly printView = new SpreadsheetPrint(() => this.publish());
+  private readonly surface = new SpreadsheetCanvas();
+  private readonly printView: SpreadsheetPrint;
   private readonly observable: EditorState<SpreadsheetEditorData>;
   private paused = false;
   private blocked = false;
@@ -84,21 +84,27 @@ export class SpreadsheetEditor extends SpreadsheetData {
   private draftIntent: object | undefined;
   private composing = false;
   private committing = false;
-  protected override closed = false;
-  private tail: Promise<void> = Promise.resolve();
-  private pending = 0;
+  private closed = false;
+  private readonly queue = new CommandQueue(
+    64,
+    () => new Error("Spreadsheet command queue exceeds budget"),
+  );
   private activeCommands = 0;
   private frame = 0;
   private generation = 0;
   private rendering = false;
+  readonly inputLimits: ReturnType<XlsxClient["inputLimits"]>;
   private constructor(
     root: HTMLElement,
-    protected override readonly client: XlsxClient,
-    protected override readonly profile: Record<string, string>,
+    private readonly client: XlsxClient,
+    private readonly profile: Record<string, string>,
     state: XlsxQuery,
   ) {
-    super();
+    this.inputLimits = client.inputLimits();
     this.state = state;
+    this.printView = new SpreadsheetPrint(client, profile, () =>
+      this.publish(),
+    );
     this.observable = new EditorState("xlsx", {
       revision: state.revision,
       canUndo: state.canUndo,
@@ -107,6 +113,30 @@ export class SpreadsheetEditor extends SpreadsheetData {
       diagnostics: state.diagnostics,
       data: { query: state, printPage: 0, printPages: 0, printVisible: false },
     });
+    const host = {
+      read: <T>(action: () => Promise<T>) => this.read(action),
+      change: (action: () => Promise<XlsxQuery>) => this.change(action),
+      state: () => this.state,
+      snapshot: () => this.getSnapshot(),
+      closed: () => this.closed,
+      selectedDrawing: () =>
+        this.layout?.objects.find((object) => object.selected)?.id,
+      acceptWarnings: () => this.acceptValidationWarnings,
+    };
+    this.search = createSpreadsheetSearch(client, host);
+    this.objects = createSpreadsheetObjects(
+      client,
+      profile,
+      this.surface,
+      host,
+    );
+    this.clipboard = createSpreadsheetClipboard(
+      client,
+      profile,
+      this.surface,
+      host,
+    );
+    this.data = createSpreadsheetData(client, host);
     const elements = createGridElements(root, this.surface, this.printView);
     this.container = elements.container;
     this.viewport = elements.viewport;
@@ -196,7 +226,7 @@ export class SpreadsheetEditor extends SpreadsheetData {
     bindSpreadsheetClipboard(
       this.input,
       this.listeners.signal,
-      this,
+      this.clipboard,
       () => this.composing,
       () => this.draft !== undefined || this.draftIntent !== undefined,
       (action) => this.handle(action),
@@ -225,11 +255,13 @@ export class SpreadsheetEditor extends SpreadsheetData {
       root,
       client,
       profile,
-      await client.query(),
+      await client.execute({ operation: "queryXlsx" }),
     );
     try {
       await editor.enqueue(() => editor.present(true));
-      editor.state = await editor.enqueue(() => client.query());
+      editor.state = await editor.enqueue(() =>
+        client.execute({ operation: "queryXlsx" }),
+      );
       editor.publish();
       return editor;
     } catch (error) {
@@ -247,8 +279,7 @@ export class SpreadsheetEditor extends SpreadsheetData {
   get formulaBar(): HTMLElement {
     return this.formula.element;
   }
-  readonly getSnapshot = (): EditorSnapshot<SpreadsheetEditorData> =>
-    this.observable.getSnapshot();
+  readonly getSnapshot = () => this.observable.getSnapshot();
   readonly subscribe = (listener: () => void): (() => void) =>
     this.observable.subscribe(listener);
   markSaved(output: EditorOutput): void {
@@ -256,6 +287,9 @@ export class SpreadsheetEditor extends SpreadsheetData {
   }
   markDownloaded(output: EditorOutput): void {
     this.observable.markDownloaded(output);
+  }
+  copy(): Promise<void> {
+    return this.clipboard.copy();
   }
   focus(): void {
     if (this.closed) throw new Error("Editor is disposed");
@@ -268,10 +302,10 @@ export class SpreadsheetEditor extends SpreadsheetData {
     this.container.inert = paused;
     this.input.readOnly = paused || this.committing;
     this.publish();
-    if (paused) await this.tail;
+    if (paused) await this.queue.whenIdle();
   }
   whenIdle(): Promise<void> {
-    return this.tail;
+    return this.queue.whenIdle();
   }
   private enqueue<T>(
     action: () => Promise<T>,
@@ -289,37 +323,29 @@ export class SpreadsheetEditor extends SpreadsheetData {
             : "Refresh or undo before editing",
         ),
       );
-    if (this.pending >= 64)
-      return Promise.reject(
-        new Error("Spreadsheet command queue exceeds budget"),
-      );
-    this.pending++;
-    // Background repaint must not disable a control between pointer down and click.
-    if (!quiet) {
-      this.activeCommands++;
-      this.publish();
-    }
-    const task = this.tail.then(async () => {
-      try {
-        return await action();
-      } catch (error) {
-        this.report(error);
-        throw error;
-      }
-    });
-    this.tail = task
-      .then(
-        () => {},
-        () => {},
-      )
-      .finally(() => {
-        this.pending--;
+    return this.queue.enqueue(
+      async () => {
+        try {
+          return await action();
+        } catch (error) {
+          this.report(error);
+          throw error;
+        }
+      },
+      () => {
+        // Background repaint must not disable a control between pointer down and click.
+        if (!quiet) {
+          this.activeCommands++;
+          this.publish();
+        }
+      },
+      () => {
         if (!quiet) {
           this.activeCommands--;
           this.publish();
         }
-      });
-    return task;
+      },
+    );
   }
   private handle(action: () => Promise<unknown>): void {
     void action().then(
@@ -353,7 +379,7 @@ export class SpreadsheetEditor extends SpreadsheetData {
   }
   private queueDraft(): void {
     if (this.draft || this.draftIntent) return;
-    if (this.pending === 0) {
+    if (this.queue.pending === 0) {
       this.beginDraft(true);
       return;
     }
@@ -406,14 +432,15 @@ export class SpreadsheetEditor extends SpreadsheetData {
     this.committing = true;
     this.input.readOnly = true;
     try {
-      this.state = await this.client.replace(
-        draft.revision,
-        draft.sheet,
-        draft.address,
-        [[this.input.value]],
-        false,
-        this.acceptValidationWarnings,
-      );
+      this.state = await this.client.execute({
+        operation: "replaceXlsx",
+        revision: draft.revision,
+        sheet: draft.sheet,
+        range: draft.address,
+        values: [[this.input.value]],
+        literal: false,
+        acceptWarnings: this.acceptValidationWarnings,
+      });
       this.draft = undefined;
       this.formula.show(false);
       this.input.value = "";
@@ -465,7 +492,8 @@ export class SpreadsheetEditor extends SpreadsheetData {
         this.layout?.scrollX ?? 0,
         this.scale,
       );
-      const layout = await this.client.viewport({
+      const layout = await this.client.execute({
+        operation: "viewportXlsx",
         ...viewport,
         sheet: this.state.sheet,
         profile: this.profile,
@@ -485,10 +513,6 @@ export class SpreadsheetEditor extends SpreadsheetData {
         return;
       }
       this.layout = layout;
-      const kind = this.state.sheets.find((s) => s.id === layout.sheet)?.kind;
-      this.surface.setGlyphRasterMode(
-        kind === "chartsheet" ? "fractional" : "integer",
-      );
       this.scale = this.surface.draw(layout, 0, this.zoomValue);
       if (paintOnly) return;
       updateGridScroll(this.viewport, this.spacer, layout, this.scale);
@@ -504,7 +528,10 @@ export class SpreadsheetEditor extends SpreadsheetData {
   private async presentSelection(): Promise<void> {
     const layout = this.layout;
     if (!layout) return;
-    const rect = await this.client.selectionGeometry(layout.id);
+    const rect = await this.client.execute({
+      operation: "selectionXlsx",
+      layoutId: layout.id,
+    });
     if (this.closed || layout !== this.layout) return;
     this.pointer.update(rect);
     updateGridSelection(this.semantics, this.active());
@@ -563,59 +590,9 @@ export class SpreadsheetEditor extends SpreadsheetData {
       data,
     });
   }
-  find(
-    text: string,
-    options: XlsxFindOptions = {},
-  ): Promise<SpreadsheetSearchResult> {
-    return this.read(() =>
-      findSpreadsheet(
-        this.client,
-        this.state.revision,
-        this.state.sheet,
-        text,
-        options,
-        this.getSnapshot().documentId,
-      ),
-    );
-  }
-  selectMatch(result: SpreadsheetSearchResult, index: number): Promise<void> {
-    return this.change(() =>
-      selectSpreadsheetMatch(this.client, result, this.getSnapshot(), index),
-    );
-  }
-  replaceMatches(
-    result: SpreadsheetSearchResult,
-    replacement: string,
-    index?: number,
-  ): Promise<void> {
-    return this.change(() =>
-      replaceSpreadsheetMatches(
-        this.client,
-        result,
-        this.getSnapshot(),
-        replacement,
-        index,
-      ),
-    );
-  }
   autoFit(axis: "rows" | "columns"): Promise<void> {
     return this.change(() =>
       autoFitGrid(this.client, this.state, axis, this.profile),
-    );
-  }
-  pivots() {
-    return this.read(() =>
-      this.client.pivots(this.state.revision, this.state.sheet),
-    );
-  }
-  slicers() {
-    return this.read(() =>
-      this.client.slicers(this.state.revision, this.state.sheet),
-    );
-  }
-  pivotPreview(settings: XlsxPivotSettings, part?: string) {
-    return this.read(() =>
-      this.client.pivotPreview(this.state.revision, settings, part),
     );
   }
   formatCells(patch: XlsxCellFormat): Promise<void> {
@@ -624,9 +601,14 @@ export class SpreadsheetEditor extends SpreadsheetData {
     );
   }
   captureFormat(): Promise<CopiedCellFormat> {
-    return this.read(() => this.client.captureFormat(this.state.revision));
+    return this.read(() =>
+      this.client.execute({
+        operation: "captureXlsxFormat",
+        revision: this.state.revision,
+      }),
+    );
   }
-  protected override read<T>(action: () => Promise<T>): Promise<T> {
+  private read<T>(action: () => Promise<T>): Promise<T> {
     return this.enqueue(async () => {
       requireCellCompositionEnd(this.composing);
       await this.commitDraft();
@@ -636,10 +618,14 @@ export class SpreadsheetEditor extends SpreadsheetData {
   applyFormat(format: CopiedCellFormat): Promise<void> {
     return this.change(() => {
       checkCopiedFormatFonts(format, this.state.formatting, this.profile);
-      return this.client.applyFormat(this.state.revision, format);
+      return this.client.execute({
+        operation: "applyXlsxFormat",
+        revision: this.state.revision,
+        format: format,
+      });
     });
   }
-  protected override change(action: () => Promise<XlsxQuery>): Promise<void> {
+  private change(action: () => Promise<XlsxQuery>): Promise<void> {
     this.pointer.cancel();
     return this.read(async () => {
       this.state = await action();
@@ -659,17 +645,15 @@ export class SpreadsheetEditor extends SpreadsheetData {
   ): Promise<void> {
     return this.enqueue(async () => {
       await this.commitDraft();
-      this.state = await this.client.navigate(
-        this.state.revision,
-        direction,
-        extend,
-      );
+      this.state = await this.client.execute({
+        operation: "navigateXlsx",
+        revision: this.state.revision,
+        direction: direction,
+        extend: extend,
+      });
       await this.present(true);
       this.input.focus({ preventScroll: true });
     });
-  }
-  protected override get selectedDrawing(): string | undefined {
-    return this.layout?.objects.find((object) => object.selected)?.id;
   }
   private history(redo: boolean): Promise<void> {
     return this.enqueue(async () => {
@@ -678,9 +662,10 @@ export class SpreadsheetEditor extends SpreadsheetData {
         throw new Error(
           "Finish or cancel the cell draft before workbook history",
         );
-      this.state = redo
-        ? await this.client.redo(this.state.revision)
-        : await this.client.undo(this.state.revision);
+      this.state = await this.client.execute({
+        operation: redo ? "redoXlsx" : "undoXlsx",
+        revision: this.state.revision,
+      });
       this.blocked = false;
       this.generation++;
       await this.present(true);
@@ -695,7 +680,7 @@ export class SpreadsheetEditor extends SpreadsheetData {
   }
   refresh(): Promise<void> {
     return this.enqueue(async () => {
-      this.state = await this.client.query();
+      this.state = await this.client.execute({ operation: "queryXlsx" });
       this.blocked = false;
       this.generation++;
       await this.present(true);
@@ -712,11 +697,17 @@ export class SpreadsheetEditor extends SpreadsheetData {
     });
   }
   save(): Promise<EditorOutput> {
-    return this.output("xlsx", () => this.client.save());
+    return this.output("xlsx", () =>
+      this.client.execute({ operation: "saveXlsx" }),
+    );
   }
   exportCsv(selection = false): Promise<EditorOutput> {
     return this.output("csv", () =>
-      this.client.exportCsv(this.state.revision, selection),
+      this.client.execute({
+        operation: "exportXlsxCsv",
+        revision: this.state.revision,
+        selection: selection,
+      }),
     );
   }
   private output(
@@ -738,18 +729,9 @@ export class SpreadsheetEditor extends SpreadsheetData {
       true,
     );
   }
-  private preparePrint(options: PrintOptions | null): Promise<XlsxPrintLayout> {
-    return this.printView.prepare(
-      this.client,
-      this.state.revision,
-      this.state.sheet,
-      options,
-      this.profile,
-    );
-  }
   printLayout(options: PrintOptions | null = null): Promise<XlsxPrintLayout> {
     return this.read(async () => {
-      const layout = await this.preparePrint(options);
+      const layout = await this.printView.prepare(this.state, options);
       this.printView.show(layout);
       this.viewport.hidden = true;
       this.pointer.cancel();
@@ -758,11 +740,15 @@ export class SpreadsheetEditor extends SpreadsheetData {
   }
   exportPdf(
     options: PrintOptions | null = null,
-    outputBytes = 67108864,
+    outputBytes = this.inputLimits.exportBytes,
   ): Promise<EditorOutput> {
     return this.output("pdf", async () => {
-      const layout = await this.preparePrint(options);
-      return this.client.exportPdf(layout.id, outputBytes);
+      const layout = await this.printView.prepare(this.state, options);
+      return this.client.execute({
+        operation: "exportXlsxPdf",
+        layoutId: layout.id,
+        outputBytes: outputBytes,
+      });
     });
   }
   clear(mode: XlsxClearMode = "contents"): Promise<void> {
@@ -770,7 +756,11 @@ export class SpreadsheetEditor extends SpreadsheetData {
       if (mode !== "contents") {
         checkFontMapping(this.state.normalFont, this.profile);
       }
-      return this.client.clear(this.state.revision, mode);
+      return this.client.execute({
+        operation: "clearXlsx",
+        revision: this.state.revision,
+        mode: mode,
+      });
     });
   }
   showPrintPage(index: number): Promise<void> {
@@ -793,7 +783,7 @@ export class SpreadsheetEditor extends SpreadsheetData {
     cancelAnimationFrame(this.frame);
     this.draftIntent = undefined;
     this.observable.close();
-    this.cleanup = this.tail.finally(() => {
+    this.cleanup = this.queue.whenIdle().finally(() => {
       this.draft = undefined;
       this.surface.dispose();
       this.printView.dispose();

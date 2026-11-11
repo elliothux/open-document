@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { xlsxTableStyleStripeSize } from "@open-document/wasm/engine-source";
 import {
   xlsxTableStyleRegions,
   xlsxBorderStyles,
@@ -92,7 +93,7 @@ export function XlsxTableStyleDefinitions(props: PanelProps) {
         onSubmit={(event) => {
           event.preventDefault();
           props.controller.run(async () => {
-            await editor.editSheet({
+            await editor.objects.editSheet({
               action: "tableStyleDefinition",
               original,
               name,
@@ -163,7 +164,7 @@ export function XlsxTableStyleDefinitions(props: PanelProps) {
                     type="number"
                     required
                     min={1}
-                    max={1048576}
+                    max={xlsxTableStyleStripeSize}
                     step={1}
                     value={Number.isFinite(element.size) ? element.size : ""}
                     onChange={(event) =>
@@ -279,7 +280,7 @@ export function XlsxTableStyleDefinitions(props: PanelProps) {
         onClick={() => {
           if (original)
             props.controller.run(async () => {
-              await editor.editSheet({
+              await editor.objects.editSheet({
                 action: "deleteTableStyle",
                 name: original,
                 replacement,

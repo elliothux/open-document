@@ -31,7 +31,7 @@ export function DocxRevisions({
     let active = true;
     controller.run(async () => {
       try {
-        const value = await editor.revisions();
+        const value = await editor.review.revisions();
         if (active) {
           setResult(value);
           setError("");
@@ -146,7 +146,7 @@ export function DocxRevisions({
           onClick={() => {
             if (!result) return;
             controller.run(() =>
-              editor.resolveRevisions(result, {
+              editor.review.resolveRevisions(result, {
                 action,
                 ids: shown.map((item) => item.id),
               }),
@@ -170,7 +170,9 @@ export function DocxRevisions({
                 type="button"
                 disabled={disabled || !!blocked || stale || !!item.reason}
                 onClick={() =>
-                  controller.run(() => editor.showRevision(result, item.id))
+                  controller.run(() =>
+                    editor.review.showRevision(result, item.id),
+                  )
                 }
               >
                 {t.revisionShow}
@@ -188,7 +190,7 @@ export function DocxRevisions({
                   }
                   onClick={() => {
                     controller.run(() =>
-                      editor.resolveRevisions(result, {
+                      editor.review.resolveRevisions(result, {
                         action,
                         ids: [item.id],
                       }),

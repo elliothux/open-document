@@ -1,4 +1,13 @@
 ///|
+pub const PrintAreaUnits : Int32 = 2048
+
+///|
+pub const PrintTitleUnits : Int32 = 32
+
+///|
+const PrintAreaCount : Int32 = 32
+
+///|
 pub(all) struct PrintRange {
   area : String
   rows : String
@@ -27,12 +36,15 @@ fn print_area(value : String) -> Range raise @failure.Failure {
 
 ///|
 fn print_areas(value : String) -> Array[Range] raise @failure.Failure {
-  guard !value.trim().is_empty() && value.length() <= 2048 else {
+  guard !value.trim().is_empty() && value.length() <= PrintAreaUnits else {
     @failure.reject("invalid-address", "Print areas exceed address budget")
   }
   let areas = value.split(",").to_array()
-  guard areas.length() <= 32 else {
-    @failure.reject("limit-exceeded", "Print areas exceed 32 rectangles")
+  guard areas.length() <= PrintAreaCount else {
+    @failure.reject(
+      "limit-exceeded",
+      "Print areas exceed \{PrintAreaCount} rectangles",
+    )
   }
   areas.map(area => print_area(area.to_owned()))
 }
@@ -42,7 +54,7 @@ fn print_title(
   value : String,
   rows : Bool,
 ) -> (Int32, Int32) raise @failure.Failure {
-  guard value.length() <= 32 else {
+  guard value.length() <= PrintTitleUnits else {
     @failure.reject("invalid-address", "Print title exceeds address budget")
   }
   let ends = value.trim().split(":").to_array()
@@ -175,8 +187,11 @@ fn Session::read_print_range(
       }
       let value = node.text[spans[start + 2].0:spans[cursor - 1].1].to_owned()
       if is_area {
-        guard areas.length() < 32 else {
-          @failure.reject("limit-exceeded", "Print areas exceed 32 rectangles")
+        guard areas.length() < PrintAreaCount else {
+          @failure.reject(
+            "limit-exceeded",
+            "Print areas exceed \{PrintAreaCount} rectangles",
+          )
         }
         areas.push(print_area(value).name())
       } else {
@@ -209,7 +224,10 @@ fn Session::read_print_range(
 }
 
 ///|
-fn Session::print_range_query(self : Session, index : Int32) -> Json {
+fn Session::print_range_query(
+  self : Session,
+  index : Int32,
+) -> QueryPrintSettings[PrintRange] {
   let (settings, reason) = (
     self.read_print_range(index),
     self.print_range_reason(index),
@@ -217,11 +235,7 @@ fn Session::print_range_query(self : Session, index : Int32) -> Json {
     @failure.Failure(message~, ..) =>
       (({ area: "", rows: "", columns: "", } : PrintRange), message)
   }
-  let json = settings.to_json()
-  if json is Object(fields) {
-    fields["readOnlyReason"] = Json(reason)
-  }
-  json
+  { settings, readOnlyReason: reason, }
 }
 
 ///|

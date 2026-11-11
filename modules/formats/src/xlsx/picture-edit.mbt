@@ -35,10 +35,9 @@ pub fn Session::insert_picture(
     height,
   }
   check_picture_rect("move", rect, dimensions)
-  let (media_part, mime) = self.new_picture_part(bytes)
+  let (media_part, mime, width, height) = self.new_picture_part(bytes)
   if images is Some(images) {
     let decoded = images.get(picture_key(media_part))
-    let (_, _, width, height) = @image.type_info(bytes)
     guard decoded.width == width && decoded.height == height else {
       @failure.reject(
         "missing-image", "Decoded worksheet picture dimensions differ",

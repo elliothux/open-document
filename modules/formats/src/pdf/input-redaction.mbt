@@ -3,7 +3,7 @@ priv struct RedactionPlan {
   pages : Array[@layout.PositionedPage]
   probe : @layout.TextProbe
   images : @layout.Images
-  affected : Array[Json]
+  affected : Array[PdfRedactionAffected]
   warnings : Array[String]
   expectedText : Array[String]
   expectedImages : Array[Array[Bytes]]
@@ -101,7 +101,7 @@ fn PdfSession::redaction_plan(
     errdefer images.clear()
     let fontIds : Map[String, Int32] = Map([])
     let pages : Array[@layout.PositionedPage] = []
-    let affected : Array[Json] = []
+    let affected : Array[PdfRedactionAffected] = []
     let expectedText : Array[String] = []
     let expectedImages : Array[Array[Bytes]] = []
     let textGroups : Array[PdfTextGroup] = []
@@ -393,6 +393,18 @@ fn PdfSession::redaction_plan(
 }
 
 ///|
+pub struct PdfRedactionPreview {
+  revision : Int32
+  regions : Array[PdfRedactionRegion]
+  affected : Array[PdfRedactionAffected]
+  warnings : Array[String]
+  readOnlyReason : String
+} derive(ToJson)
+
+///|
+pub extend PdfRedactionPreview with ToJson::{to_json}
+
+///|
 pub fn PdfSession::preview_redaction(
   self : PdfSession,
   revision : Int32,
@@ -400,7 +412,7 @@ pub fn PdfSession::preview_redaction(
   supplied : @layout.TextProbe,
   profile : Map[String, String],
   decoded? : @layout.Images,
-) -> Json raise @failure.Failure {
+) -> PdfRedactionPreview raise @failure.Failure {
   self.redaction_regions(revision, regions)
   try {
     let plan = self.redaction_plan(
@@ -412,11 +424,11 @@ pub fn PdfSession::preview_redaction(
     )
     defer plan.close()
     {
-      "revision": revision,
-      "regions": regions,
-      "affected": plan.affected,
-      "warnings": plan.warnings,
-      "readOnlyReason": "",
+      revision,
+      regions,
+      affected: plan.affected,
+      warnings: plan.warnings,
+      readOnlyReason: "",
     }
   } catch {
     @failure.Failure(
@@ -428,11 +440,11 @@ pub fn PdfSession::preview_redaction(
     ) as failure => raise failure
     @failure.Failure(message~, ..) =>
       {
-        "revision": revision,
-        "regions": regions,
-        "affected": [],
-        "warnings": [],
-        "readOnlyReason": message,
+        revision,
+        regions,
+        affected: [],
+        warnings: [],
+        readOnlyReason: message,
       }
   }
 }

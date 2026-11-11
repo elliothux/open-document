@@ -39,8 +39,8 @@ fn PdfSession::output_links(
     }
     let target = self.navigation_target(object)
     let (href, label) = match target {
-      { "kind": String("uri"), "uri": String(uri), .. } => (uri, uri)
-      { "kind": String("page"), "page": String(target), .. } => {
+      { kind: "uri", uri, .. } => (uri, uri)
+      { kind: "page", page: target, .. } => {
         let mut position = -1
         for i, id in ids {
           if id == target {

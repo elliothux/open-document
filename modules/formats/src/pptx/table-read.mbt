@@ -166,10 +166,11 @@ fn read_drawing_table(
     .map(node => number(node.attribute("w").unwrap_or(""), 1, 182880000) / 12700)
   let row_nodes = table.tree.all(table.node.id, "tr")
   guard !widths.is_empty() &&
-    widths.length() <= 63 &&
+    widths.length() <= TableColumnCount &&
     !row_nodes.is_empty() &&
-    row_nodes.length() <= 1000 &&
-    widths.length().to_int64() * row_nodes.length().to_int64() <= 4096 else {
+    row_nodes.length() <= TableRowCount &&
+    widths.length().to_int64() * row_nodes.length().to_int64() <=
+    TableCellCount.to_int64() else {
     @failure.reject("limit-exceeded", "Table dimensions exceed budget")
   }
   table_profile(
@@ -208,8 +209,16 @@ fn read_drawing_table(
         }),
         "Unknown table cell attributes",
       )
-      let row_span = number(node.attribute("rowSpan").unwrap_or("1"), 1, 1000).to_int()
-      let column_span = number(node.attribute("gridSpan").unwrap_or("1"), 1, 63).to_int()
+      let row_span = number(
+        node.attribute("rowSpan").unwrap_or("1"),
+        1,
+        TableRowCount.to_double(),
+      ).to_int()
+      let column_span = number(
+        node.attribute("gridSpan").unwrap_or("1"),
+        1,
+        TableColumnCount.to_double(),
+      ).to_int()
       let h_merge = flag(node, "hMerge")
       let v_merge = flag(node, "vMerge")
       table_profile(

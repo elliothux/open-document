@@ -1,4 +1,7 @@
 ///|
+pub const RunningDistancePoints : Int32 = 14400
+
+///|
 fn Session::running_target(
   self : Session,
   tree : WordTree,
@@ -213,7 +216,7 @@ pub fn Session::set_running_area(
   self.check_revision(revision)
   let content = normalize_running_content(content)
   guard distance >= 0 &&
-    distance <= 14400 &&
+    distance <= RunningDistancePoints.to_double() &&
     distance * 20 == (distance * 20).to_int().to_double() else {
     @failure.reject(
       "invalid-operation", "Running distance requires integer twips within the page limit",

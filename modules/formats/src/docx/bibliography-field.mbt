@@ -6,11 +6,22 @@ pub(all) enum BibliographyFieldEdit {
 }
 
 ///|
+pub const BibliographyHeadingUnits : Int32 = 255
+
+///|
+priv struct BibliographyField {
+  paragraph : Int32
+  endParagraph : Int32
+  instruction : String
+  reason : String
+} derive(ToJson)
+
+///|
 fn Session::bibliography_fields(
   self : Session,
-) -> Array[Json] raise @failure.Failure {
+) -> Array[BibliographyField] raise @failure.Failure {
   let tree = WordTree::new(self.document())
-  let items : Array[Json] = []
+  let items : Array[BibliographyField] = []
   for id in tree.order {
     if tree.contents.get(id) is Some(field) &&
       field.paragraphs[0] == id &&
@@ -19,10 +30,10 @@ fn Session::bibliography_fields(
         @failure.reject("limit-exceeded", "Too many bibliography fields")
       }
       items.push({
-        "paragraph": id,
-        "endParagraph": field.paragraphs.last().unwrap(),
-        "instruction": field.instruction,
-        "reason": field.reason,
+        paragraph: id,
+        endParagraph: field.paragraphs.last().unwrap(),
+        instruction: field.instruction,
+        reason: field.reason,
       })
     }
   }
@@ -115,9 +126,11 @@ pub fn Session::edit_bibliography(
     revision,
     match change {
       InsertBibliography(title) => {
-        guard source_text(title, 255) && !title.trim().is_empty() else {
+        guard source_text(title, BibliographyHeadingUnits) &&
+          !title.trim().is_empty() else {
           @failure.reject(
-            "invalid-operation", "Bibliography heading requires 1-255 plain characters",
+            "invalid-operation",
+            "Bibliography heading requires 1-\{BibliographyHeadingUnits} plain characters",
           )
         }
         InsertBibliography(title)

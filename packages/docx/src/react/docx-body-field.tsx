@@ -49,7 +49,7 @@ export function DocxBodyField({
     JSON.stringify(source.selection) !==
       JSON.stringify(snapshot.data.selection);
   const load = async () => {
-    const value = await editor.bodyPageField();
+    const value = await editor.pages.bodyPageField();
     setSource(value);
     setDraft(value.field ?? undefined);
   };
@@ -60,7 +60,7 @@ export function DocxBodyField({
         onSubmit={(event) => {
           event.preventDefault();
           controller.run(() =>
-            editor.insertBodyPageField({
+            editor.pages.insertBodyPageField({
               field: "SEQ",
               sequence,
               ...sequenceOptions,
@@ -90,7 +90,7 @@ export function DocxBodyField({
         onSubmit={(event) => {
           event.preventDefault();
           controller.run(() =>
-            editor.insertBodyPageField({
+            editor.pages.insertBodyPageField({
               field: referenceKind,
               bookmark,
               ...(hyperlink ? { hyperlink: true } : {}),
@@ -190,7 +190,7 @@ export function DocxBodyField({
           onSubmit={(event) => {
             event.preventDefault();
             controller.run(async () => {
-              await editor.editBodyPageField(source, draft);
+              await editor.pages.editBodyPageField(source, draft);
               await load();
             });
           }}
@@ -408,7 +408,7 @@ export function DocxBodyField({
                 }
                 onClick={() =>
                   controller.run(() =>
-                    editor.editBookmark({
+                    editor.review.editBookmark({
                       action: "goTo",
                       name: reference.bookmark,
                     }),

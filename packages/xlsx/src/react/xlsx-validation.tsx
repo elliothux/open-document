@@ -7,6 +7,11 @@ import {
 } from "../web/xlsx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import {
+  xlsxValidationFormulaUnits,
+  xlsxValidationMessageUnits,
+  xlsxValidationTitleUnits,
+} from "@open-document/wasm/engine-source";
 
 export function XlsxValidation({
   controller,
@@ -79,7 +84,7 @@ export function XlsxValidation({
               const index = Number(event.currentTarget.value);
               if (Number.isInteger(index) && index >= 0)
                 controller.run(() =>
-                  editor.editSheet({
+                  editor.objects.editSheet({
                     action: "validationValue",
                     index,
                     sourceRevision: query.revision,
@@ -103,7 +108,7 @@ export function XlsxValidation({
         onSubmit={(event) => {
           event.preventDefault();
           controller.run(() =>
-            editor.editSheet({
+            editor.objects.editSheet({
               action: "validation",
               range: query.selection.address,
               rule,
@@ -158,7 +163,7 @@ export function XlsxValidation({
               {index ? t.validationFormula2 : t.validationFormula1}
               <input
                 value={rule[key]}
-                maxLength={8192}
+                maxLength={xlsxValidationFormulaUnits}
                 disabled={
                   rule.kind === "none" ||
                   (index === 1 &&
@@ -221,7 +226,11 @@ export function XlsxValidation({
             <label key={key}>
               {label}
               <input
-                maxLength={key.endsWith("Title") ? 32 : 255}
+                maxLength={
+                  key.endsWith("Title")
+                    ? xlsxValidationTitleUnits
+                    : xlsxValidationMessageUnits
+                }
                 value={rule[key]}
                 onChange={(event) =>
                   setRule({ ...rule, [key]: event.currentTarget.value })
@@ -236,7 +245,7 @@ export function XlsxValidation({
             type="button"
             onClick={() =>
               controller.run(() =>
-                editor.editSheet({
+                editor.objects.editSheet({
                   action: "validation",
                   range: query.selection.address,
                   rule: null,

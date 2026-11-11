@@ -4,6 +4,16 @@ let date_month_names : ReadOnlyArray[String] = [
 ]
 
 ///|
+fn date_weekday(serial : Int32, date1904 : Bool) -> Int32 {
+  let value = (serial + (if date1904 { 5 } else { 6 })) % 7
+  if value < 0 {
+    value + 7
+  } else {
+    value
+  }
+}
+
+///|
 fn calendar_floor(value : Int32, divisor : Int32) -> Int32 {
   value / divisor - (if value % divisor < 0 { 1 } else { 0 })
 }

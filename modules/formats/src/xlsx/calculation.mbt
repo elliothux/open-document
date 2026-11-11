@@ -30,13 +30,13 @@ fn FormulaWork::spend(
 priv struct Calculation {
   manual : Bool
   names : NamedDefinitions
-  sources : Map[(Int32, String), String]
-  expressions : Map[(Int32, String), Expression]
-  dependencies : Map[(Int32, String), Array[Dependency]]
-  values : Map[(Int32, String), Value]
-  hyperlinks : Map[(Int32, String), String?]
-  order : Array[(Int32, String)]
-  uncomputed : Map[(Int32, String), String]
+  sources : Map[(Int32, Address), String]
+  expressions : Map[(Int32, Address), Expression]
+  dependencies : Map[(Int32, Address), Array[Dependency]]
+  values : Map[(Int32, Address), Value]
+  hyperlinks : Map[(Int32, Address), String?]
+  order : Array[(Int32, Address)]
+  uncomputed : Map[(Int32, Address), String]
   guarded_ranges : Map[Int32, Array[Range]]
   mut protected_visibility : Bool
 }
@@ -129,23 +129,24 @@ fn Expression::dependencies(
         hyperlink.val = true
       }
       if ![
-          "SUM", "AVERAGE", "MIN", "MAX", "COUNT", "IF", "AND", "OR", "NOT", "IFERROR",
-          "IFNA", "ISBLANK", "ISNUMBER", "ISTEXT", "ABS", "INT", "MOD", "ROUND",
-          "ROUNDUP", "ROUNDDOWN", "LEN", "LEFT", "RIGHT", "MID", "TRIM", "UPPER",
-          "LOWER", "CONCAT", "CONCATENATE", "TEXTJOIN", "FIND", "SEARCH", "SUBSTITUTE",
-          "EXACT", "REPT", "TEXT", "DATE", "YEAR", "MONTH", "DAY", "TIME", "HOUR",
-          "MINUTE", "SECOND", "DAYS", "WEEKDAY", "WEEKNUM", "ISOWEEKNUM", "COUNTA",
-          "COUNTBLANK", "COUNTIF", "COUNTIFS", "SUMIF", "SUMIFS", "AVERAGEIF", "AVERAGEIFS",
-          "MINIFS", "MAXIFS", "INDEX", "MATCH", "VLOOKUP", "HLOOKUP", "XLOOKUP",
-          "ROW", "COLUMN", "ROWS", "COLUMNS", "SUBTOTAL", "SQRT", "POWER", "PRODUCT",
-          "MEDIAN", "SUMSQ", "DEVSQ", "VAR", "VAR.S", "PI", "SIN", "COS", "TAN",
-          "RADIANS", "DEGREES", "VARP", "VAR.P", "STDEV", "STDEV.S", "STDEVP", "STDEV.P",
-          "MODE", "MODE.SNGL", "LARGE", "SMALL", "SUMPRODUCT", "HYPERLINK", "ACOS",
-          "ASIN", "ATAN", "ATAN2", "EXP", "LN", "LOG", "LOG10", "SINH", "COSH", "TANH",
-          "ACOSH", "ASINH", "ATANH", "SIGN", "CEILING.MATH", "FLOOR.MATH", "CEILING.PRECISE",
-          "FLOOR.PRECISE", "CEILING", "FLOOR", "TRUNC", "GCD", "LCM", "FACT", "FACTDOUBLE",
-          "COMBIN", "COMBINA", "MROUND", "QUOTIENT", "MULTINOMIAL", "SERIESSUM",
-          "SUMX2MY2", "SUMX2PY2", "SUMXMY2", "MDETERM", "RAND",
+          "SUM", "AVERAGE", "MIN", "MAX", "COUNT", "IF", "AND", "OR", "XOR", "NOT",
+          "IFERROR", "IFNA", "ISBLANK", "ISNUMBER", "ISTEXT", "ABS", "INT", "MOD",
+          "ROUND", "ROUNDUP", "ROUNDDOWN", "LEN", "LEFT", "RIGHT", "MID", "TRIM",
+          "UPPER", "LOWER", "CONCAT", "CONCATENATE", "TEXTJOIN", "FIND", "SEARCH",
+          "SUBSTITUTE", "EXACT", "REPT", "TEXT", "DATE", "YEAR", "MONTH", "DAY",
+          "TIME", "HOUR", "MINUTE", "SECOND", "DAYS", "WEEKDAY", "WEEKNUM", "ISOWEEKNUM",
+          "COUNTA", "COUNTBLANK", "COUNTIF", "COUNTIFS", "SUMIF", "SUMIFS", "AVERAGEIF",
+          "AVERAGEIFS", "MINIFS", "MAXIFS", "INDEX", "MATCH", "VLOOKUP", "HLOOKUP",
+          "XLOOKUP", "ROW", "COLUMN", "ROWS", "COLUMNS", "SUBTOTAL", "SQRT", "POWER",
+          "PRODUCT", "MEDIAN", "SUMSQ", "DEVSQ", "VAR", "VAR.S", "PI", "SIN", "COS",
+          "TAN", "RADIANS", "DEGREES", "VARP", "VAR.P", "STDEV", "STDEV.S", "STDEVP",
+          "STDEV.P", "MODE", "MODE.SNGL", "LARGE", "SMALL", "SUMPRODUCT", "HYPERLINK",
+          "ACOS", "ASIN", "ATAN", "ATAN2", "EXP", "LN", "LOG", "LOG10", "SINH", "COSH",
+          "TANH", "ACOSH", "ASINH", "ATANH", "SIGN", "CEILING.MATH", "FLOOR.MATH",
+          "CEILING.PRECISE", "FLOOR.PRECISE", "CEILING", "FLOOR", "TRUNC", "GCD",
+          "LCM", "FACT", "FACTDOUBLE", "COMBIN", "COMBINA", "MROUND", "QUOTIENT",
+          "MULTINOMIAL", "SERIESSUM", "SUMX2MY2", "SUMX2PY2", "SUMXMY2", "MDETERM",
+          "RAND",
         ].contains(name) {
         guard uncomputed is Some(reason) && isolated_math_function(name) else {
           @failure.reject(
@@ -192,9 +193,9 @@ fn Expression::dependencies(
 ///|
 fn Calculation::visit(
   self : Calculation,
-  key : (Int32, String),
-  formulas : Map[Int32, Array[(Int32, String)]],
-  marks : Map[(Int32, String), Int32],
+  key : (Int32, Address),
+  formulas : Map[Int32, Array[(Address, Int32)]],
+  marks : Map[(Int32, Address), Int32],
   work : FormulaWork,
   depth : Int32,
 ) -> Unit raise @failure.Failure {
@@ -212,13 +213,11 @@ fn Calculation::visit(
   }
   marks[key] = 1
   for dependency in self.dependencies[key] {
-    for candidate in formulas.get(dependency.sheet).unwrap_or([]) {
-      work.spend()
-      if dependency.range.contains(Address::parse(candidate.1)) {
-        self.visit(candidate, formulas, marks, work, depth + 1)
-        if self.uncomputed.contains(candidate) && !self.uncomputed.contains(key) {
-          self.uncomputed[key] = "Uncalculated dependency: " + candidate.1
-        }
+    for address in dependency.formulas(formulas, work) {
+      let candidate = (dependency.sheet, address)
+      self.visit(candidate, formulas, marks, work, depth + 1)
+      if self.uncomputed.contains(candidate) && !self.uncomputed.contains(key) {
+        self.uncomputed[key] = "Uncalculated dependency: " + address.name()
       }
     }
   }
@@ -235,7 +234,7 @@ fn Calculation::build(
   workbook : @xml.Document,
   tables~ : Array[StructuredTable],
   random~ : @random.Rand?,
-  restored_random~ : Map[(Int32, String), (Value, String?)] = Map([]),
+  restored_random~ : Map[(Int32, Address), (Value, String?)] = Map([]),
   force~ : Bool = false,
 ) -> Calculation raise @failure.Failure {
   let tree = Tree::new(workbook)
@@ -282,17 +281,17 @@ fn Calculation::build(
     names,
     origin: { row: 1, column: 1, },
   }
-  let formulas : Map[Int32, Array[(Int32, String)]] = Map([])
+  let formulas : Map[Int32, Array[(Address, Int32)]] = Map([])
   let mut references = 0
   let mut tokens = 0
   for index, sheet in sheets {
-    for name, cell in sheet.cells {
+    for cell in sheet.cells.values() {
       work.spend()
       if cell.formula is Some(source) {
         guard !cell.read_only.has_prefix("Unsupported formula") else {
           @failure.reject("unsupported-formula", cell.read_only)
         }
-        let key = (index, name)
+        let key = (index, cell.address)
         let expression = if previous is Some(previous) &&
           previous.sources.get(key) == Some(source) {
           previous.expressions[key]
@@ -333,35 +332,42 @@ fn Calculation::build(
         calculation.expressions[key] = expression
         calculation.dependencies[key] = dependencies
         if formulas.get(index) is Some(items) {
-          items.push(key)
+          items.push((cell.address, items.length()))
         } else {
-          formulas[index] = [key]
+          formulas[index] = [(cell.address, 0)]
         }
       }
     }
   }
-  let marks : Map[(Int32, String), Int32] = Map([])
+  for items in formulas.values() {
+    items.sort_by((a, b) => (a.0.row, a.0.column).compare((b.0.row, b.0.column)))
+  }
+  let marks : Map[(Int32, Address), Int32] = Map([])
   for key in calculation.sources.keys() {
     calculation.visit(key, formulas, marks, work, 0)
   }
   calculation.protect_dependencies(formulas, work)
-  let invalid = changed.copy()
+  let invalid = FormulaChanges::new(changed)
   let mut link_units = 0
   for key in calculation.order {
-    work.origin = Address::parse(key.1)
+    let (sheet, address) = key
+    work.origin = address
     let affected = (
         (!manual || force) && calculation.expressions[key].contains_rand()
       ) ||
       calculation.dependencies[key].any(dependency => {
-        invalid.any(item => {
-          work.spend()
-          item.0 == dependency.sheet && item.1.intersects(dependency.range)
-        })
+        invalid.intersects(dependency.sheet, dependency.range, work)
       }) ||
-      invalid.any(item => {
-        work.spend()
-        item.0 == key.0 && item.1.contains(Address::parse(key.1))
-      })
+      invalid.intersects(
+        sheet,
+        {
+          top: address.row,
+          bottom: address.row,
+          left: address.column,
+          right: address.column,
+        },
+        work,
+      )
     let hyperlink : Ref[String?] = Ref(None)
     if calculation.uncomputed.get(key) is Some(reason) {
       guard !force &&
@@ -401,8 +407,9 @@ fn Calculation::build(
           p.hyperlinks.get(key).bind(target => target)
         })
       }
-      sheets[key.0].cells[key.1].value
-    } else if previous is Some(previous) &&
+      sheets[sheet].cells[address.name()].value
+    } else if !force &&
+      previous is Some(previous) &&
       !affected &&
       previous.sources.get(key) == calculation.sources.get(key) &&
       previous.values.get(key) is Some(value) {
@@ -430,18 +437,7 @@ fn Calculation::build(
       calculation.hyperlinks[key] = target
     }
     if affected {
-      let address = Address::parse(key.1)
-      invalid.push(
-        (
-          key.0,
-          {
-            top: address.row,
-            left: address.column,
-            bottom: address.row,
-            right: address.column,
-          },
-        ),
-      )
+      invalid.add_cell(sheet, address.row, address.column)
     }
   }
   calculation

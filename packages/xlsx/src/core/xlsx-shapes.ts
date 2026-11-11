@@ -1,4 +1,10 @@
-import { record, integer } from "@open-document/wasm/abi/validation";
+import { record } from "@open-document/wasm/abi/validation";
+import {
+  xlsxDrawingDescriptionUnits,
+  xlsxDrawingNameUnits,
+  xlsxShapeFontUnits,
+  xlsxShapeTextUnits,
+} from "@open-document/wasm/engine-source";
 
 export const xlsxShapeKinds = ["rect", "ellipse", "line", "textBox"] as const;
 export type XlsxShapeKind = (typeof xlsxShapeKinds)[number];
@@ -76,7 +82,7 @@ export function checkXlsxShapeInsert(
   if (
     !dimensions(kind, width, height, true) ||
     typeof text !== "string" ||
-    text.length > 32767 ||
+    text.length > xlsxShapeTextUnits ||
     (kind === "line" && text !== "")
   )
     throw new Error("Invalid worksheet shape insertion");
@@ -92,18 +98,18 @@ function settings(value: unknown, editable: boolean): void {
     !finite(p.y, 0, 1e9) ||
     typeof p.name !== "string" ||
     !p.name.trim() ||
-    p.name.length > 255 ||
+    p.name.length > xlsxDrawingNameUnits ||
     typeof p.description !== "string" ||
-    p.description.length > 1024 ||
+    p.description.length > xlsxDrawingDescriptionUnits ||
     (p.fill !== null && !color(p.fill)) ||
     (p.stroke !== null && !color(p.stroke)) ||
     !finite(p.lineWidth, 0, 1000) ||
     typeof p.text !== "string" ||
-    p.text.length > 32767 ||
+    p.text.length > xlsxShapeTextUnits ||
     (p.kind === "line" && p.text !== "") ||
     typeof p.font !== "string" ||
     !p.font.trim() ||
-    p.font.length > 255 ||
+    p.font.length > xlsxShapeFontUnits ||
     typeof p.bold !== "boolean" ||
     typeof p.italic !== "boolean" ||
     !finite(p.size, 1, 400) ||
@@ -123,28 +129,4 @@ export function checkXlsxShapeSettings(
   value: unknown,
 ): asserts value is XlsxShapeSettings {
   settings(value, true);
-}
-export function xlsxShapes(value: unknown): XlsxShapes {
-  const result = record(value);
-  if (
-    !integer(result.revision, 0, 2147483647) ||
-    typeof result.sheet !== "string" ||
-    typeof result.reason !== "string" ||
-    !Array.isArray(result.items) ||
-    result.items.length > 256
-  )
-    throw new Error("Invalid worksheet shape list");
-  const ids = new Set<string>();
-  for (const item of result.items) {
-    settings(item, false);
-    const p = record(item);
-    if (
-      typeof p.id !== "string" ||
-      !/^[1-9][0-9]*$/.test(p.id) ||
-      ids.has(p.id)
-    )
-      throw new Error("Invalid worksheet shape identity");
-    ids.add(p.id);
-  }
-  return value as XlsxShapes;
 }

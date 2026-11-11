@@ -4,7 +4,7 @@ fn Session::set_notes(
   index : Int32,
   text : String,
 ) -> Json raise @failure.Failure {
-  guard text.length() <= 32767 && @xml.valid_text(text) else {
+  guard text.length() <= NotesTextUnits && @xml.valid_text(text) else {
     @failure.reject(
       "invalid-text", "Notes require valid text within 32767 UTF-16 units",
     )
@@ -12,8 +12,8 @@ fn Session::set_notes(
   let text = text
     .replace_all(old="\r\n", new="\n")
     .replace_all(old="\r", new="\n")
-  guard text.split("\n").count() <= 256 &&
-    text.split("\n").all(line => line.length() <= 4096) else {
+  guard text.split("\n").count() <= NotesParagraphCount &&
+    text.split("\n").all(line => line.length() <= NotesParagraphUnits) else {
     @failure.reject("limit-exceeded", "Notes exceed paragraph budget")
   }
   let slide = self.slides[index].tree.part

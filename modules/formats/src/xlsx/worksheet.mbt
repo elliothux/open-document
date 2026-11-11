@@ -68,8 +68,8 @@ fn Sheet::read(
   document : @xml.Document,
   strings : Array[(String, Bool)],
   style_count : Int32,
+  tree~ : Tree = Tree::new(document),
 ) -> Sheet raise @failure.Failure {
-  let tree = Tree::new(document)
   if tree.sheet_root().name == "chartsheet" {
     return read_chart_sheet(id, name, state, tree)
   }
@@ -105,8 +105,14 @@ fn Sheet::read(
   if tree.one(root.id, "cols") is Some(cols) {
     for column in tree.all(cols.id, "col") {
       if column.attribute("style") is Some(style) {
-        let first = natural(column.attribute("min").unwrap_or(""), 16384)
-        let last = natural(column.attribute("max").unwrap_or(""), 16384)
+        let first = natural(
+          column.attribute("min").unwrap_or(""),
+          WorksheetColumns,
+        )
+        let last = natural(
+          column.attribute("max").unwrap_or(""),
+          WorksheetColumns,
+        )
         guard first > 0 && last >= first else {
           @failure.reject("malformed-xlsx", "Invalid styled column bounds")
         }
@@ -131,7 +137,7 @@ fn Sheet::read(
     }
     let row_index = natural(
       row.attribute("r").unwrap_or((previous_row + 1).to_string()),
-      1048576,
+      WorksheetRows,
     )
     guard row_index > 0 && !rows.contains(row_index) else {
       @failure.reject("malformed-xlsx", "Duplicate or invalid row", part=id)
@@ -307,14 +313,14 @@ fn Sheet::read(
 }
 
 ///|
-fn Sheet::cell_json(
+fn Sheet::query_cell(
   self : Sheet,
   address : Address,
   reason : String,
   calculated : Value?,
   calculation_reason~ : String,
   hide_formula~ : Bool,
-) -> Json raise @failure.Failure {
+) -> QueryCell raise @failure.Failure {
   let key = address.name()
   let cell = self.cells.get(key)
   let value = cell.map(cell => cell.value).unwrap_or(Blank)
@@ -322,12 +328,12 @@ fn Sheet::cell_json(
   let hide_formula = self.locked && hide_formula && formula is Some(_)
   let cell_reason = cell.map(cell => cell.read_only).unwrap_or("")
   {
-    "address": key,
-    "row": address.row,
-    "column": address.column,
-    "style": self.style_at(address),
-    "value": value,
-    "input": if hide_formula {
+    address: key,
+    row: address.row,
+    column: address.column,
+    style: self.style_at(address),
+    value,
+    input: if hide_formula {
       ""
     } else {
       formula
@@ -339,20 +345,10 @@ fn Sheet::cell_json(
         },
       )
     },
-    "formula": if hide_formula {
-      Json::null()
-    } else {
-      formula.map(Json::string).unwrap_or(Json::null())
-    },
-    "cached": if formula is Some(_) {
-      value.to_json()
-    } else {
-      Json::null()
-    },
-    "calculated": calculated
-    .map(value => value.to_json())
-    .unwrap_or(Json::null()),
-    "calculation": if calculated is Some(_) {
+    formula: { value: if hide_formula { None } else { formula }, },
+    cached: { value: if formula is Some(_) { Some(value) } else { None }, },
+    calculated: { value: calculated, },
+    calculation: if calculated is Some(_) {
       "calculated"
     } else if formula is Some(_) {
       if value == Blank {
@@ -363,17 +359,17 @@ fn Sheet::cell_json(
     } else {
       "value"
     },
-    "calculationReason": if formula is Some(_) && calculated is None {
+    calculationReason: if formula is Some(_) && calculated is None {
       calculation_reason
     } else {
       ""
     },
-    "display": if formula is Some(_) && value == Blank && calculated is None {
+    display: if formula is Some(_) && value == Blank && calculated is None {
       "Not calculated"
     } else {
       calculated.unwrap_or(value).display()
     },
-    "readOnlyReason": if !reason.is_empty() {
+    readOnlyReason: if !reason.is_empty() {
       reason
     } else {
       cell_reason

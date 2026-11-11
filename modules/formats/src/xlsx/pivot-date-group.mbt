@@ -16,7 +16,7 @@ let pivot_date_units : ReadOnlyArray[String] = [
 fn PivotDateGroup::validate(
   self : PivotDateGroup,
 ) -> Unit raise @failure.Failure {
-  guard !self.units.is_empty() && self.units.length() <= 4 else {
+  guard !self.units.is_empty() && self.units.length() <= PivotDateUnits else {
     @failure.reject(
       "invalid-operation", "Unsupported pivot calendar group unit",
     )

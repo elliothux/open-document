@@ -1,4 +1,12 @@
 ///|
+pub const ImageInputBytes : Int32 = @image.InputBytes
+
+///|
+pub fn verifies_upload_raster(bytes : Bytes) -> Bool {
+  @image.decode_plain_raster(bytes, exif_orientation=true) is Some(_)
+}
+
+///|
 priv struct PictureResource {
   path : String
   link : String

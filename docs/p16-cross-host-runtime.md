@@ -1,8 +1,12 @@
 # P16 跨宿主与非浏览器运行时
 
-状态：`planned`，2026-11-02。本阶段对应[路线图](references/roadmap.md)的跨宿主目标与 [SDK 合同](references/sdk.md#次要平台其他语言--wasm-runtime以及-cli)。通过复用同一份 MoonBit 核心，在无浏览器、无 DOM/Canvas 的环境下完成 DOCX、XLSX、PPTX、PDF 的读取、编辑、计算、排版、保存与转换。
+状态：P16.1 探针通过，P16.2–P16.3 `planned`。本阶段对应[路线图](references/roadmap.md)的跨宿主目标与 [SDK 合同](references/sdk.md#次要平台其他语言--wasm-runtime以及-cli)。通过复用同一份 MoonBit 核心，在无浏览器、无 DOM/Canvas 的环境下完成 DOCX、XLSX、PPTX、PDF 的读取、编辑、计算、排版、保存与转换。
 
-**推进策略调整**：将 `P16.1 无浏览器核心闭环探针` 提前至 [R2.3 核心下沉](r2-architecture-and-performance.md)之后、[P15 外围能力](p15-peripheral-capabilities.md)之前执行，用自动化构建强制保证核心不依赖任何浏览器专属 API。
+P16.1 在 [R2.3 核心下沉](implemented/r2-architecture-and-performance.md)推进期间完成，为 [P15 外围能力](p15-peripheral-capabilities.md)提供已验证的无浏览器核心入口。
+
+P16.1 在 Node 和 `moonrun` 中通过。Node 检查全格式和四份单格式 Wasm 的导入表，只允许内建字符串全局。两种运行时都用同一批输入验证四格式编辑、保存重开和原样保存。三种 Office 文档同时含 PNG 和原生图表，导出的 PDF 能读回图表标题和嵌入图片。XLSX 验证重算后的图表数据，PDF 验证旋转及提取后的渐进 JPEG 像素。
+
+构建包后，在 `test-lab/` 运行 `bun run test:p16-core`。Node 通过发布的单格式入口执行，`moonrun` 通过 MoonBit 核心测试执行。探针显式注入常规和粗体字体。输入和日志归私有 `.temp/p16-core/`。
 
 ## 用户结果与范围
 

@@ -1,13 +1,29 @@
 ///|
-fn[T : Eq + ToJson] format_summary(values : Array[T], reason : String) -> Json {
-  if values.is_empty() {
-    return { "kind": "unavailable", "reason": reason }
+priv enum FormatSummary {
+  FormatUnavailable(String)
+  FormatMixed
+  FormatUniform(Json)
+}
+
+///|
+impl ToJson for FormatSummary with fn to_json(self) {
+  match self {
+    FormatUnavailable(reason) => { "kind": "unavailable", "reason": reason }
+    FormatMixed => { "kind": "mixed" }
+    FormatUniform(value) => { "kind": "value", "value": value }
   }
-  let value = values[0]
+}
+
+///|
+fn[T : Eq + ToJson] format_summary(
+  values : Array[T],
+  reason : String,
+) -> FormatSummary {
+  guard values.get(0) is Some(value) else { return FormatUnavailable(reason) }
   if values.iter().any(item => item != value) {
-    { "kind": "mixed" }
+    FormatMixed
   } else {
-    { "kind": "value", "value": ToJson::to_json(value) }
+    FormatUniform(ToJson::to_json(value))
   }
 }
 
@@ -229,13 +245,83 @@ fn Session::formatting_range(
 }
 
 ///|
-/// Queries all effective values in the range; mixed values never use its first character.
+pub struct FormattingQuery {
+  priv revision : Int32
+  priv reason : String
+  priv fontReason : String
+  priv paragraphReason : String
+  priv inputReason : String
+  priv cellSelection : TableCellSelectionQuery
+  priv hyperlink : Json
+  priv table : TableDimensions?
+  priv list : FormatSummary
+  priv character : Map[String, FormatSummary]
+  priv paragraph : Map[String, FormatSummary]
+}
+
+///|
+pub impl ToJson for FormattingQuery with fn to_json(self) {
+  {
+    "revision": self.revision,
+    "reason": self.reason,
+    "fontReason": self.fontReason,
+    "paragraphReason": self.paragraphReason,
+    "inputReason": self.inputReason,
+    "cellSelection": self.cellSelection,
+    "hyperlink": self.hyperlink,
+    "table": self.table.map(table => Json(table.value)).unwrap_or(Json::null()),
+    "list": self.list,
+    "character": self.character,
+    "paragraph": self.paragraph,
+  }
+}
+
+///|
+pub extend FormattingQuery with ToJson::{to_json}
+
+///|
+pub fn FormattingQuery::has_table_cells(self : FormattingQuery) -> Bool {
+  self.cellSelection.value is Some(_)
+}
+
+///|
+pub fn FormattingQuery::has_table(self : FormattingQuery) -> Bool {
+  self.table is Some(_)
+}
+
+///|
+pub fn Session::formatting_on_layout(
+  self : Session,
+  formatting : FormattingQuery,
+  layout : @layout.Layout,
+) -> FormattingQuery raise @failure.Failure {
+  self.check_revision(formatting.revision)
+  guard formatting.table is Some(table) else { return formatting }
+  let width = column_width_in(self.flow(), layout, table.start).min(14400)
+  {
+    ..formatting,
+    table: Some({ ..table, value: { ..table.value, maxWidth: width, }, }),
+  }
+}
+
+///|
 pub fn Session::query_formatting(
   self : Session,
   revision : Int32,
   selection : Selection,
   layout? : @layout.Layout,
 ) -> Json raise @failure.Failure {
+  Json(self.formatting_query(revision, selection, layout?))
+}
+
+///|
+/// Queries all effective values in the range; mixed values never use its first character.
+pub fn Session::formatting_query(
+  self : Session,
+  revision : Int32,
+  selection : Selection,
+  layout? : @layout.Layout,
+) -> FormattingQuery raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
   let mut reason = ""
@@ -295,19 +381,19 @@ pub fn Session::query_formatting(
     tree.nodes[selected.end.paragraph].parent
   let text_range = if multiple_cells { None } else { range }
   {
-    "revision": revision,
-    "reason": reason,
-    "fontReason": if font_range is Some(_) {
+    revision,
+    reason,
+    fontReason: if font_range is Some(_) {
       ""
     } else {
       reason
     },
-    "paragraphReason": if font_range is Some(_) {
+    paragraphReason: if font_range is Some(_) {
       ""
     } else {
       reason
     },
-    "inputReason": if reason.is_empty() {
+    inputReason: if reason.is_empty() {
       ""
     } else if selection.anchor.paragraph == selection.focus.paragraph &&
       tree.has_review_markup(selection.anchor.paragraph) {
@@ -346,11 +432,10 @@ pub fn Session::query_formatting(
         @failure.Failure(message~, ..) => message
       }
     },
-    "cellSelection": self.table_cell_selection(tree, selection) catch {
-      @failure.Failure(message~, ..) =>
-        { "value": Json::null(), "reason": message }
+    cellSelection: self.table_cell_selection(tree, selection) catch {
+      @failure.Failure(message~, ..) => { value: None, reason: message, }
     },
-    "hyperlink": self.hyperlink_summary(
+    hyperlink: self.hyperlink_summary(
       tree,
       text_range,
       if multiple_cells {
@@ -359,8 +444,8 @@ pub fn Session::query_formatting(
         reason
       },
     ),
-    "table": self.table_dimensions(tree, text_range, layout),
-    "list": format_summary(
+    table: self.table_dimensions(tree, text_range, layout),
+    list: format_summary(
       match range {
         None => []
         Some(range) => {
@@ -375,7 +460,7 @@ pub fn Session::query_formatting(
       },
       reason,
     ),
-    "character": {
+    character: {
       "style": format_summary(character_styles, reason),
       "family": format_summary(characters.map(style => style.family), reason),
       "size": format_summary(characters.map(style => style.size), reason),
@@ -397,7 +482,7 @@ pub fn Session::query_formatting(
         reason,
       ),
     },
-    "paragraph": {
+    paragraph: {
       "style": format_summary(
         match range {
           Some(range) => {

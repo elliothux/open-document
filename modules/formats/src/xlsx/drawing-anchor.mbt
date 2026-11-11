@@ -50,8 +50,8 @@ fn Tree::drawing_rect(
     height >= 0 &&
     width <= 14400 &&
     height <= 14400 &&
-    x + width <= dimensions.columns.position(16385) &&
-    y + height <= dimensions.rows.position(1048577) else {
+    x + width <= dimensions.columns.position(WorksheetColumns + 1) &&
+    y + height <= dimensions.rows.position(WorksheetRows + 1) else {
     @failure.reject(
       "limit-exceeded", "Worksheet object exceeds sheet or drawing bounds",
     )

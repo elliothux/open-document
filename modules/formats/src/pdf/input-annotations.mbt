@@ -1,4 +1,7 @@
 ///|
+const PageAnnotationCount : Int32 = 4096
+
+///|
 fn annotation_refs(
   document : @pdflite.PdfDocument,
   page : @syntax.PdfObject,
@@ -7,7 +10,7 @@ fn annotation_refs(
   if value == @syntax.PdfNull {
     return []
   }
-  guard value is PdfArray(items) && items.length() <= 4096 else {
+  guard value is PdfArray(items) && items.length() <= PageAnnotationCount else {
     @failure.reject("limit-exceeded", "PDF annotation count exceeds budget")
   }
   items
@@ -86,8 +89,11 @@ fn annotation_reason(
 }
 
 ///|
+pub const TextUnits : Int32 = 32767
+
+///|
 fn check_pdf_text(text : String) -> Unit raise @failure.Failure {
-  guard text.length() <= 32767 else {
+  guard text.length() <= TextUnits else {
     @failure.reject("limit-exceeded", "PDF text exceeds budget")
   }
   let mut index = 0
@@ -512,7 +518,7 @@ pub fn PdfSession::add_note(
     self.document,
     self.document.lookup_object_or_null(page.number),
   )
-  guard refs.length() < 4096 else {
+  guard refs.length() < PageAnnotationCount else {
     @failure.reject("limit-exceeded", "PDF annotation count exceeds budget")
   }
   tx.objects[page.number] = tx
@@ -597,7 +603,7 @@ pub fn PdfSession::add_highlight(
     self.document,
     self.document.lookup_object_or_null(page.number),
   )
-  guard refs.length() < 4096 else {
+  guard refs.length() < PageAnnotationCount else {
     @failure.reject("limit-exceeded", "PDF annotation count exceeds budget")
   }
   tx.objects[page.number] = tx

@@ -72,12 +72,7 @@ fn Session::print_sheet(
     @failure.Failure(message~, ..) =>
       @failure.reject("unsupported-print", message, part=sheet)
   }
-  let conditional = self.conditional_rules(
-    current,
-    index,
-    self.sheets,
-    work.formulas,
-  )
+  let conditional = self.read_conditional_rules(index, work.formulas)
   guard conditional.reason.is_empty() else {
     @failure.reject("unsupported-print", conditional.reason, part=sheet)
   }
@@ -332,9 +327,7 @@ fn Session::print_sheet(
               },
             )
             for cell in cells {
-              if cell is { "display": String(text), .. } {
-                units += text.length()
-              }
+              units += cell.text.length()
             }
             guard units <= 262144 else {
               @failure.reject(

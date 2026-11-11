@@ -6,6 +6,8 @@ import {
 }
 
 // Values
+pub const PasswordUnits : Int32 = 255
+
 pub fn hash(String, Bytes, Int32) -> Bytes
 
 pub fn matches(String, Bytes, Int32, Bytes) -> Bool

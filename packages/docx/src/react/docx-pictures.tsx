@@ -25,7 +25,7 @@ export function DocxPictures({
   const [draft, setDraft] = useState<DocxPicture>();
   const [size, setSize] = useState({ width: 120, height: 80 });
   const load = async (known?: ReadonlySet<number>) => {
-    const value = await editor.pictures();
+    const value = await editor.objects.pictures();
     setCatalog(value);
     const image =
       (known && value.images.find((image) => !known.has(image.id))) ??
@@ -56,7 +56,7 @@ export function DocxPictures({
     let active = true;
     controller.run(async () => {
       try {
-        const value = await editor.pictures();
+        const value = await editor.objects.pictures();
         const image = value.images.find((image) => image.selected);
         if (active && image) {
           setCatalog(value);
@@ -91,7 +91,10 @@ export function DocxPictures({
   const stale = catalog?.revision !== state.document?.revision;
   const apply = async (value: DocxPicture) => {
     if (!catalog) return;
-    await editor.editPicture(catalog.revision, { ...value, action: "resize" });
+    await editor.objects.editPicture(catalog.revision, {
+      ...value,
+      action: "resize",
+    });
     await load();
   };
   return (
@@ -129,11 +132,11 @@ export function DocxPictures({
               event.currentTarget.value = "";
               if (!file) return;
               controller.run(async () => {
-                if (!file.size || file.size > 4194304)
+                if (!file.size || file.size > editor.inputLimits.imageBytes)
                   throw new Error(t.imageInputLimit);
                 const bytes = new Uint8Array(await file.arrayBuffer());
-                const before = await editor.pictures();
-                await editor.editPicture(before.revision, {
+                const before = await editor.objects.pictures();
+                await editor.objects.editPicture(before.revision, {
                   action: "insert",
                   ...size,
                   bytes,
@@ -188,11 +191,11 @@ export function DocxPictures({
             state={state}
             hyperlink={image.hyperlink}
             goTo={async (name) => {
-              await editor.editBookmark({ action: "goTo", name });
+              await editor.review.editBookmark({ action: "goTo", name });
             }}
             disabled={disabled || stale}
             apply={async (target) => {
-              await editor.editPicture(catalog!.revision, {
+              await editor.objects.editPicture(catalog!.revision, {
                 action: "hyperlink",
                 id: image.id,
                 target,
@@ -207,7 +210,7 @@ export function DocxPictures({
             drawing={image}
             disabled={disabled || stale}
             apply={async (anchor) => {
-              await editor.editPicture(catalog!.revision, {
+              await editor.objects.editPicture(catalog!.revision, {
                 action: "position",
                 id: image.id,
                 anchor,
@@ -227,9 +230,9 @@ export function DocxPictures({
                 event.currentTarget.value = "";
                 if (!file || !catalog) return;
                 controller.run(async () => {
-                  if (!file.size || file.size > 4194304)
+                  if (!file.size || file.size > editor.inputLimits.imageBytes)
                     throw new Error(t.imageInputLimit);
-                  await editor.editPicture(catalog.revision, {
+                  await editor.objects.editPicture(catalog.revision, {
                     action: "replace",
                     id: image.id,
                     bytes: new Uint8Array(await file.arrayBuffer()),
@@ -248,7 +251,7 @@ export function DocxPictures({
             onClick={() =>
               controller.run(async () => {
                 if (!catalog) return;
-                await editor.editPicture(catalog.revision, {
+                await editor.objects.editPicture(catalog.revision, {
                   action: "delete",
                   id: image.id,
                 });

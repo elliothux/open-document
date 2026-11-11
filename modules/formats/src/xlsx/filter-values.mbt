@@ -4,12 +4,7 @@ fn Session::filter_rules(
   index : Int32,
   work : FormulaWork,
 ) -> ConditionalRules raise @failure.Failure {
-  let rules = self.conditional_rules(
-    self.sheets[index],
-    index,
-    self.sheets,
-    work,
-  )
+  let rules = self.read_conditional_rules(index, work)
   guard rules.reason.is_empty() else {
     @failure.reject("protected-content", rules.reason)
   }
@@ -29,7 +24,7 @@ fn Session::filter_raw(
   let cell = current.cells.get(name)
   if cell.bind(c => c.formula) is Some(_) {
     self.calculation
-    .bind(c => c.values.get((sheet, name)))
+    .bind(c => c.values.get((sheet, address)))
     .unwrap_or_error(
       @failure.Failure(
         code="unsupported-formula",
@@ -176,7 +171,8 @@ fn Session::filter_query(
   states~ : Map[String, AutoFilterState]? = None,
   failure~ : String = "",
   work~ : FormulaWork? = None,
-) -> Json {
+  tree? : Tree,
+) -> QueryFilter {
   let current = self.sheets[index]
   let reason = self.dimension_reason(current)
   try {
@@ -202,13 +198,16 @@ fn Session::filter_query(
       }
     }
     let states = states.unwrap_or_else(() => {
-      self.sheet_filters(current, self.parts)
+      match tree {
+        Some(tree) => self.sheet_filters(current, self.parts, tree~)
+        None => self.sheet_filters(current, self.parts)
+      }
     })
     guard states.get(table.map(table => table.part).unwrap_or(current.id))
       is Some(state) else {
-      return { "range": "", "columns": [], "catalog": [], "reason": reason }
+      return { range: "", columns: [], catalog: [], reason, }
     }
-    let catalog : Array[Json] = []
+    let catalog : Array[QueryFilterColumn] = []
     let mut units = 0
     let work : FormulaWork = work.unwrap_or_else(() => {
       remaining: 1048576,
@@ -267,10 +266,10 @@ fn Session::filter_query(
         @failure.reject("limit-exceeded", "Filter catalog exceeds text budget")
       }
       catalog.push({
-        "column": column,
-        "title": title,
-        "blank": blanks,
-        "blankSelected": criterion
+        column,
+        title,
+        blank: blanks,
+        blankSelected: criterion
         .map(c => {
           match c.rule {
             Values(_, blank~) => blank
@@ -286,26 +285,23 @@ fn Session::filter_query(
           }
         })
         .unwrap_or(true),
-        "values": ordered.map(value => {
-          let item : Json = {
-            "value": labels[value],
-            "count": values[value],
-            "selected": criterion is None ||
-            !(criterion is Some({ rule: Values(_, ..), .. })) ||
-            selected.contains(value),
-          }
-          item
+        values: ordered.map(value => {
+          value: labels[value],
+          count: values[value],
+          selected: criterion is None ||
+          !(criterion is Some({ rule: Values(_, ..), .. })) ||
+          selected.contains(value),
         }),
       })
     }
     {
-      "range": state.settings.range,
-      "columns": state.settings.columns.map(c => self.filter_column_json(c)),
-      "catalog": catalog,
-      "reason": reason,
+      range: state.settings.range,
+      columns: state.settings.columns.map(c => self.filter_column_json(c)),
+      catalog,
+      reason,
     }
   } catch {
     @failure.Failure(message~, ..) =>
-      { "range": "", "columns": [], "catalog": [], "reason": message }
+      { range: "", columns: [], catalog: [], reason: message, }
   }
 }

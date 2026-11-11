@@ -27,10 +27,12 @@ fn Expression::contains_rand(self : Expression) -> Bool {
 ///|
 fn Calculation::random_values(
   self : Calculation,
-) -> Map[(Int32, String), (Value, String?)] {
+) -> Map[(Int32, Address), (Value, String?)] {
   let result = Map([])
-  for key, expression in self.expressions {
-    if expression.contains_rand() && self.values.get(key) is Some(value) {
+  for (sheet, address), expression in self.expressions {
+    guard expression.contains_rand() else { continue }
+    let key = (sheet, address)
+    if self.values.get(key) is Some(value) {
       result[key] = (value, self.hyperlinks.get(key).bind(target => target))
     }
   }
@@ -39,8 +41,8 @@ fn Calculation::random_values(
 
 ///|
 fn random_history_bytes(
-  values : Map[(Int32, String), (Value, String?)],
-) -> Int64 {
+  values : Map[(Int32, Address), (Value, String?)],
+) -> Int64 raise @failure.Failure {
   values
   .iter()
   .fold(init=0L, (sum, item) => {
@@ -48,7 +50,7 @@ fn random_history_bytes(
     64 +
     2 *
     (
-      item.0.1.length().to_int64() +
+      item.0.1.name().length().to_int64() +
       item.1.0.display().length().to_int64() +
       item.1.1.map(target => target.length().to_int64()).unwrap_or(0)
     )

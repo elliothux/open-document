@@ -1,7 +1,8 @@
 import type { DocxSelection } from "./docx-hit.js";
 import { isDocxSelection } from "./docx-search.js";
 import { integer, record } from "@open-document/wasm/abi/validation";
-import { editState, type EditState } from "./docx-format.js";
+import { docxCommentTextUnits } from "@open-document/wasm/engine-source";
+import { type EditState } from "./docx-format.js";
 
 export type DocxCommentEdit =
   | {
@@ -44,15 +45,6 @@ export interface DocxCommentNavigation {
   state: EditState;
 }
 
-export function docxCommentNavigation(value: unknown): DocxCommentNavigation {
-  const result = record(value);
-  const state = editState(result.state);
-  const comment = result.comment;
-  if (comment !== null && (!id(comment) || state.selection === null))
-    throw new Error("Invalid comment navigation");
-  return { comment, state };
-}
-
 export interface DocxCommentLayout {
   reason: string;
   items: {
@@ -69,57 +61,6 @@ export interface DocxCommentLayout {
   }[];
 }
 
-export function docxCommentLayout(
-  value: unknown,
-  pages: { width: number; height: number }[],
-): DocxCommentLayout {
-  const layout = record(value);
-  if (
-    !text(layout.reason, 32767) ||
-    !Array.isArray(layout.items) ||
-    layout.items.length > 4096 ||
-    (layout.reason && layout.items.length)
-  )
-    throw new Error("Invalid comment layout");
-  const seen = new Set<string>();
-  let count = 0;
-  for (const raw of layout.items) {
-    const item = record(raw);
-    if (
-      !id(item.id) ||
-      seen.has(item.id) ||
-      !text(item.reason, 32767) ||
-      !Array.isArray(item.rects) ||
-      (item.reason && item.rects.length)
-    )
-      throw new Error("Invalid comment layout item");
-    seen.add(item.id);
-    count += item.rects.length;
-    if (count > 65536) throw new Error("Comment rectangles exceed budget");
-    for (const raw of item.rects) {
-      const rect = record(raw);
-      if (
-        !integer(rect.page, 0, pages.length - 1) ||
-        !integer(rect.line, 0, 2147483647) ||
-        ![rect.x, rect.y, rect.width, rect.height].every(
-          (v) => typeof v === "number" && Number.isFinite(v),
-        )
-      )
-        throw new Error("Invalid comment rectangle");
-      const page = pages[Number(rect.page)]!;
-      if (
-        Number(rect.x) < 0 ||
-        Number(rect.y) < 0 ||
-        Number(rect.width) <= 0 ||
-        Number(rect.height) <= 0 ||
-        Number(rect.x) + Number(rect.width) > page.width + 0.001 ||
-        Number(rect.y) + Number(rect.height) > page.height + 0.001
-      )
-        throw new Error("Comment rectangle is outside the page");
-    }
-  }
-  return value as DocxCommentLayout;
-}
 function text(value: unknown, max: number, required = false): value is string {
   return (
     typeof value === "string" &&
@@ -158,7 +99,7 @@ export function checkDocxComment(
       change.action === "reply" ? "id" : "selection",
     ];
     if (
-      !text(change.text, 32767, true) ||
+      !text(change.text, docxCommentTextUnits, true) ||
       !text(change.author, 255, true) ||
       !text(change.initials, 32) ||
       Array.from(change.author + change.initials).some(
@@ -194,7 +135,7 @@ export function checkDocxComment(
       throw new Error("Invalid comment resolved state");
   } else if (change.action === "update") {
     allowed = ["action", "id", "text"];
-    if (!id(change.id) || !text(change.text, 32767, true))
+    if (!id(change.id) || !text(change.text, docxCommentTextUnits, true))
       throw new Error("Invalid comment update");
   } else if (change.action === "remove" || change.action === "goTo") {
     allowed = ["action", "id"];
@@ -205,44 +146,4 @@ export function checkDocxComment(
     Object.keys(change).some((key) => !allowed.includes(key))
   )
     throw new Error("Invalid comment fields");
-}
-export function docxComments(value: unknown): DocxComments {
-  const result = record(value);
-  if (
-    !integer(result.revision, 0, 2147483647) ||
-    !text(result.reason, 32767) ||
-    !Array.isArray(result.items) ||
-    result.items.length > 4096 ||
-    (result.reason && result.items.length)
-  )
-    throw new Error("Invalid comments catalog");
-  const seen = new Map<string, Record<string, unknown>>();
-  let units = 0;
-  for (const item of result.items) {
-    const comment = record(item);
-    if (
-      !id(comment.id) ||
-      seen.has(comment.id) ||
-      !text(comment.text, 32767) ||
-      !text(comment.author, 255) ||
-      !text(comment.initials, 32) ||
-      !text(comment.date, 128) ||
-      !text(comment.reason, 32767) ||
-      (comment.parent !== null && !id(comment.parent)) ||
-      typeof comment.done !== "boolean" ||
-      (comment.selection !== null && !isDocxSelection(comment.selection)) ||
-      (!comment.reason && comment.selection === null)
-    )
-      throw new Error("Invalid local comment");
-    units += comment.text.length;
-    if (units > 1048576) throw new Error("Comments exceed text budget");
-    seen.set(comment.id, comment);
-  }
-  for (const comment of seen.values()) {
-    if (comment.parent === null) continue;
-    const root = seen.get(String(comment.parent));
-    if (!root || root.parent !== null || root.done !== comment.done)
-      throw new Error("Invalid comment reply relationship");
-  }
-  return value as DocxComments;
 }

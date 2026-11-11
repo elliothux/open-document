@@ -30,7 +30,7 @@ export function DocxSearch({
   const changeQuery = () => setResult(undefined);
   const find = () =>
     controller.run(async () => {
-      const found = await editor.find(text, { matchCase, wholeWord });
+      const found = await editor.search.find(text, { matchCase, wholeWord });
       setResult(found);
       setSelected(0);
     });
@@ -104,7 +104,7 @@ export function DocxSearch({
         onClick={() =>
           result &&
           controller.run(() =>
-            editor.replaceMatches(result, replacement, selected),
+            editor.search.replaceMatches(result, replacement, selected),
           )
         }
       >
@@ -121,7 +121,9 @@ export function DocxSearch({
         }
         onClick={() =>
           result &&
-          controller.run(() => editor.replaceMatches(result, replacement))
+          controller.run(() =>
+            editor.search.replaceMatches(result, replacement),
+          )
         }
       >
         {t.replaceAll}
@@ -143,7 +145,7 @@ export function DocxSearch({
                 aria-current={selected === index ? "true" : undefined}
                 onClick={() =>
                   controller.run(async () => {
-                    await editor.selectMatch(result, index);
+                    await editor.search.selectMatch(result, index);
                     setSelected(index);
                   })
                 }

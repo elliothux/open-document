@@ -36,7 +36,7 @@ export function DocxBookmarks({
         )
       )
         throw new Error("Bookmark name already exists");
-      return editor.editBookmark(change);
+      return editor.review.editBookmark(change);
     });
   return (
     <section aria-label={t.bookmarks}>

@@ -69,7 +69,9 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
                 state.locale === "zh-CN" ? "插入空白页" : "Insert blank page"
               }
               disabled={disabled || !!data.query.pageOrderReason}
-              action={() => controller.run(() => editor.insertBlankPage())}
+              action={() =>
+                controller.run(() => editor.operations.insertBlankPage())
+              }
             />
             {[false, true].map((replace) => (
               <label key={String(replace)} className="od-command">
@@ -90,13 +92,13 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
                     input.value = "";
                     if (source)
                       controller.run(async () => {
-                        if (source.size > 67108864)
+                        if (source.size > editor.inputLimits.importBytes)
                           throw new Error("PDF import exceeds budget");
                         const bytes = new Uint8Array(
                           await source.arrayBuffer(),
                         );
-                        if (replace) await editor.replacePage(bytes);
-                        else await editor.insertPages(bytes);
+                        if (replace) await editor.operations.replacePage(bytes);
+                        else await editor.operations.insertPages(bytes);
                       });
                   }}
                 />
@@ -109,7 +111,7 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
               disabled={disabled}
               action={() =>
                 controller.run(async () => {
-                  const output = await editor.extractPages();
+                  const output = await editor.operations.extractPages();
                   downloadBytes(output.bytes, "application/pdf", "page.pdf");
                 })
               }
@@ -123,7 +125,7 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
               disabled={disabled || !!state.document?.draft}
               action={() =>
                 controller.run(async () => {
-                  const files = await editor.splitFiles();
+                  const files = await editor.operations.splitFiles();
                   for (const file of files) {
                     downloadBytes(
                       file.output.bytes,
@@ -142,7 +144,9 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
                 state.document?.page === 0 ||
                 !!data.query.pageOrderReason
               }
-              action={() => controller.run(() => editor.movePage(-1))}
+              action={() =>
+                controller.run(() => editor.operations.movePage(-1))
+              }
             />
             {(["crop", "resize", "scale"] as const).map((action, index) => (
               <Command
@@ -167,12 +171,12 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
                 state.document!.page + 1 >= state.document!.pageCount ||
                 !!data.query.pageOrderReason
               }
-              action={() => controller.run(() => editor.movePage(1))}
+              action={() => controller.run(() => editor.operations.movePage(1))}
             />
             <Command
               label={t.rotate}
               disabled={disabled}
-              action={() => controller.run(() => editor.rotate(90))}
+              action={() => controller.run(() => editor.operations.rotate(90))}
             />
             <button
               type="button"
@@ -183,7 +187,9 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
                 data.query.pages.length <= 1 ||
                 !!data.query.pageOrderReason
               }
-              onClick={() => controller.run(() => editor.deletePage())}
+              onClick={() =>
+                controller.run(() => editor.operations.deletePage())
+              }
             >
               {t.deletePage}
             </button>
@@ -205,7 +211,7 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
               disabled={
                 disabled || !state.document?.selection || state.document.draft
               }
-              action={() => controller.run(() => editor.highlight())}
+              action={() => controller.run(() => editor.operations.highlight())}
             />
             {(["Underline", "StrikeOut"] as const).map((kind, index) => (
               <Command
@@ -218,7 +224,9 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
                 disabled={
                   disabled || !state.document?.selection || state.document.draft
                 }
-                action={() => controller.run(() => editor.highlight(kind))}
+                action={() =>
+                  controller.run(() => editor.operations.highlight(kind))
+                }
               />
             ))}
             {(["Square", "Circle", "Line"] as const).map((kind, index) => (

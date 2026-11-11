@@ -52,11 +52,18 @@ fn Tree::one(
   parent : Int32,
   name : String,
 ) -> @xml.Node? raise @failure.Failure {
-  let nodes = self.all(parent, name)
-  guard nodes.length() <= 1 else {
-    @failure.reject("malformed-xlsx", "Duplicate " + name + " element")
+  guard self.children.get(parent) is Some(children) else { return None }
+  let mut found = None
+  for node in children {
+    if node.uri != self.spreadsheet || node.name != name {
+      continue
+    }
+    guard found is None else {
+      @failure.reject("malformed-xlsx", "Duplicate " + name + " element")
+    }
+    found = Some(node)
   }
-  nodes.get(0)
+  found
 }
 
 ///|

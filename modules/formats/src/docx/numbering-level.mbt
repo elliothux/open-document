@@ -21,7 +21,8 @@ fn WordTree::number_level(
   guard self.numbering_value(level, "numFmt") is Some(format) &&
     [
       "decimal", "decimalZero", "decimalFullWidth", "decimalEnclosedCircle", "lowerLetter",
-      "upperLetter", "lowerRoman", "upperRoman", "bullet",
+      "upperLetter", "lowerRoman", "upperRoman", "bullet", "ideographTraditional",
+      "ideographZodiac", "ideographLegalTraditional", "taiwaneseCountingThousand",
     ].contains(format) &&
     self.numbering_value(level, "lvlText") is Some(pattern) &&
     !pattern.is_empty() &&

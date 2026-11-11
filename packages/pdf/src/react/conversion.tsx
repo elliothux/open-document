@@ -49,7 +49,7 @@ export function ConversionCommands({
         action={() =>
           controller.run(async () => {
             setAccepted(false);
-            setPreview(await editor.convertOffice(format));
+            setPreview(await editor.operations.convertOffice(format));
           })
         }
       />
@@ -85,7 +85,10 @@ export function ConversionCommands({
                 }
                 action={() =>
                   controller.run(async () => {
-                    const result = await editor.convertOffice(format, true);
+                    const result = await editor.operations.convertOffice(
+                      format,
+                      true,
+                    );
                     setPreview(result);
                     if (!result.output) return;
                     const type = {

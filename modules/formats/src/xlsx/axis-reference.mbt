@@ -10,9 +10,9 @@ priv struct AxisChange {
 ///|
 fn AxisChange::limit(self : AxisChange) -> Int32 {
   if self.rows {
-    1048576
+    WorksheetRows
   } else {
-    16384
+    WorksheetColumns
   }
 }
 
@@ -188,9 +188,9 @@ fn AxisReference::source(
 ) -> String raise @failure.Failure {
   match self {
     Cell(cell) => { ..cell, address, }.source()
-    Row(_, fixed) if range.left == 1 && range.right == 16384 =>
+    Row(_, fixed) if range.left == 1 && range.right == WorksheetColumns =>
       (if fixed { "$" } else { "" }) + address.row.to_string()
-    Column(_, fixed) if range.top == 1 && range.bottom == 1048576 =>
+    Column(_, fixed) if range.top == 1 && range.bottom == WorksheetRows =>
       (if fixed { "$" } else { "" }) + print_column(address.column)
     Row(_, fixed) =>
       FormulaAddress::{ address, fixed_row: fixed, fixed_column: false, }.source()
@@ -272,12 +272,12 @@ fn axis_formula(
           top: a.row.min(b.row),
           bottom: a.row.max(b.row),
           left: 1,
-          right: 16384,
+          right: WorksheetColumns,
         }
       Column(_, _) =>
         {
           top: 1,
-          bottom: 1048576,
+          bottom: WorksheetRows,
           left: a.column.min(b.column),
           right: a.column.max(b.column),
         }
@@ -341,7 +341,7 @@ fn axis_formula(
   }
   output.write_view(text[cursor:])
   let result = output.to_string()
-  guard result.length() <= 8192 else {
+  guard result.length() <= FormulaSourceUnits else {
     @failure.reject(
       "limit-exceeded", "Structural formula exceeds source budget",
     )

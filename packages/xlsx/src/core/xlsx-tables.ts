@@ -1,12 +1,16 @@
 import { integer, record } from "@open-document/wasm/abi/validation";
 import {
+  xlsxFormulaSourceUnits,
+  xlsxTableStyleRegionCount,
+  xlsxTableStyleStripeSize,
+} from "@open-document/wasm/engine-source";
+import {
   checkXlsxCellFormat,
   type XlsxCellFormat,
   type XlsxCellBorder,
 } from "./xlsx-format.js";
 import {
   checkXlsxFilter,
-  xlsxFilterState,
   type XlsxFilterColumn,
   type XlsxFilterState,
 } from "./xlsx-filter.js";
@@ -69,7 +73,7 @@ export interface XlsxTableStyleElement {
   horizontal: XlsxCellBorder | null;
 }
 function checkTableStyleElements(value: unknown): void {
-  if (!Array.isArray(value) || value.length > 13)
+  if (!Array.isArray(value) || value.length > xlsxTableStyleRegionCount)
     throw new Error("Invalid table style regions");
   const kinds = new Set<string>();
   for (const item of value) {
@@ -83,7 +87,7 @@ function checkTableStyleElements(value: unknown): void {
       typeof element.kind !== "string" ||
       !xlsxTableStyleRegions.some((kind) => kind === element.kind) ||
       kinds.has(element.kind) ||
-      !integer(element.size, 1, 1048576)
+      !integer(element.size, 1, xlsxTableStyleStripeSize)
     )
       throw new Error("Invalid table style region");
     checkXlsxCellFormat(element.format);
@@ -93,25 +97,6 @@ function checkTableStyleElements(value: unknown): void {
       checkXlsxCellFormat({ top: element.horizontal });
     kinds.add(element.kind);
   }
-}
-export function xlsxTableStyles(value: unknown): XlsxTableStyleChoice[] {
-  if (!Array.isArray(value) || value.length > 256)
-    throw new Error("Invalid custom table style catalog");
-  const names = new Set<string>();
-  for (const item of value) {
-    const style = record(item);
-    if (
-      Object.keys(style).length !== 3 ||
-      !tableStyleName(style.name) ||
-      typeof style.readOnlyReason !== "string" ||
-      style.readOnlyReason.length > 4096 ||
-      names.has(style.name.toUpperCase())
-    )
-      throw new Error("Invalid custom table style choice");
-    checkTableStyleElements(style.elements);
-    names.add(style.name.toUpperCase());
-  }
-  return value as XlsxTableStyleChoice[];
 }
 export type XlsxTableTotalFunction =
   "average" | "countNums" | "count" | "max" | "min" | "stdDev" | "sum" | "var";
@@ -287,7 +272,7 @@ export function checkXlsxTableEdit(value: unknown): void {
         total.kind === "none" ||
         (total.kind === "label" && tableText(total.text, 32767)) ||
         (total.kind === "formula" &&
-          tableText(total.formula, 8192) &&
+          tableText(total.formula, xlsxFormulaSourceUnits) &&
           total.formula.trim().length > 0) ||
         (total.kind === "aggregate" &&
           typeof total.function === "string" &&
@@ -312,7 +297,8 @@ export function checkXlsxTableEdit(value: unknown): void {
       !integer(change.column, 1, 2147483647) ||
       !(
         change.formula === null ||
-        (tableText(change.formula, 8192) && change.formula.trim().length > 0)
+        (tableText(change.formula, xlsxFormulaSourceUnits) &&
+          change.formula.trim().length > 0)
       ) ||
       Object.keys(change).length !== 4 ||
       Object.keys(change).some(
@@ -357,110 +343,4 @@ export function checkXlsxTableEdit(value: unknown): void {
     Object.keys(change).some((key) => !keys.includes(key))
   )
     throw new Error("Invalid table rename fields");
-}
-
-export function xlsxTables(value: unknown): XlsxTable[] {
-  if (!Array.isArray(value) || value.length > 256)
-    throw new Error("Invalid table catalog");
-  const ids = new Set<number>(),
-    names = new Set<string>();
-  let columns = 0,
-    formulaUnits = 0,
-    filterUnits = 0;
-  for (const entry of value) {
-    const table = record(entry);
-    if (
-      typeof table.id !== "number" ||
-      !integer(table.id, 1, 2147483647) ||
-      !tableName(table.name) ||
-      ids.has(table.id) ||
-      names.has(table.name.toUpperCase()) ||
-      typeof table.range !== "string" ||
-      !/^[A-Z]{1,3}[1-9][0-9]{0,6}(:[A-Z]{1,3}[1-9][0-9]{0,6})?$/.test(
-        table.range,
-      ) ||
-      typeof table.headerRow !== "boolean" ||
-      typeof table.totalRow !== "boolean" ||
-      (table.style !== null && !tableName(table.style)) ||
-      [
-        table.firstColumn,
-        table.lastColumn,
-        table.rowStripes,
-        table.columnStripes,
-      ].some((value) => typeof value !== "boolean") ||
-      typeof table.readOnlyReason !== "string" ||
-      !Array.isArray(table.columns) ||
-      !table.columns.length
-    )
-      throw new Error("Invalid table definition");
-    const addresses = table.range.split(":").map((address) => {
-      const match = /^([A-Z]+)([0-9]+)$/.exec(address);
-      if (!match) throw new Error("Invalid table range");
-      let column = 0;
-      for (const letter of match[1]!)
-        column = column * 26 + letter.charCodeAt(0) - 64;
-      return { column, row: Number(match[2]) };
-    });
-    const first = addresses[0]!,
-      last = addresses[1] ?? first;
-    if (
-      !integer(first.column, 1, 16384) ||
-      !integer(last.column, first.column, 16384) ||
-      !integer(first.row, 1, 1048576) ||
-      !integer(last.row, first.row, 1048576) ||
-      last.column - first.column + 1 !== table.columns.length ||
-      last.row - first.row + 1 <
-        Number(table.headerRow) + Number(table.totalRow)
-    )
-      throw new Error("Invalid table range or column count");
-    const filter = xlsxFilterState(table.filter);
-    for (const column of filter.catalog) {
-      filterUnits += column.title.length;
-      for (const entry of column.values) filterUnits += entry.value.length;
-      if (filterUnits > 2097152)
-        throw new Error("Native table filter catalogs exceed text budget");
-    }
-    const start = table.range.split(":")[0]!,
-      end = table.range.split(":")[1] ?? start;
-    const expectedFilter = `${start}:${end.replace(/[0-9]+$/, String(last.row - Number(table.totalRow)))}`;
-    if (filter.range && (!table.headerRow || filter.range !== expectedFilter))
-      throw new Error("Invalid native table filter range");
-    columns += table.columns.length;
-    if (columns > 4096) throw new Error("Table columns exceed budget");
-    const columnIds = new Set<number>(),
-      columnNames = new Set<string>();
-    for (const item of table.columns) {
-      const column = record(item);
-      if (
-        typeof column.id !== "number" ||
-        !integer(column.id, 1, 2147483647) ||
-        !tableName(column.name) ||
-        !(column.formula === null || tableText(column.formula, 8192)) ||
-        !(
-          column.totalFunction === null || tableText(column.totalFunction, 255)
-        ) ||
-        !(column.totalLabel === null || tableText(column.totalLabel, 32767)) ||
-        !(
-          column.totalFormula === null || tableText(column.totalFormula, 8192)
-        ) ||
-        columnIds.has(column.id) ||
-        columnNames.has(column.name.toUpperCase())
-      )
-        throw new Error("Invalid table column");
-      for (const text of [
-        column.formula,
-        column.totalFunction,
-        column.totalLabel,
-        column.totalFormula,
-      ])
-        if (typeof text === "string") formulaUnits += text.length;
-      if (formulaUnits > 1048576)
-        throw new Error("Table formula and total metadata exceeds budget");
-      columnIds.add(column.id);
-      columnNames.add(column.name.toUpperCase());
-    }
-    ids.add(table.id);
-    names.add(table.name.toUpperCase());
-  }
-  return value as XlsxTable[];
 }

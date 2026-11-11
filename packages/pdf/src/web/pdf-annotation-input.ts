@@ -1,4 +1,4 @@
-import type { PdfPlacement } from "../core/pdf.js";
+import type { PdfInputLimits, PdfPlacement } from "../core/pdf.js";
 
 /** Native ink input participates in the editor's existing composition barrier. */
 export class PdfInkInputs {
@@ -8,9 +8,19 @@ export class PdfInkInputs {
   readonly pad = document.createElement("canvas");
   private readonly events = new AbortController();
   private active:
-    { pointer: number; previous: string; paths: number[][] } | undefined;
+    | {
+        pointer: number;
+        previous: string;
+        paths: number[][];
+        coordinates: number;
+      }
+    | undefined;
   constructor(
     private readonly change: () => void,
+    private readonly limits: Pick<
+      PdfInputLimits,
+      "inkStrokeCount" | "inkCoordinates"
+    >,
     private readonly placement: () => PdfPlacement = () => ({
       x: 0,
       y: 0,
@@ -75,9 +85,13 @@ export class PdfInkInputs {
           this.strokes.reportValidity();
           return;
         }
+        const coordinates = paths.reduce(
+          (total, path) => total + path.length,
+          0,
+        );
         if (
-          paths.reduce((total, path) => total + path.length, 0) >= 32764 ||
-          paths.length >= 4096
+          coordinates >= this.limits.inkCoordinates - 4 ||
+          paths.length >= this.limits.inkStrokeCount
         ) {
           this.strokes.setCustomValidity("Ink exceeds the stroke budget");
           this.strokes.reportValidity();
@@ -89,6 +103,7 @@ export class PdfInkInputs {
           pointer: event.pointerId,
           previous: this.strokes.value,
           paths: [...paths, point],
+          coordinates: coordinates + point.length,
         };
         this.pad.focus();
         this.pad.setPointerCapture(event.pointerId);
@@ -105,15 +120,14 @@ export class PdfInkInputs {
         if (!active || active.pointer !== event.pointerId) return;
         const point = this.point(event);
         if (!point) return;
-        if (
-          active.paths.reduce((total, path) => total + path.length, 0) >= 32766
-        ) {
+        if (active.coordinates >= this.limits.inkCoordinates - 2) {
           this.cancelStroke();
           this.strokes.setCustomValidity("Ink exceeds the stroke budget");
           this.strokes.reportValidity();
           return;
         }
         active.paths[active.paths.length - 1]!.push(...point);
+        active.coordinates += point.length;
         event.preventDefault();
         this.draw();
         change();
@@ -129,8 +143,7 @@ export class PdfInkInputs {
         const point = this.point(event);
         if (
           point &&
-          active.paths.reduce((total, path) => total + path.length, 0) <=
-            32766 &&
+          active.coordinates <= this.limits.inkCoordinates - 2 &&
           (path[path.length - 2] !== point[0] ||
             path[path.length - 1] !== point[1])
         )
@@ -206,14 +219,15 @@ export class PdfInkInputs {
       );
     if (
       (!empty && !strokes.length) ||
-      strokes.length > 4096 ||
+      strokes.length > this.limits.inkStrokeCount ||
       strokes.some(
         (path) =>
           path.length < 4 ||
           path.length % 2 !== 0 ||
           path.some((value) => !Number.isFinite(value)),
       ) ||
-      strokes.reduce((count, path) => count + path.length, 0) > 32768
+      strokes.reduce((count, path) => count + path.length, 0) >
+        this.limits.inkCoordinates
     )
       throw new Error("Ink requires bounded x,y stroke pairs");
     return strokes;

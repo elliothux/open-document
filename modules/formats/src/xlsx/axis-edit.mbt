@@ -1,4 +1,7 @@
 ///|
+pub const AxisEditCount : Int32 = 4096
+
+///|
 priv struct AxisEditPlan {
   sheets : Array[Sheet]
   workbook : @xml.Document
@@ -20,7 +23,7 @@ fn Session::prepare_axes(
   guard change.first >= 1 &&
     change.first <= change.limit() &&
     change.count >= 1 &&
-    change.count <= 4096 &&
+    change.count <= AxisEditCount &&
     change.count <= change.limit() - change.first + 1 else {
     @failure.reject(
       "invalid-operation", "Invalid structural row or column interval",

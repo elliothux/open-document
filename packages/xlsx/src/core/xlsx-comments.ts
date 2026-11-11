@@ -1,6 +1,5 @@
-import { OfficeSession } from "@open-document/wasm/abi/session";
-import { xlsxQuery } from "./xlsx-query.js";
-import { integer, record } from "@open-document/wasm/abi/validation";
+import { record } from "@open-document/wasm/abi/validation";
+import { xlsxThreadTextUnits } from "@open-document/wasm/engine-source";
 
 export type XlsxThreadEdit =
   | {
@@ -73,70 +72,9 @@ export function checkXlsxThreadEdit(
   if (
     typeof change.text !== "string" ||
     !change.text.trim() ||
-    change.text.length > 32767
+    change.text.length > xlsxThreadTextUnits
   )
-    throw new Error("Cell thread text must contain 1–32767 UTF-16 units");
-}
-
-export function xlsxThreads(value: unknown): XlsxThreads {
-  const result = record(value);
-  if (
-    !integer(result.revision, 0, 2147483647) ||
-    typeof result.sheet !== "string" ||
-    !cell(result.cell) ||
-    typeof result.reason !== "string" ||
-    !Array.isArray(result.items) ||
-    result.items.length > 4096
-  )
-    throw new Error("Invalid cell thread catalog");
-  const ids = new Set<string>();
-  const roots = new Set<string>();
-  let units = 0;
-  for (const raw of result.items) {
-    const item = record(raw);
-    if (
-      !guid(item.id) ||
-      ids.has(item.id) ||
-      !guid(item.personId) ||
-      (item.parentId !== null && !guid(item.parentId)) ||
-      typeof item.author !== "string" ||
-      item.author.length > 255 ||
-      !date(item.date) ||
-      typeof item.text !== "string" ||
-      item.text.length > 32767 ||
-      typeof item.resolved !== "boolean"
-    )
-      throw new Error("Invalid cell thread message");
-    units += item.text.length;
-    ids.add(item.id);
-    if (item.parentId === null) roots.add(item.id);
-  }
-  if (
-    roots.size > 1 ||
-    units > 1048576 ||
-    result.items.some((raw: unknown) => {
-      const item = record(raw);
-      return item.parentId !== null && !roots.has(String(item.parentId));
-    })
-  )
-    throw new Error("Invalid cell thread relationships");
-  return value as XlsxThreads;
-}
-
-export class XlsxCommentsSession extends OfficeSession {
-  constructor(exports: WebAssembly.Exports, handle: unknown) {
-    super(exports, handle, "xlsx");
-  }
-
-  threads(revision: number, sheet: string, cell: string): XlsxThreads {
-    return xlsxThreads(
-      this.call({ operation: "threadsXlsx", revision, sheet, cell }),
+    throw new Error(
+      `Cell thread text must contain 1–${xlsxThreadTextUnits} UTF-16 units`,
     );
-  }
-  editThread(revision: number, sheet: string, change: XlsxThreadEdit) {
-    checkXlsxThreadEdit(change);
-    return xlsxQuery(
-      this.call({ operation: "editThreadXlsx", revision, sheet, change }),
-    );
-  }
 }

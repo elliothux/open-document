@@ -152,9 +152,9 @@ fn Metafile::validate(self : Metafile) -> Unit raise @failure.Failure {
           key.length() <= 256 &&
           width > 0 &&
           height > 0 &&
-          width <= 4096 &&
-          height <= 4096 &&
-          pixels <= 4194304 &&
+          width <= ImageDimension &&
+          height <= ImageDimension &&
+          pixels <= (ImageBytes / 4).to_int64() &&
           width.to_int64() * height.to_int64() * 4 == rgba.length().to_int64() &&
           [rect.x, rect.y, rect.width, rect.height].all(v => {
             !v.is_nan() && !v.is_inf() && v.abs() <= 1000000000

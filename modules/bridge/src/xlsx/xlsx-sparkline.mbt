@@ -1,20 +1,19 @@
 ///|
+priv struct SparklineRequest {
+  cell : String
+  source : @common.RequiredNullable[String]
+  kind : String
+} derive(@json.FromJson)
+
+///|
 fn xlsx_sparkline_edit(
   change : Json,
 ) -> @model.SheetEdit raise @failure.Failure {
   guard change is Object(fields) &&
     fields.length() == 4 &&
-    fields.keys().all(k => ["action", "cell", "source", "kind"].contains(k)) &&
-    fields.get("source") is Some(source) else {
+    fields.contains("action") else {
     @failure.reject("invalid-operation", "Invalid sparkline command")
   }
-  @model.Sparkline(
-    field_string(change, "cell"),
-    if source is Null {
-      None
-    } else {
-      Some(field_string(change, "source"))
-    },
-    field_string(change, "kind"),
-  )
+  let request : SparklineRequest = @common.request(change)
+  @model.Sparkline(request.cell, request.source.value, request.kind)
 }

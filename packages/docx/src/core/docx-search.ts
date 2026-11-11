@@ -48,25 +48,3 @@ export function checkFindOptions(options: DocxFindOptions): void {
   )
     throw new Error("Invalid literal search options");
 }
-
-export function docxSearchResult(value: unknown): DocxSearchResult {
-  const object = record(value);
-  if (
-    !Number.isSafeInteger(object.revision) ||
-    Number(object.revision) < 0 ||
-    typeof object.truncated !== "boolean" ||
-    !Array.isArray(object.matches) ||
-    object.matches.length > 1000 ||
-    !object.matches.every((value: unknown) => {
-      const item = record(value);
-      return (
-        isDocxSelection(item.selection) &&
-        typeof item.snippet === "string" &&
-        item.snippet.length <= 80 &&
-        typeof item.reason === "string"
-      );
-    })
-  )
-    throw new Error("Invalid DOCX search result returned by Wasm");
-  return value as DocxSearchResult;
-}

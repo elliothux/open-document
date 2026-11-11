@@ -11,7 +11,7 @@ fn Expression::product_array(
   self : Expression,
   sheets : Array[Sheet],
   sheet : Int32,
-  values : Map[(Int32, String), Value],
+  values : Map[(Int32, Address), Value],
   work : FormulaWork,
   depth : Int32,
 ) -> ProductArray raise @failure.Failure {
@@ -69,7 +69,7 @@ fn Expression::product_element(
   blank : Bool,
   sheets : Array[Sheet],
   sheet : Int32,
-  values : Map[(Int32, String), Value],
+  values : Map[(Int32, Address), Value],
   work : FormulaWork,
   depth : Int32,
 ) -> Expression raise @failure.Failure {
@@ -145,7 +145,7 @@ fn product_at(
   blank : Bool,
   sheets : Array[Sheet],
   sheet : Int32,
-  values : Map[(Int32, String), Value],
+  values : Map[(Int32, Address), Value],
   work : FormulaWork,
   depth : Int32,
 ) -> Value raise @failure.Failure {
@@ -188,7 +188,7 @@ fn sum_product_function(
   args : Array[Expression],
   sheets : Array[Sheet],
   sheet : Int32,
-  values : Map[(Int32, String), Value],
+  values : Map[(Int32, Address), Value],
   work : FormulaWork,
   depth : Int32,
 ) -> Value raise @failure.Failure {

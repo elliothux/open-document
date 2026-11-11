@@ -1,28 +1,29 @@
 ///|
+pub const MediaVolumeMax : Int32 = 100000
+
+///|
 pub(all) struct MediaPlaybackSettings {
   cycling : Bool
   volume : Int32
   mute : Bool
-} derive(Eq)
+} derive(Eq, ToJson(fields(cycling(rename="loop"))))
 
 ///|
 pub extend MediaPlaybackSettings with Eq::{equal, not_equal}
 
 ///|
-fn MediaPlaybackSettings::json(self : MediaPlaybackSettings) -> Json {
-  { "loop": self.cycling, "volume": self.volume, "mute": self.mute }
-}
+pub extend MediaPlaybackSettings with ToJson::{to_json}
 
 ///|
 fn MediaPlaybackSettings::initial() -> MediaPlaybackSettings {
-  { cycling: false, volume: 100000, mute: false, }
+  { cycling: false, volume: MediaVolumeMax, mute: false, }
 }
 
 ///|
 fn MediaPlaybackSettings::validate(
   self : MediaPlaybackSettings,
 ) -> Unit raise @failure.Failure {
-  guard self.volume >= 0 && self.volume <= 100000 else {
+  guard self.volume >= 0 && self.volume <= MediaVolumeMax else {
     @failure.reject(
       "invalid-operation", "Media volume must be within 0–100000",
     )
@@ -182,7 +183,11 @@ fn read_media_nodes(
         "protected-content", "Duplicate media playback definitions",
       )
     }
-    let volume = number(media.attribute("vol").unwrap_or("100000"), 0, 100000)
+    let volume = number(
+      media.attribute("vol").unwrap_or_else(() => MediaVolumeMax.to_string()),
+      0,
+      MediaVolumeMax.to_double(),
+    )
     guard volume == volume.round() else {
       @failure.reject("protected-content", "Fractional media volume units")
     }
@@ -225,14 +230,20 @@ fn media_nodes_markup(
 }
 
 ///|
-fn Session::media_playback_query(self : Session) -> Json {
+priv struct MediaPlaybackQuery {
+  value : Json
+  reason : String
+} derive(ToJson)
+
+///|
+fn Session::media_playback_query(self : Session) -> MediaPlaybackQuery {
   try {
     guard self.selection.objects is [id] && self.selection.mode == "object" else {
-      return { "value": Json::null(), "reason": "Select one media object" }
+      return { value: Json::null(), reason: "Select one media object", }
     }
     let object = self.current().object(id)
     guard object.media is Some(media) else {
-      return { "value": Json::null(), "reason": "" }
+      return { value: Json::null(), reason: "", }
     }
     let reason = self.object_edit_reason(object, "mediaPlayback")
     guard reason.is_empty() && media.reason.is_empty() else {
@@ -244,10 +255,9 @@ fn Session::media_playback_query(self : Session) -> Json {
       .get(id)
       .map(value => value.1)
       .unwrap_or(MediaPlaybackSettings::initial())
-    { "value": settings.json(), "reason": "" }
+    { value: settings.to_json(), reason: "", }
   } catch {
-    @failure.Failure(message~, ..) =>
-      { "value": Json::null(), "reason": message }
+    @failure.Failure(message~, ..) => { value: Json::null(), reason: message, }
   }
 }
 

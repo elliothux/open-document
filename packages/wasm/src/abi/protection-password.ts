@@ -1,7 +1,5 @@
-import { encodeBytes } from "./session.js";
-
-export function protectionSalt(enabled: boolean, password: string): string {
+export function protectionSalt(enabled: boolean, password: string): Uint8Array {
   return enabled && password
-    ? encodeBytes(crypto.getRandomValues(new Uint8Array(16)))
-    : "";
+    ? crypto.getRandomValues(new Uint8Array(16))
+    : new Uint8Array(0);
 }

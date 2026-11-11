@@ -1,4 +1,5 @@
 import { record } from "@open-document/wasm/abi/validation";
+import { docxPageBorderSideCount } from "@open-document/wasm/engine-source";
 
 export const wordBorderThemeSlots = [
   "dark1",
@@ -49,7 +50,7 @@ export function checkPageBorders(value: unknown): void {
       (key) => !["offsetFrom", "display", "zOrder", "sides"].includes(key),
     ) ||
     !Array.isArray(borders.sides) ||
-    borders.sides.length > 4
+    borders.sides.length > docxPageBorderSideCount
   )
     throw new Error("Invalid DOCX page borders");
   const seen = new Set<string>();

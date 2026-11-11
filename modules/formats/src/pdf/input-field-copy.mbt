@@ -139,7 +139,7 @@ pub fn PdfSession::duplicate_field(
       widgets.push(reference)
       let pageObject = tx.object(page.number)
       let refs = annotation_refs(self.document, pageObject)
-      guard refs.length() < 4096 else {
+      guard refs.length() < PageAnnotationCount else {
         @failure.reject(
           "limit-exceeded", "Copied field widgets exceed page budget",
         )

@@ -96,7 +96,7 @@ fn HtmlInput::table_rows(
       }
     }
     let end = rows.length() + visible.length()
-    guard end <= 1000 else {
+    guard end <= TableGridRows else {
       @failure.reject("limit-exceeded", "HTML table exceeds row budget")
     }
     for (row, context) in visible {
@@ -131,7 +131,7 @@ fn HtmlInput::table(
   }
   self.table_caption(id, context, depth, false)
   let rows = self.table_rows(id, context, depth)
-  let slots = Array::makei(rows.length(), _ => Array::make(63, -1))
+  let slots = Array::makei(rows.length(), _ => Array::make(TableGridColumns, -1))
   let cells : Array[HtmlCell] = []
   let mut columns = 0
   for r, (node, context, end, _) in rows {
@@ -152,13 +152,18 @@ fn HtmlInput::table(
       if context.hidden || self.document.has_attribute(cell, "hidden") {
         continue
       }
-      while column < 63 && slots[r][column] >= 0 {
+      while column < TableGridColumns && slots[r][column] >= 0 {
         column += 1
       }
-      let across = html_table_span(self.document, cell, "colspan", 63)
-      let span = html_table_span(self.document, cell, "rowspan", 1000)
+      let across = html_table_span(
+        self.document,
+        cell,
+        "colspan",
+        TableGridColumns,
+      )
+      let span = html_table_span(self.document, cell, "rowspan", TableGridRows)
       let down = if span == 0 { end - r } else { span.min(end - r) }
-      guard column + across <= 63 else {
+      guard column + across <= TableGridColumns else {
         @failure.reject("limit-exceeded", "HTML table exceeds column budget")
       }
       let owner = cells.length()
@@ -177,7 +182,8 @@ fn HtmlInput::table(
   }
   let declared = self.table_columns(id, depth)
   columns = columns.max(declared.length())
-  guard columns > 0 && rows.length().to_int64() * columns.to_int64() <= 4096L else {
+  guard columns > 0 &&
+    rows.length().to_int64() * columns.to_int64() <= TableGridCells.to_int64() else {
     @failure.reject("limit-exceeded", "HTML table exceeds cell budget")
   }
   self.output.add(
@@ -381,8 +387,8 @@ fn HtmlInput::table_columns(
         html_table_style(self.document, child, "width")
       }
       let width = source.map(html_table_measure)
-      let span = html_table_span(self.document, col, "span", 63)
-      guard widths.length() + span <= 63 else {
+      let span = html_table_span(self.document, col, "span", TableGridColumns)
+      guard widths.length() + span <= TableGridColumns else {
         @failure.reject("limit-exceeded", "HTML table exceeds column budget")
       }
       for _ in 0..<span {

@@ -1,4 +1,7 @@
 ///|
+pub const PageColumnCount : Int32 = 12
+
+///|
 pub(all) struct Column {
   width : Double
   gap : Double
@@ -59,7 +62,7 @@ pub fn Columns::width(
   page : PageSetup,
 ) -> Double raise @failure.Failure {
   guard self.count >= 1 &&
-    self.count <= 12 &&
+    self.count <= PageColumnCount &&
     !self.gap.is_nan() &&
     !self.gap.is_inf() &&
     self.gap >= 0 &&
@@ -173,6 +176,7 @@ fn column_body(
   images : Images,
   setups : Array[PageSetup],
   page_setups : Array[PageSetup],
+  previous : PaginationCache?,
   pendingNotes~ : Array[NoteLine] = [],
   endnotes~ : Array[Note]? = None,
   flushFootnotes~ : Bool = true,
@@ -198,7 +202,7 @@ fn column_body(
         })
       })
     let mut wrapping = if wraps {
-      probe.pagination
+      previous
       .map(old => wrapping_rects(old.pages, columns.count))
       .unwrap_or_else(() => {
         continuation
@@ -243,6 +247,7 @@ fn column_body(
         cache,
         profile,
         images,
+        previous,
       )
       let notes = pagination.finish_notes(
         flow,

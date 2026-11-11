@@ -156,11 +156,17 @@ fn Session::read_sheet_threads(
   self : Session,
   sheet : Sheet,
 ) -> SheetThreads raise @failure.Failure {
+  let cache = self.read_cache()
+  if cache.threads.get(sheet.id) is Some(threads) {
+    return threads
+  }
   let people_part = self.thread_part(self.main, "person")
   let people_tree = people_part.map(part => Tree::new(self.part_xml(part)))
   let part = self.thread_part(sheet.id, "threadedComment")
   let tree = part.map(part => Tree::new(self.part_xml(part)))
-  read_thread_parts(part, tree, people_part, people_tree)
+  let threads = read_thread_parts(part, tree, people_part, people_tree)
+  cache.threads[sheet.id] = threads
+  threads
 }
 
 ///|
@@ -274,7 +280,7 @@ fn read_thread_parts(
       } else {
         raw
       }
-      guard text.length() <= 32767 && @xml.valid_text(text) else {
+      guard text.length() <= ThreadTextUnits && @xml.valid_text(text) else {
         @failure.reject("limit-exceeded", "Thread comment text exceeds budget")
       }
       units += text.length()
@@ -302,6 +308,26 @@ fn read_thread_parts(
 }
 
 ///|
+priv struct ThreadQueryItem {
+  id : String
+  parentId : Json
+  personId : String
+  author : String
+  date : String
+  text : String
+  resolved : Bool
+} derive(ToJson)
+
+///|
+priv struct ThreadQuery {
+  revision : Int32
+  sheet : String
+  cell : String
+  reason : String
+  items : Array[ThreadQueryItem]
+} derive(ToJson)
+
+///|
 /// Lists native messages for the cell or merged-cell owner without changing selection.
 pub fn Session::threads(
   self : Session,
@@ -320,7 +346,7 @@ pub fn Session::threads(
   })
   let address : Address = { row: range.top, column: range.left, }
   let mut reason = self.dimension_reason(sheet)
-  let items : Array[Json] = try {
+  let items : Array[ThreadQueryItem] = try {
     let threads = self.read_sheet_threads(sheet)
     self.check_thread_fallbacks(sheet, threads)
     let note = self
@@ -332,19 +358,14 @@ pub fn Session::threads(
     let messages = threads.messages.filter(m => m.address == address)
     let ordered = messages.filter(m => m.parent is None)
     ordered.append(messages.filter(m => m.parent is Some(_)))
-    ordered.map(fn(m) -> Json {
-      {
-        "id": m.id,
-        "parentId": m.parent.map(p => Json(p)).unwrap_or(Json::null()),
-        "personId": m.person,
-        "author": threads.people
-        .iter()
-        .find_first(p => p.id == m.person)
-        .unwrap().name,
-        "date": m.date,
-        "text": m.text,
-        "resolved": m.done,
-      }
+    ordered.map(m => {
+      id: m.id,
+      parentId: m.parent.map(p => Json(p)).unwrap_or(Json::null()),
+      personId: m.person,
+      author: threads.people.iter().find_first(p => p.id == m.person).unwrap().name,
+      date: m.date,
+      text: m.text,
+      resolved: m.done,
     })
   } catch {
     @failure.Failure(message~, ..) => {
@@ -352,11 +373,12 @@ pub fn Session::threads(
       []
     }
   }
-  {
-    "revision": revision,
-    "sheet": sheet.id,
-    "cell": address.name(),
-    "reason": reason,
-    "items": items,
+  let result : ThreadQuery = {
+    revision,
+    sheet: sheet.id,
+    cell: address.name(),
+    reason,
+    items,
   }
+  ToJson::to_json(result)
 }

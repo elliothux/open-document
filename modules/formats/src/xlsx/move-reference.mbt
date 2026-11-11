@@ -88,7 +88,7 @@ fn move_formula(
   after : String?,
   independent~ : Bool = false,
 ) -> String raise @failure.Failure {
-  guard text.length() <= 8192 else {
+  guard text.length() <= FormulaSourceUnits else {
     @failure.reject("limit-exceeded", "Moved formula exceeds budget")
   }
   let source = text.strip_prefix("=").unwrap_or(text[:]).to_owned()

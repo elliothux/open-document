@@ -1,4 +1,10 @@
 ///|
+pub const CoverTitleUnits : Int32 = 256
+
+///|
+pub const CoverSubtitleUnits : Int32 = 512
+
+///|
 let cover_bookmark = "_OpenDocumentCoverPage"
 
 ///|
@@ -96,9 +102,9 @@ pub fn Session::set_cover_page(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   guard title
-    .map(t => !t.trim().is_empty() && t.length() <= 256)
+    .map(t => !t.trim().is_empty() && t.length() <= CoverTitleUnits)
     .unwrap_or(subtitle.is_empty()) &&
-    subtitle.length() <= 512 &&
+    subtitle.length() <= CoverSubtitleUnits &&
     [title.unwrap_or(""), subtitle].all(text => {
       @xml.valid_text(text) &&
       text

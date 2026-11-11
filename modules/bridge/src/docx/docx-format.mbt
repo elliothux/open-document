@@ -1,9 +1,21 @@
 ///|
-fn bookmark_edit(request : Json) -> @model.BookmarkEdit raise @failure.Failure {
-  guard request is { "change": Object(fields) as change, .. } else {
+priv struct BookmarkNameRequest {
+  name : String
+} derive(@json.FromJson)
+
+///|
+priv struct BookmarkRenameRequest {
+  name : String
+  replacement : String
+} derive(@json.FromJson)
+
+///|
+fn bookmark_edit(change : Json) -> @model.BookmarkEdit raise @failure.Failure {
+  guard change is Object(fields) else {
     @failure.reject("invalid-operation", "Invalid bookmark command")
   }
-  let action = field_string(change, "action")
+  let command : @common.ActionRequest = @common.request(change)
+  let action = command.action
   let allowed = match action {
     "create" => ["action", "name", "selection"]
     "rename" => ["action", "name", "replacement"]
@@ -14,62 +26,24 @@ fn bookmark_edit(request : Json) -> @model.BookmarkEdit raise @failure.Failure {
     fields.keys().all(key => allowed.contains(key)) else {
     @failure.reject("invalid-operation", "Invalid bookmark fields")
   }
-  let name = field_string(change, "name")
+  let bookmark : BookmarkNameRequest = @common.request(change)
   match action {
-    "create" => @model.CreateBookmark(name, field_selection(change))
-    "rename" => @model.RenameBookmark(name, field_string(change, "replacement"))
-    "goTo" => @model.GoToBookmark(name)
-    _ => @model.RemoveBookmark(name)
-  }
-}
-
-///|
-fn edit_docx_format(
-  session : @model.Session,
-  request : Json,
-  operation : String,
-  revision : Int32,
-  probe : @layout.TextProbe,
-  images : @layout.Images,
-) -> Json raise @failure.Failure {
-  match operation {
-    "editBookmark" => session.edit_bookmark(revision, bookmark_edit(request))
-    "editDocxComment" =>
-      session.edit_comment(revision, docx_comment_edit(request))
-    "setHyperlink" =>
-      session.set_hyperlink(
-        revision,
-        field_selection(request),
-        field_hyperlink_target(request),
-        text=field_hyperlink_text(request),
-      )
-    "setCharacterFormat" =>
-      session.set_character_format(
-        revision,
-        field_selection(request),
-        character_format(request),
-        probe~,
-        profile=font_profile(request),
-        images~,
-      )
-    _ =>
-      session.set_paragraph_format(
-        revision,
-        field_selection(request),
-        paragraph_format(request),
-        probe~,
-        profile=font_profile(request),
-        images~,
-      )
+    "create" => @model.CreateBookmark(bookmark.name, field_selection(change))
+    "rename" => {
+      let rename : BookmarkRenameRequest = @common.request(change)
+      @model.RenameBookmark(rename.name, rename.replacement)
+    }
+    "goTo" => @model.GoToBookmark(bookmark.name)
+    _ => @model.RemoveBookmark(bookmark.name)
   }
 }
 
 ///|
 fn format_fields(
-  request : Json,
+  format : Json,
   allowed : Array[String],
 ) -> Map[String, Json] raise @failure.Failure {
-  guard request is { "format": Object(fields), .. } &&
+  guard format is Object(fields) &&
     fields.keys().all(key => allowed.contains(key)) else {
     @failure.reject("invalid-operation", "Invalid formatting properties")
   }
@@ -77,35 +51,43 @@ fn format_fields(
 }
 
 ///|
-fn field_hyperlink_target(request : Json) -> String? raise @failure.Failure {
-  guard request is Object(fields) else {
-    @failure.reject("invalid-operation", "Invalid hyperlink request")
-  }
-  match fields.get("target") {
-    Some(Null) => None
-    Some(String(target)) => Some(target)
-    _ => @failure.reject("invalid-operation", "Invalid hyperlink target")
-  }
-}
+priv struct ListCreateRequest {
+  format : String
+} derive(@json.FromJson)
 
 ///|
-fn field_hyperlink_text(request : Json) -> String? raise @failure.Failure {
-  guard request is Object(fields) else {
-    @failure.reject("invalid-operation", "Invalid hyperlink request")
-  }
-  match fields.get("text") {
-    None => None
-    Some(String(text)) => Some(text)
-    _ => @failure.reject("invalid-operation", "Invalid hyperlink display text")
-  }
-}
+priv struct ListApplyRequest {
+  id : @common.RequestInt
+  level : @common.RequestInt
+} derive(@json.FromJson)
 
 ///|
-fn list_edit(request : Json) -> @model.ListEdit raise @failure.Failure {
-  guard request is { "change": Object(fields) as change, .. } else {
+priv struct ListDirectionRequest {
+  increase : Bool
+} derive(@json.FromJson)
+
+///|
+priv struct ListRestartRequest {
+  start : @common.RequestInt
+} derive(@json.FromJson)
+
+///|
+priv struct ListLevelFormatRequest {
+  format : String
+  pattern : String
+  start : @common.RequestInt
+  restart : @common.RequiredNullable[@common.RequestInt]
+  align : String
+  suffix : String
+} derive(@json.FromJson)
+
+///|
+fn list_edit(change : Json) -> @model.ListEdit raise @failure.Failure {
+  guard change is Object(fields) else {
     @failure.reject("invalid-operation", "Invalid list edit")
   }
-  let action = field_string(change, "action")
+  let command : @common.ActionRequest = @common.request(change)
+  let action = command.action
   let allowed = match action {
     "create" => ["action", "format"]
     "apply" => ["action", "id", "level"]
@@ -119,17 +101,23 @@ fn list_edit(request : Json) -> @model.ListEdit raise @failure.Failure {
     @failure.reject("invalid-operation", "Invalid list edit fields")
   }
   match action {
-    "create" => @model.Create(field_string(change, "format"))
-    "apply" => @model.Apply(field_int(change, "id"), field_int(change, "level"))
+    "create" => {
+      let command : ListCreateRequest = @common.request(change)
+      @model.Create(command.format)
+    }
+    "apply" => {
+      let command : ListApplyRequest = @common.request(change)
+      @model.Apply(command.id.value, command.level.value)
+    }
     "remove" => @model.Remove
-    "level" =>
-      match fields.get("increase") {
-        Some(True) => @model.Level(true)
-        Some(False) => @model.Level(false)
-        _ =>
-          @failure.reject("invalid-operation", "Invalid list level direction")
-      }
-    _ => @model.Restart(field_int(change, "start"))
+    "level" => {
+      let command : ListDirectionRequest = @common.request(change)
+      @model.Level(command.increase)
+    }
+    _ => {
+      let command : ListRestartRequest = @common.request(change)
+      @model.Restart(command.start.value)
+    }
   }
 }
 
@@ -148,22 +136,17 @@ fn list_level_format(
     }) else {
     @failure.reject("invalid-operation", "Invalid list level fields")
   }
+  let command : ListLevelFormatRequest = @common.request(definition)
   @model.ListLevelFormat::new(
-    field_string(definition, "format"),
-    field_string(definition, "pattern"),
-    start=field_int(definition, "start"),
-    restart=match fields.get("restart") {
-      Some(Null) => None
-      Some(_) => Some(field_int(definition, "restart"))
-      None => @failure.reject("invalid-operation", "Missing restart rule")
-    },
-    align=field_string(definition, "align"),
-    suffix=field_string(definition, "suffix"),
+    command.format,
+    command.pattern,
+    start=command.start.value,
+    restart=command.restart.value.map(index => index.value),
+    align=command.align,
+    suffix=command.suffix,
     left=format_number(fields, "left"),
     first=format_number(fields, "first"),
-    character=character_format({
-      "format": fields.get("character").unwrap_or({}),
-    }),
+    character=character_format(fields.get("character").unwrap_or({})),
   )
 }
 
@@ -221,9 +204,9 @@ fn format_boolean(
 
 ///|
 fn character_format(
-  request : Json,
+  format : Json,
 ) -> @model.CharacterFormat raise @failure.Failure {
-  let fields = format_fields(request, [
+  let fields = format_fields(format, [
     "style", "family", "size", "color", "bold", "italic", "underline", "strike",
     "highlight", "vertAlign", "spacing",
   ])
@@ -244,9 +227,9 @@ fn character_format(
 
 ///|
 fn paragraph_format(
-  request : Json,
+  format : Json,
 ) -> @model.ParagraphFormat raise @failure.Failure {
-  let fields = format_fields(request, [
+  let fields = format_fields(format, [
     "style", "align", "before", "after", "left", "right", "first", "line", "tabs",
     "pageBreakBefore", "rtl", "keepLines", "keepNext", "widowControl",
   ])
@@ -263,7 +246,7 @@ fn paragraph_format(
       None => @model.Keep
       Some(Null) => @model.Clear
       Some(Array(values)) => {
-        guard values.length() <= 64 else {
+        guard values.length() <= @layout.TabStopCount else {
           @failure.reject("limit-exceeded", "Too many tab stops")
         }
         @model.Set(
@@ -318,17 +301,23 @@ fn paragraph_format(
 }
 
 ///|
+priv struct UpdateStyleRequest {
+  revision : @common.RequestInt
+  key : String
+} derive(@json.FromJson)
+
+///|
 fn Context::edit_docx_style(
   self : Context,
   session : @model.Session,
   request : Json,
-  operation : String,
+  update : Bool,
 ) -> Json raise @failure.Failure {
   guard request is { "format": Object(fields) as format, .. } &&
     fields
     .keys()
     .all(key => {
-      (if operation == "updateStyle" {
+      (if update {
         ["character", "paragraph", "name", "basedOn", "reset"]
       } else {
         ["character", "paragraph"]
@@ -337,18 +326,19 @@ fn Context::edit_docx_style(
     format is { "character": character, "paragraph": paragraph, .. } else {
     @failure.reject("invalid-operation", "Invalid copied format")
   }
-  let revision = field_int(request, "revision")
-  let result = if operation == "updateStyle" {
+  let (revision, result) = if update {
+    let command : UpdateStyleRequest = @common.request(request)
+    let revision = command.revision.value
     let name = match fields.get("name") {
       Some(String(name)) => Some(name)
       None => None
       _ => @failure.reject("invalid-operation", "Invalid style name")
     }
-    session.update_style(
+    let result = session.update_style(
       revision,
-      field_string(request, "key"),
-      character_format({ "format": character }),
-      paragraph_format({ "format": paragraph }),
+      command.key,
+      character_format(character),
+      paragraph_format(paragraph),
       name~,
       based_on=format_string(fields, "basedOn"),
       reset=match fields.get("reset") {
@@ -357,20 +347,20 @@ fn Context::edit_docx_style(
         _ => @failure.reject("invalid-operation", "Invalid style reset flag")
       },
     )
+    (revision, result)
   } else {
-    session.apply_format(
+    let command : FormatSelectionRequest = @common.request(request)
+    let revision = command.revision.value
+    let result = session.apply_format(
       revision,
-      field_selection(request),
-      character_format({ "format": character }),
-      paragraph_format({ "format": paragraph }),
+      command.selection.selection(),
+      character_format(character),
+      paragraph_format(paragraph),
       probe=self.probe,
-      profile=font_profile(request),
+      profile=command.profile.value,
       images=self.images,
     )
+    (revision, result)
   }
-  if result is { "revision": Number(current, ..), .. } &&
-    current != revision.to_double() {
-    self.layout = None
-  }
-  result
+  self.clear_edit_layout(result, previous=revision)
 }

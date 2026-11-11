@@ -1,6 +1,52 @@
 ///|
-fn pptx_math_edit(value : Json) -> @model.ObjectEdit raise @failure.Failure {
-  let action = field_string(value, "action")
+priv struct MathEditTargetRequest {
+  target : MathTargetRequest
+} derive(@json.FromJson)
+
+///|
+priv struct MathTargetRequest {
+  object : String
+  revision : @common.RequestInt
+  node : @common.RequestInt
+} derive(@json.FromJson)
+
+///|
+priv struct MathContentRequest {
+  latex : String
+  format : MathAppearanceRequest
+} derive(@json.FromJson)
+
+///|
+priv struct MathAppearanceRequest {
+  family : String
+  size : @common.RequestNumber
+  color : String
+} derive(@json.FromJson)
+
+///|
+priv struct MathPositionRequest {
+  position : String
+} derive(@json.FromJson)
+
+///|
+fn pptx_math_target(value : Json) -> @model.MathTarget raise @failure.Failure {
+  guard value is { "target": Object(fields), .. } && fields.length() == 3 else {
+    @failure.reject("invalid-operation", "Invalid equation target")
+  }
+  let request : MathEditTargetRequest = @common.request(value)
+  let target = request.target
+  {
+    object: target.object,
+    revision: target.revision.value,
+    node: target.node.value,
+  }
+}
+
+///|
+fn pptx_math_edit(
+  action : String,
+  value : Json,
+) -> @model.ObjectEdit raise @failure.Failure {
   let keys = match action {
     "insertMath" => ["action", "latex", "format", "x", "y", "width", "height"]
     "appendMath" => ["action", "latex", "format", "position"]
@@ -13,54 +59,41 @@ fn pptx_math_edit(value : Json) -> @model.ObjectEdit raise @failure.Failure {
     fields.keys().all(key => keys.contains(key)) else {
     @failure.reject("invalid-operation", "Invalid equation fields")
   }
-  let target = fn() raise @failure.Failure {
-    guard fields.get("target") is Some(Object(target)) &&
-      target.length() == 3 &&
-      target.keys().all(key => ["object", "revision", "node"].contains(key)) else {
-      @failure.reject("invalid-operation", "Invalid equation target")
-    }
-    let value = Json::object(target)
-    let result : @model.MathTarget = {
-      object: field_string(value, "object"),
-      revision: field_int(value, "revision"),
-      node: field_int(value, "node"),
-    }
-    result
-  }
   if action == "deleteMath" {
-    return @model.DeleteMath(target())
+    return @model.DeleteMath(pptx_math_target(value))
   }
-  guard fields.get("format") is Some(Object(format)) &&
-    format.length() == 3 &&
-    format.keys().all(key => ["family", "size", "color"].contains(key)) else {
+  guard value is { "format": Object(fields), .. } && fields.length() == 3 else {
     @failure.reject("invalid-operation", "Invalid equation appearance")
   }
-  let format = Json::object(format)
+  let request : MathContentRequest = @common.request(value)
+  let format = request.format
   let style = @layout.TextStyle::new(
-    field_string(format, "family"),
-    field_number(format, "size"),
-    field_string(format, "color"),
+    format.family,
+    format.size.value,
+    format.color,
   )
-  let latex = field_string(value, "latex")
   match action {
-    "insertMath" =>
+    "insertMath" => {
+      let frame : ObjectFrameRequest = @common.request(value)
       @model.InsertMath(
-        latex,
+        request.latex,
         style,
-        field_number(value, "x"),
-        field_number(value, "y"),
-        field_number(value, "width"),
-        field_number(value, "height"),
+        frame.x.value,
+        frame.y.value,
+        frame.width.value,
+        frame.height.value,
       )
+    }
     "appendMath" => {
-      let position = field_string(value, "position")
-      guard ["start", "end"].contains(position) else {
+      let request_position : MathPositionRequest = @common.request(value)
+      let position = request_position.position
+      guard position == "start" || position == "end" else {
         @failure.reject(
           "invalid-operation", "Invalid equation insertion position",
         )
       }
-      @model.AppendMath(latex, style, position == "start")
+      @model.AppendMath(request.latex, style, position == "start")
     }
-    _ => @model.UpdateMath(target(), latex, style)
+    _ => @model.UpdateMath(pptx_math_target(value), request.latex, style)
   }
 }

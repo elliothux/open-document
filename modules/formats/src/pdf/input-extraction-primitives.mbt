@@ -16,11 +16,11 @@ fn extracted_primitives(
         styles.push(style)
         primitives.push(@layout.Transform(value))
       }
-      ClipRect(value) => {
+      ClipRect(value) | GradientClipRect(value, _) => {
         styles.push(style)
         primitives.push(@layout.Clip(value))
       }
-      ClipPath(path, evenOdd) => {
+      ClipPath(path, evenOdd) | GradientClipPath(path, evenOdd, _) => {
         styles.push(style)
         primitives.push(@layout.ClipPath(path.copy(), evenOdd))
       }
@@ -33,12 +33,16 @@ fn extracted_primitives(
         style = previous
         primitives.push(@layout.Restore)
       }
-      FillRect(fill) => primitives.push(@layout.Rectangle(fill))
+      FillRect(fill, ..) => primitives.push(@layout.Rectangle(fill))
       StrokeRect(rect, color, width, screen_fractional=false) =>
         primitives.push(@layout.Stroke(rect, color, width))
       StrokeRect(rect, color, width, screen_fractional=true) =>
         primitives.push(@layout.FractionalScreenStroke(rect, color, width))
-      Path(path, fill, stroke, width) => {
+      Path(path, fill, stroke, width)
+      | OutlinedPath(path, fill, stroke, width, _)
+      | FilledOutline(path, fill, stroke, width, _)
+      | DashedPath(path, fill, stroke, width, _)
+      | RectangleDashedPath(path, fill, stroke, width, _) => {
         if data.pathCommands.get(index) is Some(record) {
           data.paths[record] = {
             ..data.paths[record],
@@ -57,7 +61,7 @@ fn extracted_primitives(
           }),
         )
       }
-      Image(image) => {
+      Image(image, ..) => {
         if data.imageCommands.get(index) is Some(record) {
           data.images[record] = {
             ..data.images[record],
@@ -129,8 +133,8 @@ fn extracted_primitives(
 
 ///|
 /// Extract native page data without changing active selection, retained views,
-/// history, or revision. JPEG samples may be supplied from the validated host
-/// decode cache; encoded JPEG bytes alone are never presented as clean pixels.
+/// history, or revision. JPEG samples may be supplied from the prepared image
+/// cache; encoded JPEG bytes alone are never presented as clean pixels.
 pub fn PdfSession::extract_page(
   self : PdfSession,
   revision : Int32,

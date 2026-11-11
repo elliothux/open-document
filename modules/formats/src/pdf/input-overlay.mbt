@@ -5,7 +5,10 @@ pub(all) struct PdfPlacement {
   width : Double
   height : Double
   rotation : Double
-} derive(ToJson)
+} derive(Eq, ToJson)
+
+///|
+pub extend PdfPlacement with Eq::{equal, not_equal}
 
 ///|
 pub extend PdfPlacement with ToJson::{to_json}
@@ -371,6 +374,11 @@ pub fn PdfSession::add_text(
     }
     tx.commit(self.current)
   })
+}
+
+///|
+pub fn decode_upload_raster(bytes : Bytes) -> (Int32, Int32, Bytes)? {
+  @image.decode_plain_raster(bytes)
 }
 
 ///|

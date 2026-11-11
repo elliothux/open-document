@@ -1,15 +1,13 @@
-import { integer, record } from "@open-document/wasm/abi/validation";
-import {
-  checkPptxFragmentMedia,
-  type PptxFragmentMedia,
-} from "./pptx-media.js";
+import { integer } from "@open-document/wasm/abi/validation";
+import { pptxSlideCountLimit } from "@open-document/wasm/engine-source";
+import type { PptxFragmentMedia } from "./pptx-media.js";
 
-export interface PptxImportInfo {
+export interface PptxImportInfo<Image = string, MediaBytes = string> {
   slides: { index: number; title: string; hidden: boolean }[];
   fonts: string[];
-  /** Base64-encoded images for platform decoding before committing. */
-  images: string[];
-  media: PptxFragmentMedia[];
+  /** Image sources for verification before committing. */
+  images: Image[];
+  media: PptxFragmentMedia<MediaBytes>[];
 }
 
 export type PptxImportCommand =
@@ -18,6 +16,9 @@ export type PptxImportCommand =
       revision: number;
       bytes: Uint8Array;
       indices: number[];
+      prepareImages?: true;
+      prepareResources?: true;
+      verifyImages?: true;
     }
   | {
       operation: "importPptxSlides";
@@ -36,62 +37,13 @@ export function checkPptxImportInput(
   if (
     !(bytes instanceof Uint8Array) ||
     !bytes.length ||
-    bytes.length > 33554432 ||
     !Array.isArray(indices) ||
-    indices.length > 256 ||
+    indices.length > pptxSlideCountLimit ||
     (commit && !indices.length) ||
-    indices.some((index: unknown) => !integer(index, 0, 255)) ||
+    indices.some(
+      (index: unknown) => !integer(index, 0, pptxSlideCountLimit - 1),
+    ) ||
     new Set(indices).size !== indices.length
   )
     throw new Error("Invalid PPTX import bytes or slide indices");
-}
-
-export function checkPptxImportInfo(
-  value: unknown,
-): asserts value is PptxImportInfo {
-  const info = record(value);
-  if (
-    Object.keys(info).length !== 4 ||
-    !Array.isArray(info.slides) ||
-    !info.slides.length ||
-    info.slides.length > 256 ||
-    !Array.isArray(info.fonts) ||
-    info.fonts.length > 256 ||
-    info.fonts.some(
-      (font: unknown) =>
-        typeof font !== "string" ||
-        !font ||
-        !font.isWellFormed() ||
-        font.length > 256,
-    ) ||
-    !Array.isArray(info.images) ||
-    info.images.length > 256
-  )
-    throw new Error("Invalid PPTX import information");
-  for (const [index, item] of info.slides.entries()) {
-    const slide = record(item);
-    if (
-      Object.keys(slide).length !== 3 ||
-      slide.index !== index ||
-      typeof slide.hidden !== "boolean" ||
-      typeof slide.title !== "string" ||
-      !slide.title.isWellFormed() ||
-      slide.title.length > 1048576
-    )
-      throw new Error("Invalid PPTX import slide catalog");
-  }
-  let units = 0;
-  for (const image of info.images) {
-    if (
-      typeof image !== "string" ||
-      !image.length ||
-      image.length > 2796204 ||
-      image.length % 4 !== 0 ||
-      !/^[A-Za-z0-9+/]*={0,2}$/.test(image)
-    )
-      throw new Error("Invalid PPTX import image");
-    units += image.length;
-  }
-  if (units > 5592408) throw new Error("PPTX import images exceed budget");
-  checkPptxFragmentMedia(info.media);
 }

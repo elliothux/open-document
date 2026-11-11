@@ -3,6 +3,7 @@ import type { DocumentComments, DocumentEditor } from "../web/editor.js";
 import { checkDocxComment, type DocxCommentEdit } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { docxCommentTextUnits } from "@open-document/wasm/engine-source";
 
 export function DocxComments({
   controller,
@@ -23,7 +24,7 @@ export function DocxComments({
   const [parent, setParent] = useState<string | null>(null);
   const panel = useRef<HTMLElement>(null);
   const shown = useRef<Readonly<{ id: string }> | undefined>(undefined);
-  const focus = editor.getCommentFocus();
+  const focus = editor.review.getCommentFocus();
   useEffect(() => {
     if (
       parent &&
@@ -44,7 +45,7 @@ export function DocxComments({
       try {
         await editor.whenIdle();
         if (!active) return;
-        const value = await editor.comments();
+        const value = await editor.review.comments();
         if (active) setResult(value);
       } catch (error) {
         if (active) throw error;
@@ -78,7 +79,7 @@ export function DocxComments({
     }
     setError("");
     controller.run(async () => {
-      await editor.editComment(change);
+      await editor.review.editComment(change);
       done?.();
     });
   };
@@ -107,7 +108,7 @@ export function DocxComments({
               )
             }
             onClick={() =>
-              controller.run(() => editor.navigateComment(direction))
+              controller.run(() => editor.review.navigateComment(direction))
             }
           >
             {direction === "previous" ? t.commentPrevious : t.commentNext}
@@ -157,7 +158,7 @@ export function DocxComments({
             <textarea
               aria-label={parent ? t.commentReplyText : t.commentText}
               value={text}
-              maxLength={32767}
+              maxLength={docxCommentTextUnits}
               disabled={!author}
               onChange={(event) => setText(event.currentTarget.value)}
             />
@@ -268,7 +269,7 @@ function CommentEntry({
             <textarea
               aria-label={t.commentText}
               value={text}
-              maxLength={32767}
+              maxLength={docxCommentTextUnits}
               onChange={(event) => setText(event.currentTarget.value)}
             />
           </label>

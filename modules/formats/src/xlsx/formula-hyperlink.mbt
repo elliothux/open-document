@@ -21,11 +21,10 @@ fn Session::formula_hyperlink_owner(
   calculation.hyperlinks
   .keys()
   .any(key => {
-    if key.0 != index {
+    let (owner, address) = key
+    if owner != index {
       return false
     }
-    guard sheet.cells.get(key.1) is Some(source) else { return false }
-    let address = source.address
     let cell = sheet.cell_range(address)
     if address.row != cell.top ||
       address.column != cell.left ||
@@ -61,12 +60,11 @@ fn Session::with_formula_hyperlinks(
   })
   let index = self.sheet_index(sheet.id)
   let derived : Array[(Range, String)] = []
-  for key, address in calculation.hyperlinks {
+  for (owner_sheet, owner), address in calculation.hyperlinks {
     work.spend()
-    if key.0 != index {
+    if owner_sheet != index {
       continue
     }
-    let owner = Address::parse(key.1)
     let range = sheet.cell_range(owner)
     if owner.row != range.top ||
       owner.column != range.left ||

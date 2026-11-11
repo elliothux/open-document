@@ -51,7 +51,7 @@ pub fn Session::table_clipboard(
     )
   }
   let positions = (bottom - top).to_int64() * (right - left).to_int64()
-  guard positions > 0 && positions <= 4096 else {
+  guard positions > 0 && positions <= TableGridCells.to_int64() else {
     @failure.reject("limit-exceeded", "Copied table matrix exceeds cell budget")
   }
   let values = self.field_values(
@@ -88,7 +88,7 @@ pub fn Session::table_clipboard(
         sum + displayed(span).length().to_int64()
       })
     })
-    guard size <= (command_limit - units).to_int64() else {
+    guard size <= (TextCommandUnits - units).to_int64() else {
       @failure.reject(
         "limit-exceeded", "Copied table text exceeds UTF-16 budget",
       )
@@ -98,7 +98,7 @@ pub fn Session::table_clipboard(
       .join("\n")
       .replace_all(old="\u2028", new="\n")
     let field = @delimited.quote_field(text)
-    guard field.length() <= command_limit - units else {
+    guard field.length() <= TextCommandUnits - units else {
       @failure.reject(
         "limit-exceeded", "Quoted table text exceeds UTF-16 budget",
       )
@@ -122,7 +122,7 @@ pub fn Session::table_clipboard(
       self.capture_table_fragment(
         tree, grid, top, bottom, left, right, owners, values,
       ),
-      self.opc.budget.entry_bytes.min(history_byte_limit / 2),
+      self.opc.budget.entry_bytes.min(ClipboardFragmentUnits),
     ),
   ) catch {
     @failure.Failure(code="protected-content", message~, ..) => {

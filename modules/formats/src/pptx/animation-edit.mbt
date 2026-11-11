@@ -1,10 +1,13 @@
 ///|
-fn Session::animation_query(self : Session, slide : Slide) -> Json {
+fn Session::animation_query(
+  self : Session,
+  slide : Slide,
+) -> SlideCollectionQuery[SlideAnimation] {
   {
-    "items": self.read_animations(slide),
-    "reason": self.slide_visibility_reason(),
+    items: self.read_animations(slide),
+    reason: self.slide_visibility_reason(),
   } catch {
-    @failure.Failure(message~, ..) => { "items": [], "reason": message }
+    @failure.Failure(message~, ..) => { items: [], reason: message, }
   }
 }
 

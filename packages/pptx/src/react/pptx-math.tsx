@@ -3,6 +3,7 @@ import type { PresentationEditor } from "../web/presentation-editor.js";
 import type { PptxMathValue } from "../web/pptx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { latexSourceUnits } from "@open-document/wasm/engine-source";
 
 export function PptxMath({
   controller,
@@ -80,7 +81,7 @@ export function PptxMath({
           {t.mathLatex}
           <input
             value={draft.latex}
-            maxLength={131072}
+            maxLength={latexSourceUnits}
             onChange={(event) =>
               setDraft({ ...draft, latex: event.currentTarget.value })
             }

@@ -42,7 +42,7 @@ export function XlsxSearch({
           event.preventDefault();
           if (text)
             controller.run(async () => {
-              setResult(await editor.find(text, options));
+              setResult(await editor.search.find(text, options));
               setSelected(0);
             });
         }}
@@ -105,7 +105,7 @@ export function XlsxSearch({
         onClick={() =>
           result &&
           controller.run(() =>
-            editor.replaceMatches(result, replacement, selected),
+            editor.search.replaceMatches(result, replacement, selected),
           )
         }
       >
@@ -122,7 +122,9 @@ export function XlsxSearch({
         }
         onClick={() =>
           result &&
-          controller.run(() => editor.replaceMatches(result, replacement))
+          controller.run(() =>
+            editor.search.replaceMatches(result, replacement),
+          )
         }
       >
         {t.replaceAll}
@@ -144,7 +146,7 @@ export function XlsxSearch({
                 aria-current={selected === index ? "true" : undefined}
                 onClick={() =>
                   controller.run(async () => {
-                    await editor.selectMatch(result, index);
+                    await editor.search.selectMatch(result, index);
                     setSelected(index);
                   })
                 }

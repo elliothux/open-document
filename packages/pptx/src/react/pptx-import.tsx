@@ -4,6 +4,7 @@ import type { PptxImportInfo } from "../web/pptx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { readFile } from "@open-document/ui/file";
 import { messages } from "@open-document/ui/messages";
+import { pptxSlideCountLimit } from "@open-document/wasm/engine-source";
 
 export function PptxImport({
   editor,
@@ -61,7 +62,7 @@ export function PptxImport({
             setLoading(true);
             controller.run(async () => {
               try {
-                if (!file.size || file.size > 33554432)
+                if (!file.size || file.size > editor.inputLimits.importBytes)
                   throw new Error(t.importSlidesLimit);
                 const bytes = await readFile(file, active.signal);
                 const info = await editor.inspectSlides(bytes);
@@ -107,7 +108,8 @@ export function PptxImport({
           <button
             type="button"
             disabled={
-              !selected.length || selected.length > 256 - query.slides.length
+              !selected.length ||
+              selected.length > pptxSlideCountLimit - query.slides.length
             }
             onClick={() =>
               controller.run(() => editor.importSlides(source.bytes, selected))

@@ -69,9 +69,9 @@ fn Session::check_table_operation(
     return
   }
   let count = current_count + (if insert { amount } else { -amount })
-  guard count <= (if rows { 1000 } else { 63 }) &&
+  guard count <= (if rows { TableRowCount } else { TableColumnCount }) &&
     count * (if rows { table.widths.length() } else { table.rows.length() }) <=
-    4096 else {
+    TableCellCount else {
     @failure.reject("limit-exceeded", "Table dimensions exceed budget")
   }
   let at = if operation.has_suffix("Before") { first } else { last + 1 }

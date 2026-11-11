@@ -57,11 +57,12 @@ export class SpreadsheetTimelinePointer {
     if (gesture.cancelled || this.dateGesture !== gesture) return;
     clearTimeout(gesture.timer);
     gesture.timer = undefined;
-    const result = await this.client.timelineGesture(
-      gesture.revision,
-      gesture.layout,
-      gesture.object,
-      {
+    const result = await this.client.execute({
+      operation: "timelineGestureXlsx",
+      revision: gesture.revision,
+      layout: gesture.layout,
+      id: gesture.object,
+      gesture: {
         handle: gesture.handle,
         first: gesture.first,
         position: gesture.position,
@@ -75,8 +76,8 @@ export class SpreadsheetTimelinePointer {
         ),
         commit,
       },
-      this.host.current().profile,
-    );
+      profile: this.host.current().profile,
+    });
     if (gesture.cancelled || this.signal.aborted) return;
     if (result.query) this.host.assign(result.query);
     if (result.drawing) {
@@ -257,11 +258,12 @@ export class SpreadsheetTimelinePointer {
           ?.timeline?.periods.find((period) => period.index === first)
           ?.regions[0];
         if (!region) throw new Error("Timeline period is no longer visible");
-        const result = await this.client.timelineGesture(
-          now.query.revision,
-          layout.id,
-          object,
-          {
+        const result = await this.client.execute({
+          operation: "timelineGestureXlsx",
+          revision: now.query.revision,
+          layout: layout.id,
+          id: object,
+          gesture: {
             handle: 0,
             first,
             position:
@@ -271,8 +273,8 @@ export class SpreadsheetTimelinePointer {
             y: region.clip.y + region.clip.height / 2,
             commit: true,
           },
-          now.profile,
-        );
+          profile: now.profile,
+        });
         if (result.query) this.host.assign(result.query);
         await this.host.render();
       })

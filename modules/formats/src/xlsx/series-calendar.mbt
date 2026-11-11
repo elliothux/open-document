@@ -13,6 +13,7 @@ priv struct SeriesCalendar {
 ///|
 fn series_calendar_kind(format : String) -> String {
   guard date_format(format) is Some(tokens) else { return "" }
+  guard !tokens.any(token => token is Elapsed(_, _)) else { return "" }
   let calendar = tokens.any(token => {
     token is Field(name, _) && ["y", "m", "d"].contains(name)
   })

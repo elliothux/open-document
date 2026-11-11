@@ -7,6 +7,7 @@ import type {
 import type { SpreadsheetEditor } from "../web/spreadsheet-editor.js";
 import type { PanelProps } from "./panels.js";
 import { messages } from "@open-document/ui/messages";
+import { xlsxFormulaSourceUnits } from "@open-document/wasm/engine-source";
 import { XlsxFilter } from "./xlsx-filter.js";
 import { XlsxTableStyleForm } from "./xlsx-table-style.js";
 import { XlsxTableStyleDefinitions } from "./xlsx-table-style-definition.js";
@@ -75,7 +76,7 @@ export function XlsxTablesPanel(props: PanelProps) {
         onSubmit={(event) => {
           event.preventDefault();
           props.controller.run(() =>
-            editor.editSheet({
+            editor.objects.editSheet({
               action: "createTable",
               range: editor.currentState.selection.address,
               name: newName,
@@ -171,7 +172,11 @@ function TableNames({ table, ...props }: PanelProps & { table: XlsxTable }) {
         onSubmit={(event) => {
           event.preventDefault();
           props.controller.run(() =>
-            editor.editSheet({ action: "resizeTable", id: table.id, range }),
+            editor.objects.editSheet({
+              action: "resizeTable",
+              id: table.id,
+              range,
+            }),
           );
         }}
       >
@@ -193,7 +198,11 @@ function TableNames({ table, ...props }: PanelProps & { table: XlsxTable }) {
         onSubmit={(event) => {
           event.preventDefault();
           props.controller.run(() =>
-            editor.editSheet({ action: "renameTable", id: table.id, name }),
+            editor.objects.editSheet({
+              action: "renameTable",
+              id: table.id,
+              name,
+            }),
           );
         }}
       >
@@ -214,7 +223,7 @@ function TableNames({ table, ...props }: PanelProps & { table: XlsxTable }) {
         onSubmit={(event) => {
           event.preventDefault();
           props.controller.run(() =>
-            editor.editSheet({
+            editor.objects.editSheet({
               action: "renameTableColumn",
               id: table.id,
               column: item.id,
@@ -258,7 +267,7 @@ function TableNames({ table, ...props }: PanelProps & { table: XlsxTable }) {
         onSubmit={(event) => {
           event.preventDefault();
           props.controller.run(() =>
-            editor.editSheet({
+            editor.objects.editSheet({
               action: "tableColumnFormula",
               id: table.id,
               column: item.id,
@@ -273,7 +282,7 @@ function TableNames({ table, ...props }: PanelProps & { table: XlsxTable }) {
           <input
             value={formula}
             required
-            maxLength={8192}
+            maxLength={xlsxFormulaSourceUnits}
             onChange={(event) => setFormula(event.currentTarget.value)}
           />
         </label>
@@ -285,7 +294,7 @@ function TableNames({ table, ...props }: PanelProps & { table: XlsxTable }) {
           disabled={item.formula === null}
           onClick={() =>
             props.controller.run(() =>
-              editor.editSheet({
+              editor.objects.editSheet({
                 action: "tableColumnFormula",
                 id: table.id,
                 column: item.id,
@@ -304,7 +313,7 @@ function TableNames({ table, ...props }: PanelProps & { table: XlsxTable }) {
           onChange={(event) => {
             const visible = event.currentTarget.checked;
             props.controller.run(() =>
-              editor.editSheet({
+              editor.objects.editSheet({
                 action: "tableTotals",
                 id: table.id,
                 visible,
@@ -331,7 +340,7 @@ function TableNames({ table, ...props }: PanelProps & { table: XlsxTable }) {
                     : null;
           if (total)
             props.controller.run(() =>
-              editor.editSheet({
+              editor.objects.editSheet({
                 action: "tableTotal",
                 id: table.id,
                 column: item.id,
@@ -372,7 +381,9 @@ function TableNames({ table, ...props }: PanelProps & { table: XlsxTable }) {
               <input
                 value={totalText}
                 required={totalKind === "formula"}
-                maxLength={totalKind === "formula" ? 8192 : 32767}
+                maxLength={
+                  totalKind === "formula" ? xlsxFormulaSourceUnits : 32767
+                }
                 onChange={(event) => setTotalText(event.currentTarget.value)}
               />
             </label>

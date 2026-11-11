@@ -25,12 +25,17 @@ fn number_overflow(value : Value, format : String, date1904 : Bool) -> Bool {
 
 ///|
 fn formatted(value : Value, format : String, date1904 : Bool) -> String {
+  if format == "General" {
+    return if value is Number(number) {
+      general_display(number)
+    } else {
+      value.display()
+    }
+  }
   if section_display(value, format) is Some(section) {
     return section.display()
   }
-  guard value is Number(value) && supported_format(format) else {
-    return value.display()
-  }
+  guard value is Number(value) else { return value.display() }
   if scientific_format(format) is Some((places, digits, sign)) {
     return scientific_number(value, places, digits, sign)
   }
@@ -40,9 +45,5 @@ fn formatted(value : Value, format : String, date1904 : Bool) -> String {
   if integer_format(format) is Some((tokens, slots, scale)) {
     return integer_number(value, tokens, slots, scale)
   }
-  if format == "General" {
-    general_display(value)
-  } else {
-    Number(value).display()
-  }
+  Number(value).display()
 }

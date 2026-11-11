@@ -1,12 +1,15 @@
 import type { FoundationClient } from "./foundation.js";
-import type { DocxFlow, PageLayout } from "../core/preview.js";
+import type { PageLayout } from "../core/preview.js";
+import type { DocxSelectionViewRequest } from "../core/docx-hit.js";
 import { CanvasSurface } from "@open-document/web-core/canvas-surface";
-import { decodeImage } from "@open-document/web-core/image";
+import {
+  imageBitmapFromPixels,
+  materializeImage,
+} from "@open-document/web-core/image";
 import type { DocxSelectionGeometry, DocxHit } from "../core/foundation.js";
 
 /** DOCX image preparation stays with its document host. */
 export class PageCanvas extends CanvasSurface {
-  private readonly keys = new Map<string, string>();
   private comments: PageLayout["comments"] = { reason: "", items: [] };
   private commentPage = 0;
   setComments(
@@ -28,97 +31,58 @@ export class PageCanvas extends CanvasSurface {
     return context;
   }
   private constructor(private readonly client: FoundationClient) {
-    // Keep vector geometry while filled glyphs use Office's horizontal subpixel phases.
-    super("fractional");
+    super();
   }
-  async layout(profile: Record<string, string>) {
-    await this.prepare();
-    const layout = await this.client.layout(profile);
+  async layout(
+    profile: Record<string, string>,
+    selectionView?: DocxSelectionViewRequest,
+  ) {
+    const preparation = await this.client.execute({
+      operation: "layout",
+      profile: profile,
+      prepareImages: true,
+      selectionView,
+    });
+    if ("missingImages" in preparation) {
+      for (const key of preparation.missingImages) {
+        const { bitmap, rgba } = await materializeImage(
+          await this.client.execute({ operation: "imageSource", key }),
+        );
+        let identity: string;
+        try {
+          identity = await this.client.execute({
+            operation: "addImage",
+            key: key,
+            width: bitmap.width,
+            height: bitmap.height,
+            rgba: rgba,
+          });
+        } catch (error) {
+          bitmap.close();
+          throw error;
+        }
+        this.cacheImage(identity, bitmap, rgba);
+      }
+    }
+    const layout =
+      "missingImages" in preparation
+        ? await this.client.execute({
+            operation: "layout",
+            profile,
+            selectionView,
+          })
+        : preparation;
     for (const identity of layout.images) {
       if (this.images.has(identity)) continue;
-      const { bitmap } = await decodeImage(
-        await this.client.imageBytes(identity),
-      );
-      try {
-        const pixels = await this.client.imagePixels(identity);
-        if (pixels.length !== bitmap.width * bitmap.height * 4)
-          throw new Error("Prepared image pixels differ from their dimensions");
-        this.imagePixels.set(identity, pixels);
-        this.images.set(identity, bitmap);
-      } catch (error) {
-        bitmap.close();
-        throw error;
-      }
+      const { width, height, bytes } = await this.client.execute({
+        operation: "imagePixels",
+        key: identity,
+      });
+      const bitmap = await imageBitmapFromPixels(width, height, bytes);
+      this.cacheImage(identity, bitmap, bytes);
     }
-    const retained = new Set(layout.images);
-    for (const [identity, bitmap] of this.images)
-      if (!retained.has(identity)) {
-        bitmap.close();
-        this.images.delete(identity);
-        this.imagePixels.delete(identity);
-      }
+    this.retainImages(new Set(layout.images));
     return layout;
-  }
-  private async prepare(signal?: AbortSignal): Promise<void> {
-    signal?.throwIfAborted();
-    const flow = await this.client.flow();
-    const tableParagraphs = (
-      table: DocxFlow["tables"][number],
-    ): DocxFlow["paragraphs"] => [
-      ...table.rows.flat(2),
-      ...table.nestedTables.flatMap((child) => tableParagraphs(child.table)),
-    ];
-    const paragraphs = [
-      ...flow.paragraphs,
-      ...[flow, ...flow.sectionBreaks].flatMap((section) =>
-        [
-          ...Object.values(section.headers),
-          ...Object.values(section.footers),
-        ].flatMap((story) => [
-          ...story.paragraphs,
-          ...story.tables.flatMap(tableParagraphs),
-        ]),
-      ),
-      ...flow.notes.flatMap((note) => note.content),
-      ...flow.tables.flatMap(tableParagraphs),
-    ];
-    const keys = new Set(
-      paragraphs.flatMap((paragraph) =>
-        paragraph.spans.flatMap((span) =>
-          span.drawing?.content.kind === "picture"
-            ? [span.drawing.content.key]
-            : span.drawing?.content.kind === "metafile"
-              ? span.drawing.content.metafile.images
-              : [],
-        ),
-      ),
-    );
-    for (const key of (await this.client.watermark(flow.revision, 0)).images)
-      keys.add(key);
-    for (const key of this.keys.keys())
-      if (!keys.has(key)) this.keys.delete(key);
-    for (const key of keys) {
-      if (this.keys.has(key)) continue;
-      const { bitmap, rgba } = await decodeImage(
-        await this.client.imageBytes(key),
-        signal,
-      );
-      try {
-        const identity = await this.client.addImage(
-          key,
-          bitmap.width,
-          bitmap.height,
-          rgba,
-        );
-        if (this.images.has(identity)) bitmap.close();
-        else this.images.set(identity, bitmap);
-        this.keys.set(key, identity);
-      } catch (error) {
-        bitmap.close();
-        throw error;
-      }
-    }
-    signal?.throwIfAborted();
   }
   drawSelection(
     page: number,
@@ -164,15 +128,11 @@ export class PageCanvas extends CanvasSurface {
   ): Promise<PageCanvas> {
     const surface = new PageCanvas(client);
     try {
-      await surface.prepare(signal);
+      signal?.throwIfAborted();
       return surface;
     } catch (error) {
       surface.dispose();
       throw error;
     }
-  }
-  override dispose(): void {
-    this.keys.clear();
-    super.dispose();
   }
 }

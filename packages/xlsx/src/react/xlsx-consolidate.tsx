@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { xlsxConsolidationSources } from "@open-document/wasm/engine-source";
 import type { SpreadsheetEditor } from "../web/spreadsheet-editor.js";
 import {
   consolidateFunctions,
@@ -80,7 +81,9 @@ export function XlsxConsolidate({
       </label>
       <button
         type="button"
-        disabled={!sourceRange || settings.sources.length >= 32}
+        disabled={
+          !sourceRange || settings.sources.length >= xlsxConsolidationSources
+        }
         onClick={() =>
           update({
             ...settings,
@@ -157,7 +160,7 @@ export function XlsxConsolidate({
         disabled={!settings.sources.length}
         onClick={() =>
           controller.run(async () => {
-            setPreview(await editor.consolidation(settings));
+            setPreview(await editor.data.consolidation(settings));
             setOverwrite(false);
           })
         }
@@ -200,7 +203,7 @@ export function XlsxConsolidate({
             disabled={!ready || (preview.overwrittenCells > 0 && !overwrite)}
             onClick={() =>
               controller.run(() =>
-                editor.editSheet(
+                editor.objects.editSheet(
                   {
                     action: "consolidate",
                     settings,

@@ -30,7 +30,7 @@ fn Session::styles_from_parts(
 ) -> Array[CellStyle] raise @failure.Failure {
   guard self.styles_part(parts) is Some(part) else { return [default_style()] }
   read_styles(
-    parts.get(part).unwrap_or_else(() => self.opc.xml(part)),
+    Tree::new(parts.get(part).unwrap_or_else(() => self.opc.xml(part))),
     self.theme,
   )
 }

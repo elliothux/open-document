@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { docxHyperlinkTargetUnits } from "@open-document/wasm/engine-source";
 import type { DocumentEditor } from "../web/editor.js";
 import type {
   FormatValue,
@@ -107,9 +108,9 @@ export function DocxFormatCommands({
     disabled || !formatting || !!formatting.paragraphReason;
   disabled ||= !formatting || !!formatting.reason;
   const set = (format: CharacterFormatPatch) =>
-    controller.run(() => editor.setCharacterFormat(format));
+    controller.run(() => editor.formatting.setCharacterFormat(format));
   const paragraph = (format: ParagraphFormatPatch) =>
-    controller.run(() => editor.setParagraphFormat(format));
+    controller.run(() => editor.formatting.setParagraphFormat(format));
   const family =
     character?.family.kind === "value" ? character.family.value : "";
   const families = [
@@ -136,7 +137,9 @@ export function DocxFormatCommands({
           label={t.copyFormat}
           disabled={disabled}
           action={() =>
-            controller.run(async () => setCopied(await editor.captureFormat()))
+            controller.run(async () =>
+              setCopied(await editor.formatting.captureFormat()),
+            )
           }
         />
         <Command
@@ -144,7 +147,9 @@ export function DocxFormatCommands({
           disabled={disabled || !copied}
           action={() =>
             controller.run(() =>
-              copied ? editor.applyFormat(copied) : Promise.resolve(),
+              copied
+                ? editor.formatting.applyFormat(copied)
+                : Promise.resolve(),
             )
           }
         />
@@ -307,7 +312,9 @@ export function DocxFormatCommands({
         <Command
           label={t.softBreak}
           disabled={disabled}
-          action={() => controller.run(() => editor.insertSoftBreak())}
+          action={() =>
+            controller.run(() => editor.clipboard.insertSoftBreak())
+          }
         />
         <Command
           label={t.pageBreak}
@@ -569,7 +576,9 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
           apply={t.apply}
           mixed={t.mixed}
           onApply={(value) =>
-            controller.run(() => editor.setParagraphFormat({ [key]: value }))
+            controller.run(() =>
+              editor.formatting.setParagraphFormat({ [key]: value }),
+            )
           }
         />
       ))}
@@ -591,7 +600,7 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
             }
             onChange={(event) =>
               controller.run(() =>
-                editor.setParagraphFormat({
+                editor.formatting.setParagraphFormat({
                   [key]: event.currentTarget.checked,
                 }),
               )
@@ -647,7 +656,7 @@ function DocxHyperlink({ controller, state, editor, disabled }: Props) {
           event.preventDefault();
           controller.run(() => {
             checkDocxHyperlink(address, text || undefined);
-            return editor.setHyperlink(address, text || undefined);
+            return editor.formatting.setHyperlink(address, text || undefined);
           });
         }}
       >
@@ -659,7 +668,7 @@ function DocxHyperlink({ controller, state, editor, disabled }: Props) {
               type="text"
               inputMode="url"
               required
-              maxLength={2048}
+              maxLength={docxHyperlinkTargetUnits}
               value={address}
               onChange={(event) => setAddress(event.currentTarget.value)}
             />
@@ -679,7 +688,9 @@ function DocxHyperlink({ controller, state, editor, disabled }: Props) {
           <button
             type="button"
             disabled={!link?.target && !link?.mixed}
-            onClick={() => controller.run(() => editor.setHyperlink(null))}
+            onClick={() =>
+              controller.run(() => editor.formatting.setHyperlink(null))
+            }
           >
             {t.hyperlinkRemove}
           </button>
@@ -693,7 +704,7 @@ function DocxHyperlink({ controller, state, editor, disabled }: Props) {
             type="button"
             onClick={() =>
               controller.run(() =>
-                editor.editBookmark({
+                editor.review.editBookmark({
                   action: "goTo",
                   name: link.target!.slice(1),
                 }),
@@ -759,7 +770,7 @@ function LineSpacing({ controller, state, editor, disabled }: Props) {
         disabled={disabled}
         onApply={(amount) =>
           controller.run(() =>
-            editor.setParagraphFormat({
+            editor.formatting.setParagraphFormat({
               line: {
                 rule,
                 value: Math.round(amount * (rule === "auto" ? 240 : 20)),

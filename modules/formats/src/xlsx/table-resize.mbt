@@ -133,14 +133,14 @@ fn Session::resize_table(
       continue
     }
     added.push(column)
-    let address = Address::{
+    let address : Address = {
       row: (range.top - (if table.headers == 0 { 1 } else { 0 })).max(1),
       column,
-    }.name()
+    }
     let cell = if table.headers == 0 && range.top == 1 {
       None
     } else {
-      current.cells.get(address)
+      current.cells.get(address.name())
     }
     guard cell
       .map(cell => cell.read_only.is_empty() && cell.group is None)

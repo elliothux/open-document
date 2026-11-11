@@ -1,4 +1,7 @@
 ///|
+pub const CaptionTextUnits : Int32 = 1024
+
+///|
 fn Session::builtin_paragraph_style(
   self : Session,
   preset : String,
@@ -113,7 +116,7 @@ pub fn Session::insert_caption(
     ["", "decimal", "lowerLetter", "upperLetter", "lowerRoman", "upperRoman"].contains(
       format,
     ) &&
-    text.length() <= 1024 &&
+    text.length() <= CaptionTextUnits &&
     [label, text].all(value => {
       @xml.valid_text(value) &&
       value

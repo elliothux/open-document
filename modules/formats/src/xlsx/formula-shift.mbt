@@ -9,7 +9,7 @@ fn stored_formula_names(formula : String) -> String raise @failure.Failure {
       [
         "IFNA", "CONCAT", "TEXTJOIN", "DAYS", "XLOOKUP", "VAR.S", "VAR.P", "STDEV.S",
         "STDEV.P", "MODE.SNGL", "MINIFS", "MAXIFS", "CEILING.MATH", "FLOOR.MATH",
-        "CEILING.PRECISE", "FLOOR.PRECISE", "ISOWEEKNUM", "COMBINA",
+        "CEILING.PRECISE", "FLOOR.PRECISE", "ISOWEEKNUM", "COMBINA", "XOR",
       ].contains(name.to_upper()) &&
       tokens[index + 1] is Operator("(") {
       let (start, end) = spans[index]
@@ -82,7 +82,7 @@ fn Expression::source(
           if a.fixed_row &&
             b.fixed_row &&
             range.top == 1 &&
-            range.bottom == 1048576 {
+            range.bottom == WorksheetRows {
             return prefix +
               (if a.fixed_column { "$" } else { "" }) +
               print_column(a.address.column) +
@@ -93,7 +93,7 @@ fn Expression::source(
           if a.fixed_column &&
             b.fixed_column &&
             range.left == 1 &&
-            range.right == 16384 {
+            range.right == WorksheetColumns {
             return prefix +
               (if a.fixed_row { "$" } else { "" }) +
               a.address.row.to_string() +
@@ -127,7 +127,7 @@ fn Expression::source(
       (if [
           "IFNA", "CONCAT", "TEXTJOIN", "DAYS", "XLOOKUP", "VAR.S", "VAR.P", "STDEV.S",
           "STDEV.P", "MODE.SNGL", "MINIFS", "MAXIFS", "CEILING.MATH", "FLOOR.MATH",
-          "CEILING.PRECISE", "FLOOR.PRECISE", "ISOWEEKNUM", "COMBINA",
+          "CEILING.PRECISE", "FLOOR.PRECISE", "ISOWEEKNUM", "COMBINA", "XOR",
         ].contains(name) {
         "_xlfn." + name
       } else {

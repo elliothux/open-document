@@ -1,7 +1,10 @@
 ///|
+pub const WorksheetCount : Int32 = 256
+
+///|
 priv struct History {
-  before_random : Map[(Int32, String), (Value, String?)]
-  after_random : Map[(Int32, String), (Value, String?)]
+  before_random : Map[(Int32, Address), (Value, String?)]
+  after_random : Map[(Int32, Address), (Value, String?)]
   edits : Array[(String, @xml.Edit)]
   mut created : Sheet?
   created_parts : Map[String, @xml.Document]
@@ -44,6 +47,7 @@ pub struct Session {
   priv mut grid : Grid?
   priv mut grid_id : Int32
   priv mut revision : Int32
+  priv mut read_cache : ReadCache?
   priv history : Array[History]
   priv redo : Array[History]
   priv mut history_bytes : Int32
@@ -182,8 +186,7 @@ fn Session::from_package(
         @failure.reject("malformed-xlsx", "Invalid styles relationship")
       }
       has_styles = true
-      let document = opc.xml(rel.target)
-      let styles = Tree::new(document)
+      let styles = Tree::new(opc.xml(rel.target))
       let style_root = styles.root("styleSheet")
       guard style_root.uri == spreadsheet else {
         @failure.reject(
@@ -192,8 +195,8 @@ fn Session::from_package(
           part=rel.target,
         )
       }
-      cell_styles = read_styles(document, theme)
-      base_font = normal_font(document)
+      cell_styles = read_styles(styles, theme)
+      base_font = normal_font(styles)
       font_count = styles
         .one(style_root.id, "fonts")
         .map(node => styles.all(node.id, "font").length())
@@ -211,6 +214,7 @@ fn Session::from_package(
       ),
     )
   let sheets : Array[Sheet] = []
+  let legacy_drawings : Array[Result[@xml.Node?, @failure.Failure]] = []
   let ids : Map[String, Bool] = Map([])
   let names : Map[String, Bool] = Map([])
   let paths : Map[String, Bool] = Map([])
@@ -242,7 +246,7 @@ fn Session::from_package(
     guard ["visible", "hidden", "veryHidden"].contains(state) else {
       @failure.reject("malformed-xlsx", "Invalid worksheet visibility")
     }
-    guard sheets.length() < 256 else {
+    guard sheets.length() < WorksheetCount else {
       @failure.reject("limit-exceeded", "Worksheet count exceeds budget")
     }
     let document = opc.xml(rel.target)
@@ -251,7 +255,8 @@ fn Session::from_package(
     } else {
       "worksheet"
     }
-    let sheet_root = Tree::new(document).sheet_root()
+    let source = Tree::new(document)
+    let sheet_root = source.sheet_root()
     guard opc.content_type(rel.target) ==
       Some(
         "application/vnd.openxmlformats-officedocument.spreadsheetml." +
@@ -273,13 +278,13 @@ fn Session::from_package(
       document,
       strings,
       cell_styles.length(),
+      tree=source,
     )
     cell_count += sheet.cells.length()
     guard cell_count <= 100000 else {
       @failure.reject("limit-exceeded", "Workbook cell count exceeds budget")
     }
-    let source = Tree::new(sheet.document)
-    for child in source.children.get(source.sheet_root().id).unwrap_or([]) {
+    for child in source.children.get(sheet_root.id).unwrap_or([]) {
       if !sheet.is_chart() &&
         (
           phonetic_defaults(source, child, font_count) ||
@@ -301,6 +306,16 @@ fn Session::from_package(
         diagnostics.push("unrendered:" + sheet.id + ":" + child.qualified)
       }
     }
+    // Preserve worksheet validation before checking legacy note metadata.
+    legacy_drawings.push(
+      if sheet.is_chart() {
+        Ok(None)
+      } else {
+        Ok(source.one(sheet_root.id, "legacyDrawing")) catch {
+          error => Err(error)
+        }
+      },
+    )
     sheets.push(sheet)
     ids[id] = true
     names[name.to_lower()] = true
@@ -353,6 +368,7 @@ fn Session::from_package(
     slicer_scrolls: Map([]),
     grid_id: 0,
     revision: 0,
+    read_cache: None,
     history: [],
     redo: [],
     history_bytes: 0,
@@ -363,10 +379,12 @@ fn Session::from_package(
     random,
   }
   session.validate(session.sheets)
-  for sheet in session.sheets {
-    let source = Tree::new(sheet.document)
-    if !sheet.is_chart() &&
-      source.one(source.root("worksheet").id, "legacyDrawing") is Some(legacy) {
+  for index, sheet in session.sheets {
+    let legacy = match legacy_drawings[index] {
+      Ok(node) => node
+      Err(error) => raise error
+    }
+    if legacy is Some(legacy) {
       ignore(session.read_sheet_notes(sheet, allow_threads=true)) catch {
         @failure.Failure(..) =>
           session.diagnostics.push(
@@ -397,6 +415,14 @@ fn Session::check(self : Session) -> Unit raise @failure.Failure {
   guard !self.closed else {
     @failure.reject("closed-session", "XLSX session is closed")
   }
+}
+
+///|
+pub fn Session::current_revision(
+  self : Session,
+) -> Int32 raise @failure.Failure {
+  self.check()
+  self.revision
 }
 
 ///|
@@ -434,26 +460,40 @@ pub fn Session::query(
   let id = sheet.unwrap_or(self.selection.0)
   let sheet_index = self.sheet_index(id)
   let current = self.sheets[sheet_index]
-  let range = Some(range.map(Range::parse).unwrap_or(self.selection.1))
-  let cells : Array[Json] = []
+  let range = range.map(Range::parse).unwrap_or(self.selection.1)
+  let cells : Array[QueryCell] = []
   let selected : Array[Cell] = []
-  for cell in current.cells.values() {
-    if range.map(range => range.contains(cell.address)).unwrap_or(true) {
-      selected.push(cell)
+  let area = (range.bottom - range.top + 1).to_int64() *
+    (range.right - range.left + 1).to_int64()
+  // Only enumerate addresses when the rectangle is much smaller than the sheet.
+  if area <= (current.cells.length() / 16).min(256).to_int64() {
+    for row in range.top..<=range.bottom {
+      for column in range.left..<=range.right {
+        let key = Address::{ row, column, }.name()
+        if current.cells.get(key) is Some(cell) {
+          selected.push(cell)
+        }
+      }
     }
-  }
-  guard selected.length() <= 4096 else {
-    @failure.reject(
-      "limit-exceeded", "Query exceeds 4096 cells; request a smaller rectangle",
-    )
-  }
-  selected.sort_by((a, b) => {
-    if a.address.row == b.address.row {
-      a.address.column.compare(b.address.column)
-    } else {
-      a.address.row.compare(b.address.row)
+  } else {
+    for cell in current.cells.values() {
+      if range.contains(cell.address) {
+        guard selected.length() < 4096 else {
+          @failure.reject(
+            "limit-exceeded", "Query exceeds 4096 cells; request a smaller rectangle",
+          )
+        }
+        selected.push(cell)
+      }
     }
-  })
+    selected.sort_by((a, b) => {
+      if a.address.row == b.address.row {
+        a.address.column.compare(b.address.column)
+      } else {
+        a.address.row.compare(b.address.row)
+      }
+    })
+  }
   let work : FormulaWork = {
     remaining: 1048576,
     date1904: self.date1904,
@@ -462,19 +502,16 @@ pub fn Session::query(
     names: self.formula_names(),
   }
   // Formatting diagnostics keep a post-commit query from reporting a failed write.
-  let conditional : ConditionalRules = self.conditional_rules(
-    current,
-    sheet_index,
-    self.sheets,
-    work,
+  let conditional : ConditionalRules = self.read_conditional_rules(
+    sheet_index, work,
   ) catch {
     @failure.Failure(code="limit-exceeded", message~, ..) =>
       {
         rules: [],
         table_styles: TableStyles::empty(),
         reason: message,
-        scales: Map([]),
-        duplicates: Map([]),
+        scales: ConditionalMemo::new(),
+        duplicates: ConditionalMemo::new(),
       }
     error => raise error
   }
@@ -487,64 +524,53 @@ pub fn Session::query(
     )
   }
   for cell in selected {
-    let json = current.cell_json(
+    let calculated = self.calculation.bind(calculation => {
+      calculation.values.get((sheet_index, cell.address))
+    })
+    let details = current.query_cell(
       cell.address,
       self.cell_edit_reason(current, cell.address),
-      self.calculation.bind(calculation => {
-        calculation.values.get((sheet_index, cell.address.name()))
-      }),
+      calculated,
       hide_formula=self.styles[current.style_at(cell.address)].formula_hidden,
-      calculation_reason=self.cell_calculation_reason(
-        sheet_index,
-        cell.address.name(),
-      ),
+      calculation_reason=self.cell_calculation_reason(sheet_index, cell.address),
     )
-    if json is Object(fields) {
-      let value = self.calculation
-        .bind(calculation => {
-          calculation.values.get((sheet_index, cell.address.name()))
-        })
-        .unwrap_or(cell.value)
-      if current.view.formulas || !(cell.formula is Some(_) && value == Blank) {
-        let base = self.styles[cell.style]
-        let style = conditional.applied(
-          base,
-          cell.address,
-          self.sheets,
-          sheet_index,
-          self.calculation.map(c => c.values).unwrap_or(Map([])),
-          work,
-        ) catch {
-          @failure.Failure(code="limit-exceeded", message~, ..) =>
-            { ..base, diagnostic: message, }
-          error => raise error
-        }
-        fields["display"] = Json(
-          current.view.display(
-            cell.formula,
-            value,
-            style.format,
-            self.date1904,
-            hidden=current.locked && style.formula_hidden,
-          ),
-        )
-        if !style.diagnostic.is_empty() {
-          let diagnostic = "cell-style:" + current.id + ":" + style.diagnostic
-          if !diagnostics.contains(diagnostic) {
-            diagnostics.push(diagnostic)
-          }
+    let value = calculated.unwrap_or(cell.value)
+    if current.view.formulas || !(cell.formula is Some(_) && value == Blank) {
+      let base = self.styles[cell.style]
+      let style = conditional.applied(
+        base,
+        cell.address,
+        self.sheets,
+        sheet_index,
+        self.calculation.map(c => c.values).unwrap_or(Map([])),
+        work,
+      ) catch {
+        @failure.Failure(code="limit-exceeded", message~, ..) =>
+          { ..base, diagnostic: message, }
+        error => raise error
+      }
+      details.display = current.view.display(
+        cell.formula,
+        value,
+        style.format,
+        self.date1904,
+        hidden=current.locked && style.formula_hidden,
+      )
+      if !style.diagnostic.is_empty() {
+        let diagnostic = "cell-style:" + current.id + ":" + style.diagnostic
+        if !diagnostics.contains(diagnostic) {
+          diagnostics.push(diagnostic)
         }
       }
     }
-    cells.push(json)
+    cells.push(details)
   }
   if !current.is_chart() &&
-    range is Some(range) &&
     range.top == range.bottom &&
     range.left == range.right &&
     cells.is_empty() {
     cells.push(
-      current.cell_json(
+      current.query_cell(
         { row: range.top, column: range.left, },
         self.cell_edit_reason(current, { row: range.top, column: range.left, }),
         None,
@@ -553,6 +579,7 @@ pub fn Session::query(
       ),
     )
   }
+  let current_tree = Tree::new(current.document)
   let reference_reason = self.sheet_rename_reason(
     tables=true,
     sparklines=true,
@@ -560,6 +587,7 @@ pub fn Session::query(
     charts=true,
     analysis=true,
     threads=true,
+    current_tree~,
   )
   let copy_reason = if reference_reason.is_empty() {
     ""
@@ -572,118 +600,110 @@ pub fn Session::query(
       charts=true,
       analysis=true,
       threads=true,
+      current_tree~,
     )
   }
-  {
-    "revision": self.revision,
-    "sheets": self.sheets.map(sheet => {
-      let value : Json = {
-        "id": sheet.id,
-        "name": sheet.name,
-        "state": sheet.state,
-        "kind": if sheet.is_chart() {
-          "chartsheet"
-        } else {
-          "worksheet"
-        },
-        "protected": sheet.locked,
-      }
-      value
+  let result : QueryState = {
+    revision: self.revision,
+    sheets: self.sheets.map(sheet => {
+      id: sheet.id,
+      name: sheet.name,
+      state: sheet.state,
+      kind: if sheet.is_chart() {
+        "chartsheet"
+      } else {
+        "worksheet"
+      },
+      locked: sheet.locked,
     }),
-    "mainPart": self.main,
-    "fontKeys": self.font_keys(),
-    "sheet": current.id,
-    "outline": self.outline_query(current),
-    "tables": self.table_query(current),
-    "tableStyles": self
+    mainPart: self.main,
+    fontKeys: self.font_keys(),
+    sheet: current.id,
+    outline: self.outline_query(current, current_tree),
+    tables: self.table_query(current, current_tree),
+    tableStyles: self
     .custom_table_styles(self.parts)
     .values()
     .to_array()
     .map(style => {
-      let value : Json = {
-        "name": style.name,
-        "readOnlyReason": style.reason,
-        "elements": if style.reason.is_empty() {
-          table_element_order()
-          .iter()
-          .filter_map(kind => style.elements.get(kind))
-          .map(TableStyleElement::json)
-          .to_array()
-        } else {
-          []
-        },
-      }
-      value
-    }),
-    "view": {
-      "gridLines": current.view.grid_lines,
-      "headings": current.view.headings,
-      "rtl": current.view.rtl,
-      "formulas": current.view.formulas,
-      "readOnlyReason": self.freeze_reason(current),
-    },
-    "statistics": self.selection_statistics(
-      sheet_index,
-      range.unwrap(),
-      selected,
-    ),
-    "filter": self.filter_query(sheet_index),
-    "sparklines": self.sparkline_query(current),
-    "names": self.names_query(),
-    "hyperlink": self.hyperlink_query(
-      current,
-      current.merge_target(range.unwrap()),
-    ),
-    "cells": cells,
-    "selection": {
-      "sheet": self.selection.0,
-      "range": self.selection.1,
-      "address": self.selection.1.name(),
-    },
-    "canUndo": !self.history.is_empty(),
-    "canRedo": !self.redo.is_empty(),
-    "historyBytes": self.history_bytes,
-    "readOnlyReason": self.read_only,
-    "note": self.note_query(current, range.unwrap()),
-    "sheetEditReason": self.sheet_edit_reason(analysis=true),
-    "protection": self.protection_query(current),
-    "workbookProtection": self.workbook_protection_query(),
-    "sheetRenameReason": reference_reason,
-    "sheetCopyReason": copy_reason,
-    "sheetDeleteReason": copy_reason,
-    "frozen": {
-      "rows": current.frozen.rows,
-      "columns": current.frozen.columns,
-      "readOnlyReason": self.freeze_reason(current),
-    },
-    "printSetup": self.print_setup_query(current),
-    "dataValidation": self.validation_query(sheet_index, range.unwrap()),
-    "conditionalFormats": self.conditional_query(current, conditional),
-    "printRange": self.print_range_query(sheet_index),
-    "headerFooter": self.header_footer_query(current),
-    "dimensions": {
-      "rowHeight": (if self.grid is Some(grid) &&
-        grid.revision == self.revision &&
-        grid.sheet == current.id {
-        grid.dimensions.rows
+      name: style.name,
+      readOnlyReason: style.reason,
+      elements: if style.reason.is_empty() {
+        table_element_order()
+        .iter()
+        .filter_map(kind => style.elements.get(kind))
+        .to_array()
       } else {
-        current.dimensions.rows
-      })
-      .uniform(range.unwrap().top, range.unwrap().bottom)
-      .map(value => Json(value))
-      .unwrap_or(Json::null()),
-      "columnWidth": current.dimensions.columns
-      .uniform(range.unwrap().left, range.unwrap().right)
-      .map(value => Json(value))
-      .unwrap_or(Json::null()),
-      "readOnlyReason": self.dimension_reason(current),
+        []
+      },
+    }),
+    view: {
+      gridLines: current.view.grid_lines,
+      headings: current.view.headings,
+      rtl: current.view.rtl,
+      formulas: current.view.formulas,
+      readOnlyReason: self.freeze_reason(current),
     },
-    "formatting": self.formatting(current, range.unwrap()),
-    "normalFont": self.normal_font,
-    "merging": self.merging(current, range.unwrap()),
-    "diagnostics": diagnostics,
-    "date1904": self.date1904,
+    statistics: self.selection_statistics(sheet_index, range, selected),
+    filter: self.filter_query(sheet_index, tree=current_tree),
+    sparklines: self.sparkline_query(current),
+    names: self.names_query(current_tree),
+    hyperlink: self.hyperlink_query(
+      current,
+      current.merge_target(range),
+      current_tree,
+    ),
+    cells,
+    selection: {
+      sheet: self.selection.0,
+      range: self.selection.1,
+      address: self.selection.1.name(),
+    },
+    canUndo: !self.history.is_empty(),
+    canRedo: !self.redo.is_empty(),
+    historyBytes: self.history_bytes,
+    readOnlyReason: self.read_only,
+    note: self.note_query(current, range),
+    sheetEditReason: self.sheet_edit_reason(analysis=true),
+    protection: self.protection_query(current, current_tree),
+    workbookProtection: self.workbook_protection_query(),
+    sheetRenameReason: reference_reason,
+    sheetCopyReason: copy_reason,
+    sheetDeleteReason: copy_reason,
+    frozen: {
+      rows: current.frozen.rows,
+      columns: current.frozen.columns,
+      readOnlyReason: self.freeze_reason(current),
+    },
+    printSetup: self.print_setup_query(current, current_tree),
+    dataValidation: self.validation_query(sheet_index, range, current_tree),
+    conditionalFormats: self.conditional_query(
+      current, conditional, current_tree,
+    ),
+    printRange: self.print_range_query(sheet_index),
+    headerFooter: self.header_footer_query(current, current_tree),
+    dimensions: {
+      rowHeight: {
+        value: (if self.grid is Some(grid) &&
+          grid.revision == self.revision &&
+          grid.sheet == current.id {
+          grid.dimensions.rows
+        } else {
+          current.dimensions.rows
+        }).uniform(range.top, range.bottom),
+      },
+      columnWidth: {
+        value: current.dimensions.columns.uniform(range.left, range.right),
+      },
+      readOnlyReason: self.dimension_reason(current),
+    },
+    formatting: self.formatting(current, range),
+    normalFont: self.normal_font,
+    merging: self.merging(current, range, selected, current_tree),
+    diagnostics,
+    date1904: self.date1904,
   }
+  ToJson::to_json(result)
 }
 
 ///|
@@ -733,6 +753,7 @@ pub fn Session::select(
 ///|
 pub fn Session::close(self : Session) -> Unit {
   self.closed = true
+  self.read_cache = None
   self.sheets.clear()
   self.parts.clear()
   self.media.clear()

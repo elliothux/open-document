@@ -1,4 +1,8 @@
 import { integer, record } from "@open-document/wasm/abi/validation";
+import {
+  latexSourceUnits,
+  mathFontUnits,
+} from "@open-document/wasm/engine-source";
 import type { MathFormat } from "@open-document/wasm/abi/math";
 export type { MathFormat } from "@open-document/wasm/abi/math";
 
@@ -43,9 +47,9 @@ function text(value: unknown, limit: number): value is string {
 function mathValue(value: Record<string, unknown>): void {
   const format = record(value.format);
   if (
-    !text(value.latex, 131072) ||
+    !text(value.latex, latexSourceUnits) ||
     Object.keys(format).length !== 3 ||
-    !text(format.family, 255) ||
+    !text(format.family, mathFontUnits) ||
     typeof format.size !== "number" ||
     !Number.isFinite(format.size) ||
     format.size < 0.5 ||
@@ -106,23 +110,4 @@ export function checkPptxMathEdit(value: unknown): boolean {
         throw new Error("Invalid equation frame");
     }
   return true;
-}
-export function checkPptxMathItems(value: unknown): void {
-  if (!Array.isArray(value) || value.length > 65536)
-    throw new Error("Invalid equation catalog");
-  const ids = new Set<number>();
-  for (const entry of value) {
-    const item = record(entry);
-    mathValue(item);
-    if (
-      Object.keys(item).length !== 4 ||
-      typeof item.node !== "number" ||
-      !integer(item.node, 0, 2147483647) ||
-      ids.has(item.node) ||
-      typeof item.reason !== "string" ||
-      !item.reason.isWellFormed()
-    )
-      throw new Error("Invalid equation catalog item");
-    ids.add(item.node);
-  }
 }

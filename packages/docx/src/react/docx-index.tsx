@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { DocumentEditor, DocumentIndexes } from "../web/editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { docxIndexLabelUnits } from "@open-document/wasm/engine-source";
 
 export function DocxIndex({
   controller,
@@ -26,7 +27,7 @@ export function DocxIndex({
     controller.run(async () => {
       await editor.whenIdle();
       if (!active) return;
-      const value = await editor.indexes();
+      const value = await editor.pages.indexes();
       if (active) setSource(value);
     });
     return () => {
@@ -44,7 +45,7 @@ export function DocxIndex({
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          controller.run(() => editor.markIndexEntry(label));
+          controller.run(() => editor.pages.markIndexEntry(label));
         }}
       >
         <fieldset disabled={disabled || blocked}>
@@ -52,7 +53,7 @@ export function DocxIndex({
             {t.indexTerm}
             <input
               required
-              maxLength={255}
+              maxLength={docxIndexLabelUnits}
               value={label}
               onChange={(event) => setLabel(event.currentTarget.value)}
             />
@@ -60,7 +61,7 @@ export function DocxIndex({
           <button type="submit">{t.markIndexEntry}</button>
           <button
             type="button"
-            onClick={() => controller.run(() => editor.insertIndex())}
+            onClick={() => controller.run(() => editor.pages.insertIndex())}
           >
             {t.insertIndex}
           </button>
@@ -74,7 +75,7 @@ export function DocxIndex({
             const value = new FormData(event.currentTarget).get("label");
             if (typeof value === "string")
               controller.run(() =>
-                editor.editIndex(source, {
+                editor.pages.editIndex(source, {
                   action: "updateEntry",
                   id: entry.id,
                   label: value,
@@ -88,7 +89,7 @@ export function DocxIndex({
               <input
                 name="label"
                 required
-                maxLength={255}
+                maxLength={docxIndexLabelUnits}
                 defaultValue={entry.label}
               />
             </label>
@@ -97,7 +98,7 @@ export function DocxIndex({
               type="button"
               onClick={() =>
                 controller.run(() =>
-                  editor.editIndex(source, {
+                  editor.pages.editIndex(source, {
                     action: "deleteEntry",
                     id: entry.id,
                   }),
@@ -120,7 +121,7 @@ export function DocxIndex({
             type="button"
             onClick={() =>
               controller.run(() =>
-                editor.editIndex(source, {
+                editor.pages.editIndex(source, {
                   action: "update",
                   paragraph: index.paragraph,
                 }),
@@ -133,7 +134,7 @@ export function DocxIndex({
             type="button"
             onClick={() =>
               controller.run(() =>
-                editor.editIndex(source, {
+                editor.pages.editIndex(source, {
                   action: "delete",
                   paragraph: index.paragraph,
                 }),

@@ -438,7 +438,7 @@ export class EditorController<E extends EditorHost = EditorHost> {
     const previous = this.current();
     const inputLimit =
       this.product.delimited && /\.(csv|tsv)$/i.test(source.name)
-        ? Math.min(previous.inputLimit, 4194304)
+        ? (previous.delimitedInputLimit ?? previous.inputLimit)
         : previous.inputLimit;
     if (
       (source instanceof File ? source.size : (source.bytes?.length ?? 0)) >

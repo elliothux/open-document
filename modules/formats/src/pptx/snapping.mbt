@@ -1,4 +1,13 @@
 ///|
+pub const GridUnitsPerPoint : Int32 = 12700
+
+///|
+pub const GridSpacingMaxPoints : Int32 = 144
+
+///|
+let grid_units : Double = GridUnitsPerPoint.to_double()
+
+///|
 pub(all) struct SnapSettings {
   grid : Bool
   objects : Bool
@@ -11,7 +20,7 @@ pub extend SnapSettings with Eq::{equal, not_equal}
 ///|
 fn read_snapping(tree : Tree?) -> SnapSettings raise @failure.Failure {
   guard tree is Some(tree) else {
-    return { grid: false, objects: true, spacing: 360000.0 / 12700, }
+    return { grid: false, objects: true, spacing: 360000.0 / grid_units, }
   }
   let owner = guide_owner(tree)
   let node = tree.one(
@@ -23,7 +32,7 @@ fn read_snapping(tree : Tree?) -> SnapSettings raise @failure.Failure {
     .map(node => number(node.attribute("cx").unwrap_or("360000"), 1, 2147483647))
     .unwrap_or(360000)
   // ONLYOFFICE normalizes oversized imported grid units before using the stride.
-  while spacing > 1828800 {
+  while spacing > GridSpacingMaxPoints.to_double() * grid_units {
     spacing /= 1000
   }
   {
@@ -31,34 +40,42 @@ fn read_snapping(tree : Tree?) -> SnapSettings raise @failure.Failure {
     objects: owner
     .map(node => flag(node, "snapToObjects", default=true))
     .unwrap_or(true),
-    spacing: spacing.round() / 12700,
+    spacing: spacing.round() / grid_units,
   }
 }
 
 ///|
-fn Session::snapping_query(self : Session) -> Json {
+priv struct SnappingQuery {
+  grid : Bool
+  objects : Bool
+  spacing : Double
+  reason : String
+} derive(ToJson)
+
+///|
+fn Session::snapping_query(self : Session) -> SnappingQuery {
   try {
     let value = read_snapping(self.guide_properties())
     {
-      "grid": value.grid,
-      "objects": value.objects,
-      "spacing": value.spacing,
-      "reason": self.slide_visibility_reason(),
+      grid: value.grid,
+      objects: value.objects,
+      spacing: value.spacing,
+      reason: self.slide_visibility_reason(),
     }
   } catch {
     @failure.Failure(message~, ..) =>
       {
-        "grid": false,
-        "objects": false,
-        "spacing": 360000.0 / 12700,
-        "reason": message,
+        grid: false,
+        objects: false,
+        spacing: 360000.0 / grid_units,
+        reason: message,
       }
   }
 }
 
 ///|
 fn grid_spacing_markup(spacing : Double) -> String {
-  let units = (spacing * 12700).round().to_int64().to_string()
+  let units = (spacing * grid_units).round().to_int64().to_string()
   "<od:gridSpacing xmlns:od=\"\{presentation_uri}\" cx=\"\{units}\" cy=\"\{units}\"/>"
 }
 
@@ -69,7 +86,7 @@ fn grid_spacing_changes(
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let root = tree.root("viewPr")
   if tree.one(root.id, "gridSpacing", uri=presentation_uri) is Some(node) {
-    let units = (spacing * 12700).round().to_int64().to_string()
+    let units = (spacing * grid_units).round().to_int64().to_string()
     return [
       attribute_change({ tree, node, }, "cx", units),
       attribute_change({ tree, node, }, "cy", units),
@@ -98,13 +115,16 @@ fn Session::set_snapping(
 ) -> Json raise @failure.Failure {
   guard !value.spacing.is_nan() &&
     !value.spacing.is_inf() &&
-    value.spacing >= 1.0 / 12700 &&
-    value.spacing <= 144 else {
+    value.spacing >= 1.0 / grid_units &&
+    value.spacing <= GridSpacingMaxPoints.to_double() else {
     @failure.reject(
       "invalid-operation", "Grid spacing must be between one EMU and 144 points",
     )
   }
-  let value = { ..value, spacing: (value.spacing * 12700).round() / 12700, }
+  let value = {
+    ..value,
+    spacing: (value.spacing * grid_units).round() / grid_units,
+  }
   let tree = self.guide_properties()
   let previous = read_snapping(tree)
   if value == previous {
@@ -159,18 +179,30 @@ fn nearest_grid_point(
   size : Double,
   spacing : Double,
 ) -> Double {
-  let stride = (spacing * 12700).round()
+  let stride = (spacing * grid_units).round()
   let origin = grid_origin(size, stride)
-  let delta = (value * 12700 + 0.5).trunc() - origin
+  let delta = (value * grid_units + 0.5).trunc() - origin
   let distance = (delta.abs() / stride + 0.5).floor() * stride
-  (origin + (if delta < 0 { -distance } else { distance })) / 12700
+  (origin + (if delta < 0 { -distance } else { distance })) / grid_units
 }
 
 ///|
 fn grid_origin(size : Double, stride : Double) -> Double {
-  let center = (size * 12700 / 2 + 0.5).trunc()
+  let center = (size * grid_units / 2 + 0.5).trunc()
   center - ((center / stride).trunc() + 1) * stride
 }
+
+///|
+priv struct GridPoint {
+  x : Double
+  y : Double
+} derive(ToJson)
+
+///|
+priv struct GridGeometry {
+  points : Array[GridPoint]
+  cross : Bool
+} derive(ToJson)
 
 ///|
 fn Session::grid_geometry(
@@ -182,8 +214,8 @@ fn Session::grid_geometry(
     @failure.reject("invalid-operation", "Invalid grid display scale")
   }
   let settings = read_snapping(self.guide_properties())
-  let pixels = (units : Double) => (units / 12700 * scale + 0.5).floor()
-  let mut inside = (settings.spacing * 12700).round()
+  let pixels = (units : Double) => (units / grid_units * scale + 0.5).floor()
+  let mut inside = (settings.spacing * grid_units).round()
   let minimum = pixels(100000).max(1)
   while pixels(inside) < minimum {
     inside *= 2
@@ -193,13 +225,13 @@ fn Session::grid_geometry(
     line += inside
   }
   // Keep even a large page with a one-EMU source stride within the overlay budget.
-  while (self.width * 12700 / inside + 2).ceil() *
-        (self.height * 12700 / line + 2).ceil() +
+  let width = self.width * grid_units
+  let height = self.height * grid_units
+  while (width / inside + 2).ceil() * (height / line + 2).ceil() +
         (if line == inside {
           0
         } else {
-          (self.width * 12700 / line + 2).ceil() *
-          (self.height * 12700 / inside + 2).ceil()
+          (width / line + 2).ceil() * (height / inside + 2).ceil()
         }) >
         16384 {
     inside *= 2
@@ -208,23 +240,23 @@ fn Session::grid_geometry(
       line += inside
     }
   }
-  let points : Array[Json] = []
+  let points : Array[GridPoint] = []
   let steps = if line == inside {
     [(inside, line)]
   } else {
     [(inside, line), (line, inside)]
   }
   for (sx, sy) in steps {
-    for y = grid_origin(self.height, sy); y <= self.height * 12700; y = y + sy {
+    for y = grid_origin(self.height, sy); y <= height; y = y + sy {
       if y < 0 {
         continue
       }
-      for x = grid_origin(self.width, sx); x <= self.width * 12700; x = x + sx {
+      for x = grid_origin(self.width, sx); x <= width; x = x + sx {
         if x >= 0 {
-          points.push({ "x": x / 12700, "y": y / 12700 })
+          points.push({ x: x / grid_units, y: y / grid_units, })
         }
       }
     }
   }
-  { "points": points, "cross": pixels(inside) >= 17 }
+  ToJson::to_json(GridGeometry::{ points, cross: pixels(inside) >= 17, })
 }

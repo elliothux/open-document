@@ -172,66 +172,110 @@ fn Session::table_geometry_reason(
 }
 
 ///|
-fn Session::table_query(self : Session) -> Json raise @failure.Failure {
+priv struct TableQuery {
+  object : String
+  rtl : Bool
+  rows : Int32
+  columns : Int32
+  row : Int32
+  column : Int32
+  firstRow : Int32
+  lastRow : Int32
+  firstColumn : Int32
+  lastColumn : Int32
+  rowHeight : Double?
+  columnWidth : Double?
+  reason : String
+  sizeReason : String
+  splitReason : String
+  operations : Map[String, String]
+  format : TableFormatQuery
+  style : TableStyleQuery
+}
+
+///|
+impl ToJson for TableQuery with fn to_json(self) {
+  {
+    "object": self.object,
+    "rtl": self.rtl,
+    "rows": self.rows,
+    "columns": self.columns,
+    "row": self.row,
+    "column": self.column,
+    "firstRow": self.firstRow,
+    "lastRow": self.lastRow,
+    "firstColumn": self.firstColumn,
+    "lastColumn": self.lastColumn,
+    "rowHeight": nullable_json(self.rowHeight),
+    "columnWidth": nullable_json(self.columnWidth),
+    "reason": self.reason,
+    "sizeReason": self.sizeReason,
+    "splitReason": self.splitReason,
+    "operations": self.operations,
+    "format": self.format,
+    "style": self.style,
+  }
+}
+
+///|
+fn Session::table_query(self : Session) -> TableQuery? raise @failure.Failure {
   let selection = self.candidate
     .map(candidate => candidate.selection)
     .unwrap_or(self.selection)
-  guard selection.objects.length() == 1 else { return Json::null() }
+  guard selection.objects.length() == 1 else { return None }
   let object = self.current().object(selection.object)
-  guard object.table is Some(table) else { return Json::null() }
+  guard object.table is Some(table) else { return None }
   let (row, column, style_reason) = self.table_position(object, selection)
   let reason = self.table_geometry_reason(object, selection)
   let range = table.range(selection)
-  let operations : Map[String, Json] = Map([])
+  let operations : Map[String, String] = Map([])
   for
     operation in [
       "insertRowBefore", "insertRowAfter", "deleteRow", "insertColumnBefore", "insertColumnAfter",
       "deleteColumn", "merge", "unmerge",
     ] {
-    operations[operation] = Json(
-      if reason.is_empty() {
-        self.table_operation_reason(object, range, operation)
-      } else {
-        reason
-      },
-    )
+    operations[operation] = if reason.is_empty() {
+      self.table_operation_reason(object, range, operation)
+    } else {
+      reason
+    }
   }
-  {
-    "object": object.id,
-    "rtl": table.rtl,
-    "rows": table.rows.length(),
-    "columns": table.widths.length(),
-    "row": row,
-    "column": column,
-    "firstRow": range.top,
-    "lastRow": range.bottom,
-    "firstColumn": range.left,
-    "lastColumn": range.right,
-    "rowHeight": if table.rows[range.top:range.bottom + 1].all(item => {
+  Some({
+    object: object.id,
+    rtl: table.rtl,
+    rows: table.rows.length(),
+    columns: table.widths.length(),
+    row,
+    column,
+    firstRow: range.top,
+    lastRow: range.bottom,
+    firstColumn: range.left,
+    lastColumn: range.right,
+    rowHeight: if table.rows[range.top:range.bottom + 1].all(item => {
         item.height == table.rows[range.top].height
       }) {
-      Json(table.rows[range.top].height)
+      Some(table.rows[range.top].height)
     } else {
-      Json::null()
+      None
     },
-    "columnWidth": if table.widths[range.left:range.right + 1].all(width => {
+    columnWidth: if table.widths[range.left:range.right + 1].all(width => {
         width == table.widths[range.left]
       }) {
-      Json(table.widths[range.left])
+      Some(table.widths[range.left])
     } else {
-      Json::null()
+      None
     },
-    "reason": reason,
-    "sizeReason": reason,
-    "splitReason": if !reason.is_empty() {
+    reason,
+    sizeReason: reason,
+    splitReason: if !reason.is_empty() {
       reason
     } else if range.owners != 1 {
       "Select one cell to split"
     } else {
       ""
     },
-    "operations": Json(operations),
-    "format": table_format_query(object, selection),
-    "style": table_style_query(table, style_reason),
-  }
+    operations,
+    format: table_format_query(object, selection),
+    style: table_style_query(table, style_reason),
+  })
 }

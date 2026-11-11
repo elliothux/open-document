@@ -1,4 +1,7 @@
 ///|
+pub const DrawingFragmentUnits : Int32 = 4194304
+
+///|
 priv struct DrawingFragment {
   object : SheetObject
   image : Bytes?
@@ -26,8 +29,8 @@ fn SheetObject::check_fragment_identity(
 ///|
 fn drawing_fragment_dimensions() -> Dimensions {
   {
-    rows: { default_size: 14401, spans: [], limit: 1048576, },
-    columns: { default_size: 14401, spans: [], limit: 16384, },
+    rows: { default_size: 14401, spans: [], limit: WorksheetRows, },
+    columns: { default_size: 14401, spans: [], limit: WorksheetColumns, },
     base_column_width: None,
     automatic_rows: Map([]),
     automatic_columns: [],
@@ -66,7 +69,7 @@ pub fn Session::capture_drawing(
   )
   let (document, _) = object.tree.document.edit_source(changes)
   let image = object.media.map(part => self.picture_bytes(part))
-  guard image.map(bytes => bytes.length() <= 2097152).unwrap_or(true) else {
+  guard image.map(bytes => bytes.length() <= ImageInputBytes).unwrap_or(true) else {
     @failure.reject("limit-exceeded", "Copied drawing image exceeds 2MiB")
   }
   let frame = Tree::new(document).picture_markup(object.frame.id)
@@ -100,7 +103,7 @@ pub fn Session::capture_drawing(
     "chart": chart,
   }
   let fragment = payload.stringify()
-  guard fragment.length() <= 4194304 else {
+  guard fragment.length() <= DrawingFragmentUnits else {
     @failure.reject("limit-exceeded", "Drawing clipboard exceeds budget")
   }
   {
@@ -117,7 +120,7 @@ fn read_drawing_fragment(
   source : String,
   budget : @archive.Budget,
 ) -> DrawingFragment raise @failure.Failure {
-  guard source.length() <= 4194304 else {
+  guard source.length() <= DrawingFragmentUnits else {
     @failure.reject("limit-exceeded", "Drawing clipboard exceeds budget")
   }
   let json = @json.parse(source) catch {
@@ -162,7 +165,7 @@ fn read_drawing_fragment(
             "invalid-operation", "Invalid drawing clipboard image",
           )
       }
-      guard bytes.length() <= 2097152 else {
+      guard bytes.length() <= ImageInputBytes else {
         @failure.reject("limit-exceeded", "Copied drawing image exceeds 2MiB")
       }
       ignore(@image.type_info(bytes))
@@ -218,7 +221,7 @@ fn read_drawing_fragment(
     document = insert_sheet_drawing(data, drawing_relation, name="drawing").0
   }
   if bytes is Some(bytes) {
-    let (image_part, mime) = seed.new_picture_part(bytes)
+    let (image_part, mime, _, _) = seed.new_picture_part(bytes)
     let relation = seed.attach_sheet_resource(
       part, image_part, "image", mime, parts, created, edits,
     )
@@ -257,12 +260,7 @@ pub fn Session::drawing_fragment_image(
   self : Session,
   revision : Int32,
   fragment : String,
-) -> Json raise @failure.Failure {
+) -> Bytes? raise @failure.Failure {
   self.check_revision(revision)
-  let decoded = read_drawing_fragment(fragment, self.budget)
-  {
-    "bytes": decoded.image
-    .map(bytes => Json(@base64.encode(bytes)))
-    .unwrap_or(Json::null()),
-  }
+  read_drawing_fragment(fragment, self.budget).image
 }

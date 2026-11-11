@@ -1,24 +1,24 @@
 import type { EngineHandle } from "@open-document/wasm";
 import { engineModule } from "@open-document/wasm/loader";
-import type { Operation } from "../worker/protocol.js";
-import { Connection } from "@open-document/web-core/connection";
-import { decodeImage } from "@open-document/web-core/image";
+import type {
+  OfficeCommand,
+  WorkerOperation,
+} from "@open-document/web-core/protocol";
+import type { Connection } from "@open-document/web-core/connection";
+import { openWorkerConnection } from "@open-document/web-core/worker-connection";
+import { verifyEncodedImage } from "@open-document/web-core/image";
 import { verifyPresentationMedia } from "./presentation-media.js";
 export { preparePresentationMedia } from "./presentation-media.js";
 import {
-  pptxResult,
-  checkPptxObjectEdit,
-  checkPptxSlideEdit,
   preparePptxSearch,
-  checkPptxShow,
-  checkPptxTextFragment,
-  checkPptxObjectFragment,
-  checkPptxImportInput,
+  checkPptxInput,
+  type PptxInputLimits,
   type PptxCommand,
   type PptxResult,
 } from "../core/pptx.js";
-import { resourceBudget, type Budget } from "@open-document/wasm/abi/session";
+import type { Budget } from "@open-document/wasm/abi/session";
 export type {
+  PptxInputLimits,
   MathFormat,
   PptxMathTarget,
   PptxMathValue,
@@ -92,47 +92,42 @@ export {
   pptxInsertKinds,
 } from "../core/pptx.js";
 
+type Operation = WorkerOperation<OfficeCommand<PptxCommand>>;
+
 /** A Worker owns presentation state, layout, history and source bytes. */
 export class PptxClient {
   private readonly events = new AbortController();
-  private constructor(private readonly connection: Connection<Operation>) {}
+  private constructor(
+    private readonly connection: Connection<Operation, PptxInputLimits>,
+  ) {}
   static async open(
     engine: EngineHandle,
     workerUrl: URL,
     signal?: AbortSignal,
   ): Promise<PptxClient> {
-    const client = new PptxClient(
-      new Connection<Operation>(new Worker(workerUrl, { type: "module" })),
-    );
-    try {
-      await client.connection.initialize(
-        { operation: "initialize", module: engineModule(engine) },
+    return new PptxClient(
+      await openWorkerConnection<Operation, PptxInputLimits>(
+        engineModule(engine),
+        workerUrl,
         signal,
-      );
-      return client;
-    } catch (error) {
-      client.dispose();
-      throw error;
-    }
+      ),
+    );
+  }
+  inputLimits(): PptxInputLimits {
+    return this.connection.inputLimits();
   }
   async defaultBudget(): Promise<Budget> {
-    return resourceBudget(
-      await this.connection.request({ operation: "budget" }),
-    );
+    return (await this.connection.request({ operation: "budget" })) as Budget;
   }
   async addFont(bytes: Uint8Array, identity: string): Promise<void> {
     await this.connection.request({ operation: "font", bytes, identity });
   }
   async execute<C extends PptxCommand>(command: C): Promise<PptxResult<C>> {
+    checkPptxInput(command, this.inputLimits());
     if (
       command.operation === "inspectPptxSlides" ||
       command.operation === "importPptxSlides"
     ) {
-      checkPptxImportInput(
-        command.bytes,
-        command.indices,
-        command.operation === "importPptxSlides",
-      );
       command = {
         ...command,
         bytes: new Uint8Array(command.bytes),
@@ -146,19 +141,17 @@ export class PptxClient {
         revision: command.revision,
         bytes: command.bytes,
         indices: command.indices,
+        prepareResources: true,
+        verifyImages: true,
       });
-      for (const image of info.images) {
-        const { bitmap } = await decodeImage(
-          Uint8Array.from(atob(image), (c) => c.charCodeAt(0)),
-          this.events.signal,
-        );
-        bitmap.close();
-      }
+      for (const image of info.images)
+        await verifyEncodedImage(image.bytes, image.header, this.events.signal);
       for (const media of info.media)
         await verifyPresentationMedia(
-          Uint8Array.from(atob(media.bytes), (c) => c.charCodeAt(0)),
+          media.bytes,
           media.kind,
           media.contentType,
+          this.inputLimits(),
           this.events.signal,
         );
       const after = await this.execute({ operation: "queryPptx" });
@@ -169,19 +162,11 @@ export class PptxClient {
         throw new Error("Selection changed during slide import preparation");
     }
     if (
-      command.operation === "controlShowPptx" ||
-      command.operation === "inkShowPptx" ||
-      command.operation === "mediaShowPptx" ||
-      command.operation === "layoutShowPptx"
-    )
-      checkPptxShow(command);
-    if (command.operation === "editPptxObjects")
-      checkPptxObjectEdit(command.change);
-    if (
       command.operation === "editPptxObjects" &&
       (command.change.action === "insertMedia" ||
         command.change.action === "fillMedia")
     ) {
+      const poster = new Uint8Array(command.change.poster);
       const before =
         command.change.action === "fillMedia"
           ? await this.execute({ operation: "queryPptx" })
@@ -190,13 +175,10 @@ export class PptxClient {
         command.change.bytes,
         command.change.kind,
         command.change.contentType,
+        this.inputLimits(),
         this.events.signal,
       );
-      const { bitmap } = await decodeImage(
-        command.change.poster,
-        this.events.signal,
-      );
-      bitmap.close();
+      await this.verifyRaster(poster);
       if (before) {
         const after = await this.execute({ operation: "queryPptx" });
         if (
@@ -205,43 +187,24 @@ export class PptxClient {
         )
           throw new Error("Selection changed during media preparation");
       }
+      command = { ...command, change: { ...command.change, poster } };
     }
-    if (command.operation === "editPptxSlides")
-      checkPptxSlideEdit(command.change);
-    if (command.operation === "pastePptxFragment")
-      checkPptxTextFragment(command.fragment);
-    if (
-      command.operation === "pastePptxObjects" ||
-      command.operation === "objectFragmentImagesPptx" ||
-      command.operation === "objectFragmentMediaPptx"
-    )
-      checkPptxObjectFragment(command.fragment);
     if (command.operation === "pastePptxObjects") {
       const before = await this.execute({ operation: "queryPptx" });
-      const images = await this.execute({
-        operation: "objectFragmentImagesPptx",
+      const { images, media } = await this.execute({
+        operation: "objectFragmentResourcesPptx",
         revision: command.revision,
         fragment: command.fragment,
+        verifyImages: true,
       });
-      for (const encoded of images) {
-        const bytes = Uint8Array.from(atob(encoded), (character) =>
-          character.charCodeAt(0),
-        );
-        const { bitmap } = await decodeImage(bytes, this.events.signal);
-        bitmap.close();
-      }
-      const media = await this.execute({
-        operation: "objectFragmentMediaPptx",
-        revision: command.revision,
-        fragment: command.fragment,
-      });
+      for (const image of images)
+        await verifyEncodedImage(image.bytes, image.header, this.events.signal);
       for (const clip of media)
         await verifyPresentationMedia(
-          Uint8Array.from(atob(clip.bytes), (character) =>
-            character.charCodeAt(0),
-          ),
+          clip.bytes,
           clip.kind,
           clip.contentType,
+          this.inputLimits(),
           this.events.signal,
         );
       const after = await this.execute({ operation: "queryPptx" });
@@ -259,15 +222,24 @@ export class PptxClient {
       (command.operation === "editPptxSlides" &&
         command.change.action === "backgroundImage")
     ) {
-      const { bitmap } = await decodeImage(command.change.bytes);
-      bitmap.close();
+      const bytes = new Uint8Array(command.change.bytes);
+      await this.verifyRaster(bytes);
+      command = { ...command, change: { ...command.change, bytes } };
     }
     const request =
       command.operation === "findPptx" ||
       command.operation === "replacePptxMatches"
         ? preparePptxSearch(command)
         : command;
-    return pptxResult(command, await this.connection.request(request));
+    return (await this.connection.request(request)) as PptxResult<C>;
+  }
+  private async verifyRaster(bytes: Uint8Array): Promise<void> {
+    const header = await this.execute({
+      operation: "rasterHeaderPptx",
+      bytes,
+      verify: true,
+    });
+    await verifyEncodedImage(bytes, header, this.events.signal);
   }
   dispose(): void {
     this.events.abort();

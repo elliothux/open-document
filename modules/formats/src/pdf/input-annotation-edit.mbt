@@ -6,7 +6,27 @@ pub(all) struct PdfAnnotationStyle {
   border : Double
   author : String
   text : String
-}
+} derive(ToJson)
+
+///|
+pub extend PdfAnnotationStyle with ToJson::{to_json}
+
+///|
+pub struct PdfAnnotationDetails {
+  revision : Int32
+  page : String
+  annotation : String
+  kind : String
+  style : PdfAnnotationStyle
+  points : Array[Double]
+  strokes : Array[Array[Double]]
+  arrow : Bool
+  replyTo : String
+  signature : Bool
+} derive(ToJson)
+
+///|
+pub extend PdfAnnotationDetails with ToJson::{to_json}
 
 ///|
 fn PdfSession::annotation_target(
@@ -79,7 +99,7 @@ fn annotation_placement(
 }
 
 ///|
-fn annotation_points_json(
+fn annotation_points(
   page : SourcePage,
   value : @syntax.PdfObject,
 ) -> Array[Double] raise @failure.Failure {
@@ -104,7 +124,7 @@ pub fn PdfSession::annotation_details(
   revision : Int32,
   id : String,
   annotation : String,
-) -> Json raise @failure.Failure {
+) -> PdfAnnotationDetails raise @failure.Failure {
   self.check(revision)
   pdf_bound(self.budget, () => {
     let page = self.page(id)
@@ -141,51 +161,51 @@ pub fn PdfSession::annotation_details(
       }
     }
     let strokes = match get(self.document, object, "InkList") {
-      PdfArray(paths) => paths.map(path => annotation_points_json(page, path))
+      PdfArray(paths) => paths.map(path => annotation_points(page, path))
       PdfNull => []
       _ => @failure.reject("protected-content", "Ink strokes are malformed")
     }
     let points = if raw(object, "L") == @syntax.PdfNull {
       []
     } else {
-      annotation_points_json(page, raw(object, "L"))
+      annotation_points(page, raw(object, "L"))
     }
     let parent = raw(object, "IRT")
     {
-      "revision": revision,
-      "page": id,
-      "annotation": annotation,
-      "kind": kind,
-      "style": {
-        "placement": annotation_placement(page, object),
-        "color": color,
-        "opacity": if alpha == @syntax.PdfNull {
+      revision,
+      page: id,
+      annotation,
+      kind,
+      style: {
+        placement: annotation_placement(page, object),
+        color,
+        opacity: if alpha == @syntax.PdfNull {
           1.0
         } else {
           number(alpha)
         },
-        "border": border,
-        "author": if raw(object, "T") == @syntax.PdfNull {
+        border,
+        author: if raw(object, "T") == @syntax.PdfNull {
           ""
         } else {
           pdf_text_string(raw(object, "T"))
         },
-        "text": if raw(object, "Contents") == @syntax.PdfNull {
+        text: if raw(object, "Contents") == @syntax.PdfNull {
           ""
         } else {
           pdf_text_string(raw(object, "Contents"))
         },
       },
-      "points": points,
-      "strokes": strokes,
-      "arrow": raw(object, "LE") ==
+      points,
+      strokes,
+      arrow: raw(object, "LE") ==
       @syntax.PdfArray([tag("None"), tag("OpenArrow")]),
-      "replyTo": match parent {
+      replyTo: match parent {
         PdfIndirect(number) =>
           "\{number}:\{self.generations.get(number).unwrap_or(0)}"
         _ => ""
       },
-      "signature": raw(object, "ODSignature") == @syntax.PdfBoolean(true),
+      signature: raw(object, "ODSignature") == @syntax.PdfBoolean(true),
     }
   })
 }

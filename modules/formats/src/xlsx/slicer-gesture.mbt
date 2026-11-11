@@ -27,7 +27,7 @@ pub fn Session::slicer_gesture(
       !value.is_nan() && !value.is_inf() && value.abs() <= 14400
     }) &&
     position >= 0 &&
-    position <= 4095 else {
+    position < SlicerMembers else {
     @failure.reject("invalid-operation", "Invalid slicer gesture position")
   }
   object.check_change(false, analysis_frame=true)

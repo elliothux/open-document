@@ -1,4 +1,7 @@
 ///|
+pub const CopiedNoteSourceUnits : Int32 = 2097152
+
+///|
 pub(all) struct CopiedNotes {
   comments : String
   vml : String?
@@ -15,7 +18,7 @@ fn CopiedNotes::read(
     self.vml.map(text => text.length().to_int64()).unwrap_or(0L) +
     self.threads.map(text => text.length().to_int64()).unwrap_or(0L) +
     self.people.map(text => text.length().to_int64()).unwrap_or(0L) <=
-    2097152L else {
+    CopiedNoteSourceUnits.to_int64() else {
     @failure.reject("limit-exceeded", "Copied note source exceeds budget")
   }
   let tree = Tree::new(
@@ -125,7 +128,7 @@ fn Session::capture_notes(
     // Source GUIDs identify the original note; copied legacy notes use their new part/shape identity.
     let markup = "<od:comment ref=\"\{note.address.name()}\" authorId=\"\{author}\"\{shape_id}\{revision}>\{style_markup(notes.tree, note.body)}</od:comment>"
     units += markup.length().to_int64()
-    guard units <= 2097152L else {
+    guard units <= CopiedNoteSourceUnits.to_int64() else {
       @failure.reject("limit-exceeded", "Copied note source exceeds budget")
     }
     comments.write_string(markup)
@@ -134,7 +137,7 @@ fn Session::capture_notes(
       types[shape.attribute("type").unwrap()[1:].to_owned()] = true
       let markup = style_markup(tree, shape)
       units += markup.length().to_int64()
-      guard units <= 2097152L else {
+      guard units <= CopiedNoteSourceUnits.to_int64() else {
         @failure.reject("limit-exceeded", "Copied note source exceeds budget")
       }
       shapes.write_string(markup)
@@ -144,7 +147,7 @@ fn Session::capture_notes(
   for author in authors {
     let markup = "<od:author>\{encode_text(author)}</od:author>"
     units += markup.length().to_int64()
-    guard units <= 2097152L else {
+    guard units <= CopiedNoteSourceUnits.to_int64() else {
       @failure.reject("limit-exceeded", "Copied note source exceeds budget")
     }
     names.write_string(markup)
@@ -159,7 +162,7 @@ fn Session::capture_notes(
         types.contains(node.attribute("id").unwrap_or("")) {
         let markup = style_markup(tree, node)
         units += markup.length().to_int64()
-        guard units <= 2097152L else {
+        guard units <= CopiedNoteSourceUnits.to_int64() else {
           @failure.reject("limit-exceeded", "Copied note source exceeds budget")
         }
         definitions.write_string(markup)

@@ -1,4 +1,7 @@
 ///|
+pub const PrintSheetLimit : Int32 = 256
+
+///|
 pub(all) enum PrintSheets {
   CurrentSheet
   VisibleSheets
@@ -94,9 +97,10 @@ pub fn Session::print_layout(
         self.sheets[i].state == "visible"
       })
     SelectedSheets(ids) => {
-      guard !ids.is_empty() && ids.length() <= 256 else {
+      guard !ids.is_empty() && ids.length() <= PrintSheetLimit else {
         @failure.reject(
-          "invalid-sheet", "Select between one and 256 worksheets to print",
+          "invalid-sheet",
+          "Select between one and \{PrintSheetLimit} worksheets to print",
         )
       }
       let selected : Map[Int32, Bool] = Map([])

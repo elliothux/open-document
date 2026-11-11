@@ -2,6 +2,11 @@ import { useEffect, useState } from "react";
 import type { PptxGuide } from "../web/pptx.js";
 import type { PanelProps } from "./panels.js";
 import { messages } from "@open-document/ui/messages";
+import {
+  pptxGridSpacingMaxPoints,
+  pptxGridUnitsPerPoint,
+  pptxGuideCount,
+} from "@open-document/wasm/engine-source";
 
 export function PptxGuides({ controller, state, file, disabled }: PanelProps) {
   const query = file.format === "pptx" ? file.editor.query : undefined,
@@ -44,14 +49,14 @@ export function PptxGuides({ controller, state, file, disabled }: PanelProps) {
         <p>{t.pptxGuidesHint}</p>
         <button
           type="button"
-          disabled={items.length >= 64}
+          disabled={items.length >= pptxGuideCount}
           onClick={() => add("horz")}
         >
           {t.pptxAddHorizontalGuide}
         </button>
         <button
           type="button"
-          disabled={items.length >= 64}
+          disabled={items.length >= pptxGuideCount}
           onClick={() => add("vert")}
         >
           {t.pptxAddVerticalGuide}
@@ -191,8 +196,8 @@ export function PptxSnapping({
           <input
             type="number"
             required
-            min={1 / 12700}
-            max={144}
+            min={1 / pptxGridUnitsPerPoint}
+            max={pptxGridSpacingMaxPoints}
             step="any"
             value={spacing}
             onChange={(event) => setSpacing(event.currentTarget.value)}

@@ -2,17 +2,22 @@
 package "open_document/bridge/common"
 
 import {
+  "moonbitlang/core/json",
+  "open_document/core/archive",
   "open_document/core/failure",
+  "open_document/layout",
 }
 
 // Values
+pub fn abi_version() -> Int32
+
 pub fn archive_budget() -> Json
 
-pub fn field_boolean(Json, String) -> Bool raise @failure.Failure
+pub fn byte_input(String, Int32) -> Bytes raise @failure.Failure
+
+pub fn encoded_response(() -> String raise @failure.Failure) -> String
 
 pub fn field_int(Json, String) -> Int32 raise @failure.Failure
-
-pub fn field_number(Json, String) -> Double raise @failure.Failure
 
 pub fn field_string(Json, String) -> String raise @failure.Failure
 
@@ -20,17 +25,96 @@ pub fn font_input_bytes(String) -> Bytes raise @failure.Failure
 
 pub fn font_profile(Json) -> Map[String, String] raise @failure.Failure
 
-pub fn input_bytes(Json, Int32) -> Bytes raise @failure.Failure
+pub fn image_header(Bytes) -> ImageHeader
 
-pub fn optional_string(Json, String) -> String? raise @failure.Failure
+pub fn image_header_window(Bytes, Int64, Int64, office? : Bool, verify? : (Bytes) -> Bool) -> ImageHeader
 
-pub fn parse_request(String) -> Json raise @failure.Failure
+pub fn image_response(OutputBytes, Bytes, @layout.ImageResource?, verify? : (Bytes) -> Bool) -> Json
+
+pub fn office_upload_header(Json, Int32, (Bytes) -> Bool) -> Json raise @failure.Failure
+
+pub fn parse_request(String, first? : String, second? : String) -> Json raise @failure.Failure
+
+pub fn[T : @json.FromJson] request(Json) -> T raise @failure.Failure
+
+pub fn request_revision(Json) -> Int32 raise @failure.Failure
 
 pub fn response(() -> Json raise @failure.Failure) -> String
 
 // Errors
 
 // Types and methods
+pub struct ActionRequest {
+  action : String
+} derive(@json.FromJson)
+pub fn ActionRequest::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
+
+pub struct BytesRequest {
+  bytes : String
+} derive(@json.FromJson)
+pub fn BytesRequest::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
+
+pub(all) enum ImageHeader {
+  ImageDimensions(Int32, Int32, transpose~ : Bool, verified~ : Bool)
+  ImageReadAt(Int64)
+  ImageError(String)
+}
+pub fn ImageHeader::to_json(Self) -> Json
+pub impl ToJson for ImageHeader
+
+pub struct OperationRequest {
+  operation : String
+} derive(@json.FromJson)
+pub fn OperationRequest::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
+
+pub struct OutlineDelta {
+  mut previous : Map[String, String]
+  mut encoded : (Json, String)?
+}
+pub fn OutlineDelta::clear(Self) -> Unit
+pub fn OutlineDelta::drawing(Self, Json) -> Json
+pub fn OutlineDelta::encode(Self, Json) -> Json
+pub fn OutlineDelta::encode_string(Self, Json) -> String
+pub fn OutlineDelta::new() -> Self
+
+pub struct OutputBytes {
+  parts : Array[Bytes?]
+}
+pub fn OutputBytes::add(Self, Bytes) -> Int32
+pub fn OutputBytes::clear(Self) -> Unit
+pub fn OutputBytes::new() -> Self
+pub fn OutputBytes::take(Self, Int32) -> Bytes?
+pub fn OutputBytes::take_string(Self, Int32) -> String?
+
+pub struct RequestArchiveBudget {
+  value : @archive.Budget
+}
+pub fn RequestArchiveBudget::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
+pub impl @json.FromJson for RequestArchiveBudget
+
+pub struct RequestInt {
+  value : Int32
+}
+pub fn RequestInt::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
+pub impl @json.FromJson for RequestInt
+
+pub struct RequestNumber {
+  value : Double
+}
+pub fn RequestNumber::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
+pub impl @json.FromJson for RequestNumber
+
+pub struct RequestProfile {
+  value : Map[String, String]
+}
+pub fn RequestProfile::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
+pub impl @json.FromJson for RequestProfile
+
+pub struct RequiredNullable[T] {
+  value : T?
+}
+pub fn[T : @json.FromJson] RequiredNullable::from_json(Json, @json.JsonPath) -> Self[T] raise @json.JsonDecodeError
+pub impl[T : @json.FromJson] @json.FromJson for RequiredNullable[T]
 
 // Type aliases
 

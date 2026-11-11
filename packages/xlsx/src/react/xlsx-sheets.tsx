@@ -2,6 +2,10 @@ import { useState } from "react";
 import type { SpreadsheetEditor } from "../web/spreadsheet-editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import {
+  xlsxDateSeriesStepMax,
+  xlsxWorksheetCount,
+} from "@open-document/wasm/engine-source";
 
 interface SheetProps {
   controller: EditorController;
@@ -57,7 +61,9 @@ export function XlsxSheets({
           key={sheet.id}
           aria-current={sheet.id === query.sheet ? "page" : undefined}
           disabled={disabled}
-          onClick={() => controller.run(() => editor.select("A1", sheet.id))}
+          onClick={() =>
+            controller.run(() => editor.objects.select("A1", sheet.id))
+          }
         >
           {sheet.name}
         </button>
@@ -66,18 +72,22 @@ export function XlsxSheets({
         <legend>{t.manageSheets}</legend>
         <button
           type="button"
-          disabled={query.sheets.length >= 256 || !!query.sheetEditReason}
+          disabled={
+            query.sheets.length >= xlsxWorksheetCount || !!query.sheetEditReason
+          }
           onClick={() =>
-            controller.run(() => editor.editSheet({ action: "add" }))
+            controller.run(() => editor.objects.editSheet({ action: "add" }))
           }
         >
           {t.addSheet}
         </button>
         <button
           type="button"
-          disabled={query.sheets.length >= 256 || !!query.sheetCopyReason}
+          disabled={
+            query.sheets.length >= xlsxWorksheetCount || !!query.sheetCopyReason
+          }
           onClick={() =>
-            controller.run(() => editor.editSheet({ action: "copy" }))
+            controller.run(() => editor.objects.editSheet({ action: "copy" }))
           }
         >
           {t.copySheet}
@@ -86,7 +96,7 @@ export function XlsxSheets({
           type="button"
           disabled={visible.length <= 1 || !!query.sheetDeleteReason}
           onClick={() =>
-            controller.run(() => editor.editSheet({ action: "delete" }))
+            controller.run(() => editor.objects.editSheet({ action: "delete" }))
           }
         >
           {t.deleteSheet}
@@ -95,7 +105,7 @@ export function XlsxSheets({
           onSubmit={(event) => {
             event.preventDefault();
             controller.run(async () => {
-              await editor.editSheet({ action: "rename", name });
+              await editor.objects.editSheet({ action: "rename", name });
               setName("");
             });
           }}
@@ -123,7 +133,7 @@ export function XlsxSheets({
           disabled={position <= 0 || !!query.sheetEditReason}
           onClick={() =>
             controller.run(() =>
-              editor.editSheet({ action: "move", index: position - 1 }),
+              editor.objects.editSheet({ action: "move", index: position - 1 }),
             )
           }
         >
@@ -136,7 +146,7 @@ export function XlsxSheets({
           }
           onClick={() =>
             controller.run(() =>
-              editor.editSheet({ action: "move", index: position + 1 }),
+              editor.objects.editSheet({ action: "move", index: position + 1 }),
             )
           }
         >
@@ -147,7 +157,10 @@ export function XlsxSheets({
           disabled={visible.length <= 1 || !!query.sheetEditReason}
           onClick={() =>
             controller.run(() =>
-              editor.editSheet({ action: "visibility", state: "hidden" }),
+              editor.objects.editSheet({
+                action: "visibility",
+                state: "hidden",
+              }),
             )
           }
         >
@@ -173,7 +186,7 @@ export function XlsxSheets({
           disabled={!target || !!query.sheetEditReason}
           onClick={() =>
             controller.run(() =>
-              editor.editSheet(
+              editor.objects.editSheet(
                 { action: "visibility", state: "visible" },
                 target,
               ),
@@ -247,8 +260,8 @@ export function XlsxSheets({
                   <input
                     type="number"
                     step={dateUnit === "day" ? "any" : "1"}
-                    min={-2958465}
-                    max={2958465}
+                    min={-xlsxDateSeriesStepMax}
+                    max={xlsxDateSeriesStepMax}
                     value={dateStep}
                     onChange={(event) => setDateStep(event.currentTarget.value)}
                   />
@@ -298,7 +311,7 @@ export function XlsxSheets({
             }
             onClick={() =>
               controller.run(() =>
-                editor.editSheet(
+                editor.objects.editSheet(
                   series
                     ? {
                         action: "series",
@@ -338,7 +351,7 @@ export function XlsxSheets({
             type="button"
             onClick={() =>
               controller.run(() =>
-                editor.editSheet({
+                editor.objects.editSheet({
                   ...change,
                   range: editor.currentState.selection.address,
                 }),
@@ -363,7 +376,7 @@ export function XlsxSheets({
               controller.run(() => {
                 const range = editor.currentState.selection.range,
                   rows = action.endsWith("Rows");
-                return editor.editSheet({
+                return editor.objects.editSheet({
                   action,
                   first: rows ? range.top : range.left,
                   count: rows
@@ -393,7 +406,7 @@ export function XlsxSheets({
             event.preventDefault();
             controller.run(async () => {
               const range = editor.currentState.selection.range;
-              await editor.editSheet({
+              await editor.objects.editSheet({
                 action: "rowHeight",
                 first: range.top,
                 last: range.bottom,
@@ -429,7 +442,7 @@ export function XlsxSheets({
             event.preventDefault();
             controller.run(async () => {
               const range = editor.currentState.selection.range;
-              await editor.editSheet({
+              await editor.objects.editSheet({
                 action: "columnWidth",
                 first: range.left,
                 last: range.right,
@@ -481,7 +494,7 @@ export function XlsxView({ controller, state, editor, disabled }: SheetProps) {
             checked={query.view[key]}
             onChange={(event) =>
               controller.run(() =>
-                editor.editSheet({
+                editor.objects.editSheet({
                   action: "view",
                   gridLines: query.view.gridLines,
                   headings: query.view.headings,
@@ -518,7 +531,7 @@ export function XlsxFrozen({
         }
         onClick={() =>
           controller.run(() =>
-            editor.editSheet({
+            editor.objects.editSheet({
               action: "freeze",
               rows: query.selection.range.top - 1,
               columns: query.selection.range.left - 1,
@@ -532,7 +545,7 @@ export function XlsxFrozen({
         type="button"
         onClick={() =>
           controller.run(() =>
-            editor.editSheet({ action: "freeze", rows: 1, columns: 0 }),
+            editor.objects.editSheet({ action: "freeze", rows: 1, columns: 0 }),
           )
         }
       >
@@ -542,7 +555,7 @@ export function XlsxFrozen({
         type="button"
         onClick={() =>
           controller.run(() =>
-            editor.editSheet({ action: "freeze", rows: 0, columns: 1 }),
+            editor.objects.editSheet({ action: "freeze", rows: 0, columns: 1 }),
           )
         }
       >
@@ -553,7 +566,7 @@ export function XlsxFrozen({
         disabled={query.frozen.rows === 0 && query.frozen.columns === 0}
         onClick={() =>
           controller.run(() =>
-            editor.editSheet({ action: "freeze", rows: 0, columns: 0 }),
+            editor.objects.editSheet({ action: "freeze", rows: 0, columns: 0 }),
           )
         }
       >

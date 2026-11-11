@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { PanelProps } from "./panels.js";
 import { messages } from "@open-document/ui/messages";
+import { pptxSourceNameUnits } from "@open-document/wasm/engine-source";
 import { PptxMasterText } from "./pptx-master-text.js";
 
 export function PptxDesign({ controller, state, file, disabled }: PanelProps) {
@@ -29,7 +30,7 @@ export function PptxDesign({ controller, state, file, disabled }: PanelProps) {
             {t.pptxSourceName}
             <input
               type="text"
-              maxLength={1024}
+              maxLength={pptxSourceNameUnits}
               value={name}
               disabled={!!operations.rename}
               onChange={(event) => setName(event.currentTarget.value)}

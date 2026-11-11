@@ -1,4 +1,7 @@
 ///|
+pub const SortKeys : Int32 = 16
+
+///|
 pub(all) struct SortKey {
   index : Int32
   descending : Bool
@@ -104,7 +107,7 @@ fn Session::sort_cells(
     4096 else {
     @failure.reject("limit-exceeded", "Sorting exceeds 4096 cells")
   }
-  guard !settings.keys.is_empty() && settings.keys.length() <= 16 else {
+  guard !settings.keys.is_empty() && settings.keys.length() <= SortKeys else {
     @failure.reject("invalid-operation", "Sorting requires 1 to 16 keys")
   }
   let (low, high, first, last) = if settings.rows {
@@ -222,7 +225,7 @@ fn Session::sort_cells(
       }
       let value = if cell.bind(c => c.formula) is Some(_) {
         self.calculation
-        .bind(c => c.values.get((index, name)))
+        .bind(c => c.values.get((index, address)))
         .unwrap_or_error(
           @failure.Failure(
             code="unsupported-formula",

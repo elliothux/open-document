@@ -1,3 +1,14 @@
+import {
+  officePasswordUnits,
+  xlsxAxisEditCount,
+  xlsxConditionalRangeUnits,
+  xlsxConditionalRuleCount,
+  xlsxDateSeriesStepMax,
+  xlsxNoteTextUnits,
+  xlsxWorksheetColumns,
+  xlsxWorksheetCount,
+  xlsxWorksheetRows,
+} from "@open-document/wasm/engine-source";
 import { record, integer } from "@open-document/wasm/abi/validation";
 import {
   checkXlsxSubtotalSettings,
@@ -252,7 +263,8 @@ export function checkXlsxSheetEdit(value: unknown): void {
   ) {
     if (
       typeof change.enabled !== "boolean" ||
-      (change.password !== undefined && !noteText(change.password, 255)) ||
+      (change.password !== undefined &&
+        !noteText(change.password, officePasswordUnits)) ||
       Object.keys(change).some(
         (key) => !["action", "enabled", "password"].includes(key),
       )
@@ -341,7 +353,8 @@ export function checkXlsxSheetEdit(value: unknown): void {
   if (change.action === "note") {
     if (
       !noteCell(change.cell) ||
-      (change.text !== null && !noteText(change.text, 32767, true)) ||
+      (change.text !== null &&
+        !noteText(change.text, xlsxNoteTextUnits, true)) ||
       (change.author !== undefined &&
         (!noteText(change.author, 255, true) ||
           Array.from(change.author).some((c) => c.codePointAt(0)! < 32))) ||
@@ -415,7 +428,7 @@ export function checkXlsxSheetEdit(value: unknown): void {
     if (change.action === "conditionalPriority") {
       if (
         !integer(change.priority, 1, 2147483647) ||
-        !integer(change.position, 0, 4095)
+        !integer(change.position, 0, xlsxConditionalRuleCount - 1)
       )
         throw new Error("Invalid conditional priority");
     } else {
@@ -423,7 +436,7 @@ export function checkXlsxSheetEdit(value: unknown): void {
         (change.priority !== null &&
           !integer(change.priority, 1, 2147483647)) ||
         typeof change.ranges !== "string" ||
-        change.ranges.length > 262144 ||
+        change.ranges.length > xlsxConditionalRangeUnits ||
         (!change.ranges && (change.rule !== null || change.priority === null))
       )
         throw new Error("Invalid conditional ranges or priority");
@@ -498,7 +511,7 @@ export function checkXlsxSheetEdit(value: unknown): void {
         !["day", "weekday", "month", "year"].includes(change.unit) ||
         typeof change.step !== "number" ||
         !Number.isFinite(change.step) ||
-        Math.abs(change.step) > 2958465 ||
+        Math.abs(change.step) > xlsxDateSeriesStepMax ||
         (change.unit !== "day" && !Number.isInteger(change.step)))
     )
       throw new Error("Invalid date series unit or step");
@@ -522,13 +535,15 @@ export function checkXlsxSheetEdit(value: unknown): void {
       String(change.action),
     )
   ) {
-    const limit = String(change.action).endsWith("Rows") ? 1048576 : 16384;
+    const limit = String(change.action).endsWith("Rows")
+      ? xlsxWorksheetRows
+      : xlsxWorksheetColumns;
     if (
       !integer(change.first, 1, limit) ||
       !integer(
         change.count,
         1,
-        Math.min(4096, limit - Number(change.first) + 1),
+        Math.min(xlsxAxisEditCount, limit - Number(change.first) + 1),
       )
     )
       throw new Error("Invalid structural row or column interval");
@@ -548,8 +563,8 @@ export function checkXlsxSheetEdit(value: unknown): void {
   }
   if (
     change.action === "freeze" &&
-    integer(change.rows, 0, 1048575) &&
-    integer(change.columns, 0, 16383)
+    integer(change.rows, 0, xlsxWorksheetRows - 1) &&
+    integer(change.columns, 0, xlsxWorksheetColumns - 1)
   )
     return;
   if (
@@ -568,11 +583,15 @@ export function checkXlsxSheetEdit(value: unknown): void {
     return;
   if (
     (change.action === "rowHeight" || change.action === "columnWidth") &&
-    integer(change.first, 1, change.action === "rowHeight" ? 1048576 : 16384) &&
+    integer(
+      change.first,
+      1,
+      change.action === "rowHeight" ? xlsxWorksheetRows : xlsxWorksheetColumns,
+    ) &&
     integer(
       change.last,
       Number(change.first),
-      change.action === "rowHeight" ? 1048576 : 16384,
+      change.action === "rowHeight" ? xlsxWorksheetRows : xlsxWorksheetColumns,
     ) &&
     typeof change.size === "number" &&
     Number.isFinite(change.size) &&
@@ -596,7 +615,11 @@ export function checkXlsxSheetEdit(value: unknown): void {
     !change.name.includes("\uffff")
   )
     return;
-  if (change.action === "move" && integer(change.index, 0, 255)) return;
+  if (
+    change.action === "move" &&
+    integer(change.index, 0, xlsxWorksheetCount - 1)
+  )
+    return;
   if (
     change.action === "visibility" &&
     ["visible", "hidden", "veryHidden"].includes(String(change.state))
@@ -618,11 +641,11 @@ export function noteCell(value: unknown): value is string {
   return (
     !!match &&
     match[0] === value &&
-    Number(match[2]) <= 1048576 &&
+    Number(match[2]) <= xlsxWorksheetRows &&
     Array.from(match[1]!.toUpperCase()).reduce(
       (sum, c) => sum * 26 + c.charCodeAt(0) - 64,
       0,
-    ) <= 16384
+    ) <= xlsxWorksheetColumns
   );
 }
 export function noteText(
@@ -641,22 +664,6 @@ export function noteText(
     })
   );
 }
-export function xlsxNote(value: unknown): XlsxNote {
-  const result = record(value);
-  if (
-    typeof result.reason !== "string" ||
-    typeof result.exists !== "boolean" ||
-    typeof result.address !== "string" ||
-    (!(result.reason && !result.address) && !noteCell(result.address)) ||
-    result.address !== result.address.toUpperCase() ||
-    (!result.exists && (result.text !== "" || result.author !== "")) ||
-    !noteText(result.text, 32767) ||
-    !noteText(result.author, 255)
-  )
-    throw new Error("Invalid cell note query");
-  return value as XlsxNote;
-}
-
 export interface XlsxHyperlink {
   target: string | null;
   mixed: boolean;
@@ -683,17 +690,4 @@ export function checkXlsxHyperlinkTarget(target: unknown): void {
       : !/^(https?:\/\/|mailto:).+/i.test(target) || /\s/u.test(target))
   )
     throw new Error("Invalid XLSX hyperlink target");
-}
-
-export function xlsxHyperlink(value: unknown): XlsxHyperlink {
-  const link = record(value);
-  checkXlsxHyperlinkTarget(link.target);
-  if (
-    typeof link.mixed !== "boolean" ||
-    typeof link.readOnlyReason !== "string" ||
-    typeof link.navigationReason !== "string" ||
-    (link.mixed && link.target !== null)
-  )
-    throw new Error("Invalid XLSX hyperlink query");
-  return value as XlsxHyperlink;
 }

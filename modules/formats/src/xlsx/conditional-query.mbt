@@ -16,11 +16,11 @@ fn Session::conditional_query(
   self : Session,
   current : Sheet,
   conditional : ConditionalRules,
-) -> Json raise @failure.Failure {
+  tree : Tree,
+) -> QueryConditionalFormats raise @failure.Failure {
   let reason = self.dimension_reason(current)
   let reason = if reason.is_empty() { conditional.reason } else { reason }
-  let tree = Tree::new(current.document)
-  let rules : Array[Json] = []
+  let rules : Array[QueryConditionalRule] = []
   let mut units = 0
   for rule in conditional.rules {
     let ranges = rule.ranges.map(Range::name).join(" ")
@@ -35,18 +35,17 @@ fn Session::conditional_query(
     }
     if units > 1048576 {
       return {
-        "rules": [],
-        "readOnlyReason": "Conditional query exceeds text budget",
+        rules: [],
+        readOnlyReason: "Conditional query exceeds text budget",
       }
     }
     let reason = conditional_edit_reason(tree, tree.nodes[rule.container])
-    let json : Json = {
-      "priority": rule.priority,
-      "ranges": ranges,
-      "rule": rule.settings().json(),
-      "readOnlyReason": reason,
-    }
-    rules.push(json)
+    rules.push({
+      priority: rule.priority,
+      ranges,
+      rule: rule.settings(),
+      readOnlyReason: reason,
+    })
   }
-  { "rules": rules, "readOnlyReason": reason }
+  { rules, readOnlyReason: reason, }
 }

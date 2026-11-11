@@ -1,4 +1,19 @@
 ///|
+pub const NotesTextUnits : Int32 = 32767
+
+///|
+const NotesParagraphCount : Int32 = 256
+
+///|
+const NotesParagraphUnits : Int32 = 4096
+
+///|
+priv struct NotesQuery {
+  text : String
+  reason : String
+} derive(ToJson)
+
+///|
 priv struct Notes {
   tree : Tree
   shape : Ref?
@@ -58,7 +73,7 @@ fn Session::read_notes(
   }
   let body = tree.required(shape.id, "txBody", uri=presentation_uri)
   let paragraphs = tree.all(body.id, "p")
-  guard paragraphs.length() <= 256 &&
+  guard paragraphs.length() <= NotesParagraphCount &&
     body.text.trim().is_empty() &&
     tree.children
     .get(body.id)
@@ -135,7 +150,7 @@ fn Session::read_notes(
     }
     let text = line.to_string()
     units += text.length() + (if lines.is_empty() { 0 } else { 1 })
-    guard text.length() <= 4096 && units <= 32767 else {
+    guard text.length() <= NotesParagraphUnits && units <= NotesTextUnits else {
       @failure.reject("limit-exceeded", "Notes exceed text budget")
     }
     lines.push(text)
@@ -149,15 +164,15 @@ fn Session::read_notes(
 }
 
 ///|
-fn Session::notes_query(self : Session, slide : String) -> Json {
+fn Session::notes_query(self : Session, slide : String) -> NotesQuery {
   try {
     let notes = self.read_notes(slide)
     {
-      "text": notes.map(n => n.text).unwrap_or(""),
-      "reason": self.slide_visibility_reason(),
+      text: notes.map(n => n.text).unwrap_or(""),
+      reason: self.slide_visibility_reason(),
     }
   } catch {
-    @failure.Failure(message~, ..) => { "text": "", "reason": message }
+    @failure.Failure(message~, ..) => { text: "", reason: message, }
   }
 }
 

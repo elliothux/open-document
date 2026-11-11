@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { xlsxFilterLabelUnits } from "@open-document/wasm/engine-source";
 import type { SpreadsheetEditor } from "../web/spreadsheet-editor.js";
 import type {
   XlsxFilterState,
@@ -152,7 +153,7 @@ function CustomFilter({
               {`${t.filterOperand} ${index + 1}`}
               <input
                 value={condition.value}
-                maxLength={32767}
+                maxLength={xlsxFilterLabelUnits}
                 onChange={(e) => {
                   const value = e.currentTarget.value;
                   setConditions(
@@ -213,8 +214,8 @@ export function XlsxFilter({
       | { action: "filter"; range: string; columns: XlsxFilterColumn[] }
       | { action: "filterClear" | "filterRemove" | "filterReapply" },
   ) => {
-    if (!table) return editor.editSheet(change);
-    return editor.editSheet(
+    if (!table) return editor.objects.editSheet(change);
+    return editor.objects.editSheet(
       change.action === "filter"
         ? { action: "tableFilter", id: table.id, columns: change.columns }
         : {

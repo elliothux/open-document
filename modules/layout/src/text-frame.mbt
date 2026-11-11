@@ -36,19 +36,7 @@ pub fn TextProbe::paragraph_lines(
     ligatures~,
     writer_twips=false,
   )
-  if self.paragraphs.length() >= 1024 {
-    self.paragraphs.clear()
-    self.text_units = 0
-  }
-  for key, items in cache.current {
-    if !self.paragraphs.contains(key) {
-      let units = paragraph_cache_units(key, items.map(item => item.line))
-      if units <= 1048576 - self.text_units {
-        self.paragraphs[key] = items
-        self.text_units += units
-      }
-    }
-  }
+  self.retain_text_cache(cache)
   lines.map(item => item.line.copy_geometry())
 }
 

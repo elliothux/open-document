@@ -1,7 +1,15 @@
-import type { DrawCommand, PathSegment } from "@open-document/wasm/abi/drawing";
+import type {
+  ClipBounds,
+  DrawCommand,
+  PathSegment,
+  StrokeGeometry,
+} from "@open-document/wasm/abi/drawing";
 import { aligned, pixelEdges, pixelRectangleStroke } from "./pdf-pixels.js";
+import { drawingPath } from "./drawing-path.js";
+import { pdfHairline } from "./pdf-hairline.js";
 
 type StrokePoint = { x: number; y: number };
+type DashPoint = [x: number, y: number];
 type StrokeContour = { points: StrokePoint[]; closed: boolean };
 
 function strokeCurve(matrix: DOMMatrix, line: (point: StrokePoint) => boolean) {
@@ -36,88 +44,22 @@ function strokeCurve(matrix: DOMMatrix, line: (point: StrokePoint) => boolean) {
   return curve;
 }
 
-/** Rasterize a solid zero-width stroke as device-pixel spans. */
-export function pdfHairline(
-  context: CanvasRenderingContext2D,
-  segments: PathSegment[],
-  matrix: DOMMatrix,
-): boolean {
-  // shortcut: curves, dashes and translucent strokes retain Canvas coverage until independently verified.
-  if (
-    segments.length > 8192 ||
-    context.globalAlpha !== 1 ||
-    context.globalCompositeOperation !== "source-over" ||
-    context.getLineDash().length ||
-    !(matrix.a * matrix.d - matrix.b * matrix.c)
-  )
-    return false;
-  const path = new Path2D();
-  const { width, height } = context.canvas;
-  let rows = 0;
-  let start: DOMPoint | undefined;
-  let previous: DOMPoint | undefined;
-  for (const segment of segments) {
-    if (segment.op === "cubic") return false;
-    if (segment.op === "close" && previous === start) continue;
-    const next =
-      segment.op === "close"
-        ? start
-        : matrix.transformPoint({ x: segment.x, y: segment.y });
-    if (!next || !Number.isFinite(next.x) || !Number.isFinite(next.y))
-      return false;
-    if (segment.op === "move" || !previous) {
-      start = previous = next;
-      continue;
-    }
-    const [a, b] = previous.y <= next.y ? [previous, next] : [next, previous];
-    previous = next;
-    const first = Math.floor(a.y),
-      last = Math.floor(b.y);
-    const top = Math.max(0, first),
-      bottom = Math.min(height - 1, last);
-    if (top > bottom) continue;
-    // shortcut: large paths retain Canvas coverage to bound generated spans.
-    if ((rows += bottom - top + 1) > 8192) return false;
-    const dx = b.x - a.x,
-      dy = b.y - a.y;
-    if (!Number.isFinite(dx) || !Number.isFinite(dy)) return false;
-    const xAt = (y: number) => Math.floor(a.x + dx * ((y - a.y) / dy));
-    for (let row = top; row <= bottom; row++) {
-      const entry = row === first ? Math.floor(a.x) : xAt(row);
-      const exit = row === last ? Math.floor(b.x) : xAt(row + 1);
-      // Leave the crossing to the next row when that row is visible.
-      const end = row < bottom && entry !== exit ? exit - Math.sign(dx) : exit;
-      const left = Math.max(0, Math.min(entry, end));
-      const right = Math.min(width - 1, Math.max(entry, end));
-      if (left <= right) path.rect(left, row, right - left + 1, 1);
-    }
-  }
-  context.save();
-  try {
-    context.resetTransform();
-    context.fillStyle = context.strokeStyle;
-    context.fill(path);
-  } finally {
-    context.restore();
-  }
-  return true;
-}
-
 /** Hint outline edges and straight caps independently in device pixels. */
 export function pdfStroke(
   context: CanvasRenderingContext2D,
   command: Extract<DrawCommand, { op: "path" }>,
+  unrotated = false,
 ): boolean {
   // shortcut: connected or dashed paths use Canvas; extend when a native comparison fails.
   if (
-    !command.path.length ||
-    command.path.length % 2 ||
+    command.strokeGeometry !== "segments" ||
     command.lineWidth <= 0 ||
     context.getLineDash().length
   )
     return false;
   const matrix = context.getTransform();
-  if (!aligned(matrix)) return false;
+  if (!aligned(matrix) || (unrotated && (matrix.b !== 0 || matrix.c !== 0)))
+    return false;
   const determinant = matrix.a * matrix.d - matrix.b * matrix.c;
   if (!determinant || !Number.isFinite(determinant)) return false;
   const round = context.lineCap === "round";
@@ -126,8 +68,8 @@ export function pdfStroke(
     const start = command.path[index],
       end = command.path[index + 1];
     if (start?.op !== "move" || end?.op !== "line") return false;
-    const a = matrix.transformPoint(new DOMPoint(start.x, start.y));
-    const b = matrix.transformPoint(new DOMPoint(end.x, end.y));
+    const a = matrix.transformPoint(start);
+    const b = matrix.transformPoint(end);
     if (a.x !== b.x && a.y !== b.y) return false;
     const localLength = Math.hypot(end.x - start.x, end.y - start.y);
     const deviceLength = Math.hypot(b.x - a.x, b.y - a.y);
@@ -188,18 +130,11 @@ export function pdfStroke(
   return true;
 }
 
-function pathStrokeOutline(
-  context: CanvasRenderingContext2D,
+function buildStrokeOutline(
   contours: StrokeContour[],
-  coveragePixels: number | null,
-  fallbackToFill: boolean,
-): boolean {
-  if (
-    context.lineCap !== "butt" ||
-    context.lineJoin !== "miter" ||
-    context.getLineDash().length
-  )
-    return false;
+  radius: number,
+  miter: number,
+): Path2D | undefined {
   const path = new Path2D();
   let count = 0;
   const polygon = (points: StrokePoint[]): boolean => {
@@ -222,7 +157,6 @@ function pathStrokeOutline(
     const length = Math.hypot(b.x - a.x, b.y - a.y);
     return { x: (b.x - a.x) / length, y: (b.y - a.y) / length };
   };
-  const radius = context.lineWidth / 2;
   for (const contour of contours) {
     const points = contour.points.filter(
       (p, i, all) => !i || p.x !== all[i - 1]!.x || p.y !== all[i - 1]!.y,
@@ -250,7 +184,7 @@ function pathStrokeOutline(
           { x: b.x + nx, y: b.y + ny },
         ])
       )
-        return false;
+        return undefined;
     }
     for (
       let i = contour.closed ? 0 : 1;
@@ -272,23 +206,50 @@ function pathStrokeOutline(
       };
       const wedge = [p, { x: p.x + first.x, y: p.y + first.y }];
       // Native miters bevel near a reversed segment to avoid unstable intersections.
-      if (
-        divisor >= 0.0001 &&
-        Math.hypot(corner.x, corner.y) <= radius * context.miterLimit
-      )
+      if (divisor >= 0.0001 && Math.hypot(corner.x, corner.y) <= radius * miter)
         wedge.push({ x: p.x + corner.x, y: p.y + corner.y });
       wedge.push({ x: p.x + last.x, y: p.y + last.y });
-      if (!polygon(wedge)) return false;
+      if (!polygon(wedge)) return undefined;
     }
   }
+  return path;
+}
+
+function pathStrokeOutline(
+  context: CanvasRenderingContext2D,
+  matrix: DOMMatrix,
+  contours: StrokeContour[],
+  coveragePixels: number | null,
+  fallbackToFill: boolean,
+  outline: PathSegment[] | Path2D | undefined,
+  bounds?: ClipBounds,
+): boolean {
+  if (
+    context.lineCap !== "butt" ||
+    context.lineJoin !== "miter" ||
+    context.getLineDash().length
+  )
+    return false;
+  const radius = context.lineWidth / 2;
+  const path = Array.isArray(outline)
+    ? drawingPath(outline)
+    : (outline ?? buildStrokeOutline(contours, radius, context.miterLimit));
+  if (!path) return false;
   if (coveragePixels !== null) {
     if (
       strokeCoverage(
         context,
         path,
-        contours.map((c) => c.points),
+        bounds
+          ? [
+              [
+                { x: bounds[0], y: bounds[1] },
+                { x: bounds[2], y: bounds[3] },
+              ],
+            ]
+          : contours.map((c) => c.points),
         radius * context.miterLimit,
-        context.getTransform(),
+        matrix,
         { samples: 4194304, pixels: coveragePixels, inclusive: true },
       )
     )
@@ -309,10 +270,16 @@ function pathStrokeOutline(
 export function pdfPathStroke(
   context: CanvasRenderingContext2D,
   segments: PathSegment[],
+  geometry: StrokeGeometry | undefined,
   pdf: boolean,
   filled: boolean,
   availablePixels: number,
   hairline = false,
+  outline?: PathSegment[],
+  dashes?: DashPoint[][],
+  strokeBounds?: ClipBounds,
+  dashesAxisAligned?: boolean,
+  nonRectangular = false,
 ): boolean {
   if (segments.length > 8192 || segments[0]?.op !== "move") return false;
   const roundDashes =
@@ -320,7 +287,7 @@ export function pdfPathStroke(
     context.lineCap === "round" &&
     context.lineJoin === "round" &&
     context.getLineDash().length > 0;
-  const curves = segments.some((segment) => segment.op === "cubic");
+  const curves = geometry === "curve";
   const filledCoverage =
     (filled || curves) &&
     (curves || pdf) &&
@@ -331,20 +298,11 @@ export function pdfPathStroke(
     !context.getLineDash().length;
   const filledLinear = filledCoverage && !curves;
   if (filled && !curves && !filledLinear) return false;
-  if (!roundDashes && !curves && !filledLinear) {
-    let start: StrokePoint = segments[0];
-    for (const segment of segments) {
-      if (segment.op === "move") start = segment;
-      // shortcut: closed straight contours retain Canvas coverage; extend with independent polygon controls.
-      if (
-        segment.op === "close" ||
-        (segment.op === "line" &&
-          segment.x === start.x &&
-          segment.y === start.y)
-      )
-        return false;
-    }
-  }
+  const coreRectangle =
+    geometry === "rectangles" || geometry === "openRectangle";
+  // shortcut: closed straight contours retain Canvas coverage until independently verified.
+  if (!roundDashes && !filledLinear && (coreRectangle || geometry === "closed"))
+    return false;
   const matrix = context.getTransform();
   const determinant = matrix.a * matrix.d - matrix.b * matrix.c;
   if (
@@ -355,7 +313,40 @@ export function pdfPathStroke(
     )
   )
     return false;
-  const path = new Path2D();
+  if (
+    roundDashes &&
+    dashes &&
+    roundDashStroke(
+      context,
+      matrix,
+      [],
+      availablePixels,
+      dashes,
+      dashesAxisAligned,
+    )
+  )
+    return true;
+  if (outline && !filled && !curves && !hairline) {
+    if (pathStrokeOutline(context, matrix, [], null, false, outline))
+      return true;
+  }
+  let preparedOutline: Path2D | undefined;
+  if (outline && strokeBounds && filledLinear && aligned(matrix)) {
+    preparedOutline = drawingPath(outline);
+    if (
+      pathStrokeOutline(
+        context,
+        matrix,
+        [],
+        availablePixels,
+        false,
+        preparedOutline,
+        strokeBounds,
+      )
+    )
+      return true;
+  }
+  let path = curves ? new Path2D() : undefined;
   const contours: StrokeContour[] = [];
   let active: StrokeContour = { points: [], closed: false };
   let current: StrokePoint = { x: 0, y: 0 },
@@ -366,17 +357,18 @@ export function pdfPathStroke(
     if (++count > 8192) return false;
     if (!active.points.length) active.points.push(current);
     active.points.push(point);
-    path.lineTo(point.x, point.y);
+    path?.lineTo(point.x, point.y);
     return true;
   };
   const curve = strokeCurve(matrix, line);
-  for (const segment of segments) {
+  for (let index = 0; index < segments.length; index++) {
+    const segment = segments[index]!;
     switch (segment.op) {
       case "move":
         if (++count > 8192) return false;
         if (active.points.length) contours.push(active);
         active = { points: [segment], closed: false };
-        path.moveTo(segment.x, segment.y);
+        path?.moveTo(segment.x, segment.y);
         current = first = segment;
         break;
       case "line":
@@ -384,6 +376,7 @@ export function pdfPathStroke(
         current = segment;
         break;
       case "cubic":
+        path ??= drawingPath(segments.slice(0, index));
         if (
           !curve(
             current,
@@ -401,24 +394,42 @@ export function pdfPathStroke(
         active.closed = true;
         if (active.points.length) contours.push(active);
         active = { points: [], closed: false };
-        path.closePath();
+        path?.closePath();
         current = first;
     }
   }
   if (active.points.length) contours.push(active);
-  if (roundDashes && roundDashStroke(context, contours, availablePixels))
+  if (
+    roundDashes &&
+    roundDashStroke(context, matrix, contours, availablePixels, undefined)
+  )
     return true;
-  if (pdf) {
-    const flat = contours.flatMap<PathSegment>((contour) => [
-      ...contour.points.map((point, index): PathSegment => ({
-        op: index === 0 ? "move" : "line",
-        x: point.x,
-        y: point.y,
-      })),
-      ...(contour.closed ? [{ op: "close" as const }] : []),
-    ]);
+  // A flattened rectangle needs four closed corners or a single return line.
+  if (
+    pdf &&
+    (coreRectangle ||
+      hairline ||
+      (!nonRectangular &&
+        contours.every(({ closed, points }) =>
+          closed
+            ? points.length === 4
+            : contours.length === 1 && points.length === 5,
+        )))
+  ) {
+    const flat =
+      coreRectangle || nonRectangular
+        ? segments
+        : contours.flatMap<PathSegment>((contour) => [
+            ...contour.points.map((point, index): PathSegment => ({
+              op: index === 0 ? "move" : "line",
+              x: point.x,
+              y: point.y,
+            })),
+            ...(contour.closed ? [{ op: "close" as const }] : []),
+          ]);
     if (hairline && pdfHairline(context, flat, matrix)) return true;
     if (
+      !nonRectangular &&
       pixelRectangleStroke(
         context,
         {
@@ -427,8 +438,10 @@ export function pdfPathStroke(
           fill: "",
           stroke: String(context.strokeStyle),
           lineWidth: context.lineWidth,
+          strokeGeometry: geometry,
         },
         true,
+        !coreRectangle,
       )
     )
       return true;
@@ -436,40 +449,41 @@ export function pdfPathStroke(
   if (
     !pathStrokeOutline(
       context,
+      matrix,
       contours,
       filledCoverage ? availablePixels : null,
       curves,
+      preparedOutline ?? outline,
     )
   )
-    context.stroke(path);
+    context.stroke(path ?? drawingPath(segments));
   return true;
 }
 
-function roundDashStroke(
+function splitRoundDashes(
   context: CanvasRenderingContext2D,
   contours: StrokeContour[],
-  availablePixels: number,
-): boolean {
+): DashPoint[][] | undefined {
   const dash = context.getLineDash(),
     phase = context.lineDashOffset;
   if (
     !dash.every((n) => Number.isFinite(n) && n > 0) ||
     !Number.isFinite(phase)
   )
-    return false;
+    return undefined;
   const total = dash.reduce((a, b) => a + b, 0);
-  if (!Number.isFinite(total) || total <= 0) return false;
+  if (!Number.isFinite(total) || total <= 0) return undefined;
   let offset = ((phase % total) + total) % total,
     firstIndex = 0;
   while (offset >= dash[firstIndex]!) {
     offset -= dash[firstIndex]!;
     firstIndex = (firstIndex + 1) % dash.length;
   }
-  const pieces: StrokePoint[][] = [];
+  const pieces: DashPoint[][] = [];
   let steps = 0;
   for (const contour of contours) {
     const first = contour.points[0];
-    if (!first || contour.points.length < 2) return false;
+    if (!first || contour.points.length < 2) return undefined;
     const last = contour.points.at(-1)!;
     const points =
       contour.closed && first.x === last.x && first.y === last.y
@@ -484,7 +498,7 @@ function roundDashStroke(
       let a = points[i - 1]!,
         length = Math.hypot(b.x - a.x, b.y - a.y);
       while (length > 0) {
-        if (++steps > 8192) return false;
+        if (++steps > 8192) return undefined;
         const step = Math.min(length, remaining);
         const end =
           step === length
@@ -495,10 +509,10 @@ function roundDashStroke(
               };
         if (index % 2 === 0) {
           if (!active) {
-            pieces.push([a]);
+            pieces.push([[a.x, a.y]]);
             active = true;
           }
-          pieces.at(-1)!.push(end);
+          pieces.at(-1)!.push([end.x, end.y]);
         }
         a = end;
         length -= step;
@@ -513,50 +527,67 @@ function roundDashStroke(
     if (contour.closed && pieces.length > pieceStart + 1) {
       const head = pieces[pieceStart]!,
         tail = pieces.at(-1)!;
-      const a = head[0]!,
-        b = tail.at(-1)!;
-      if (a.x === first.x && a.y === first.y && b.x === a.x && b.y === a.y) {
+      const [ax, ay] = head[0]!,
+        [bx, by] = tail.at(-1)!;
+      if (ax === first.x && ay === first.y && bx === ax && by === ay) {
         tail.push(...head.slice(1));
         pieces.splice(pieceStart, 1);
       }
     }
   }
+  return pieces;
+}
+
+function roundDashStroke(
+  context: CanvasRenderingContext2D,
+  matrix: DOMMatrix,
+  contours: StrokeContour[],
+  availablePixels: number,
+  prepared: DashPoint[][] | undefined,
+  axisAligned?: boolean,
+): boolean {
+  const pieces = prepared ?? splitRoundDashes(context, contours);
+  if (!pieces) return false;
   if (!pieces.length) return true;
-  const pairs: PathSegment[] = [];
-  let axes = true;
-  for (const points of pieces)
-    for (let i = 1; i < points.length; i++) {
-      const a = points[i - 1]!,
-        b = points[i]!;
-      if (a.x !== b.x && a.y !== b.y) axes = false;
-      if (a.x !== b.x || a.y !== b.y)
-        pairs.push(
-          { op: "move", x: a.x, y: a.y },
-          { op: "line", x: b.x, y: b.y },
-        );
-    }
-  if (axes && pairs.length) {
-    context.save();
-    try {
-      context.setLineDash([]);
-      context.lineDashOffset = 0;
-      if (
-        pdfStroke(context, {
-          op: "path",
-          path: pairs,
-          fill: "",
-          stroke: "000000",
-          lineWidth: context.lineWidth,
-        })
-      )
-        return true;
-    } finally {
-      context.restore();
+  if (axisAligned !== false && aligned(matrix)) {
+    const pairs: PathSegment[] = [];
+    axisPairs: for (const points of pieces)
+      for (let i = 1; i < points.length; i++) {
+        const [ax, ay] = points[i - 1]!,
+          [bx, by] = points[i]!;
+        if (axisAligned !== true && ax !== bx && ay !== by) {
+          pairs.length = 0;
+          break axisPairs;
+        }
+        if (ax !== bx || ay !== by)
+          pairs.push(
+            { op: "move", x: ax, y: ay },
+            { op: "line", x: bx, y: by },
+          );
+      }
+    if (pairs.length) {
+      context.save();
+      try {
+        context.setLineDash([]);
+        context.lineDashOffset = 0;
+        if (
+          pdfStroke(context, {
+            op: "path",
+            path: pairs,
+            strokeGeometry: "segments",
+            fill: "",
+            stroke: "000000",
+            lineWidth: context.lineWidth,
+          })
+        )
+          return true;
+      } finally {
+        context.restore();
+      }
     }
   }
   const outline = new Path2D(),
-    radius = context.lineWidth / 2,
-    matrix = context.getTransform();
+    radius = context.lineWidth / 2;
   let budget = 0;
   const flatten = strokeCurve(matrix, (point) => {
     if (++budget > 8192) return false;
@@ -565,30 +596,30 @@ function roundDashStroke(
   });
   for (const points of pieces) {
     for (let i = 1; i < points.length; i++) {
-      const a = points[i - 1]!,
-        b = points[i]!,
-        length = Math.hypot(b.x - a.x, b.y - a.y);
+      const [ax, ay] = points[i - 1]!,
+        [bx, by] = points[i]!,
+        length = Math.hypot(bx - ax, by - ay);
       if (!length) continue;
       if ((budget += 5) > 8192) return false;
-      const nx = (-(b.y - a.y) * radius) / length,
-        ny = ((b.x - a.x) * radius) / length;
-      outline.moveTo(a.x + nx, a.y + ny);
-      outline.lineTo(a.x - nx, a.y - ny);
-      outline.lineTo(b.x - nx, b.y - ny);
-      outline.lineTo(b.x + nx, b.y + ny);
+      const nx = (-(by - ay) * radius) / length,
+        ny = ((bx - ax) * radius) / length;
+      outline.moveTo(ax + nx, ay + ny);
+      outline.lineTo(ax - nx, ay - ny);
+      outline.lineTo(bx - nx, by - ny);
+      outline.lineTo(bx + nx, by + ny);
       outline.closePath();
     }
-    for (const [index, point] of points.entries()) {
+    for (const [index, [x, y]] of points.entries()) {
       if ((budget += 2) > 8192) return false;
-      const neighbor = index === 0 ? points[1]! : points[index - 1]!;
-      const dx = point.x - neighbor.x,
-        dy = point.y - neighbor.y,
+      const [nx, ny] = index === 0 ? points[1]! : points[index - 1]!;
+      const dx = x - nx,
+        dy = y - ny,
         length = Math.hypot(dx, dy);
       const ux = length ? dx / length : 1,
         uy = length ? dy / length : 0;
-      const local = (x: number, y: number): StrokePoint => ({
-        x: point.x + (x * ux - y * uy) * radius,
-        y: point.y + (x * uy + y * ux) * radius,
+      const local = (u: number, v: number): StrokePoint => ({
+        x: x + (u * ux - v * uy) * radius,
+        y: y + (u * uy + v * ux) * radius,
       });
       const k = 0.55228475;
       const quarters = [
@@ -597,7 +628,7 @@ function roundDashStroke(
         [-1, 0, -1, -k, -k, -1, 0, -1],
         [0, -1, k, -1, 1, -k, 1, 0],
       ];
-      outline.moveTo(point.x + ux * radius, point.y + uy * radius);
+      outline.moveTo(x + ux * radius, y + uy * radius);
       for (const q of quarters)
         if (
           !flatten(
@@ -622,7 +653,7 @@ function roundDashStroke(
 export function strokeCoverage(
   context: CanvasRenderingContext2D,
   outline: Path2D,
-  pieces: StrokePoint[][],
+  pieces: StrokePoint[][] | DashPoint[][],
   radius: number,
   matrix: DOMMatrix,
   budget: { samples: number; pixels: number; inclusive: boolean },
@@ -635,9 +666,14 @@ export function strokeCoverage(
     maxY = -Infinity;
   const rx = radius * Math.hypot(matrix.a, matrix.c),
     ry = radius * Math.hypot(matrix.b, matrix.d);
+  const dashPoint = { x: 0, y: 0 };
   for (const points of pieces)
-    for (const p of points) {
-      const q = matrix.transformPoint(p);
+    for (let point of points) {
+      if (Array.isArray(point)) {
+        [dashPoint.x, dashPoint.y] = point;
+        point = dashPoint;
+      }
+      const q = matrix.transformPoint(point);
       minX = Math.min(minX, q.x - rx);
       maxX = Math.max(maxX, q.x + rx);
       minY = Math.min(minY, q.y - ry);

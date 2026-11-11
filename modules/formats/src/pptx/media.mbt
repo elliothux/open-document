@@ -232,7 +232,7 @@ fn Session::check_media_budget(
       .get(link.target)
       .unwrap_or_else(() => self.opc.read(link.target))
     total += bytes.length().to_int64()
-    guard bytes.length() <= 16777216 &&
+    guard bytes.length() <= MediaInputBytes &&
       total <= 67108864L &&
       keys.length() <= 64 else {
       @failure.reject(

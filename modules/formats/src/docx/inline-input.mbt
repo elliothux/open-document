@@ -101,12 +101,12 @@ fn Session::edit_inline_text(
   source~ : Array[@xml.SourceChange] = [],
   object_offsets~ : Map[Int32, Int32] = Map([]),
   notes~ : Bool = false,
+  tree~ : WordTree = WordTree::new(document),
 ) -> (@xml.Document, @xml.Edit) raise @failure.Failure {
   let plain : Map[Int32, String] = Map([])
   let changes = source.copy()
   let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
   let original = document.source()
-  let tree = WordTree::new(document)
   let mut units = 0
   for id, text in replacements {
     let node = document.node(id)

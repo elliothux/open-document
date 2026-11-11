@@ -1,180 +1,192 @@
 ///|
-fn pdf_placement(value : Json) -> @model.PdfPlacement raise @failure.Failure {
+priv struct TextSpecRequest {
+  placement : PlacementRequest
+  text : String
+  font : String
+  size : @common.RequestNumber
+  color : String
+  role : String
+  foreground : Bool
+} derive(@json.FromJson)
+
+///|
+fn TextSpecRequest::spec(self : TextSpecRequest) -> @model.PdfTextSpec {
   {
-    x: field_number(value, "x"),
-    y: field_number(value, "y"),
-    width: field_number(value, "width"),
-    height: field_number(value, "height"),
-    rotation: field_number(value, "rotation"),
+    placement: self.placement.placement(),
+    text: self.text,
+    font: self.font,
+    size: self.size.value,
+    color: self.color,
+    role: self.role,
+    foreground: self.foreground,
   }
 }
 
 ///|
-fn pdf_text_spec(value : Json) -> @model.PdfTextSpec raise @failure.Failure {
-  guard value is { "placement": placement, .. } else {
-    @failure.reject("invalid-operation", "PDF text placement is required")
-  }
-  {
-    placement: pdf_placement(placement),
-    text: field_string(value, "text"),
-    font: field_string(value, "font"),
-    size: field_number(value, "size"),
-    color: field_string(value, "color"),
-    role: field_string(value, "role"),
-    foreground: field_boolean(value, "foreground"),
-  }
-}
+priv struct AddTextRequest {
+  revision : @common.RequestInt
+  pages : PdfPages
+  spec : TextSpecRequest
+  profile : @common.RequestProfile
+} derive(@json.FromJson)
 
 ///|
-fn Context::pdf_object_operation(
-  self : Context,
-  operation : String,
-  request : Json,
-) -> Json raise @failure.Failure {
-  guard self.pdf is Some(session) else {
-    @failure.reject("session-required", "Open a PDF first")
-  }
-  let revision = field_int(request, "revision")
-  match operation {
-    "duplicatePdfField" =>
-      session.duplicate_field(
-        revision,
-        field_string(request, "field"),
-        field_string(request, "name"),
-        field_number(request, "dx"),
-        field_number(request, "dy"),
-      )
-    "renamePdfField" =>
-      session.rename_field(
-        revision,
-        field_string(request, "field"),
-        field_string(request, "name"),
-      )
-    "deletePdfField" =>
-      session.delete_field(revision, field_string(request, "field"))
-    "createPdfField" => {
-      guard request is { "spec": spec, .. } else {
-        @failure.reject("invalid-operation", "PDF field design is required")
-      }
-      session.create_field(
-        revision,
-        field_string(request, "page"),
-        pdf_field_design(spec),
-        self.probe,
-        font_profile(request),
-      )
-    }
-    "addPdfDrawingAnnotation" => {
-      guard request is { "spec": spec, .. } &&
-        spec is { "placement": placement, "points": Array(values), .. } &&
-        values.length() <= 32768 else {
-        @failure.reject(
-          "invalid-operation", "Drawing annotation specification is required",
-        )
-      }
-      let points = values.map(value => {
-        guard value is Number(n, ..) && !n.is_nan() && !n.is_inf() else {
-          @failure.reject(
-            "invalid-operation", "Annotation points must be finite numbers",
-          )
-        }
-        n
-      })
-      session.add_drawing_annotation(revision, field_string(request, "page"), {
-        kind: field_string(spec, "kind"),
-        placement: pdf_placement(placement),
-        points,
-        color: field_string(spec, "color"),
-        opacity: field_number(spec, "opacity"),
-        border: field_number(spec, "border"),
-        author: field_string(spec, "author"),
-        text: field_string(spec, "text"),
-        arrow: field_boolean(spec, "arrow"),
-      })
-    }
-    "markPdfText" =>
-      session.add_highlight(
-        revision,
-        field_int(request, "layoutId"),
-        kind=field_string(request, "kind"),
-      )
-    "pdfObjects" =>
-      session.objects(
-        revision,
-        field_string(request, "page"),
-        self.probe,
-        font_profile(request),
-      )
-    "addPdfText" | "setPdfPageNumbers" | "replacePdfText" => {
-      guard request is { "spec": spec, .. } else {
-        @failure.reject(
-          "invalid-operation", "PDF text specification is required",
-        )
-      }
-      if operation != "replacePdfText" {
-        session.add_text(
-          revision,
-          pdf_strings(request, "pages"),
-          pdf_text_spec(spec),
-          self.probe,
-          font_profile(request),
-          replace_numbers=operation == "setPdfPageNumbers",
-        )
-      } else {
-        session.replace_text(
-          revision,
-          field_string(request, "page"),
-          field_string(request, "object"),
-          pdf_text_spec(spec),
-          self.probe,
-          font_profile(request),
-        )
-      }
-    }
-    "addPdfImage" => {
-      guard request is { "placement": placement, .. } else {
-        @failure.reject("invalid-operation", "PDF image placement is required")
-      }
-      session.add_image(
-        revision,
-        field_string(request, "page"),
-        pdf_placement(placement),
-        field_int(request, "pixelWidth"),
-        field_int(request, "pixelHeight"),
-        input_bytes(request, 16777216),
-        self.probe,
-        font_profile(request),
-        replace=match request {
-          { "replace": String(id), .. } => id
-          { "replace": _, .. } =>
-            @failure.reject(
-              "invalid-operation", "PDF image replacement identity must be text",
-            )
-          _ => ""
-        },
+priv struct ReplaceTextRequest {
+  revision : @common.RequestInt
+  page : String
+  object : String
+  spec : TextSpecRequest
+  profile : @common.RequestProfile
+} derive(@json.FromJson)
+
+///|
+priv struct ImageAddRequest {
+  bytes : String
+  revision : @common.RequestInt
+  page : String
+  placement : PlacementRequest
+  pixelWidth : @common.RequestInt
+  pixelHeight : @common.RequestInt
+  profile : @common.RequestProfile
+  replace : String?
+} derive(@json.FromJson)
+
+///|
+priv struct MoveObjectRequest {
+  revision : @common.RequestInt
+  page : String
+  object : String
+  placement : PlacementRequest
+  profile : @common.RequestProfile
+} derive(@json.FromJson)
+
+///|
+priv struct ObjectRequest {
+  revision : @common.RequestInt
+  page : String
+  object : String
+  profile : @common.RequestProfile
+} derive(@json.FromJson)
+
+///|
+priv struct CropImageRequest {
+  revision : @common.RequestInt
+  page : String
+  object : String
+  crop : CropWindowRequest
+  profile : @common.RequestProfile
+} derive(@json.FromJson)
+
+///|
+let object_handlers : Map[
+  String,
+  (Context, @model.PdfSession, Json) -> String raise @failure.Failure,
+] = {
+  "pdfObjects": (context, session, input) => {
+    let command : PageReadRequest = @common.request(input)
+    let result = session.objects(
+      command.revision.value,
+      command.page,
+      context.probe,
+      command.profile.value,
+    )
+    ToJson::to_json(result).stringify()
+  },
+  "addPdfText": (context, session, input) => {
+    let command : AddTextRequest = @common.request(input)
+    session
+    .add_text(
+      command.revision.value,
+      command.pages.value,
+      command.spec.spec(),
+      context.probe,
+      command.profile.value,
+    )
+    .stringify()
+  },
+  "setPdfPageNumbers": (context, session, input) => {
+    let command : AddTextRequest = @common.request(input)
+    session
+    .add_text(
+      command.revision.value,
+      command.pages.value,
+      command.spec.spec(),
+      context.probe,
+      command.profile.value,
+      replace_numbers=true,
+    )
+    .stringify()
+  },
+  "replacePdfText": (context, session, input) => {
+    let command : ReplaceTextRequest = @common.request(input)
+    session
+    .replace_text(
+      command.revision.value,
+      command.page,
+      command.object,
+      command.spec.spec(),
+      context.probe,
+      command.profile.value,
+    )
+    .stringify()
+  },
+  "addPdfImage": (context, session, input) => {
+    if input is { "replace": Null, .. } {
+      @failure.reject(
+        "invalid-operation", "PDF image replacement identity must be text",
       )
     }
-    "movePdfObject" => {
-      guard request is { "placement": placement, .. } else {
-        @failure.reject("invalid-operation", "PDF object placement is required")
-      }
-      session.move_object(
-        revision,
-        field_string(request, "page"),
-        field_string(request, "object"),
-        pdf_placement(placement),
-        self.probe,
-        font_profile(request),
-      )
-    }
-    "deletePdfObject" =>
-      session.delete_object(
-        revision,
-        field_string(request, "page"),
-        field_string(request, "object"),
-        self.probe,
-        font_profile(request),
-      )
-    _ => @failure.reject("invalid-operation", "Unknown PDF object operation")
-  }
+    let command : ImageAddRequest = @common.request(input)
+    session
+    .add_image(
+      command.revision.value,
+      command.page,
+      command.placement.placement(),
+      command.pixelWidth.value,
+      command.pixelHeight.value,
+      @common.byte_input(command.bytes, @layout.ImageBytes),
+      context.probe,
+      command.profile.value,
+      replace=command.replace.unwrap_or(""),
+    )
+    .stringify()
+  },
+  "movePdfObject": (context, session, input) => {
+    let command : MoveObjectRequest = @common.request(input)
+    session
+    .move_object(
+      command.revision.value,
+      command.page,
+      command.object,
+      command.placement.placement(),
+      context.probe,
+      command.profile.value,
+    )
+    .stringify()
+  },
+  "cropPdfImage": (context, session, input) => {
+    let command : CropImageRequest = @common.request(input)
+    session
+    .crop_image(
+      command.revision.value,
+      command.page,
+      command.object,
+      command.crop.crop(),
+      context.probe,
+      command.profile.value,
+    )
+    .stringify()
+  },
+  "deletePdfObject": (context, session, input) => {
+    let command : ObjectRequest = @common.request(input)
+    session
+    .delete_object(
+      command.revision.value,
+      command.page,
+      command.object,
+      context.probe,
+      command.profile.value,
+    )
+    .stringify()
+  },
 }

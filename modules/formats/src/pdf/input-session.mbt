@@ -49,6 +49,7 @@ fn PdfSession::build_display(
       fonts: Map([]),
       nativeOutlines: Map([]),
       nativeOutlineBytes: Ref(0),
+      preparedStrokePoints: Ref(0),
       colors: Map([]),
       optional: None,
       imageKeys: [],
@@ -75,13 +76,10 @@ fn PdfSession::build_display(
       @layout.ClipRect({ x: 0, y: 0, width: page.width, height: page.height, }),
     )
     context.commands.push(
-      @layout.FillRect({
-        x: 0,
-        y: 0,
-        width: page.width,
-        height: page.height,
-        color: "ffffff",
-      }),
+      @layout.FillRect(
+        { x: 0, y: 0, width: page.width, height: page.height, color: "ffffff", },
+        screen_fractional=false,
+      ),
     )
     let object = resolve(self.document, @syntax.PdfIndirect(page.number))
     try {
@@ -115,13 +113,16 @@ fn PdfSession::build_display(
         context.jpeg.clear()
         images.clear()
         context.commands.push(
-          @layout.FillRect({
-            x: 0,
-            y: 0,
-            width: page.width,
-            height: page.height,
-            color: "ffffff",
-          }),
+          @layout.FillRect(
+            {
+              x: 0,
+              y: 0,
+              width: page.width,
+              height: page.height,
+              color: "ffffff",
+            },
+            screen_fractional=false,
+          ),
         )
         context.nesting = 0
       }
@@ -136,13 +137,16 @@ fn PdfSession::build_display(
         context.jpeg.clear()
         images.clear()
         context.commands.push(
-          @layout.FillRect({
-            x: 0,
-            y: 0,
-            width: page.width,
-            height: page.height,
-            color: "ffffff",
-          }),
+          @layout.FillRect(
+            {
+              x: 0,
+              y: 0,
+              width: page.width,
+              height: page.height,
+              color: "ffffff",
+            },
+            screen_fractional=false,
+          ),
         )
         context.nesting = 0
       }
@@ -181,10 +185,13 @@ fn PdfSession::build_display(
       8388608 else {
       @failure.reject("limit-exceeded", "PDF page outlines exceed budget")
     }
+    @layout.annotate_gradient_clips(context.commands, device=true)
     {
+      response: None,
       extraction: context.extraction,
       sources: context.sources,
       profile: profile.copy(),
+      supplied_fonts: Json(supplied.font_info()).stringify(),
       resources: images,
       imageBytes: imageBytes.to_int(),
       page: id,
@@ -193,6 +200,8 @@ fn PdfSession::build_display(
       region: {
         width: page.width,
         height: page.height,
+        strokeRaster: CoverageStroke,
+        glyphRaster: CoverageGlyphs,
         commands: context.commands,
       },
       text: bodyText,
@@ -210,7 +219,7 @@ fn PdfSession::build_display(
 
 ///|
 /// Retain a bounded page view; background rendering preserves active selection.
-pub fn PdfSession::render(
+fn PdfSession::retain_display(
   self : PdfSession,
   revision : Int32,
   page : String,
@@ -219,30 +228,36 @@ pub fn PdfSession::render(
   images : @layout.Images,
   activate~ : Bool = true,
   reuse~ : Bool = false,
-) -> Json raise @failure.Failure {
+) -> (PageDisplay, Bool) raise @failure.Failure {
   self.check(revision)
+  let fonts = Json(supplied.font_info()).stringify()
+  let cached = self.views
+    .values()
+    .find_first(view => {
+      view.page == page &&
+      view.revision == revision &&
+      view.supplied_fonts == fonts &&
+      profile.length() == view.profile.length() &&
+      profile.iter().all(pair => view.profile.get(pair.0) == Some(pair.1))
+    })
   if reuse {
-    for _, view in self.views {
-      if view.page == page &&
-        view.revision == revision &&
-        profile.length() == view.profile.length() &&
-        profile.iter().all(pair => view.profile.get(pair.0) == Some(pair.1)) {
-        let result = display_json(view, reused=true)
-        if activate {
-          self.display = Some(view)
-          self.current = page
-          self.selection = (0, 0)
-        }
-        return result
+    if cached is Some(view) {
+      if activate {
+        self.display = Some(view)
+        self.current = page
+        self.selection = (0, 0)
       }
+      return (view, true)
     }
   }
   let temporary = @layout.Images::new()
   guard pdf_layout_serial.val < 2147483647 else {
     @failure.reject("limit-exceeded", "PDF drawing identity exhausted")
   }
-  let candidate = self.build_display(page, supplied, profile, temporary)
-  errdefer candidate.probe.close()
+  let candidate = cached.unwrap_or_else(() => {
+    self.build_display(page, supplied, profile, temporary)
+  })
+  errdefer (if cached is None { candidate.probe.close() })
   let mut retained : Int64 = candidate.imageBytes.to_int64()
   let mut count = 1
   let mut previous : Int32? = None
@@ -260,9 +275,10 @@ pub fn PdfSession::render(
     )
   }
   let display = { ..candidate, id: pdf_layout_serial.val + 1, }
-  let result = display_json(display, reused=false)
   if previous is Some(id) {
-    self.views[id].probe.close()
+    if cached is None {
+      self.views[id].probe.close()
+    }
     self.views.remove(id)
   }
   self.views[display.id] = display
@@ -278,29 +294,91 @@ pub fn PdfSession::render(
   images.clear()
   for key in display.images {
     if !display.jpeg.contains(key) {
-      let image = temporary.get(key)
+      let image = display.resources.get(key)
       images.add(key, image.width, image.height, image.rgba)
     }
   }
-  result
+  (display, false)
 }
 
 ///|
-fn display_json(display : PageDisplay, reused~ : Bool) -> Json {
-  {
-    "reused": reused,
-    "id": display.id,
-    "revision": display.revision,
-    "page": display.page,
-    "regions": [display.region],
-    "outlines": display.outlines,
-    "images": display.images,
-    "text": display.text,
-    "spans": display.spans,
-    "textComplete": display.textComplete,
-    "displayComplete": display.displayComplete,
-    "diagnostics": display.diagnostics,
+fn display_content(display : PageDisplay) -> (PdfDisplayContent, Json) {
+  if display.response is Some(response) {
+    return response
   }
+  let content : PdfDisplayContent = {
+    revision: display.revision,
+    page: display.page,
+    regions: [
+      display.region.encode(
+        Json::array(pdf_display_commands(display.region.commands)),
+      ),
+    ],
+    images: display.images,
+    text: display.text,
+    spans: display.spans.map(TextSpan::display_span),
+    textComplete: display.textComplete,
+    displayComplete: display.displayComplete,
+    diagnostics: display.diagnostics,
+  }
+  let response = (content, Json(display.outlines))
+  display.response = Some(response)
+  response
+}
+
+///|
+/// Serialize page content once; layout identity and reuse status remain per-call.
+pub fn PdfSession::render_response(
+  self : PdfSession,
+  revision : Int32,
+  page : String,
+  supplied : @layout.TextProbe,
+  profile : Map[String, String],
+  images : @layout.Images,
+  activate~ : Bool = true,
+  reuse~ : Bool = false,
+  outline_delta? : (Json) -> String,
+) -> String raise @failure.Failure {
+  let (display, reused) = self.retain_display(
+    revision,
+    page,
+    supplied,
+    profile,
+    images,
+    activate~,
+    reuse~,
+  )
+  let (content, outlines) = display_content(display)
+  self.encode_display(display.id, reused, content, outlines, outline_delta?)
+}
+
+///|
+fn PdfSession::encode_display(
+  self : PdfSession,
+  id : Int32,
+  reused : Bool,
+  content : PdfDisplayContent,
+  outlines : Json,
+  outline_delta? : (Json) -> String,
+) -> String {
+  let body = match self.encodedDisplay {
+    Some((previous, body)) if physical_equal(previous, content) => body
+    _ => {
+      self.encodedDisplay = None
+      let encoded = Json(content).stringify()
+      let body = encoded[1:].to_owned()
+      // One cached string, at most 8 MiB even with UTF-16 storage; larger pages still render.
+      if body.length() <= 4194304 {
+        self.encodedDisplay = Some((content, body))
+      }
+      body
+    }
+  }
+  let outlines = match outline_delta {
+    Some(encode) => encode(outlines)
+    None => outlines.stringify()
+  }
+  "{\"id\":\{id},\"reused\":\{reused},\"outlines\":" + outlines + "," + body
 }
 
 ///|
@@ -325,7 +403,7 @@ pub fn PdfSession::extract(
   page : String,
   supplied : @layout.TextProbe,
   profile : Map[String, String],
-) -> Json raise @failure.Failure {
+) -> PdfText raise @failure.Failure {
   self.check(revision)
   if self.display is Some(display) &&
     display.page == page &&
@@ -344,16 +422,19 @@ pub fn PdfSession::extract(
 }
 
 ///|
-fn text_result(display : PageDisplay) -> Json {
+fn text_result(display : PageDisplay) -> PdfText {
   {
-    "page": display.page,
-    "revision": display.revision,
-    "text": display.text,
-    "spans": display.spans,
-    "complete": display.textComplete,
-    "diagnostics": display.diagnostics,
+    page: display.page,
+    revision: display.revision,
+    text: display.text,
+    spans: display.spans,
+    complete: display.textComplete,
+    diagnostics: display.diagnostics,
   }
 }
+
+///|
+pub const SearchTextUnits : Int32 = 1024
 
 ///|
 pub fn PdfSession::search(
@@ -363,11 +444,12 @@ pub fn PdfSession::search(
   query : String,
   supplied : @layout.TextProbe,
   profile : Map[String, String],
-) -> Json raise @failure.Failure {
+) -> PdfSearch raise @failure.Failure {
   self.check(revision)
-  guard !query.is_empty() && query.length() <= 1024 else {
+  guard !query.is_empty() && query.length() <= SearchTextUnits else {
     @failure.reject(
-      "limit-exceeded", "PDF query must contain 1 through 1024 UTF-16 units",
+      "limit-exceeded",
+      "PDF query must contain 1 through \{SearchTextUnits} UTF-16 units",
     )
   }
   check_pdf_text(query)
@@ -391,8 +473,8 @@ pub fn PdfSession::search(
 fn search_result(
   display : PageDisplay,
   query : String,
-) -> Json raise @failure.Failure {
-  let hits : Array[Json] = []
+) -> PdfSearch raise @failure.Failure {
+  let hits : Array[PdfSearchHit] = []
   let visible = crop_visible_ranges(display)
   let mut offset = 0
   while offset + query.length() <= display.text.length() {
@@ -407,9 +489,9 @@ fn search_result(
         @failure.reject("limit-exceeded", "PDF search result exceeds budget")
       }
       hits.push({
-        "start": offset,
-        "end": end,
-        "quads": display.spans
+        start: offset,
+        end,
+        quads: display.spans
         .filter(span => {
           span.cropVisible && span.start < end && span.end > offset
         })
@@ -421,11 +503,11 @@ fn search_result(
     }
   }
   {
-    "page": display.page,
-    "revision": display.revision,
-    "complete": display.textComplete,
-    "hits": hits,
-    "diagnostics": display.diagnostics,
+    page: display.page,
+    revision: display.revision,
+    complete: display.textComplete,
+    hits,
+    diagnostics: display.diagnostics,
   }
 }
 
@@ -435,7 +517,7 @@ pub fn PdfSession::select_text(
   layout_id : Int32,
   anchor : Int32,
   focus : Int32,
-) -> Json raise @failure.Failure {
+) -> PdfSelection raise @failure.Failure {
   let display = self.current_display(layout_id)
   guard anchor >= 0 &&
     focus >= 0 &&
@@ -462,12 +544,12 @@ pub fn PdfSession::select_text(
   let start = anchor.min(focus)
   let end = anchor.max(focus)
   {
-    "page": display.page,
-    "layoutId": layout_id,
-    "revision": self.revision,
-    "anchor": anchor,
-    "focus": focus,
-    "quads": display.spans
+    page: display.page,
+    layoutId: layout_id,
+    revision: self.revision,
+    anchor,
+    focus,
+    quads: display.spans
     .filter(span => span.cropVisible && span.start < end && span.end > start)
     .map(span => span.quad),
   }
@@ -491,7 +573,7 @@ pub fn PdfSession::hit(
   layout_id : Int32,
   x : Double,
   y : Double,
-) -> Json raise @failure.Failure {
+) -> PdfHit raise @failure.Failure {
   let display = self.current_display(layout_id)
   guard !x.is_nan() && !y.is_nan() && !x.is_inf() && !y.is_inf() else {
     @failure.reject("invalid-position", "PDF hit requires finite coordinates")
@@ -523,12 +605,7 @@ pub fn PdfSession::hit(
     Some((span, _, u)) => if u < 0.5 { span.start } else { span.end }
     None => 0
   }
-  {
-    "page": display.page,
-    "layoutId": layout_id,
-    "revision": self.revision,
-    "offset": offset,
-  }
+  { page: display.page, layoutId: layout_id, revision: self.revision, offset, }
 }
 
 ///|
@@ -536,24 +613,33 @@ pub fn PdfSession::image(
   self : PdfSession,
   layout_id : Int32,
   key : String,
-  _images : @layout.Images,
+  images : @layout.Images,
   size~ : (Int32, Int32)? = None,
 ) -> (String, Bytes, Int32, Int32) raise @failure.Failure {
   let display = self.current_display(layout_id)
   guard display.images.contains(key) else {
     @failure.reject("missing-image", "Unknown PDF page image")
   }
+  let image = display.resources.get(key) catch {
+    @failure.Failure(code="missing-image", ..) as missing => {
+      guard display.jpeg.get(key) is Some(jpeg) else { raise missing }
+      guard jpeg.core_pixels(self.budget) is Some(output) else {
+        if size is None {
+          return ("jpeg", jpeg.bytes, jpeg.width, jpeg.height)
+        }
+        raise missing
+      }
+      images.add(key, jpeg.width, jpeg.height, output)
+      display.resources.add(key, jpeg.width, jpeg.height, output)
+      display.resources.get(key)
+    }
+    error => raise error
+  }
   if size is Some((width, height)) {
-    let image = display.resources.get(key)
     let rgba = pdf_bound(self.budget, () => resized_rgba(image, width, height))
     return ("rgba", rgba, width, height)
   }
-  if display.jpeg.get(key) is Some(jpeg) {
-    ("jpeg", jpeg.bytes, jpeg.width, jpeg.height)
-  } else {
-    let image = display.resources.get(key)
-    ("rgba", image.rgba, image.width, image.height)
-  }
+  ("rgba", image.rgba, image.width, image.height)
 }
 
 ///|
@@ -573,26 +659,7 @@ pub fn PdfSession::decoded_image(
     width.to_int64() * height.to_int64() * 4 == rgba.length().to_int64() else {
     @failure.reject("invalid-image", "JPEG decoder dimensions do not match PDF")
   }
-  let channels = jpeg.decode.length() / 2
-  let output = Bytes::makei(rgba.length(), i => {
-    let channel = i % 4
-    if channel == 3 {
-      jpeg.alpha.map(mask => mask[i / 4]).unwrap_or(rgba[i])
-    } else {
-      let c = if channels == 1 { 0 } else { channel }
-      let value = decoded_sample(
-        rgba[i],
-        jpeg.decode[c * 2],
-        jpeg.decode[c * 2 + 1],
-      )
-      if jpeg.matte is Some(matte) && jpeg.alpha is Some(alpha) {
-        unblend_sample(value, alpha[i / 4], matte[c])
-      } else {
-        value
-      }
-    }
-  })
-  let output = pdf_bound(self.budget, () => icc_rgba(output, jpeg.profile))
+  let output = pdf_bound(self.budget, () => jpeg.pixels(rgba))
   display.resources.add(key, width, height, output)
   images.add(key, width, height, output)
 }
@@ -603,6 +670,7 @@ pub fn PdfSession::release_view(self : PdfSession, id : Int32) -> Unit {
   if self.views.get(id) is Some(view) {
     view.probe.close()
     self.views.remove(id)
+    self.encodedDisplay = None
     if self.display is Some(active) && active.id == id {
       self.display = None
       self.selection = (0, 0)

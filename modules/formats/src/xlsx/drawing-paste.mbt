@@ -73,8 +73,8 @@ pub fn Session::paste_drawing(
     x: dimensions.columns.position(range.left),
     y: dimensions.rows.position(range.top),
   }
-  guard rect.x + rect.width <= dimensions.columns.position(16385) &&
-    rect.y + rect.height <= dimensions.rows.position(1048577) else {
+  guard rect.x + rect.width <= dimensions.columns.position(WorksheetColumns + 1) &&
+    rect.y + rect.height <= dimensions.rows.position(WorksheetRows + 1) else {
     @failure.reject(
       "invalid-operation", "Pasted drawing would exceed the worksheet",
     )
@@ -168,10 +168,9 @@ pub fn Session::paste_drawing(
     }
   }
   if decoded.image is Some(bytes) {
-    let (part, mime) = self.new_picture_part(bytes)
+    let (part, mime, width, height) = self.new_picture_part(bytes)
     if images is Some(images) {
       let image = images.get(picture_key(part))
-      let (_, _, width, height) = @image.type_info(bytes)
       guard image.width == width && image.height == height else {
         @failure.reject(
           "missing-image", "Decoded drawing clipboard image dimensions differ",

@@ -86,7 +86,7 @@ fn modern_comment_body(
     text.text
   })
   let value = lines.join("\n")
-  guard value.length() <= 32767 else {
+  guard value.length() <= CommentTextUnits else {
     @failure.reject("limit-exceeded", "Comment text exceeds budget")
   }
   value

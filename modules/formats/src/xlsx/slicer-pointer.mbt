@@ -339,7 +339,7 @@ pub fn Session::scroll_slicer(
   position : Int32,
 ) -> Json raise @failure.Failure {
   let (_, _, slicer, geometry) = self.slicer_target(revision, sheet, layout, id)
-  guard position >= 0 && position <= 4095 && geometry.scroll is Some(_) else {
+  guard position >= 0 && position < SlicerMembers && geometry.scroll is Some(_) else {
     @failure.reject("invalid-operation", "Slicer has no scrollable view")
   }
   let start = position.min(geometry.maximum / slicer.control.columns) *

@@ -451,16 +451,20 @@ fn interpret(
           )
           context.extracted_image(reference, key, state, depth)
           context.commands.push(
-            @layout.Image({
-              key,
-              interpolate: Some(
-                raw(object, "Interpolate") == @syntax.PdfBoolean(true),
-              ),
-              x: 0,
-              y: 0,
-              width: 1,
-              height: 1,
-            }),
+            @layout.Image(
+              {
+                key,
+                interpolate: Some(
+                  raw(object, "Interpolate") == @syntax.PdfBoolean(true),
+                ),
+                x: 0,
+                y: 0,
+                width: 1,
+                height: 1,
+              },
+              crop=None,
+              preserve_pixels=false,
+            ),
           )
           context.restore()
           if context.collectSource &&

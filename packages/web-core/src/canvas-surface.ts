@@ -1,4 +1,4 @@
-import { CanvasRenderer, type CanvasRasterMode } from "./drawing.js";
+import { CanvasRenderer } from "./drawing.js";
 import { documentFailure } from "./connection.js";
 import type {
   DrawingBatch,
@@ -13,12 +13,13 @@ export class CanvasSurface {
   protected readonly images = new Map<string, ImageBitmap>();
   protected readonly imagePixels = new Map<string, Uint8Array>();
   protected readonly imageColors = new Map<string, ImageBitmap>();
+  protected readonly imageKeys = new Map<string, string>();
   private key: string | undefined;
   private closed = false;
 
-  constructor(rasterMode: CanvasRasterMode = "integer") {
+  constructor() {
     this.renderer = new CanvasRenderer(
-      rasterMode,
+      undefined,
       this.imagePixels,
       this.imageColors,
     );
@@ -26,9 +27,39 @@ export class CanvasSurface {
     this.canvas.style.display = "block";
   }
 
-  setGlyphRasterMode(mode: CanvasRasterMode): void {
-    if (this.closed) throw new Error("Canvas surface is disposed");
-    if (this.renderer.setGlyphRasterMode(mode)) this.key = undefined;
+  /** Takes ownership even when decoding completes after disposal. */
+  protected cacheImage(
+    identity: string,
+    bitmap: ImageBitmap,
+    pixels?: Uint8Array,
+    colors?: ImageBitmap,
+  ): void {
+    if (this.closed || this.images.has(identity)) {
+      bitmap.close();
+      colors?.close();
+      if (this.closed) throw new Error("Canvas surface is disposed");
+      return;
+    }
+    this.images.set(identity, bitmap);
+    if (pixels) this.imagePixels.set(identity, pixels);
+    if (colors) this.imageColors.set(identity, colors);
+  }
+
+  protected retainImages(identities: ReadonlySet<string>): void {
+    for (const [identity, bitmap] of this.images) {
+      if (identities.has(identity)) continue;
+      bitmap.close();
+      this.images.delete(identity);
+      this.imagePixels.delete(identity);
+      this.imageColors.get(identity)?.close();
+      this.imageColors.delete(identity);
+    }
+  }
+
+  protected retainImageKeys(keys: ReadonlySet<string>): void {
+    for (const key of this.imageKeys.keys())
+      if (!keys.has(key)) this.imageKeys.delete(key);
+    this.retainImages(new Set(this.imageKeys.values()));
   }
 
   get overlay(): HTMLCanvasElement {
@@ -66,7 +97,7 @@ export class CanvasSurface {
     const height = Math.ceil(page.height * scale);
     if (width * height * (this.overlayCanvas ? 2 : 1) > 16777216)
       throw new Error("Preview canvas exceeds budget");
-    const key = `${layout.id}:${index}:${zoom}:${dpr}`;
+    const key = `${layout.id}:${index}:${zoom}:${dpr}:${page.glyphRaster ?? "integer"}`;
     if (this.key === key && !liveImages?.size) return cssScale;
     const canvases = this.overlayCanvas
       ? [this.canvas, this.overlayCanvas]
@@ -84,7 +115,14 @@ export class CanvasSurface {
       context.resetTransform();
       context.clearRect(0, 0, width, height);
       context.setTransform(scale, 0, 0, scale, 0, 0);
-      this.renderer.drawRegion(context, layout, index, this.images, liveImages);
+      this.renderer.drawRegion(
+        context,
+        layout,
+        index,
+        this.images,
+        liveImages,
+        true,
+      );
       if (this.overlayCanvas) this.clearOverlay(cssScale);
     } catch (error) {
       throw documentFailure("draw", error);
@@ -118,6 +156,7 @@ export class CanvasSurface {
     index: number,
     scale: number,
     outputBytes: number,
+    maxOutputBytes: number,
     format: "png" | "jpeg" = "png",
   ): Promise<Uint8Array> {
     if (this.closed) throw new Error("Canvas surface is disposed");
@@ -130,7 +169,7 @@ export class CanvasSurface {
     if (
       !Number.isInteger(outputBytes) ||
       outputBytes < 1 ||
-      outputBytes > 67108864
+      outputBytes > maxOutputBytes
     )
       throw new Error("Invalid image output budget");
     const page = layout.regions[index];
@@ -191,10 +230,7 @@ export class CanvasSurface {
     if (this.overlayCanvas)
       this.overlayCanvas.width = this.overlayCanvas.height = 0;
     this.renderer.dispose();
-    for (const image of this.images.values()) image.close();
-    this.images.clear();
-    this.imagePixels.clear();
-    for (const image of this.imageColors.values()) image.close();
-    this.imageColors.clear();
+    this.retainImages(new Set());
+    this.imageKeys.clear();
   }
 }

@@ -8,6 +8,24 @@ let bibliography_legacy_uri = "http://schemas.microsoft.com/office/word/2004/10/
 let custom_xml_relationship = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXml"
 
 ///|
+pub const SourceTagUnits : Int32 = 64
+
+///|
+pub const SourceAuthorUnits : Int32 = 1024
+
+///|
+pub const SourceTitleUnits : Int32 = 1024
+
+///|
+pub const SourceYearUnits : Int32 = 32
+
+///|
+pub const SourcePublisherUnits : Int32 = 512
+
+///|
+pub const SourceUrlUnits : Int32 = 2048
+
+///|
 pub(all) struct BibliographySource {
   tag : String
   kind : String
@@ -16,13 +34,16 @@ pub(all) struct BibliographySource {
   year : String
   publisher : String
   url : String
-} derive(Eq, ToJson)
+} derive(Eq, ToJson, @json.FromJson)
 
 ///|
 pub extend BibliographySource with Eq::{equal, not_equal}
 
 ///|
 pub extend BibliographySource with ToJson::{to_json}
+
+///|
+pub extend BibliographySource with @json.FromJson::{from_json}
 
 ///|
 pub(all) enum BibliographyEdit {
@@ -57,11 +78,12 @@ fn source_text(value : String, limit : Int32) -> Bool {
 fn check_source_tag(tag : String) -> Unit raise @failure.Failure {
   guard !tag.is_empty() &&
     tag.trim() == tag &&
-    source_text(tag, 64) &&
+    source_text(tag, SourceTagUnits) &&
     !tag.contains("\"") &&
     !tag.contains("\\") else {
     @failure.reject(
-      "invalid-operation", "Source tags require 1-64 plain characters without quotes or backslashes",
+      "invalid-operation",
+      "Source tags require 1-\{SourceTagUnits} plain characters without quotes or backslashes",
     )
   }
 }
@@ -75,11 +97,11 @@ fn check_bibliography_source(
       value.kind,
     ) &&
     !value.title.trim().is_empty() &&
-    source_text(value.title, 1024) &&
-    source_text(value.author, 1024) &&
-    source_text(value.year, 32) &&
-    source_text(value.publisher, 512) &&
-    source_text(value.url, 2048) else {
+    source_text(value.title, SourceTitleUnits) &&
+    source_text(value.author, SourceAuthorUnits) &&
+    source_text(value.year, SourceYearUnits) &&
+    source_text(value.publisher, SourcePublisherUnits) &&
+    source_text(value.url, SourceUrlUnits) else {
     @failure.reject("invalid-operation", "Invalid bibliography source fields")
   }
 }
@@ -144,7 +166,9 @@ fn source_author(tree : WordTree, parent : Int32) -> (String, String) {
           @failure.reject("protected-content", "Mixed source author kinds")
         }
         if !corporate.is_empty() {
-          output.write_string(source_leaf(tree, author, "Corporate", 1024))
+          output.write_string(
+            source_leaf(tree, author, "Corporate", SourceAuthorUnits),
+          )
         }
         if lists.get(0) is Some(list) {
           let people = source_children(tree, list, "Person")
@@ -238,14 +262,14 @@ fn read_bibliography_sources(
   let tags : Set[String] = Set([])
   let records : Array[SourceRecord] = []
   for id in tree.children[root.id] {
-    let tag = source_leaf(tree, id, "Tag", 64)
+    let tag = source_leaf(tree, id, "Tag", SourceTagUnits)
     check_source_tag(tag)
     guard !tags.contains(tag) else {
       @failure.reject("protected-content", "Duplicate bibliography source tags")
     }
     tags.add(tag)
     let (author, author_reason) = source_author(tree, id)
-    guard source_text(author, 1024) else {
+    guard source_text(author, SourceAuthorUnits) else {
       @failure.reject("limit-exceeded", "Source author display exceeds budget")
     }
     let mut value : BibliographySource = {
@@ -263,8 +287,8 @@ fn read_bibliography_sources(
       value = {
         ..value,
         kind,
-        title: source_leaf(tree, id, "Title", 1024),
-        year: source_leaf(tree, id, "Year", 32),
+        title: source_leaf(tree, id, "Title", SourceTitleUnits),
+        year: source_leaf(tree, id, "Year", SourceYearUnits),
         publisher: source_leaf(
           tree,
           id,
@@ -275,9 +299,9 @@ fn read_bibliography_sources(
           } else {
             "Publisher"
           },
-          512,
+          SourcePublisherUnits,
         ),
-        url: source_leaf(tree, id, "URL", 2048),
+        url: source_leaf(tree, id, "URL", SourceUrlUnits),
       }
       guard ["Book", "JournalArticle", "InternetSite", "Report", "Misc"].contains(
         kind,
@@ -332,6 +356,27 @@ fn Session::bibliography_part(
 }
 
 ///|
+priv struct BibliographyCatalogEntry {
+  tag : String
+  kind : String
+  author : String
+  title : String
+  year : String
+  publisher : String
+  url : String
+  reason : String
+  authorReason : String
+  deleteReason : String
+} derive(ToJson)
+
+///|
+priv struct BibliographyCatalog {
+  revision : Int32
+  sources : Array[BibliographyCatalogEntry]
+  bibliographies : Array[BibliographyField]
+} derive(ToJson)
+
+///|
 /// Lists the document's native bibliography source records without changing its package.
 pub fn Session::bibliography_sources(
   self : Session,
@@ -347,30 +392,29 @@ pub fn Session::bibliography_sources(
   } else {
     self.source_references()
   }
-  let entries = records.map(record => {
+  let sources = records.map(record => {
     let value = record.value
-    let result : Json = {
-      "tag": value.tag,
-      "kind": value.kind,
-      "author": value.author,
-      "title": value.title,
-      "year": value.year,
-      "publisher": value.publisher,
-      "url": value.url,
-      "reason": record.reason,
-      "authorReason": record.author_reason,
-      "deleteReason": if references.contains(value.tag) ||
-        references.contains("") {
+    BibliographyCatalogEntry::{
+      tag: value.tag,
+      kind: value.kind,
+      author: value.author,
+      title: value.title,
+      year: value.year,
+      publisher: value.publisher,
+      url: value.url,
+      reason: record.reason,
+      authorReason: record.author_reason,
+      deleteReason: if references.contains(value.tag) || references.contains("") {
         "This source is cited in the document"
       } else {
         ""
       },
     }
-    result
   })
-  {
-    "revision": revision,
-    "sources": entries,
-    "bibliographies": self.bibliography_fields(),
+  let catalog : BibliographyCatalog = {
+    revision,
+    sources,
+    bibliographies: self.bibliography_fields(),
   }
+  ToJson::to_json(catalog)
 }

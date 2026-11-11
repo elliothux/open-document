@@ -52,6 +52,7 @@ priv struct ContentContext {
   fonts : Map[String, SourceFont]
   nativeOutlines : Map[String, @layout.Outline]
   nativeOutlineBytes : Ref[Int32]
+  preparedStrokePoints : Ref[Int32]
   colors : Map[Int32, InputColorSpace]
   mut optional : Map[Int32, Bool]?
   imageKeys : Array[String]

@@ -4,7 +4,7 @@ fn check_format_merges(
   rows : Int32,
   columns : Int32,
 ) -> Unit raise @failure.Failure {
-  guard merges.length() <= 1024 else {
+  guard merges.length() <= CellFragmentMerges else {
     @failure.reject(
       "limit-exceeded", "Copied merged range count exceeds budget",
     )

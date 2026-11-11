@@ -8,6 +8,7 @@ import {
 } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { docxListLevelPatternUnits } from "@open-document/wasm/engine-source";
 import { StyleChoice, StyleInput } from "./docx-style-fields.js";
 
 type MarkerFormat = NonNullable<DocxListLevelUpdate["character"]>;
@@ -81,7 +82,7 @@ export function DocxListLevelEdit({
             update[key] =
               numbers[key] === "inherit" ? null : Number(numbers[key]);
         controller.run(async () => {
-          await editor.updateListLevel(id, level.level, update);
+          await editor.formatting.updateListLevel(id, level.level, update);
           await refresh();
         });
       }}
@@ -114,7 +115,7 @@ export function DocxListLevelEdit({
           <input
             aria-label={t.listPattern}
             required
-            maxLength={256}
+            maxLength={docxListLevelPatternUnits}
             pattern={forbidden ? `(?!.*%[${forbidden}]).*` : undefined}
             title={t.listPatternHint}
             value={definition.pattern}

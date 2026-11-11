@@ -33,6 +33,26 @@ fn Session::expand_soft_break(self : Session) -> Bool raise @failure.Failure {
 }
 
 ///|
+fn Session::table_grid_enabled(
+  self : Session,
+) -> String? raise @failure.Failure {
+  guard self.settings_part() is Some(part) else { return None }
+  let tree = WordTree::new(self.part_xml(part))
+  guard tree
+    .child(0, "compat")
+    .bind(id => tree.child(id, "adjustLineHeightInTable"))
+    is Some(id) else {
+    return None
+  }
+  if tree.valid_on_off_property(id) &&
+    tree.nodes[id].attribute("val", uri=word_uri) is Some("0" | "false" | "off") {
+    None
+  } else {
+    Some(part)
+  }
+}
+
+///|
 fn Session::default_tab(self : Session) -> Double raise @failure.Failure {
   if self.settings_part() is Some(part) {
     let tree = WordTree::new(self.part_xml(part))

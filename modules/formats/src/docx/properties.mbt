@@ -297,6 +297,15 @@ fn paragraph_properties(
     .map(value => value / 20)
     .unwrap_or(base.after),
     line,
+    lineGrid: if tree.child(id, "snapToGrid") is Some(item) &&
+      tree.valid_on_off_property(item) {
+      match tree.nodes[item].attribute("val", uri=word_uri) {
+        Some("0" | "false" | "off") => None
+        _ => Some(0)
+      }
+    } else {
+      base.lineGrid
+    },
     left: tree
     .number(id, "ind", "left")
     .map(value => value / 20)
@@ -422,6 +431,8 @@ fn Session::styles(
     before: 0,
     after: 0,
     line: @layout.Auto(240),
+    // Zero keeps inherited snapping enabled until the body section supplies a pitch.
+    lineGrid: Some(0),
     left: 0,
     right: 0,
     first: 0,

@@ -2,7 +2,7 @@
 
 项目未发布，当前有 0 个用户。目标是复刻 GenOffice 的文档、表格、PPT、PDF 全功能 SDK。GenOffice 提供功能与 UI 参考；Office 实现、布局和算法仍优先参考 ONLYOFFICE，其次 LibreOffice。
 
-阶段 P0–P14 已完成各自声明范围，四类格式共用 [R0](implemented/r0-renderer-foundation.md) 与 [R1](implemented/r1-domain-packages-shared-wasm.md)。C0 已完成首批登记范围，当前推进 [R2 架构精简、核心下沉与性能重构](r2-architecture-and-performance.md)，随后开展 [C1 兼容矩阵整合与开源语料扩展](c1-corpus-and-producer-compatibility.md)、[P16 跨宿主核心独立探针](p16-cross-host-runtime.md) 及 [P15 次要与外围能力](p15-peripheral-capabilities.md)。功能优先级 P0/P1/P2 与历史阶段编号分开。只覆盖 Chrome/Chromium，文档完整性、恢复、资源安全和无障碍随功能保留。按风险选择[最小检查](references/testing.md)。
+阶段 P0–P14 已完成各自声明范围，四类格式共用 [R0](implemented/r0-renderer-foundation.md) 与 [R1](implemented/r1-domain-packages-shared-wasm.md)。C0 已完成首批登记范围。[R2 架构精简、核心下沉与性能重构](implemented/r2-architecture-and-performance.md)已完成。功能优先级 P0/P1/P2 与历史阶段编号分开。浏览器支持范围为 Chrome/Chromium。文档完整性、恢复、资源安全和无障碍随功能保留。按风险选择[最小检查](references/testing.md)。
 
 | 内容 | 权威入口 |
 | --- | --- |
@@ -15,10 +15,12 @@
 | 文档组织、编号与维护资料 | [文档与参考规范](references/README.md) |
 | 上游源码阅读入口 | [上游参考项目](references/upstream-projects.md) |
 | 测试执行、反馈与证据规则 | [测试说明](references/testing.md) |
+| 按功能选择足够检查 | [检查范围](references/testing-scope.md) |
 | 四格式兼容证据、缺口与上游测试矩阵 | [文件兼容性矩阵](references/compatibility.md) |
 | 数据集准备状态与来源管理 | [语料管理](references/corpus.md) |
 | 已实现需求的结果 | [完成索引](implemented/README.md) |
 | 外部条件阻塞的事项 | [阻塞索引](blocked/README.md) |
+| P0–P3 审查与修复记录 | [历史审查](implemented/p0-p3-review.md) |
 
 ## 已完成产品阶段
 
@@ -40,14 +42,14 @@
 | P13 | [PDF 核心功能](implemented/p13-pdf-core.md) | `implemented`：六批最低范围、源对象编辑/页面关系、批注/表单、独立脱敏及原生 Office/结构化输出；复杂兼容按 P14 扩展 |
 | P14 | [兼容与性能](implemented/p14-compatibility-performance.md) | `implemented`：七个兼容批次、真实文件编辑与输出，以及 DOCX 首次布局优化 |
 
-后续按 [R2.1–R2.3 架构精简与核心下沉](r2-architecture-and-performance.md) → [C1 语料扩展](c1-corpus-and-producer-compatibility.md) + [R2.4–R2.5 热点优化与分包](r2-architecture-and-performance.md) → [P16.1 无浏览器核心闭环](p16-cross-host-runtime.md) → [P15 次要与外围能力](p15-peripheral-capabilities.md) → [P16.2–P16.3 CLI 与跨宿主](p16-cross-host-runtime.md) 顺序推进。P14 的选定样本交付不代表普遍兼容。具体顺序和范围只在[路线图](references/roadmap.md#后续阶段与顺序)维护。
+阶段顺序和依赖见[路线图](references/roadmap.md#后续阶段与顺序)。当前文件覆盖范围见[兼容性矩阵](references/compatibility.md)。
 
 ## 待实现产品阶段
 
 | 编号 | 文档 | 当前状态 |
 | --- | --- | --- |
 | P15 | [次要与外围能力接入](p15-peripheral-capabilities.md) | `planned`：原生 Diff、AI 结构化命令事务、OCR/校对 Provider、PDF 签名与协作原语 |
-| P16 | [跨宿主与非浏览器运行时](p16-cross-host-runtime.md) | `planned`：P16.1 无浏览器核心闭环前置验证，后续完成 CLI 与非浏览器宿主接入 |
+| P16 | [跨宿主与非浏览器运行时](p16-cross-host-runtime.md) | P16.1 无浏览器探针已通过。P16.2 CLI 和 P16.3 非浏览器宿主仍为 `planned` |
 
 ## 兼容性专项
 
@@ -68,7 +70,7 @@
 | --- | --- | --- |
 | R0 | [通用渲染架构与薄 Renderer](implemented/r0-renderer-foundation.md) | `implemented`：DOCX/XLSX/PPTX/PDF Web 接入；有序图元、路径/矩阵/样式、共用 Canvas 表面与独立覆盖层 |
 | R1 | [领域拆包与共享 Wasm 加载](implemented/r1-domain-packages-shared-wasm.md) | `implemented`：四格式独立入口、领域 Bridge、唯一 Wasm、共享编译与独立文档会话 |
-| R2 | [架构精简、核心下沉与性能重构](r2-architecture-and-performance.md) | `planned`：移除重复校验与伪继承链、二进制 ABI 直通、渲染特判与图像头解析下沉 MoonBit、排版/计算提速与单格式 Wasm 拆分 |
+| R2 | [架构精简、核心下沉与性能重构](implemented/r2-architecture-and-performance.md) | `implemented`：核心缓存、命令协议、绘制与图像处理、响应传输、单格式 Wasm 和证据索引 |
 
 ## 测试基础设施
 

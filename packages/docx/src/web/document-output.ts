@@ -16,7 +16,7 @@ export async function checkDocxRevision(
   revision: number,
   assertOpen: () => void,
 ): Promise<number> {
-  const current = await client.editState();
+  const current = await client.execute({ operation: "editState" });
   assertOpen();
   if (current.revision !== revision)
     throw new Error("Document changed outside this editor");
@@ -55,12 +55,19 @@ export async function docxOutputs(
       throw new Error(
         `PNG requires supported layout: ${layout.diagnostics.join("; ")}`,
       );
+    const maxOutputBytes = client.inputLimits().exportBytes;
     let remaining = outputBytes;
     const pages = format === "images" ? layout.regions.keys() : [page];
     for (const index of pages) {
       assertOpen();
       if (remaining === 0) throw new Error("PNG pages exceed byte budget");
-      const bytes = await surface.exportImage(layout, index, scale, remaining);
+      const bytes = await surface.exportImage(
+        layout,
+        index,
+        scale,
+        remaining,
+        maxOutputBytes,
+      );
       assertOpen();
       remaining -= bytes.byteLength;
       buffers.push(bytes);
@@ -68,10 +75,19 @@ export async function docxOutputs(
   } else {
     buffers.push(
       format === "docx"
-        ? await client.saveDocx()
+        ? await client.execute({ operation: "saveDocx" })
         : format === "html" || format === "markdown"
-          ? await client.exportMarkup(revision, format, outputBytes)
-          : await client.exportPdf(outputBytes, layout.id),
+          ? await client.execute({
+              operation: "exportMarkup",
+              revision: revision,
+              format: format,
+              outputBytes: outputBytes,
+            })
+          : await client.execute({
+              operation: "exportPdf",
+              outputBytes: outputBytes,
+              layoutId: layout.id,
+            }),
     );
   }
   assertOpen();

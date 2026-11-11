@@ -9,8 +9,11 @@ pub(all) struct CopiedSparkline {
 fn CopiedCells::check_copied_sparklines(
   self : CopiedCells,
 ) -> Unit raise @failure.Failure {
-  guard self.sparklines.length() <= 256 else {
-    @failure.reject("limit-exceeded", "Copied sparklines exceed 256")
+  guard self.sparklines.length() <= SparklineCount else {
+    @failure.reject(
+      "limit-exceeded",
+      "Copied sparklines exceed \{SparklineCount}",
+    )
   }
   let bounds : Range = {
     top: self.top,
@@ -48,8 +51,11 @@ fn CopiedCells::sparklines_at(
   transpose : Bool,
 ) -> Array[Sparkline] raise @failure.Failure {
   let items = sheet.sparklines.items.filter(item => !target.contains(item.cell))
-  guard items.length() + self.sparklines.length() <= 256 else {
-    @failure.reject("limit-exceeded", "Pasted sparklines exceed 256")
+  guard items.length() + self.sparklines.length() <= SparklineCount else {
+    @failure.reject(
+      "limit-exceeded",
+      "Pasted sparklines exceed \{SparklineCount}",
+    )
   }
   for item in self.sparklines {
     let point = self.rule_range(

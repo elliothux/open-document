@@ -147,7 +147,7 @@ fn source_reason(
     if raw(catalog, "StructTreeRoot") != @syntax.PdfNull {
       return "Tagged PDF source editing requires synchronized structure"
     }
-    if source_text(display, target).length() > 32767 {
+    if source_text(display, target).length() > TextUnits {
       return "PDF source object exceeds the editable text budget"
     }
     ignore(source_placement(session, target))
@@ -162,11 +162,11 @@ fn source_reason(
 }
 
 ///|
-fn source_object_json(
+fn source_object_entry(
   session : PdfSession,
   display : PageDisplay,
   target : PdfSourceObject,
-) -> Json raise @failure.Failure {
+) -> PdfObjectEntry raise @failure.Failure {
   let reason = source_reason(session, display, target)
   let placement = source_placement(session, target) catch {
     _ => { x: 0, y: 0, width: 1, height: 1, rotation: 0, }
@@ -178,23 +178,23 @@ fn source_object_json(
     @syntax.PdfNull
   }
   {
-    "id": target.id,
-    "kind": if target.kind.has_prefix("text") {
+    id: target.id,
+    kind: if target.kind.has_prefix("text") {
       "text"
     } else {
       "image"
     },
-    "placement": placement,
-    "text": source_text(display, target),
-    "font": target.font,
-    "color": target.color,
-    "size": size,
-    "foreground": true,
-    "role": if role is PdfNameObject(name) {
+    placement,
+    text: source_text(display, target),
+    font: target.font,
+    color: target.color,
+    size,
+    foreground: true,
+    role: if role is PdfNameObject(name) {
       @utf8.decode_lossy(name.bytes())[1:].to_owned()
     } else {
       "text"
     },
-    "readOnlyReason": reason,
+    readOnlyReason: reason,
   }
 }

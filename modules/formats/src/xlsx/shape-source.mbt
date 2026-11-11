@@ -1,4 +1,10 @@
 ///|
+pub const ShapeTextUnits : Int32 = 32767
+
+///|
+pub const ShapeFontUnits : Int32 = 255
+
+///|
 fn ShapeSettings::checked(
   self : ShapeSettings,
   dimensions : Dimensions,
@@ -16,17 +22,19 @@ fn ShapeSettings::checked(
     } else {
       self.rect.width >= 0.1 && self.rect.height >= 0.1
     }) &&
-    self.rect.x + self.rect.width <= dimensions.columns.position(16385) &&
-    self.rect.y + self.rect.height <= dimensions.rows.position(1048577) else {
+    self.rect.x + self.rect.width <=
+    dimensions.columns.position(WorksheetColumns + 1) &&
+    self.rect.y + self.rect.height <=
+    dimensions.rows.position(WorksheetRows + 1) else {
     @failure.reject(
       "invalid-operation", "Invalid worksheet shape kind position or dimensions",
     )
   }
   guard self.insets.length() == 4 &&
-    self.text.length() <= 32767 &&
+    self.text.length() <= ShapeTextUnits &&
     @xml.valid_text(self.text) &&
     !self.font.trim().is_empty() &&
-    self.font.length() <= 255 &&
+    self.font.length() <= ShapeFontUnits &&
     @xml.valid_text(self.font) &&
     !self.size.is_nan() &&
     !self.size.is_inf() &&

@@ -27,7 +27,7 @@ fn lookup_search(
   last_equal : Bool,
   strict_errors : Bool,
   sheets : Array[Sheet],
-  calculated : Map[(Int32, String), Value],
+  calculated : Map[(Int32, Address), Value],
   work : FormulaWork,
 ) -> LookupResult raise @failure.Failure {
   let count = range.area().to_int()

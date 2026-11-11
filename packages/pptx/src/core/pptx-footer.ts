@@ -1,3 +1,7 @@
+import {
+  pptxFooterParagraphCount,
+  pptxFooterTextUnits,
+} from "@open-document/wasm/engine-source";
 import { record } from "@open-document/wasm/abi/validation";
 
 export interface PptxFooterContent {
@@ -45,9 +49,10 @@ export function checkPptxFooterContent(value: unknown): void {
     if (value === null) continue;
     if (
       typeof value !== "string" ||
-      value.length > 4096 ||
+      value.length > pptxFooterTextUnits ||
       !value.isWellFormed() ||
-      value.replace(/\r\n?/g, "\n").split("\n").length > 256 ||
+      value.replace(/\r\n?/g, "\n").split("\n").length >
+        pptxFooterParagraphCount ||
       Array.from(value).some((c) => {
         const n = c.codePointAt(0)!;
         return (
@@ -57,22 +62,4 @@ export function checkPptxFooterContent(value: unknown): void {
     )
       throw new Error("Invalid slide footer text");
   }
-}
-
-export function pptxFooter(value: unknown): PptxFooter {
-  const query = record(value);
-  if (
-    Object.keys(query).length !== 4 ||
-    Object.keys(query).some(
-      (key) => !["date", "footer", "number", "reason"].includes(key),
-    ) ||
-    typeof query.reason !== "string"
-  )
-    throw new Error("Invalid slide footer query");
-  checkPptxFooterContent({
-    date: query.date,
-    footer: query.footer,
-    number: query.number,
-  });
-  return value as PptxFooter;
 }

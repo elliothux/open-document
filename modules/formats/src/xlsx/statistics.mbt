@@ -4,7 +4,7 @@ fn Session::selection_statistics(
   sheet : Int32,
   range : Range,
   cells : Array[Cell],
-) -> Json raise @failure.Failure {
+) -> QueryStatistics raise @failure.Failure {
   let current = self.sheets[sheet]
   let mut count = 0
   let numbers : Array[Double] = []
@@ -14,13 +14,12 @@ fn Session::selection_statistics(
       continue
     }
     if cell.formula is Some(_) &&
-      self.calculation.bind(c => c.values.get((sheet, cell.address.name())))
-      is None {
+      self.calculation.bind(c => c.values.get((sheet, cell.address))) is None {
       uncomputed = "Selection includes an uncalculated formula: " +
         cell.address.name()
     }
     let value = self.calculation
-      .bind(calculation => calculation.values.get((sheet, cell.address.name())))
+      .bind(calculation => calculation.values.get((sheet, cell.address)))
       .unwrap_or(cell.value)
     match value {
       Blank | Text("") => continue
@@ -29,16 +28,16 @@ fn Session::selection_statistics(
     }
     count += 1
   }
-  let mut sum : Json = Json::null()
-  let mut average : Json = Json::null()
-  let mut minimum : Json = Json::null()
-  let mut maximum : Json = Json::null()
+  let mut sum : Double? = None
+  let mut average : Double? = None
+  let mut minimum : Double? = None
+  let mut maximum : Double? = None
   let mut reason = self.read_only
   if !numbers.is_empty() {
     let low = numbers.iter().fold(init=numbers[0], (a, b) => a.min(b))
     let high = numbers.iter().fold(init=numbers[0], (a, b) => a.max(b))
-    minimum = Json(low)
-    maximum = Json(high)
+    minimum = Some(low)
+    maximum = Some(high)
     let scale = low.abs().max(high.abs())
     // Scaling preserves finite averages even when the unscaled sum overflows.
     let mut total = 0.0
@@ -62,40 +61,25 @@ fn Session::selection_statistics(
         reason + "; Selection sum exceeds the finite numeric range"
       }
     } else {
-      sum = Json(value)
+      sum = Some(value)
     }
-    average = Json(
+    average = Some(
       ((total / numbers.length().to_double()).clamp(min=-1, max=1) * scale).clamp(
         min=low,
         max=high,
       ),
     )
   }
+  let computed = uncomputed.is_empty()
   {
-    "range": range.name(),
-    "count": count,
-    "countNumbers": numbers.length(),
-    "sum": if uncomputed.is_empty() {
-      sum
-    } else {
-      Json::null()
-    },
-    "average": if uncomputed.is_empty() {
-      average
-    } else {
-      Json::null()
-    },
-    "min": if uncomputed.is_empty() {
-      minimum
-    } else {
-      Json::null()
-    },
-    "max": if uncomputed.is_empty() {
-      maximum
-    } else {
-      Json::null()
-    },
-    "reason": if uncomputed.is_empty() {
+    range: range.name(),
+    count,
+    countNumbers: numbers.length(),
+    sum: { value: if computed { sum } else { None }, },
+    average: { value: if computed { average } else { None }, },
+    min: { value: if computed { minimum } else { None }, },
+    max: { value: if computed { maximum } else { None }, },
+    reason: if computed {
       reason
     } else {
       uncomputed

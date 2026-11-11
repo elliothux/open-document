@@ -4,6 +4,23 @@ import {
   "open_document/formats/xlsx" @model,
   "open_document/layout",
   "open_document/bridge/common",
-  "moonbitlang/core/encoding/base64",
+  "moonbitlang/core/json",
   "open_document/formats/pdf",
 }
+
+options(
+  link: {
+    "wasm-gc": {
+      "exports": [
+        "abi_version",
+        "new_context:xlsx_new",
+        "call_wire:xlsx_call",
+        "take_output:xlsx_output",
+        "add_font:xlsx_add_font",
+        "close:xlsx_close",
+      ],
+      "use-js-builtin-string": true,
+      "imported-string-constants": "_",
+    },
+  },
+)

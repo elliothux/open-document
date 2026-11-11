@@ -8,7 +8,7 @@ fn Session::read_table_fragment(
   media : Map[String, Bytes],
   added_media : Map[String, Bytes],
 ) -> (@xml.Document, TableGrid) raise @failure.Failure {
-  let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
+  let limit = self.opc.budget.entry_bytes.min(ClipboardFragmentUnits)
   guard !xml.is_empty() && xml.length() <= limit else {
     @failure.reject(
       "limit-exceeded", "Rich table fragment exceeds source budget",
@@ -102,10 +102,11 @@ fn Session::check_fragment_table(
     @failure.reject("invalid-table", "Rich table requires a complete grid")
   }
   guard model.rows.length() > 0 &&
-    model.rows.length() <= 1000 &&
+    model.rows.length() <= TableGridRows &&
     model.widths.length() > 0 &&
-    model.widths.length() <= 63 &&
-    model.rows.length().to_int64() * model.widths.length().to_int64() <= 4096 else {
+    model.widths.length() <= TableGridColumns &&
+    model.rows.length().to_int64() * model.widths.length().to_int64() <=
+    TableGridCells.to_int64() else {
     @failure.reject("limit-exceeded", "Rich table dimensions exceed budget")
   }
   let grid = read_table_grid(tree, model, 0, 0)

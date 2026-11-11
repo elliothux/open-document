@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { xlsxSubtotalCells } from "@open-document/wasm/engine-source";
 import type { SpreadsheetEditor } from "../web/spreadsheet-editor.js";
 import {
   subtotalFunctions,
@@ -40,7 +41,8 @@ export function XlsxSubtotal({
   const bounded =
     range.bottom > range.top &&
     range.right > range.left &&
-    (range.bottom - range.top + 1) * (range.right - range.left + 1) <= 4096;
+    (range.bottom - range.top + 1) * (range.right - range.left + 1) <=
+      xlsxSubtotalCells;
   const ready =
     preview &&
     preview.revision === query.revision &&
@@ -124,7 +126,7 @@ export function XlsxSubtotal({
         disabled={!valid}
         onClick={() =>
           controller.run(async () =>
-            setPreview(await editor.subtotals(settings)),
+            setPreview(await editor.data.subtotals(settings)),
           )
         }
       >
@@ -155,7 +157,7 @@ export function XlsxSubtotal({
             disabled={!valid || !ready}
             onClick={() =>
               controller.run(() =>
-                editor.editSheet(
+                editor.objects.editSheet(
                   {
                     action: "createSubtotals",
                     settings,

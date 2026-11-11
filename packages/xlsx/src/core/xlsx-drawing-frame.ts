@@ -24,20 +24,3 @@ export function checkXlsxDrawingFrame(value: unknown): void {
     crop: [0, 0, 0, 0],
   });
 }
-
-export function checkDrawingFrameView(value: unknown): void {
-  const frame = record(value);
-  if (
-    Object.keys(frame).length !== 5 ||
-    typeof frame.anchor !== "string" ||
-    !["fixed", "move", "size"].includes(frame.anchor) ||
-    !["x", "y", "width", "height"].every(
-      (key) =>
-        typeof frame[key] === "number" &&
-        Number.isFinite(frame[key]) &&
-        frame[key] >= 0 &&
-        frame[key] <= (key === "x" || key === "y" ? 1e9 : 14400),
-    )
-  )
-    throw new Error("Invalid drawing frame view");
-}

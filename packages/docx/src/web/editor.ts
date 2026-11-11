@@ -1,6 +1,14 @@
+import { createDocumentReview } from "./document-review.js";
+import { createDocumentSources } from "./document-sources.js";
+import { createDocumentPages } from "./document-page.js";
+import { createDocumentObjects } from "./document-objects.js";
+import { createDocumentClipboard } from "./document-clipboard.js";
+import { createDocumentTables } from "./document-tables.js";
+import { createDocumentSearch } from "./document-search.js";
+import { createDocumentFormatting } from "./document-formatting.js";
 import { bindClipboard } from "@open-document/web-core/clipboard";
 import { docxOutputs, downloadDocxOutput } from "./document-output.js";
-import { DocumentTables } from "./document-tables.js";
+
 export type * from "./document-types.js";
 import { createDocumentElements, docxPageText } from "./document-elements.js";
 import type { FoundationClient } from "./foundation.js";
@@ -20,31 +28,29 @@ import {
   type EditorSnapshot,
 } from "@open-document/web-core/editor-state";
 import type { PageLayout } from "../core/preview.js";
+import type { DocxSelectionView } from "../core/docx-hit.js";
 import {
   docxSelectionDescription,
-  queryDocxSelectionGeometry,
-  searchSelections,
+  docxSelectionRequest,
   selectFirstDocxPosition,
   docxInputReadOnly,
-  type DocumentSearchResult,
 } from "./document-selection.js";
 import type {
   DocxSelection,
   EditState,
-  CharacterFormatPatch,
-  ParagraphFormatPatch,
-  CopiedFormat,
-  DocxStyleUpdate,
-  DocxStyleCreation,
-  DocxFindOptions,
-  DocxListEdit,
-  DocxListLevelUpdate,
-  DocxPictureEdit,
-  DocxThemeSlot,
-  DocxThemeFontEdit,
   DocxSelectionGeometry,
 } from "../core/foundation.js";
-export class DocumentEditor extends DocumentTables {
+import { CommandQueue } from "@open-document/web-core/command-queue";
+
+export class DocumentEditor {
+  readonly review: ReturnType<typeof createDocumentReview>;
+  readonly sources: ReturnType<typeof createDocumentSources>;
+  readonly pages: ReturnType<typeof createDocumentPages>;
+  readonly objects: ReturnType<typeof createDocumentObjects>;
+  readonly clipboard: ReturnType<typeof createDocumentClipboard>;
+  readonly tables: ReturnType<typeof createDocumentTables>;
+  readonly search: ReturnType<typeof createDocumentSearch>;
+  readonly formatting: ReturnType<typeof createDocumentFormatting>;
   private readonly container: HTMLDivElement;
   private readonly viewport: HTMLDivElement;
   private readonly input: HTMLTextAreaElement;
@@ -52,9 +58,11 @@ export class DocumentEditor extends DocumentTables {
   private readonly observable: EditorState<EditState>;
   private paused = false;
   private readonly listeners = new AbortController();
-  private tail: Promise<void> = Promise.resolve();
-  private pending = 0;
-  private generation = 0;
+  private readonly queue = new CommandQueue(64, () => {
+    const error = new Error("Input queue is full");
+    this.stop(error);
+    return error;
+  });
   private blocked: Error | undefined;
   private outputError = "";
   private closed = false;
@@ -66,21 +74,37 @@ export class DocumentEditor extends DocumentTables {
   private cleanup: Promise<void> | undefined;
   private readonly pointerSelection: DocumentPointer;
   private selectionDescription = "Focus document text input to start editing";
+  readonly inputLimits: ReturnType<FoundationClient["inputLimits"]>;
   private constructor(
     private readonly root: HTMLElement,
     private readonly client: FoundationClient,
-    protected readonly profile: Record<string, string>,
+    private readonly profile: Record<string, string>,
     private readonly surface: PageCanvas,
     private currentLayout: PageLayout,
     private state: EditState,
   ) {
-    super({
-      client,
-      read: (operation) => this.enqueue(operation),
-      edit: (operation) => this.format(operation),
+    this.inputLimits = client.inputLimits();
+    const host = {
+      state: () => this.state,
+      selection: () => this.selection(),
+      endGroup: () => this.inputEvents.endGroup(),
+      read: <T>(operation: () => Promise<T>) => this.enqueue(operation),
+      edit: (operation: () => Promise<EditState>) => this.format(operation),
+      changed: (state: EditState) => this.changed(state),
       snapshot: () => this.getSnapshot(),
       layout: () => this.currentLayout,
-    });
+      showRevisionGeometry: (geometry: DocxSelectionGeometry) =>
+        this.showRevisionGeometry(geometry),
+      paste: (text: string) => this.paste(text),
+    };
+    this.formatting = createDocumentFormatting(client, profile, host);
+    this.review = createDocumentReview(client, host);
+    this.sources = createDocumentSources(client, profile, host);
+    this.pages = createDocumentPages(client, profile, host);
+    this.objects = createDocumentObjects(client, profile, host);
+    this.clipboard = createDocumentClipboard(client, profile, host);
+    this.tables = createDocumentTables(client, profile, host);
+    this.search = createDocumentSearch(client, host);
     const elements = createDocumentElements(
       surface.canvas,
       surface.overlay,
@@ -116,7 +140,10 @@ export class DocumentEditor extends DocumentTables {
       this.listeners.signal,
       {
         assertOpen: () => this.assertOpen(),
-        ink: () => ({ options: this.inkOptions, profile: this.profile }),
+        ink: () => ({
+          options: this.objects.inkOptions,
+          profile: this.profile,
+        }),
         available: () =>
           !this.closed &&
           !this.paused &&
@@ -140,15 +167,16 @@ export class DocumentEditor extends DocumentTables {
           this.paint();
         },
         settle: () => this.enqueue(() => this.presentSelection(), true),
-        openComment: (id) => this.editComment({ action: "goTo", id }),
+        openComment: (id) => this.review.editComment({ action: "goTo", id }),
         gesture: (change) => {
           this.inputEvents.endGroup();
           return this.enqueue(async () => {
-            const state = await this.client.drawingGesture(
-              this.state.revision,
-              change(),
-              this.profile,
-            );
+            const state = await this.client.execute({
+              operation: "drawingGesture",
+              revision: this.state.revision,
+              change: change(),
+              profile: this.profile,
+            });
             await this.changed(state, true, false);
           }, true);
         },
@@ -229,9 +257,13 @@ export class DocumentEditor extends DocumentTables {
     let editor: DocumentEditor | undefined;
     try {
       const layout = await surface.layout(profile);
-      const state = await client.editState();
+      const state = await client.execute({ operation: "editState" });
       if (state.selection)
-        await client.selectDocx(state.revision, state.selection);
+        await client.execute({
+          operation: "selectDocx",
+          revision: state.revision,
+          selection: state.selection,
+        });
       signal?.throwIfAborted();
       editor = new DocumentEditor(
         root,
@@ -278,7 +310,7 @@ export class DocumentEditor extends DocumentTables {
       this.resuming ||
       docxInputReadOnly(this.state, this.currentLayout);
     this.publish();
-    if (paused) await this.tail;
+    if (paused) await this.queue.whenIdle();
     else await this.enqueue(() => this.presentSelection(false), true);
   }
   undo(): Promise<void> {
@@ -310,7 +342,7 @@ export class DocumentEditor extends DocumentTables {
     this.pointerSelection.cancel();
     this.blocked = error;
     this.inputEvents.endGroup();
-    if (cancelQueued) this.generation++;
+    if (cancelQueued) this.queue.invalidate();
     this.input.value = "";
     this.input.readOnly = true;
     this.selectionDescription =
@@ -338,63 +370,58 @@ export class DocumentEditor extends DocumentTables {
           -1,
         );
       }
-      if (this.pending >= 64) {
-        this.stop(new Error("Input queue is full"));
-        throw this.blocked;
-      }
     } catch (error) {
       return Promise.reject(error);
     }
-    const generation = this.generation;
-    this.pending++;
-    this.publish();
-    const result = this.tail.then(async () => {
-      this.assertOpen();
-      if (generation !== this.generation)
-        throw new Error("Queued input was cancelled");
-      try {
-        const value = await operation();
+    const generation = this.queue.generation;
+    return this.queue.enqueue(
+      async () => {
         this.assertOpen();
-        if (generation !== this.generation)
-          throw new Error("Input was interrupted; reload the current document");
-        if (!this.blocked) this.outputError = "";
-        return value;
-      } catch (error) {
-        if (output && output !== "pdf" && output !== "docx" && !this.blocked) {
-          this.outputError =
-            error instanceof Error ? error.message : String(error);
+        if (generation !== this.queue.generation)
+          throw new Error("Queued input was cancelled");
+        try {
+          const value = await operation();
+          this.assertOpen();
+          if (generation !== this.queue.generation)
+            throw new Error(
+              "Input was interrupted; reload the current document",
+            );
+          if (!this.blocked) this.outputError = "";
+          return value;
+        } catch (error) {
+          if (
+            output &&
+            output !== "pdf" &&
+            output !== "docx" &&
+            !this.blocked
+          ) {
+            this.outputError =
+              error instanceof Error ? error.message : String(error);
+            throw error;
+          }
+          if (
+            error instanceof DocumentError &&
+            [
+              "busy",
+              "stale-search",
+              "stale-overview",
+              "stale-toc",
+              "stale-index",
+              "stale-sources",
+            ].includes(error.code)
+          ) {
+            this.observable.update({ error: error.message });
+          } else if (generation === this.queue.generation)
+            this.stop(
+              error instanceof Error ? error : new Error(String(error)),
+              true,
+            );
           throw error;
         }
-        if (
-          error instanceof DocumentError &&
-          [
-            "busy",
-            "stale-search",
-            "stale-overview",
-            "stale-toc",
-            "stale-index",
-            "stale-sources",
-          ].includes(error.code)
-        ) {
-          this.observable.update({ error: error.message });
-        } else if (generation === this.generation)
-          this.stop(
-            error instanceof Error ? error : new Error(String(error)),
-            true,
-          );
-        throw error;
-      }
-    });
-    this.tail = result
-      .then(
-        () => {},
-        () => {},
-      )
-      .finally(() => {
-        this.pending--;
-        this.publish();
-      });
-    return result;
+      },
+      () => this.publish(),
+      () => this.publish(),
+    );
   }
   private handle(operation: () => Promise<void>): void {
     this.inputEvents.endGroup();
@@ -406,15 +433,21 @@ export class DocumentEditor extends DocumentTables {
     return this.enqueue(async () =>
       this.changed(
         await (redo
-          ? this.client.redoDocx(this.state.revision)
-          : this.client.undoDocx(this.state.revision)),
+          ? this.client.execute({
+              operation: "redoDocx",
+              revision: this.state.revision,
+            })
+          : this.client.execute({
+              operation: "undoDocx",
+              revision: this.state.revision,
+            })),
       ),
     );
   }
 
   async whenIdle(): Promise<void> {
     this.pointerSelection.flush();
-    await this.tail;
+    await this.queue.whenIdle();
     this.assertOpen();
     if (this.blocked) throw this.blocked;
   }
@@ -429,7 +462,7 @@ export class DocumentEditor extends DocumentTables {
       throw new Error("Resume is only available after editing stops");
     this.resuming = true;
     this.publish();
-    const result = this.tail.then(async () => {
+    return this.queue.barrier(async () => {
       try {
         this.assertOpen();
         await this.inputEvents.cancel();
@@ -459,146 +492,11 @@ export class DocumentEditor extends DocumentTables {
         this.publish();
       }
     });
-    this.tail = result.then(
-      () => {},
-      () => {},
-    );
-    return result;
   }
-  protected selection(): DocxSelection {
+  private selection(): DocxSelection {
     const selection = this.state.selection;
     if (!selection) throw new Error("Click a document position first");
     return selection;
-  }
-  find(
-    text: string,
-    options: DocxFindOptions = {},
-  ): Promise<DocumentSearchResult> {
-    this.inputEvents.endGroup();
-    return this.enqueue(async () => ({
-      ...(await this.client.findDocx(this.state.revision, text, options)),
-      documentId: this.getSnapshot().documentId,
-    }));
-  }
-  selectMatch(result: DocumentSearchResult, index: number): Promise<void> {
-    return this.format(() =>
-      this.client.selectDocx(
-        result.revision,
-        searchSelections(result, this.getSnapshot(), index)[0]!,
-      ),
-    );
-  }
-  replaceMatches(
-    result: DocumentSearchResult,
-    text: string,
-    index?: number,
-  ): Promise<void> {
-    return this.format(() =>
-      this.client.replaceDocxMatches(
-        result.revision,
-        searchSelections(result, this.getSnapshot(), index),
-        text,
-      ),
-    );
-  }
-  setCharacterFormat(format: CharacterFormatPatch): Promise<void> {
-    return this.applyFormat({ character: format, paragraph: {} });
-  }
-  setHyperlink(target: string | null, text?: string): Promise<void> {
-    return this.format(() =>
-      this.client.setHyperlink(
-        this.state.revision,
-        this.selection(),
-        target,
-        text,
-      ),
-    );
-  }
-  lists() {
-    return this.enqueue(() => this.client.lists(this.state.revision));
-  }
-  updateListLevel(
-    id: number,
-    level: number,
-    definition: DocxListLevelUpdate,
-  ): Promise<void> {
-    return this.format(() =>
-      this.client.updateListLevel(this.state.revision, id, level, definition),
-    );
-  }
-  editList(change: DocxListEdit): Promise<void> {
-    return this.format(() =>
-      this.client.editList(this.state.revision, this.selection(), change),
-    );
-  }
-  setParagraphFormat(format: ParagraphFormatPatch): Promise<void> {
-    return this.applyFormat({ character: {}, paragraph: format });
-  }
-  themeColors() {
-    return this.enqueue(() => this.client.themeColors(this.state.revision));
-  }
-  themeFonts() {
-    return this.enqueue(() => this.client.themeFonts(this.state.revision));
-  }
-  setThemeFonts(fonts: DocxThemeFontEdit[]): Promise<void> {
-    return this.format(() =>
-      this.client.setThemeFonts(this.state.revision, fonts, this.profile),
-    );
-  }
-  setThemeColor(slot: DocxThemeSlot, color: string): Promise<void> {
-    return this.format(() =>
-      this.client.setThemeColor(this.state.revision, slot, color),
-    );
-  }
-  pictures() {
-    return this.enqueue(() => this.client.pictures(this.state.revision));
-  }
-  editPicture(revision: number, picture: DocxPictureEdit): Promise<void> {
-    return this.format(() =>
-      this.client.editPicture(revision, picture, this.profile),
-    );
-  }
-  setDefaultTabStop(interval: number | null): Promise<void> {
-    return this.format(() =>
-      this.client.setDefaultTabStop(this.state.revision, interval),
-    );
-  }
-  styles(kind: "paragraph" | "character") {
-    return this.enqueue(() => this.client.styles(this.state.revision, kind));
-  }
-  updateStyle(key: string, format: DocxStyleUpdate): Promise<void> {
-    return this.format(() =>
-      this.client.updateStyle(this.state.revision, key, format),
-    );
-  }
-  createStyle(style: DocxStyleCreation): Promise<string> {
-    this.inputEvents.endGroup();
-    return this.enqueue(async () => {
-      const result = await this.client.createStyle(this.state.revision, style);
-      await this.changed(result.state);
-      return result.id;
-    });
-  }
-  deleteStyle(key: string, replacement: string): Promise<void> {
-    return this.format(() =>
-      this.client.deleteStyle(this.state.revision, key, replacement),
-    );
-  }
-  captureFormat(): Promise<CopiedFormat> {
-    this.inputEvents.endGroup();
-    return this.enqueue(() =>
-      this.client.captureFormat(this.state.revision, this.selection()),
-    );
-  }
-  applyFormat(format: CopiedFormat): Promise<void> {
-    return this.format(() =>
-      this.client.applyFormat(
-        this.state.revision,
-        this.selection(),
-        format,
-        this.profile,
-      ),
-    );
   }
   private format(operation: () => Promise<EditState>): Promise<void> {
     this.inputEvents.endGroup();
@@ -608,18 +506,26 @@ export class DocumentEditor extends DocumentTables {
     });
   }
   private async changed(
-    state: EditState,
+    state: EditState & { selectionView?: DocxSelectionView },
     relayout = false,
     reveal = true,
   ): Promise<void> {
     this.assertOpen();
     const revision = this.state.revision;
-    this.state = state;
+    const { selectionView, ...next } = state;
+    this.state = next;
     this.publish();
-    if (relayout || state.revision !== revision)
-      this.currentLayout = await this.surface.layout(this.profile);
+    let view = selectionView;
+    if (relayout || state.revision !== revision) {
+      const { selectionView, ...layout } = await this.surface.layout(
+        this.profile,
+        docxSelectionRequest(next),
+      );
+      this.currentLayout = layout;
+      view = selectionView;
+    }
     this.assertOpen();
-    await this.presentSelection(reveal);
+    await this.presentSelection(reveal, view);
   }
   paste(text: string): Promise<void> {
     this.inputEvents.endGroup();
@@ -632,33 +538,46 @@ export class DocumentEditor extends DocumentTables {
     return this.enqueue(async () => {
       if (normalized.length === 0) return;
       await this.changed(
-        await this.client.replaceRange(
-          this.state.revision,
-          this.selection(),
-          normalized,
-        ),
+        await this.client.execute({
+          operation: "replaceRange",
+          revision: this.state.revision,
+          selection: this.selection(),
+          text: normalized,
+        }),
       );
     });
   }
-  private async presentSelection(reveal = true): Promise<void> {
+  private async presentSelection(
+    reveal = true,
+    view?: DocxSelectionView,
+  ): Promise<void> {
     this.assertOpen();
     const layoutId = this.currentLayout.id;
-    const { caret, geometry, formatting } = await queryDocxSelectionGeometry(
-      this.client,
-      this.state,
-      this.currentLayout,
-      () => this.assertOpen(),
-    );
+    const request = docxSelectionRequest(this.state);
+    if (!view && request)
+      view = await this.client.execute({
+        operation: "docxSelectionView",
+        layoutId,
+        ...request,
+      });
     this.assertOpen();
-    if (this.currentLayout.id !== layoutId)
+    if (
+      this.currentLayout.id !== layoutId ||
+      (view &&
+        (view.layoutId !== layoutId ||
+          view.revision !== this.currentLayout.revision))
+    )
       throw new Error("Selection geometry belongs to a stale layout");
-    this.state = { ...this.state, formatting };
+    if (view?.formatting)
+      this.state = { ...this.state, formatting: view.formatting };
+    const caret = view?.caret,
+      geometry = view?.geometry;
     if (caret && reveal) this.page = caret.page;
-    const description = await docxSelectionDescription(
-      this.client,
+    const description = docxSelectionDescription(
       this.state,
       this.page,
       !!this.blocked,
+      view,
     );
     this.assertOpen();
     this.selectionDescription = description;
@@ -701,7 +620,7 @@ export class DocumentEditor extends DocumentTables {
       selection: this.selectionDescription,
       composition: this.inputEvents?.active ?? false,
       dragging: this.pointerSelection?.active ?? false,
-      busy: this.pending,
+      busy: this.queue.pending,
       paused: this.paused,
       stopped: !!this.blocked || this.resuming,
       closed: this.closed,
@@ -735,9 +654,42 @@ export class DocumentEditor extends DocumentTables {
       }
     });
   }
-  protected outputs(
+  async downloadPdf(
+    filename = "document.pdf",
+    outputBytes?: number,
+  ): Promise<void> {
+    this.downloadOutput(await this.exportPdf(outputBytes), filename);
+  }
+  async downloadDocx(filename = "document.docx"): Promise<void> {
+    this.downloadOutput(await this.saveDocx(), filename);
+  }
+  /** A barrier: later input cannot change the returned revision or bytes. */
+  async saveDocx(): Promise<EditorOutput> {
+    return (await this.outputs("docx"))[0]!;
+  }
+  async exportPdf(outputBytes?: number): Promise<EditorOutput> {
+    return (await this.outputs("pdf", outputBytes))[0]!;
+  }
+  async exportHtml(outputBytes?: number): Promise<EditorOutput> {
+    return (await this.outputs("html", outputBytes))[0]!;
+  }
+  async exportMarkdown(outputBytes?: number): Promise<EditorOutput> {
+    return (await this.outputs("markdown", outputBytes))[0]!;
+  }
+  /** Exports the current page at pixels per point, independent of preview zoom and DPR. */
+  async exportPng(scale = 1, outputBytes?: number): Promise<EditorOutput> {
+    return (await this.outputs("png", outputBytes, scale))[0]!;
+  }
+  /** Exports all pages in order at one revision, with a shared byte budget. */
+  exportPageImages(
+    scale = 1,
+    outputBytes?: number,
+  ): Promise<readonly EditorOutput[]> {
+    return this.outputs("images", outputBytes, scale);
+  }
+  private outputs(
     format: "docx" | "pdf" | "png" | "images" | "html" | "markdown",
-    outputBytes = 67108864,
+    outputBytes = this.inputLimits.exportBytes,
     scale = 1,
   ): Promise<readonly EditorOutput[]> {
     this.inputEvents.endGroup();
@@ -763,7 +715,7 @@ export class DocumentEditor extends DocumentTables {
       format,
     );
   }
-  protected async showRevisionGeometry(
+  private async showRevisionGeometry(
     geometry: DocxSelectionGeometry,
   ): Promise<void> {
     await this.showPage(geometry.rects[0]!.page);
@@ -774,7 +726,7 @@ export class DocumentEditor extends DocumentTables {
       this.viewport,
     );
   }
-  protected downloadOutput(output: EditorOutput, filename: string): void {
+  private downloadOutput(output: EditorOutput, filename: string): void {
     this.assertOpen();
     downloadDocxOutput(output, filename, this.observable, !this.blocked);
   }
@@ -782,13 +734,14 @@ export class DocumentEditor extends DocumentTables {
   dispose(): Promise<void> {
     if (this.cleanup) return this.cleanup;
     this.closed = true;
-    this.generation++;
+    this.queue.invalidate();
     this.listeners.abort();
     this.selectionDescription = "";
     this.input.removeAttribute("aria-description");
     this.observable.close();
     this.container.remove();
-    this.cleanup = this.tail
+    this.cleanup = this.queue
+      .whenIdle()
       .then(async () => {
         await this.inputEvents.cancel();
         await cancelDocxDrawingGesture(this.client);

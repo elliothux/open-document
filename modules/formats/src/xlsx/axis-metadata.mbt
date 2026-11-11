@@ -46,9 +46,9 @@ fn axis_pane_name(
     let value = natural(
       pane.attribute(key).unwrap_or("0"),
       if rows {
-        1048575
+        WorksheetRows - 1
       } else {
-        16383
+        WorksheetColumns - 1
       },
     )
     if rows != change.rows || value == 0 {

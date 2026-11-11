@@ -1,6 +1,8 @@
 ///|
-fn pptx_source_edit(change : Json) -> @model.SlideEdit raise @failure.Failure {
-  let action = field_string(change, "action")
+fn pptx_source_edit(
+  action : String,
+  change : Json,
+) -> @model.SlideEdit raise @failure.Failure {
   guard change is Object(fields) &&
     fields.length() == (if action == "sourceName" { 2 } else { 1 }) else {
     @failure.reject("invalid-operation", "Invalid source edit fields")
@@ -12,7 +14,10 @@ fn pptx_source_edit(change : Json) -> @model.SlideEdit raise @failure.Failure {
     "deleteMaster" => @model.DeleteMaster
     "addMaster" => @model.AddMaster
     "copyMaster" => @model.CopyMaster
-    "sourceName" => @model.SourceName(field_string(change, "name"))
+    "sourceName" => {
+      let request : NameRequest = @common.request(change)
+      @model.SourceName(request.name)
+    }
     _ => @failure.reject("invalid-operation", "Unknown source edit")
   }
 }

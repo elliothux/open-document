@@ -1,4 +1,7 @@
 ///|
+pub const PageBorderSideCount : Int32 = 4
+
+///|
 pub(all) struct PageBorder {
   side : String
   style : String
@@ -44,7 +47,7 @@ pub fn PageBorders::validate(self : PageBorders) -> Unit raise @failure.Failure 
   guard ["page", "text"].contains(self.offsetFrom) &&
     ["allPages", "firstPage", "notFirstPage"].contains(self.display) &&
     ["front", "back"].contains(self.zOrder) &&
-    self.sides.length() <= 4 else {
+    self.sides.length() <= PageBorderSideCount else {
     @failure.reject("invalid-style", "Invalid page border settings")
   }
   let seen : Map[String, Bool] = Map([])

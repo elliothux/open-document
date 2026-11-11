@@ -7,6 +7,10 @@ import {
 }
 
 // Values
+pub const InputBytes : Int32 = 4194304
+
+pub fn decode_plain_raster(Bytes, exif_orientation? : Bool) -> (Int32, Int32, Bytes)?
+
 pub fn encode_png(Int32, Int32, Bytes) -> Bytes raise @failure.Failure
 
 pub fn read_emf(Bytes) -> @layout.Metafile raise @failure.Failure

@@ -1,4 +1,7 @@
 ///|
+pub const DefinedNameUnits : Int32 = 255
+
+///|
 priv struct NamedDefinitions {
   sources : Map[(Int32, String), String]
   tables : Array[StructuredTable]
@@ -21,7 +24,9 @@ fn NamedDefinitions::same(
 
 ///|
 fn name_identifier(text : String) -> Bool {
-  guard !text.is_empty() && text.length() <= 255 else { return false }
+  guard !text.is_empty() && text.length() <= DefinedNameUnits else {
+    return false
+  }
   let mut first = true
   for character in text.iter() {
     let letter = match @ucd.general_category(character) {

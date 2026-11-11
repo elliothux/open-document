@@ -96,43 +96,90 @@ fn SheetObject::shape_settings(
 }
 
 ///|
-fn SheetObject::shape_json(self : SheetObject) -> Json {
+priv struct ShapeInsetsQuery {
+  insetLeft : Double
+  insetTop : Double
+  insetRight : Double
+  insetBottom : Double
+} derive (
+  ToJson(
+    fields(
+      insetLeft(rename="left"),
+      insetTop(rename="top"),
+      insetRight(rename="right"),
+      insetBottom(rename="bottom"),
+    ),
+  ),
+)
+
+///|
+priv struct ShapeQuery {
+  id : String
+  kind : String
+  anchor : String
+  x : Double
+  y : Double
+  width : Double
+  height : Double
+  name : String
+  description : String
+  fill : QueryNullable[String]
+  stroke : QueryNullable[String]
+  lineWidth : Double
+  text : String
+  font : String
+  bold : Bool
+  italic : Bool
+  size : Double
+  color : String
+  wrap : Bool
+  align : String
+  vertical : String
+  insets : ShapeInsetsQuery
+} derive(ToJson)
+
+///|
+fn SheetObject::shape_query(self : SheetObject) -> ShapeQuery {
   let shape = self.shape.unwrap()
   {
-    "id": self.id,
-    "kind": self.kind(),
-    "anchor": self.anchor,
-    "x": self.rect.x,
-    "y": self.rect.y,
-    "width": self.rect.width,
-    "height": self.rect.height,
-    "name": self.name,
-    "description": self.description,
-    "fill": if shape.fill.is_empty() {
-      Json::null()
-    } else {
-      Json(shape.fill)
+    id: self.id,
+    kind: self.kind(),
+    anchor: self.anchor,
+    x: self.rect.x,
+    y: self.rect.y,
+    width: self.rect.width,
+    height: self.rect.height,
+    name: self.name,
+    description: self.description,
+    fill: {
+      value: if shape.fill.is_empty() {
+        None
+      } else {
+        Some(shape.fill)
+      },
     },
-    "stroke": if shape.stroke.is_empty() {
-      Json::null()
-    } else {
-      Json(shape.stroke)
+    stroke: {
+      value: if shape.stroke.is_empty() {
+        None
+      } else {
+        Some(shape.stroke)
+      },
     },
-    "lineWidth": shape.line_width,
-    "text": shape.text,
-    "font": shape.font,
-    "bold": shape.bold,
-    "italic": shape.italic,
-    "size": shape.size,
-    "color": shape.color,
-    "wrap": shape.wrap,
-    "align": shape.align,
-    "vertical": shape.vertical,
-    "insets": {
-      "left": shape.left,
-      "top": shape.top,
-      "right": shape.right,
-      "bottom": shape.bottom,
+    lineWidth: shape.line_width,
+    text: shape.text,
+    font: shape.font,
+    bold: shape.bold,
+    italic: shape.italic,
+    size: shape.size,
+    color: shape.color,
+    wrap: shape.wrap,
+    align: shape.align,
+    vertical: shape.vertical,
+    insets: {
+      insetLeft: shape.left,
+      insetTop: shape.top,
+      insetRight: shape.right,
+      insetBottom: shape.bottom,
     },
   }
 }
@@ -159,12 +206,13 @@ pub fn Session::shapes(
       []
     }
   }
-  {
-    "revision": self.revision,
-    "sheet": sheet,
-    "reason": reason,
-    "items": objects
+  let result : DrawingQuery[ShapeQuery] = {
+    revision: self.revision,
+    sheet,
+    reason,
+    items: objects
     .filter(object => object.shape is Some(_))
-    .map(SheetObject::shape_json),
+    .map(SheetObject::shape_query),
   }
+  ToJson::to_json(result)
 }

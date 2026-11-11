@@ -27,83 +27,152 @@ fn table_format_reason(object : Object) -> String {
 }
 
 ///|
+priv struct TableFormatQuery {
+  reason : String
+  borderReason : String
+  fill : String?
+  borderColor : String?
+  borderWidth : Double?
+  left : Double?
+  top : Double?
+  right : Double?
+  bottom : Double?
+  anchor : String?
+  direction : String?
+  borderDash : String?
+  borderOpacity : Double?
+  fillOpacity : Double?
+}
+
+///|
+impl ToJson for TableFormatQuery with fn to_json(self) {
+  {
+    "reason": self.reason,
+    "borderReason": self.borderReason,
+    "fill": nullable_json(self.fill),
+    "borderColor": nullable_json(self.borderColor),
+    "borderWidth": nullable_json(self.borderWidth),
+    "left": nullable_json(self.left),
+    "top": nullable_json(self.top),
+    "right": nullable_json(self.right),
+    "bottom": nullable_json(self.bottom),
+    "anchor": nullable_json(self.anchor),
+    "direction": nullable_json(self.direction),
+    "borderDash": nullable_json(self.borderDash),
+    "borderOpacity": nullable_json(self.borderOpacity),
+    "fillOpacity": nullable_json(self.fillOpacity),
+  }
+}
+
+///|
 fn table_cell_values(
   cell : DrawingCell,
   borders : Array[(String, Double, String, Double)],
-) -> Array[Json] {
+) -> TableFormatQuery {
   let (color, width, dash, _) = borders[0]
   let visible = borders.filter(edge => !edge.0.is_empty())
   let opacity = visible.get(0).map(edge => edge.3).unwrap_or(1)
-  [
-    Json(cell.fill),
-    if borders.all(edge => edge.0 == color) {
-      Json(color)
+  let width = if color.is_empty() { 0.0 } else { width }
+  {
+    reason: "",
+    borderReason: "",
+    fill: Some(cell.fill),
+    borderColor: if borders.all(edge => edge.0 == color) {
+      Some(color)
     } else {
-      Json::null()
+      None
     },
-    if borders.all(edge => {
-        (if edge.0.is_empty() { 0.0 } else { edge.1 }) ==
-        (if color.is_empty() { 0.0 } else { width })
+    borderWidth: if borders.all(edge => {
+        (if edge.0.is_empty() { 0.0 } else { edge.1 }) == width
       }) {
-      Json(if color.is_empty() { 0.0 } else { width })
+      Some(width)
     } else {
-      Json::null()
+      None
     },
-    Json(cell.body.left),
-    Json(cell.body.top),
-    Json(cell.body.right),
-    Json(cell.body.bottom),
-    Json(cell.body.anchor),
-    Json(cell.body.direction),
-    if borders.all(edge => edge.2 == dash) {
-      Json(dash)
+    left: Some(cell.body.left),
+    top: Some(cell.body.top),
+    right: Some(cell.body.right),
+    bottom: Some(cell.body.bottom),
+    anchor: Some(cell.body.anchor),
+    direction: Some(cell.body.direction),
+    borderDash: if borders.all(edge => edge.2 == dash) {
+      Some(dash)
     } else {
-      Json::null()
+      None
     },
-    if visible.all(edge => edge.3 == opacity) {
-      Json(opacity)
+    borderOpacity: if visible.all(edge => edge.3 == opacity) {
+      Some(opacity)
     } else {
-      Json::null()
+      None
     },
-    Json(cell.alpha),
-  ]
+    fillOpacity: Some(cell.alpha),
+  }
+}
+
+///|
+fn[T : Eq] common_table_value(first : T?, next : T?) -> T? {
+  if first == next {
+    first
+  } else {
+    None
+  }
+}
+
+///|
+fn TableFormatQuery::intersect(
+  self : TableFormatQuery,
+  next : TableFormatQuery,
+) -> TableFormatQuery {
+  {
+    ..self,
+    fill: common_table_value(self.fill, next.fill),
+    borderColor: common_table_value(self.borderColor, next.borderColor),
+    borderWidth: common_table_value(self.borderWidth, next.borderWidth),
+    left: common_table_value(self.left, next.left),
+    top: common_table_value(self.top, next.top),
+    right: common_table_value(self.right, next.right),
+    bottom: common_table_value(self.bottom, next.bottom),
+    anchor: common_table_value(self.anchor, next.anchor),
+    direction: common_table_value(self.direction, next.direction),
+    borderDash: common_table_value(self.borderDash, next.borderDash),
+    borderOpacity: common_table_value(self.borderOpacity, next.borderOpacity),
+    fillOpacity: common_table_value(self.fillOpacity, next.fillOpacity),
+  }
 }
 
 ///|
 fn table_format_query(
   object : Object,
   selection : Selection,
-) -> Json raise @failure.Failure {
+) -> TableFormatQuery raise @failure.Failure {
   let table = object.table.unwrap()
   let range = table.format_range(selection)
-  let values : Array[Array[Json]] = []
+  let mut values : TableFormatQuery? = None
   for r in range.top..<=range.bottom {
     for c in range.left..<=range.right {
       let cell = table.rows[r].cells[c]
       if cell.owner() {
-        values.push(table_cell_values(cell, table.cell_borders(r, c)))
+        let next = table_cell_values(cell, table.cell_borders(r, c))
+        values = Some(
+          match values {
+            None => next
+            Some(previous) => previous.intersect(next)
+          },
+        )
       }
     }
   }
-  let result : Map[String, Json] = {
-    "reason": Json(table_format_reason(object)),
-    "borderReason": Json(""),
+  let border_reason = try {
+    ignore(table.border_targets(range))
+    ""
+  } catch {
+    @failure.Failure(message~, ..) => message
   }
-  for
-    i, name in [
-      "fill", "borderColor", "borderWidth", "left", "top", "right", "bottom", "anchor",
-      "direction", "borderDash", "borderOpacity", "fillOpacity",
-    ] {
-    result[name] = if values.all(row => row[i] == values[0][i]) {
-      values[0][i]
-    } else {
-      Json::null()
-    }
+  {
+    ..values.unwrap(),
+    reason: table_format_reason(object),
+    borderReason: border_reason,
   }
-  ignore(table.border_targets(range)) catch {
-    @failure.Failure(message~, ..) => result["borderReason"] = Json(message)
-  }
-  Json(result)
 }
 
 ///|

@@ -1,4 +1,8 @@
 import { useState } from "react";
+import {
+  xlsxSortKeys,
+  xlsxSortListUnits,
+} from "@open-document/wasm/engine-source";
 import type { SpreadsheetEditor } from "../web/spreadsheet-editor.js";
 import { conditionalIconSets, type XlsxSortKey } from "../web/xlsx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
@@ -39,7 +43,7 @@ export function XlsxSort({
       onSubmit={(event) => {
         event.preventDefault();
         controller.run(() =>
-          editor.editSheet({
+          editor.objects.editSheet({
             action: "sort",
             range: query.selection.address,
             rows: rowAxis,
@@ -195,7 +199,7 @@ export function XlsxSort({
                 {`${t.sortCustomList} ${i + 1}`}
                 <textarea
                   aria-label={`${t.sortCustomList} ${i + 1}`}
-                  maxLength={32767}
+                  maxLength={xlsxSortListUnits}
                   rows={3}
                   value={key.customList?.join("\n") ?? ""}
                   onChange={(event) =>
@@ -320,7 +324,7 @@ export function XlsxSort({
         ))}
         <button
           type="button"
-          disabled={keys.length >= 16}
+          disabled={keys.length >= xlsxSortKeys}
           onClick={() => {
             const index =
               Array.from({ length: high - low + 1 }, (_, i) => low + i).find(

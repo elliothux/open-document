@@ -50,14 +50,21 @@ export async function prepareFile(
     if ((document.bytes?.length ?? 0) > inputLimit)
       throw new Error("Document input exceeds budget");
     stage = "open";
-    if (document.blank) await connection.createDocx(budget);
+    if (document.blank)
+      await connection.execute({ operation: "createDocx", budget: budget });
     else
       await openWithPassword(
         parent,
         "DOCX",
         options.locale === "zh-CN",
         signal,
-        (password) => connection.openDocx(document.bytes, budget, password),
+        (password) =>
+          connection.execute({
+            operation: "openDocx",
+            bytes: document.bytes,
+            budget: budget,
+            password: password,
+          }),
       );
     stage = "font";
     await fonts(connection);

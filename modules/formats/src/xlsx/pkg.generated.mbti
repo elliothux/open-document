@@ -2,12 +2,159 @@
 package "open_document/formats/xlsx"
 
 import {
+  "moonbitlang/core/json",
   "open_document/core/archive",
   "open_document/core/failure",
   "open_document/layout",
 }
 
 // Values
+pub const AxisEditCount : Int32 = 4096
+
+pub const CellClipboardJsonUnits : Int32 = 4194304
+
+pub const CellFragmentCells : Int32 = 4096
+
+pub const CellFragmentMerges : Int32 = 1024
+
+pub const CellFragmentTextUnits : Int32 = 1048576
+
+pub const CellTextUnits : Int32 = 32767
+
+pub const ChartReferenceUnits : Int32 = 1024
+
+pub const ChartSeriesCount : Int32 = 32
+
+pub const ConditionalRangeUnits : Int32 = 262144
+
+pub const ConditionalRuleCount : Int32 = 4096
+
+pub const ConditionalTextUnits : Int32 = 8192
+
+pub const ConsolidationSourceCells : Int32 = 65536
+
+pub const ConsolidationSources : Int32 = 32
+
+pub const CopiedHyperlinkCount : Int32 = 4096
+
+pub const CopiedHyperlinkLabelUnits : Int32 = 32767
+
+pub const CopiedHyperlinkTextUnits : Int32 = 1048576
+
+pub const CopiedNoteSourceUnits : Int32 = 2097152
+
+pub const CopiedRuleRanges : Int32 = 4096
+
+pub const CopiedRuleTextUnits : Int32 = 1048576
+
+pub const DateSeriesStepMax : Int32 = 2958465
+
+pub const DefinedNameUnits : Int32 = 255
+
+pub const DelimitedInputBytes : Int32 = 4194304
+
+pub const DrawingDescriptionUnits : Int32 = 1024
+
+pub const DrawingFragmentUnits : Int32 = 4194304
+
+pub const DrawingNameUnits : Int32 = 255
+
+pub const DuplicateCells : Int32 = 4096
+
+pub const FilterColumns : Int32 = 256
+
+pub const FilterEntries : Int32 = 4096
+
+pub const FilterLabelUnits : Int32 = 32767
+
+pub const FilterTextUnits : Int32 = 1048576
+
+pub const FormulaSourceUnits : Int32 = 8192
+
+pub const HeaderFooterTextUnits : Int32 = 255
+
+pub const ImageInputBytes : Int32 = 2097152
+
+pub const NoteTextUnits : Int32 = 32767
+
+pub const PivotDateUnits : Int32 = 4
+
+pub const PivotFieldsPerRole : Int32 = 8
+
+pub const PivotFilterUnits : Int32 = 1048576
+
+pub const PivotGroupUnits : Int32 = 16
+
+pub const PivotMembers : Int32 = 4096
+
+pub const PivotSourceCells : Int32 = 65536
+
+pub const PivotSourceColumns : Int32 = 64
+
+pub const PivotSubtotalFields : Int32 = 14
+
+pub const PivotValueNameUnits : Int32 = 255
+
+pub const PrintAreaUnits : Int32 = 2048
+
+pub const PrintFitPageCount : Int32 = 1024
+
+pub const PrintPageMaxPoints : Int32 = 14400
+
+pub const PrintPaperMinPoints : Int32 = 36
+
+pub const PrintScaleMax : Int32 = 400
+
+pub const PrintScaleMin : Int32 = 10
+
+pub const PrintSheetLimit : Int32 = 256
+
+pub const PrintTitleUnits : Int32 = 32
+
+pub const RectangularEditCells : Int32 = 4096
+
+pub const ShapeFontUnits : Int32 = 255
+
+pub const ShapeTextUnits : Int32 = 32767
+
+pub const SlicerMembers : Int32 = 4096
+
+pub const SortKeys : Int32 = 16
+
+pub const SortListLabels : Int32 = 4096
+
+pub const SortListUnits : Int32 = 32767
+
+pub const SparklineCount : Int32 = 256
+
+pub const SparklineSourceCells : Int32 = 256
+
+pub const SparklineSourceUnits : Int32 = 256
+
+pub const SubtotalCells : Int32 = 4096
+
+pub const TableStyleRegions : Int32 = 13
+
+pub const TableStyleStripeSize : Int32 = 1048576
+
+pub const TextColumnBreakPosition : Int32 = 65534
+
+pub const TextColumnCells : Int32 = 4096
+
+pub const ThreadTextUnits : Int32 = 32767
+
+pub const ValidationFormulaUnits : Int32 = 8192
+
+pub const ValidationMessageUnits : Int32 = 255
+
+pub const ValidationTitleUnits : Int32 = 32
+
+pub const WorksheetColumns : Int32 = 16384
+
+pub const WorksheetCount : Int32 = 256
+
+pub const WorksheetRows : Int32 = 1048576
+
 pub fn chart_data(String, String, Bytes, @archive.Budget, hole_size? : Int32?, legend? : String?) -> @layout.ChartData raise @failure.Failure
 
 pub fn chart_workbook(@layout.ChartData, @archive.Budget) -> Bytes raise @failure.Failure
@@ -28,8 +175,9 @@ pub fn Address::to_json(Self) -> Json
 pub(all) struct CellBorder {
   style : String
   color : String
-} derive(Eq, Hash, ToJson)
+} derive(Eq, Hash, ToJson, @json.FromJson)
 pub fn CellBorder::equal(Self, Self) -> Bool
+pub fn CellBorder::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
 pub fn CellBorder::hash(Self) -> Int32
 pub fn CellBorder::hash_combine(Self, Hasher) -> Unit
 pub fn CellBorder::not_equal(Self, Self) -> Bool
@@ -58,8 +206,9 @@ pub struct CellFormat {
   right : CellBorder?
   top : CellBorder?
   bottom : CellBorder?
-} derive(Eq, Hash)
+} derive(Eq, Hash, @json.FromJson)
 pub fn CellFormat::equal(Self, Self) -> Bool
+pub fn CellFormat::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
 pub fn CellFormat::hash(Self) -> Int32
 pub fn CellFormat::hash_combine(Self, Hasher) -> Unit
 pub fn CellFormat::new(family? : String?, size? : Double?, bold? : Bool?, italic? : Bool?, underline? : Bool?, strike? : Bool?, script? : String?, color? : String?, fill? : String?, horizontal? : String?, vertical? : String?, wrap? : Bool?, shrinkToFit? : Bool?, indent? : Int32?, textRotation? : Int32?, locked? : Bool?, formulaHidden? : Bool?, numberFormat? : String?, left? : CellBorder?, right? : CellBorder?, top? : CellBorder?, bottom? : CellBorder?) -> Self
@@ -97,8 +246,9 @@ pub(all) struct ConditionalIconThreshold {
   kind : String
   value : String
   greaterOrEqual : Bool
-} derive(Eq, ToJson)
+} derive(Eq, ToJson, @json.FromJson)
 pub fn ConditionalIconThreshold::equal(Self, Self) -> Bool
+pub fn ConditionalIconThreshold::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
 pub fn ConditionalIconThreshold::not_equal(Self, Self) -> Bool
 pub fn ConditionalIconThreshold::to_json(Self) -> Json
 
@@ -115,16 +265,18 @@ pub(all) struct ConditionalStop {
   kind : String
   value : String
   color : String
-} derive(Eq, ToJson)
+} derive(Eq, ToJson, @json.FromJson)
 pub fn ConditionalStop::equal(Self, Self) -> Bool
+pub fn ConditionalStop::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
 pub fn ConditionalStop::not_equal(Self, Self) -> Bool
 pub fn ConditionalStop::to_json(Self) -> Json
 
 pub(all) struct ConditionalThreshold {
   kind : String
   value : String
-} derive(Eq, ToJson)
+} derive(Eq, ToJson, @json.FromJson)
 pub fn ConditionalThreshold::equal(Self, Self) -> Bool
+pub fn ConditionalThreshold::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
 pub fn ConditionalThreshold::not_equal(Self, Self) -> Bool
 pub fn ConditionalThreshold::to_json(Self) -> Json
 
@@ -133,12 +285,15 @@ pub(all) struct ConsolidateSettings {
   target : String
   operation : String
   leftLabels : Bool
-}
+} derive(@json.FromJson)
+pub fn ConsolidateSettings::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
 
 pub(all) struct ConsolidateSource {
   sheet : String
   range : String
-}
+} derive(ToJson, @json.FromJson)
+pub fn ConsolidateSource::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
+pub fn ConsolidateSource::to_json(Self) -> Json
 
 pub(all) struct ContentCell {
   row : Int32
@@ -241,9 +396,10 @@ pub(all) struct DataValidation {
   promptTitle : String
   prompt : String
   showDropDown : Bool
-} derive(Eq, ToJson)
+} derive(Eq, ToJson, @json.FromJson)
 pub fn DataValidation::default() -> Self
 pub fn DataValidation::equal(Self, Self) -> Bool
+pub fn DataValidation::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
 pub fn DataValidation::not_equal(Self, Self) -> Bool
 pub fn DataValidation::to_json(Self) -> Json
 
@@ -259,6 +415,16 @@ pub(all) struct DuplicateSettings {
   header : Bool
   columns : Array[Int32]
 }
+
+pub struct FillPreview {
+  source : String
+  range : String
+  direction : String
+  mode : String
+  geometry : SelectionGeometry
+  end : SelectionGeometry
+} derive(ToJson)
+pub fn FillPreview::to_json(Self) -> Json
 
 pub(all) enum FillTarget {
   FillPoint(Double, Double)
@@ -276,9 +442,11 @@ pub fn FilterColumn::not_equal(Self, Self) -> Bool
 pub(all) struct FilterCondition {
   operator : String
   value : String
-} derive(Eq)
+} derive(Eq, ToJson, @json.FromJson)
 pub fn FilterCondition::equal(Self, Self) -> Bool
+pub fn FilterCondition::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
 pub fn FilterCondition::not_equal(Self, Self) -> Bool
+pub fn FilterCondition::to_json(Self) -> Json
 
 pub(all) enum FilterRule {
   Values(Array[String], blank~ : Bool)
@@ -335,8 +503,9 @@ pub(all) struct IconSet {
   showValue : Bool
   percent : Bool
   thresholds : Array[ConditionalIconThreshold]
-} derive(Eq, ToJson)
+} derive(Eq, ToJson, @json.FromJson)
 pub fn IconSet::equal(Self, Self) -> Bool
+pub fn IconSet::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
 pub fn IconSet::not_equal(Self, Self) -> Bool
 pub fn IconSet::to_json(Self) -> Json
 
@@ -446,6 +615,15 @@ pub fn Range::not_equal(Self, Self) -> Bool
 pub fn Range::parse(String) -> Self raise @failure.Failure
 pub fn Range::to_json(Self) -> Json
 
+pub struct SelectionGeometry {
+  x : Double
+  y : Double
+  width : Double
+  height : Double
+  rects : Array[@layout.Border]
+} derive(ToJson)
+pub fn SelectionGeometry::to_json(Self) -> Json
+
 pub(all) enum SeriesMode {
   Linear
   Growth
@@ -472,19 +650,20 @@ pub fn Session::copy(Self, Int32) -> String raise @failure.Failure
 pub fn Session::create(@archive.Budget, date? : String?, random_seed? : Bytes?) -> Self raise @failure.Failure
 pub fn Session::create_content(Array[ContentSheet], @archive.Budget, @layout.TextProbe, Map[String, String]) -> Self raise @failure.Failure
 pub fn Session::create_pivot(Self, Int32, String, String, String, PivotSettings) -> Json raise @failure.Failure
+pub fn Session::current_revision(Self) -> Int32 raise @failure.Failure
 pub fn Session::delete_chart(Self, Int32, String, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::delete_picture(Self, Int32, String, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::delete_pivot(Self, Int32, String, String) -> Json raise @failure.Failure
 pub fn Session::delete_shape(Self, Int32, String, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::delete_slicer(Self, Int32, String, String) -> Json raise @failure.Failure
 pub fn Session::delete_timeline(Self, Int32, String, String) -> Json raise @failure.Failure
-pub fn Session::drawing_fragment_image(Self, Int32, String) -> Json raise @failure.Failure
+pub fn Session::drawing_fragment_image(Self, Int32, String) -> Bytes? raise @failure.Failure
 pub fn Session::drawing_gesture(Self, Int32, Int32, Int32, Double, Double, Bool, @layout.TextProbe, Map[String, String], images~ : @layout.Images, viewport? : DrawingViewport?) -> Json raise @failure.Failure
 pub fn Session::duplicates(Self, Int32, String, DuplicateSettings) -> Json raise @failure.Failure
 pub fn Session::edit_sheet(Self, Int32, String, SheetEdit, date? : String?) -> Json raise @failure.Failure
 pub fn Session::edit_thread(Self, Int32, String, ThreadEdit) -> Json raise @failure.Failure
 pub fn Session::export_csv(Self, Int32, selection? : Bool) -> Bytes raise @failure.Failure
-pub fn Session::fill_preview(Self, Int32, FillTarget, ctrl? : Bool) -> Json raise @failure.Failure
+pub fn Session::fill_preview(Self, Int32, FillTarget, ctrl? : Bool) -> FillPreview raise @failure.Failure
 pub fn Session::filter_slicer(Self, Int32, String, String, Array[Int32]) -> Json raise @failure.Failure
 pub fn Session::filter_timeline(Self, Int32, String, String, (String, String)?) -> Json raise @failure.Failure
 pub fn Session::find(Self, Int32, String, String, FindOptions) -> Json raise @failure.Failure
@@ -505,14 +684,16 @@ pub fn Session::paste_cells(Self, Int32, CopiedCells, String, transpose? : Bool,
 pub fn Session::paste_drawing(Self, Int32, String, String, @layout.TextProbe, Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::picture_image(Self, Int32, String) -> Bytes raise @failure.Failure
 pub fn Session::picture_keys(Self, Int32) -> Array[String] raise @failure.Failure
-pub fn Session::picture_resource(Self, Int32, Bytes) -> Json raise @failure.Failure
+pub fn Session::picture_resource(Self, Int32, Bytes, encode_pixels? : (Bytes) -> Int32) -> Json raise @failure.Failure
 pub fn Session::pictures(Self, Int32, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::pivot_preview(Self, Int32, PivotSettings, part? : String?) -> Json raise @failure.Failure
 pub fn Session::pivots(Self, Int32, String) -> Json raise @failure.Failure
+pub fn Session::prepare_picture_image(Self, Int32, String, @layout.Images) -> (Bytes, @layout.ImageResource?) raise @failure.Failure
 pub fn Session::print_layout(Self, Int32, String, String?, @layout.TextProbe, Map[String, String], setup? : @layout.PageSetup, sheets? : PrintSheets) -> @layout.PositionedDocument raise @failure.Failure
 pub fn Session::query(Self, sheet? : String?, range? : String?) -> Json raise @failure.Failure
 pub fn Session::recalculate(Self, Int32) -> Json raise @failure.Failure
 pub fn Session::refresh_pivot(Self, Int32, String, String) -> Json raise @failure.Failure
+pub fn Session::register_picture_image(Self, Int32, String, Int32, Int32, Bytes, @layout.Images) -> Unit raise @failure.Failure
 pub fn Session::replace(Self, Int32, String, String, Array[Array[String]], literal? : Bool, accept_warnings? : Bool) -> Json raise @failure.Failure
 pub fn Session::replace_matches(Self, Int32, String, String, FindOptions, String, Int32?) -> Json raise @failure.Failure
 pub fn Session::replace_picture(Self, Int32, String, String, Bytes, @layout.TextProbe, Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
@@ -522,7 +703,7 @@ pub fn Session::scroll_timeline(Self, Int32, String, String, Int32, Int32) -> Js
 pub fn Session::select(Self, Int32, String, String) -> Json raise @failure.Failure
 pub fn Session::select_drawing(Self, Int32, Int32, String?) -> Json raise @failure.Failure
 pub fn Session::select_slicer(Self, Int32, String, Int32, String, Int32?, Bool) -> Json raise @failure.Failure
-pub fn Session::selection_geometry(Self, Int32) -> Json raise @failure.Failure
+pub fn Session::selection_geometry(Self, Int32) -> SelectionGeometry raise @failure.Failure
 pub fn Session::set_chart(Self, Int32, String, String, SheetChartSettings, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::set_chart_frame(Self, Int32, String, String, String, @layout.Border, String, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::set_picture(Self, Int32, String, String, String, @layout.Border, String, String, @layout.TextProbe, Map[String, String], crop~ : Array[Double]) -> Json raise @failure.Failure
@@ -541,7 +722,8 @@ pub fn Session::timeline_gesture(Self, Int32, Int32, String, Int32, Int32, Int32
 pub fn Session::timelines(Self, Int32, String) -> Json raise @failure.Failure
 pub fn Session::undo(Self, Int32, redo? : Bool) -> Json raise @failure.Failure
 pub fn Session::update_pivot(Self, Int32, String, String, PivotSettings) -> Json raise @failure.Failure
-pub fn Session::viewport(Self, String, Double, Double, Double, Double, @layout.TextProbe, Map[String, String], reveal? : Bool, images? : @layout.Images, slicer_hover? : (String, Int32)?, screen_scale? : Double?) -> Json raise @failure.Failure
+pub fn Session::viewport(Self, String, Double, Double, Double, Double, @layout.TextProbe, Map[String, String], reveal? : Bool, images? : @layout.Images, slicer_hover? : (String, Int32)?, screen_scale? : Double?, chart_wire? : Bool, compact_cells? : Bool) -> Json raise @failure.Failure
+pub fn Session::viewport_chart_tiles(Self) -> ArrayView[ViewportChartTile]
 
 pub(all) struct ShapeSettings {
   kind : String
@@ -752,6 +934,12 @@ pub(all) struct ViewSettings {
 } derive(Eq)
 pub fn ViewSettings::equal(Self, Self) -> Bool
 pub fn ViewSettings::not_equal(Self, Self) -> Bool
+
+pub struct ViewportChartTile {
+  index : Int32
+  key : String
+  body : Json
+}
 
 // Type aliases
 

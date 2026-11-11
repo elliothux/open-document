@@ -1,4 +1,8 @@
 import { integer, record } from "@open-document/wasm/abi/validation";
+import {
+  xlsxTextColumnBreakPosition,
+  xlsxTextColumnCells,
+} from "@open-document/wasm/engine-source";
 import { xlsxBounds } from "./xlsx-geometry.js";
 
 export interface XlsxDelimitedOptions {
@@ -64,7 +68,7 @@ export function checkXlsxTextColumnSettings(value: unknown): void {
       typeof settings.formulas !== "boolean") ||
     (settings.types !== undefined &&
       (!Array.isArray(settings.types) ||
-        settings.types.length > 4096 ||
+        settings.types.length > xlsxTextColumnCells ||
         settings.types.some(
           (kind) =>
             typeof kind !== "string" ||
@@ -76,12 +80,12 @@ export function checkXlsxTextColumnSettings(value: unknown): void {
     if (
       !Array.isArray(settings.breaks) ||
       !settings.breaks.length ||
-      settings.breaks.length > 4095
+      settings.breaks.length >= xlsxTextColumnCells
     )
       throw new Error("Invalid fixed-width positions");
     let previous = 0;
     for (const position of settings.breaks) {
-      if (!integer(position, previous + 1, 65534))
+      if (!integer(position, previous + 1, xlsxTextColumnBreakPosition))
         throw new Error("Fixed-width positions must be increasing");
       previous = Number(position);
     }
@@ -90,66 +94,4 @@ export function checkXlsxTextColumnSettings(value: unknown): void {
     ![",", ";", " ", "\t"].includes(settings.delimiter)
   )
     throw new Error("Invalid text delimiter");
-}
-export function xlsxTextColumns(value: unknown): XlsxTextColumns {
-  const result = record(value);
-  if ("delimiter" in result === "breaks" in result)
-    throw new Error("Ambiguous text split mode");
-  checkXlsxTextColumnSettings(
-    "breaks" in result
-      ? {
-          range: result.range,
-          breaks: result.breaks,
-          types: result.types,
-          formulas: result.formulas,
-        }
-      : {
-          range: result.range,
-          delimiter: result.delimiter,
-          types: result.types,
-          formulas: result.formulas,
-        },
-  );
-  const source = xlsxBounds(result.range),
-    target = xlsxBounds(result.resultRange),
-    height = source.bottom - source.top + 1,
-    width = target.right - target.left + 1;
-  if (
-    !integer(result.revision, 0, 2147483647) ||
-    typeof result.sheet !== "string" ||
-    !result.sheet ||
-    result.sheet.length > 65535 ||
-    target.top !== source.top ||
-    target.bottom !== source.bottom ||
-    target.left !== source.left ||
-    result.columns !== width ||
-    !integer(result.splitColumns, width, 4096) ||
-    Number(result.splitColumns) * height > 4096 ||
-    !Array.isArray(result.types) ||
-    result.types.length !== result.splitColumns ||
-    result.types.filter((kind) => kind !== "skip").length !== width ||
-    typeof result.formulas !== "boolean" ||
-    (Array.isArray(result.breaks) &&
-      result.breaks.length + 1 !== result.splitColumns) ||
-    !integer(result.overwrittenCells, 0, height * (width - 1)) ||
-    !Array.isArray(result.preview) ||
-    result.preview.length !== Math.min(10, height)
-  )
-    throw new Error("Invalid text to columns preview");
-  let units = 0;
-  for (const row of result.preview) {
-    if (!Array.isArray(row) || row.length !== width)
-      throw new Error("Invalid text to columns preview width");
-    for (const text of row) {
-      if (
-        typeof text !== "string" ||
-        !text.isWellFormed() ||
-        text.length > 32767
-      )
-        throw new Error("Invalid split text");
-      units += text.length;
-      if (units > 1048576) throw new Error("Split preview exceeds text budget");
-    }
-  }
-  return value as XlsxTextColumns;
 }

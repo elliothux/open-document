@@ -1,6 +1,6 @@
 ///|
 pub fn abi_version() -> Int32 {
-  1
+  @common.abi_version()
 }
 
 ///|
@@ -9,8 +9,18 @@ pub fn docx_new() -> @docx.Context {
 }
 
 ///|
-pub fn docx_call(context : @docx.Context, input : String) -> String {
-  @docx.call(context, input)
+pub fn docx_call(
+  context : @docx.Context,
+  input : String,
+  first : String,
+  second : String,
+) -> String {
+  @docx.call_wire(context, input, first, second)
+}
+
+///|
+pub fn docx_output(context : @docx.Context, slot : Int32) -> String? {
+  @docx.take_output(context, slot)
 }
 
 ///|
@@ -33,8 +43,18 @@ pub fn xlsx_new() -> @xlsx.Context {
 }
 
 ///|
-pub fn xlsx_call(context : @xlsx.Context, input : String) -> String {
-  @xlsx.call(context, input)
+pub fn xlsx_call(
+  context : @xlsx.Context,
+  input : String,
+  first : String,
+  second : String,
+) -> String {
+  @xlsx.call_wire(context, input, first, second)
+}
+
+///|
+pub fn xlsx_output(context : @xlsx.Context, slot : Int32) -> String? {
+  @xlsx.take_output(context, slot)
 }
 
 ///|
@@ -57,8 +77,18 @@ pub fn pptx_new() -> @pptx.Context {
 }
 
 ///|
-pub fn pptx_call(context : @pptx.Context, input : String) -> String {
-  @pptx.call(context, input)
+pub fn pptx_call(
+  context : @pptx.Context,
+  input : String,
+  first : String,
+  second : String,
+) -> String {
+  @pptx.call_wire(context, input, first, second)
+}
+
+///|
+pub fn pptx_output(context : @pptx.Context, slot : Int32) -> String? {
+  @pptx.take_output(context, slot)
 }
 
 ///|
@@ -81,8 +111,18 @@ pub fn pdf_new() -> @pdf.Context {
 }
 
 ///|
-pub fn pdf_call(context : @pdf.Context, input : String) -> String {
-  @pdf.call(context, input)
+pub fn pdf_call(
+  context : @pdf.Context,
+  input : String,
+  first : String,
+  second : String,
+) -> String {
+  @pdf.call_wire(context, input, first, second)
+}
+
+///|
+pub fn pdf_output(context : @pdf.Context, slot : Int32) -> String? {
+  @pdf.take_output(context, slot)
 }
 
 ///|

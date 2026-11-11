@@ -57,8 +57,9 @@ fn Session::edit_table_rows(
   let whole = removing && grid.rows.length() == removed.length()
   let count = grid.rows.length() +
     (if removing { -removed.length() } else { rows.length() })
-  guard count <= 1000 &&
-    count.to_int64() * grid.model.widths.length().to_int64() <= 4096 else {
+  guard count <= TableGridRows &&
+    count.to_int64() * grid.model.widths.length().to_int64() <=
+    TableGridCells.to_int64() else {
     @failure.reject("limit-exceeded", "Table exceeds row column or cell budget")
   }
   let changes : TableChanges = {

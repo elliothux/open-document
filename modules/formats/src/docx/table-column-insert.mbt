@@ -135,7 +135,9 @@ fn Session::insert_table_column(
   }
   cuts.sort()
   let count = cuts.length() - 1
-  guard count <= 63 && grid.rows.length().to_int64() * count.to_int64() <= 4096 else {
+  guard count <= TableGridColumns &&
+    grid.rows.length().to_int64() * count.to_int64() <=
+    TableGridCells.to_int64() else {
     @failure.reject("limit-exceeded", "Table exceeds row column or cell budget")
   }
   let widths = Array::makei(count, i => cuts[i + 1] - cuts[i])

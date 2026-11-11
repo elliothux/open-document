@@ -7,6 +7,7 @@ import {
 } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { docxNumberingStartMax } from "@open-document/wasm/engine-source";
 
 export function DocxNoteNumbering({
   controller,
@@ -30,7 +31,7 @@ export function DocxNoteNumbering({
     restart: "continuous",
   });
   const load = async () => {
-    const value = await editor.noteNumbering(kind, section);
+    const value = await editor.review.noteNumbering(kind, section);
     setSource(value);
     if (value.value) setDraft(value.value);
   };
@@ -76,7 +77,7 @@ export function DocxNoteNumbering({
           onSubmit={(event) => {
             event.preventDefault();
             controller.run(async () => {
-              await editor.setNoteNumbering(source, draft);
+              await editor.review.setNoteNumbering(source, draft);
               await load();
             });
           }}
@@ -132,7 +133,7 @@ export function DocxNoteNumbering({
               <input
                 type="number"
                 min={0}
-                max={4294967295}
+                max={docxNumberingStartMax}
                 step={1}
                 value={draft.start}
                 disabled={draft.restart !== "continuous"}
@@ -150,7 +151,7 @@ export function DocxNoteNumbering({
               disabled={
                 !Number.isSafeInteger(draft.start) ||
                 draft.start < 0 ||
-                draft.start > 4294967295
+                draft.start > docxNumberingStartMax
               }
             >
               {t.applyNoteNumbering}

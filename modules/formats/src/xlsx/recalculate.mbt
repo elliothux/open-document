@@ -9,7 +9,13 @@ pub fn Session::recalculate(
     @failure.reject("protected-content", self.read_only)
   }
   let sheets = self.sheets.copy()
-  let calculation = self.calculate(sheets, None, [], self.workbook, force=true)
+  let calculation = self.calculate(
+    sheets,
+    self.calculation,
+    [],
+    self.workbook,
+    force=true,
+  )
   let edits = self.cache_edits(sheets, calculation)
   self.commit(
     sheets,

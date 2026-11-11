@@ -1,4 +1,52 @@
 ///|
+priv struct PaintedCell {
+  address : String
+  cell : Json
+  text : String
+  rect : @layout.Border
+  range : Range
+  diagnostic : String
+  accessible : String?
+}
+
+///|
+fn PaintedCell::viewport_json(
+  self : PaintedCell,
+  clip : Json,
+  compact : Bool,
+) -> Json {
+  if compact {
+    let rect = self.rect
+    let range = self.range
+    return Json::array([
+      self.cell,
+      Json(self.text),
+      Json((rect.x, rect.y, rect.width, rect.height)),
+      if range.top == range.bottom && range.left == range.right {
+        Json::null()
+      } else {
+        Json((range.top, range.left, range.bottom, range.right))
+      },
+      Json(self.diagnostic),
+      clip,
+      self.accessible.map(Json::string).unwrap_or(Json::null()),
+    ])
+  }
+  let fields = {
+    "cell": self.cell,
+    "display": Json(self.text),
+    "rect": Json(self.rect),
+    "range": Json(self.range),
+    "diagnostic": Json(self.diagnostic),
+  }
+  if self.accessible is Some(text) {
+    fields["accessibleText"] = Json(text)
+  }
+  fields["clip"] = clip
+  Json::object(fields)
+}
+
+///|
 fn Session::paint_cells(
   self : Session,
   index : Int32,
@@ -14,8 +62,9 @@ fn Session::paint_cells(
   mirror_width : Double,
   conditional : ConditionalRules,
   work : FormulaWork,
+  compact~ : Bool = false,
   overflow_right? : Double,
-) -> Array[Json] raise @failure.Failure {
+) -> Array[PaintedCell] raise @failure.Failure {
   let indent_unit = self.indent_unit(probe, profile)
   let digit_unit = self.digit_width(probe, profile) * 0.75
   guard rows.length().to_int64() * columns.length().to_int64() <= 4096L else {
@@ -119,7 +168,7 @@ fn Session::paint_cells(
     work,
   )
   let (header_width, header_height) = sheet.view.header_size()
-  let cells : Array[Json] = []
+  let cells : Array[PaintedCell] = []
   let seen : Map[String, Bool] = Map([])
   let mut units = 0
   let first_stroke = page.strokes.length()
@@ -160,7 +209,7 @@ fn Session::paint_cells(
           }
         })
       let calculated = self.calculation.bind(calculation => {
-        calculation.values.get((index, key))
+        calculation.values.get((index, address))
       })
       let value = calculated.unwrap_or(
         cell.map(cell => cell.value).unwrap_or(Blank),
@@ -176,6 +225,8 @@ fn Session::paint_cells(
       let missing = cell.bind(cell => cell.formula) is Some(_) && value == Blank
       let mut text = if missing && !sheet.view.formulas {
         "Not calculated"
+      } else if number is Some(section) {
+        section.display()
       } else {
         sheet.view.display(
           cell.bind(cell => cell.formula),
@@ -507,23 +558,42 @@ fn Session::paint_cells(
       if overflow_source {
         continue
       }
-      let item : Json = {
-        "cell": sheet.cell_json(
-          address,
-          self.cell_edit_reason(sheet, address),
-          calculated,
-          hide_formula=style.formula_hidden,
-          calculation_reason=self.cell_calculation_reason(index, key),
-        ),
-        "display": text,
-        "rect": rect,
-        "range": range,
-        "diagnostic": style.diagnostic,
+      let details = if printing {
+        Json::null()
+      } else if compact && cell is None && calculated is None {
+        Json(
+          (
+            key,
+            address.row,
+            address.column,
+            sheet.style_at(address),
+            self.cell_edit_reason(sheet, address),
+          ),
+        )
+      } else {
+        Json(
+          sheet.query_cell(
+            address,
+            self.cell_edit_reason(sheet, address),
+            calculated,
+            hide_formula=style.formula_hidden,
+            calculation_reason=self.cell_calculation_reason(index, address),
+          ),
+        )
       }
-      if style.icon is Some(_) && item is Object(fields) {
-        fields["accessibleText"] = Json(accessible)
-      }
-      cells.push(item)
+      cells.push({
+        address: key,
+        cell: details,
+        text,
+        rect,
+        range,
+        diagnostic: style.diagnostic,
+        accessible: if style.icon is Some(_) {
+          Some(accessible)
+        } else {
+          None
+        },
+      })
     }
   }
   if printing && page.strokes.length() > first_stroke {

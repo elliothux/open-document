@@ -78,39 +78,39 @@ fn CellFormat::patch_json(self : CellFormat) -> Json {
 }
 
 ///|
-fn ConditionalFormat::json(self : ConditionalFormat) -> Json {
-  let value : Json = {
-    "kind": self.kind,
-    "operator": self.operator,
-    "formula1": self.formula1,
-    "formula2": self.formula2,
-    "stopIfTrue": self.stopIfTrue,
-    "format": self.format.patch_json(),
-  }
-  if !self.stops.is_empty() && value is Object(fields) {
+impl ToJson for ConditionalFormat with fn to_json(self) {
+  let fields = Map([
+    ("kind", Json(self.kind)),
+    ("operator", Json(self.operator)),
+    ("formula1", Json(self.formula1)),
+    ("formula2", Json(self.formula2)),
+    ("stopIfTrue", Json(self.stopIfTrue)),
+    ("format", self.format.patch_json()),
+  ])
+  if !self.stops.is_empty() {
     fields["stops"] = Json(
       self.stops.map(stop => { ..stop, color: stop.color.to_lower(), }),
     )
   }
-  if self.bar is Some(bar) && value is Object(fields) {
+  if self.bar is Some(bar) {
     fields["bar"] = Json({ ..bar, color: bar.color.to_lower(), })
   }
-  if self.icons is Some(icons) && value is Object(fields) {
+  if self.icons is Some(icons) {
     fields["icons"] = Json(icons)
   }
-  if self.rank is Some(rank) && value is Object(fields) {
+  if self.rank is Some(rank) {
     fields["rank"] = Json(rank)
   }
-  if self.average is Some(average) && value is Object(fields) {
+  if self.average is Some(average) {
     fields["average"] = Json(average)
   }
-  if self.text is Some(text) && value is Object(fields) {
+  if self.text is Some(text) {
     fields["text"] = Json(text)
   }
-  if self.timePeriod is Some(period) && value is Object(fields) {
+  if self.timePeriod is Some(period) {
     fields["timePeriod"] = Json(period)
   }
-  value
+  Json::object(fields)
 }
 
 ///|
@@ -225,8 +225,8 @@ fn ConditionalFormat::check(
   let pair = self.kind == "cellIs" &&
     ["between", "notBetween"].contains(self.operator)
   guard !self.formula1.is_empty() &&
-    self.formula1.length() <= 8192 &&
-    self.formula2.length() <= 8192 &&
+    self.formula1.length() <= FormulaSourceUnits &&
+    self.formula2.length() <= FormulaSourceUnits &&
     (if pair { !self.formula2.is_empty() } else { self.formula2.is_empty() }) &&
     @xml.valid_text(self.formula1) &&
     @xml.valid_text(self.formula2) else {

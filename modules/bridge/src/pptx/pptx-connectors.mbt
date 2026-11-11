@@ -1,42 +1,50 @@
 ///|
-fn pptx_connector_end(
-  value : Json,
-) -> @model.ConnectorEnd raise @failure.Failure {
-  guard value is Object(fields) &&
-    fields.length() == 4 &&
-    fields.keys().all(k => ["x", "y", "target", "site"].contains(k)) else {
-    @failure.reject("invalid-operation", "Unknown connector endpoint fields")
-  }
+priv struct ConnectorEndRequest {
+  x : @common.RequestNumber
+  y : @common.RequestNumber
+  target : String
+  site : @common.RequestInt
+} derive(@json.FromJson)
+
+///|
+priv struct ConnectorEditRequest {
+  kind : String
+  start : ConnectorEndRequest
+  end : ConnectorEndRequest
+} derive(@json.FromJson)
+
+///|
+fn ConnectorEndRequest::endpoint(
+  self : ConnectorEndRequest,
+) -> @model.ConnectorEnd {
   {
-    x: field_number(value, "x"),
-    y: field_number(value, "y"),
-    target: field_string(value, "target"),
-    site: field_int(value, "site"),
+    x: self.x.value,
+    y: self.y.value,
+    target: self.target,
+    site: self.site.value,
   }
 }
 
 ///|
 fn pptx_connector_edit(
+  action : String,
   value : Json,
 ) -> @model.ObjectEdit raise @failure.Failure {
-  guard value is Object(fields) &&
-    fields.length() == 4 &&
-    fields.keys().all(k => ["action", "kind", "start", "end"].contains(k)) &&
-    fields.get("start") is Some(start) &&
-    fields.get("end") is Some(end) else {
+  guard value is Object(fields) && fields.length() == 4 else {
     @failure.reject("invalid-operation", "Connector endpoints are required")
   }
-  if field_string(value, "action") == "insertConnector" {
-    @model.InsertConnector(
-      field_string(value, "kind"),
-      pptx_connector_end(start),
-      pptx_connector_end(end),
-    )
+  guard fields.get("start") is Some(Object(start)) &&
+    fields.get("end") is Some(Object(end)) &&
+    start.length() == 4 &&
+    end.length() == 4 else {
+    @failure.reject("invalid-operation", "Unknown connector endpoint fields")
+  }
+  let request : ConnectorEditRequest = @common.request(value)
+  let start = request.start.endpoint()
+  let end = request.end.endpoint()
+  if action == "insertConnector" {
+    @model.InsertConnector(request.kind, start, end)
   } else {
-    @model.ConnectorEndpoints(
-      field_string(value, "kind"),
-      pptx_connector_end(start),
-      pptx_connector_end(end),
-    )
+    @model.ConnectorEndpoints(request.kind, start, end)
   }
 }

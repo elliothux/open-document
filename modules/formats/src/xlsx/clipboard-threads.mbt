@@ -64,7 +64,7 @@ fn copied_thread_source(
   for message in messages {
     let markup = style_markup(source.tree.unwrap(), message.node)
     total += markup.length().to_int64()
-    guard total <= 2097152L else {
+    guard total <= CopiedNoteSourceUnits.to_int64() else {
       @failure.reject("limit-exceeded", "Copied thread source exceeds budget")
     }
     comments.write_string(markup)
@@ -77,7 +77,7 @@ fn copied_thread_source(
       used.contains(thread_guid(node.attribute("id").unwrap())) {
       let markup = style_markup(roster, node)
       total += markup.length().to_int64()
-      guard total <= 2097152L else {
+      guard total <= CopiedNoteSourceUnits.to_int64() else {
         @failure.reject("limit-exceeded", "Copied thread source exceeds budget")
       }
       people.write_string(markup)

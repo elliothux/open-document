@@ -1,4 +1,13 @@
 ///|
+pub const ConditionalRangeUnits : Int32 = 262144
+
+///|
+pub const ConditionalTextUnits : Int32 = 8192
+
+///|
+pub const ConditionalRuleCount : Int32 = 4096
+
+///|
 priv struct ConditionalRule {
   node : Int32
   container : Int32
@@ -25,8 +34,8 @@ priv struct ConditionalRules {
   table_styles : TableStyles
   rules : Array[ConditionalRule]
   reason : String
-  scales : Map[Int32, Array[Double]]
-  duplicates : Map[Int32, Map[String, Bool]]
+  scales : ConditionalMemo[Array[Double]]
+  duplicates : ConditionalMemo[Map[String, Bool]]
 }
 
 ///|
@@ -62,7 +71,7 @@ fn Session::conditional_rules(
       } else {
         container.attribute("sqref").unwrap_or("")
       }
-      guard source.length() <= 262144 else {
+      guard source.length() <= ConditionalRangeUnits else {
         @failure.reject(
           "limit-exceeded", "Conditional ranges exceed source budget",
         )
@@ -72,7 +81,7 @@ fn Session::conditional_rules(
       let anchor = rule_anchor(ranges, true)
       for node in children.filter(n => n.name == "cfRule") {
         work.spend()
-        guard rules.length() < 4096 else {
+        guard rules.length() < ConditionalRuleCount else {
           @failure.reject(
             "limit-exceeded", "Conditional rule count exceeds 4096",
           )
@@ -150,7 +159,8 @@ fn Session::conditional_rules(
             [],
             uri=if extended { sparkline_formula_uri } else { spreadsheet_uri },
           )
-          guard !formula.text.is_empty() && formula.text.length() <= 8192 else {
+          guard !formula.text.is_empty() &&
+            formula.text.length() <= FormulaSourceUnits else {
             @failure.reject(
               "protected-content", "Invalid conditional formula length",
             )
@@ -314,7 +324,8 @@ fn Session::conditional_rules(
             None
           },
           text: if conditional_text_kind(kind) {
-            guard node.attribute("text") is Some(text) && text.length() <= 8192 else {
+            guard node.attribute("text") is Some(text) &&
+              text.length() <= ConditionalTextUnits else {
               @failure.reject(
                 "protected-content", "Conditional text operand is required",
               )
@@ -356,15 +367,21 @@ fn Session::conditional_rules(
       }
     }
     rules.sort_by((a, b) => a.priority.compare(b.priority))
-    { rules, table_styles, reason: "", scales: Map([]), duplicates: Map([]), }
+    {
+      rules,
+      table_styles,
+      reason: "",
+      scales: ConditionalMemo::new(),
+      duplicates: ConditionalMemo::new(),
+    }
   } catch {
     @failure.Failure(code~, message~, ..) if code != "limit-exceeded" =>
       {
         rules: [],
         table_styles,
         reason: message,
-        scales: Map([]),
-        duplicates: Map([]),
+        scales: ConditionalMemo::new(),
+        duplicates: ConditionalMemo::new(),
       }
     error => raise error
   }
@@ -408,7 +425,7 @@ fn ConditionalRules::applied(
   address : Address,
   sheets : Array[Sheet],
   index : Int32,
-  values : Map[(Int32, String), Value],
+  values : Map[(Int32, Address), Value],
   work : FormulaWork,
 ) -> CellStyle raise @failure.Failure {
   let source = self.table_styles.applied(source, sheets[index], address)

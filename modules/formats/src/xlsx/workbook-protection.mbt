@@ -37,20 +37,20 @@ fn Session::workbook_protection_reason(self : Session) -> String {
 ///|
 fn Session::workbook_protection_query(
   self : Session,
-) -> Json raise @failure.Failure {
+) -> QueryProtection raise @failure.Failure {
   let tree = Tree::new(self.workbook)
   let nodes = tree.all(tree.root("workbook").id, "workbookProtection")
   let locked = nodes.any(node => flag(node, "lockStructure") catch { _ => true })
   {
-    "protected": locked,
-    "passwordRequired": locked &&
+    locked,
+    passwordRequired: locked &&
     nodes.any(node => {
       [
         "workbookPassword", "workbookAlgorithmName", "workbookHashValue", "workbookSaltValue",
         "workbookSpinCount",
       ].any(key => node.attribute(key) is Some(_))
     }),
-    "reason": self.workbook_protection_reason(),
+    reason: self.workbook_protection_reason(),
   }
 }
 

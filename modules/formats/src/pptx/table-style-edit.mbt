@@ -28,25 +28,29 @@ fn cleared_table_cell(source : Ref) -> String? raise @failure.Failure {
 }
 
 ///|
-fn table_style_query(table : DrawingTable, reason : String) -> Json {
-  let style = table.style
+priv struct TableStyleChoice {
+  id : String
+  name : String
+} derive(ToJson)
+
+///|
+priv struct TableStyleQuery {
+  settings : TableStyleSettings
+  choices : Array[TableStyleChoice]
+  reason : String
+} derive(ToJson)
+
+///|
+fn table_style_query(table : DrawingTable, reason : String) -> TableStyleQuery {
   let ids = table.styles.styles.keys().to_array()
   ids.sort()
   {
-    "settings": {
-      "id": style.id,
-      "firstRow": style.first_row,
-      "lastRow": style.last_row,
-      "firstColumn": style.first_column,
-      "lastColumn": style.last_column,
-      "bandRows": style.band_rows,
-      "bandColumns": style.band_columns,
-    },
-    "choices": ids.map(id => {
-      "id": id,
-      "name": table.styles.styles[id].node.attribute("styleName").unwrap_or(id),
+    settings: table.style,
+    choices: ids.map(id => {
+      id,
+      name: table.styles.styles[id].node.attribute("styleName").unwrap_or(id),
     }),
-    "reason": reason,
+    reason,
   }
 }
 

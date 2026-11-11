@@ -1,6 +1,6 @@
 ///|
 fn check_note_text(text : String) -> Unit raise @failure.Failure {
-  guard text.length() <= 32767 &&
+  guard text.length() <= NoteTextUnits &&
     @xml.valid_text(text) &&
     text
     .iter()
@@ -76,3 +76,6 @@ pub fn Session::edit_note(
   )
   self.edit_result([])
 }
+
+///|
+pub const NoteTextUnits : Int32 = 32767

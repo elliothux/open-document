@@ -1,4 +1,5 @@
 import { integer, record } from "@open-document/wasm/abi/validation";
+import { docxIndexLabelUnits } from "@open-document/wasm/engine-source";
 
 export type DocxIndexEdit =
   | { action: "mark"; label: string }
@@ -22,7 +23,7 @@ function indexLabel(value: unknown): value is string {
   return (
     typeof value === "string" &&
     value.length > 0 &&
-    value.length <= 255 &&
+    value.length <= docxIndexLabelUnits &&
     value.isWellFormed() &&
     Array.from(value).every(
       (char) =>
@@ -67,50 +68,4 @@ export function checkDocxIndexEdit(
     )
   )
     throw new Error("Invalid DOCX index command");
-}
-
-export function docxIndexes(value: unknown): DocxIndexes {
-  const result = record(value);
-  if (
-    !integer(result.revision, 0, 2147483647) ||
-    !Array.isArray(result.entries) ||
-    result.entries.length > 4096 ||
-    !Array.isArray(result.indexes) ||
-    result.indexes.length > 256
-  )
-    throw new Error("Invalid DOCX index catalog");
-  const entries = new Set<number>(),
-    indexes = new Set<number>();
-  for (const value of result.entries) {
-    const entry = record(value);
-    if (
-      !integer(entry.id, 0, 2147483647) ||
-      entries.has(Number(entry.id)) ||
-      !integer(entry.paragraph, 0, 2147483647) ||
-      typeof entry.reason !== "string" ||
-      entry.reason.length > 8192 ||
-      typeof entry.label !== "string" ||
-      entry.label.length > 255 ||
-      !entry.label.isWellFormed() ||
-      (!entry.reason && !indexLabel(entry.label))
-    )
-      throw new Error("Invalid DOCX index entry");
-    entries.add(Number(entry.id));
-  }
-  for (const value of result.indexes) {
-    const index = record(value);
-    if (
-      !integer(index.paragraph, 0, 2147483647) ||
-      indexes.has(Number(index.paragraph)) ||
-      !integer(index.endParagraph, 0, 2147483647) ||
-      typeof index.instruction !== "string" ||
-      index.instruction.length > 257 ||
-      !index.instruction.isWellFormed() ||
-      typeof index.reason !== "string" ||
-      index.reason.length > 8192
-    )
-      throw new Error("Invalid DOCX index result");
-    indexes.add(Number(index.paragraph));
-  }
-  return value as DocxIndexes;
 }

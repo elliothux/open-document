@@ -3,14 +3,14 @@ priv struct AxisSpan {
   first : Int32
   last : Int32
   size : Double
-}
+} derive(Eq)
 
 ///|
 priv struct Axis {
   default_size : Double
   spans : Array[AxisSpan]
   limit : Int32
-}
+} derive(Eq)
 
 ///|
 priv struct Dimensions {
@@ -19,7 +19,7 @@ priv struct Dimensions {
   base_column_width : Double?
   automatic_rows : Map[Int32, Bool]
   automatic_columns : Array[(Int32, Int32)]
-}
+} derive(Eq)
 
 ///|
 fn dimension(value : String, max : Double) -> Double raise @failure.Failure {
@@ -65,7 +65,7 @@ fn read_dimensions(
   for row in tree.all(data.id, "row") {
     let index = natural(
       row.attribute("r").unwrap_or((previous_row + 1).to_string()),
-      1048576,
+      WorksheetRows,
     )
     previous_row = index
     if !flag(row, "customHeight") {
@@ -97,9 +97,9 @@ fn read_dimensions(
   let inherited_columns : Map[Int32, Bool] = Map([])
   if tree.one(root.id, "cols") is Some(container) {
     for col in tree.all(container.id, "col") {
-      let first = natural(col.attribute("min").unwrap_or(""), 16384)
-      let last = natural(col.attribute("max").unwrap_or(""), 16384)
-      guard first >= 1 && last >= first && columns.length() < 16384 else {
+      let first = natural(col.attribute("min").unwrap_or(""), WorksheetColumns)
+      let last = natural(col.attribute("max").unwrap_or(""), WorksheetColumns)
+      guard first >= 1 && last >= first && columns.length() < WorksheetColumns else {
         @failure.reject("malformed-xlsx", "Invalid column span")
       }
       let size = if flag(col, "hidden") {
@@ -140,12 +140,12 @@ fn read_dimensions(
         row_default
       },
       spans: rows,
-      limit: 1048576,
+      limit: WorksheetRows,
     },
     columns: {
       default_size: column_default,
       spans: columns.filter(span => !inherited_columns.contains(span.first)),
-      limit: 16384,
+      limit: WorksheetColumns,
     },
   }
 }
@@ -349,8 +349,8 @@ fn Dimensions::resolved(
 
 ///|
 fn Sheet::used(self : Sheet) -> Range {
-  let mut top = 1048576
-  let mut left = 16384
+  let mut top = WorksheetRows
+  let mut left = WorksheetColumns
   let mut bottom = 1
   let mut right = 1
   for cell in self.cells.values() {

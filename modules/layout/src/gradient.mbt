@@ -1,4 +1,7 @@
 ///|
+pub const GradientStopCount : Int32 = 32
+
+///|
 pub(all) struct GradientStop {
   position : Double
   color : String
@@ -15,10 +18,28 @@ pub extend GradientStop with ToJson::{to_json}
 pub extend GradientStop with Debug::{to_repr}
 
 ///|
+/// ONLYOFFICE radial fills start at a one-millimetre circle.
+pub const RADIAL_GRADIENT_INNER_RADIUS : Double = 72.0 / 25.4
+
+///|
+fn drawing_gradient_stops(stops : Array[GradientStop]) -> Array[GradientStop] {
+  // Match PDF interval extension while retaining interior hard stops.
+  let result = []
+  for index, stop in stops {
+    if (stop.position == 0 && stops.get(index + 1) is Some({ position: 0, .. })) ||
+      (stop.position == 1 && stops.get(index - 1) is Some({ position: 1, .. })) {
+      continue
+    }
+    result.push(stop)
+  }
+  result
+}
+
+///|
 pub fn validate_gradient_stops(
   stops : Array[GradientStop],
 ) -> Unit raise @failure.Failure {
-  guard stops.length() >= 2 && stops.length() <= 32 else {
+  guard stops.length() >= 2 && stops.length() <= GradientStopCount else {
     @failure.reject("invalid-drawing", "Gradients require 2..32 color stops")
   }
   for index, stop in stops {

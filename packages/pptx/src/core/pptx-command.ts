@@ -30,6 +30,7 @@ export type PptxCommand =
       profile: Record<string, string>;
     }
   | { operation: "queryPptx" }
+  | { operation: "rasterHeaderPptx"; bytes: Uint8Array; verify?: true }
   | { operation: "followPptxHyperlink"; revision: number }
   | {
       operation: "editPptxSlides";
@@ -46,9 +47,21 @@ export type PptxCommand =
     }
   | ({ operation: "selectPptx"; revision: number } & PptxSelection)
   | {
-      operation: "objectFragmentImagesPptx" | "objectFragmentMediaPptx";
+      operation: "objectFragmentImagesPptx";
       revision: number;
       fragment: string;
+      prepareImages?: true;
+    }
+  | {
+      operation: "objectFragmentMediaPptx";
+      revision: number;
+      fragment: string;
+    }
+  | {
+      operation: "objectFragmentResourcesPptx";
+      revision: number;
+      fragment: string;
+      verifyImages?: true;
     }
   | {
       operation: "pastePptxFragment" | "pastePptxObjects";
@@ -137,6 +150,7 @@ const names: ReadonlySet<string> = new Set([
   "openPptx",
   "createPptx",
   "queryPptx",
+  "rasterHeaderPptx",
   "inspectPptxSlides",
   "importPptxSlides",
   "dateTimePptx",
@@ -156,6 +170,7 @@ const names: ReadonlySet<string> = new Set([
   "pastePptxObjects",
   "objectFragmentImagesPptx",
   "objectFragmentMediaPptx",
+  "objectFragmentResourcesPptx",
   "layoutPptx",
   "printLayoutPptx",
   "hitPptx",
@@ -167,7 +182,7 @@ const names: ReadonlySet<string> = new Set([
   "dragPptx",
   "finishPptx",
   "cancelPptx",
-  "imageBytesPptx",
+  "prepareImagePptx",
   "mediaBytesPptx",
   "imagePptx",
   "imageKeysPptx",
@@ -184,22 +199,26 @@ export function isPptxCommand(value: {
   return names.has(value.operation);
 }
 
-export function checkPptxTextFragment(value: unknown): asserts value is string {
+export function checkPptxTextFragment(
+  value: unknown,
+  maxUnits: number,
+): asserts value is string {
   if (
     typeof value !== "string" ||
-    !value.isWellFormed() ||
-    value.length > 1048576
+    value.length > maxUnits ||
+    !value.isWellFormed()
   )
     throw new Error("Invalid PPTX text fragment");
 }
 
 export function checkPptxObjectFragment(
   value: unknown,
+  maxUnits: number,
 ): asserts value is string {
   if (
     typeof value !== "string" ||
-    !value.isWellFormed() ||
-    value.length > 100663296
+    value.length > maxUnits ||
+    !value.isWellFormed()
   )
     throw new Error("Invalid PPTX object fragment");
 }

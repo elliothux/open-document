@@ -1,10 +1,17 @@
 import { integer, record } from "@open-document/wasm/abi/validation";
-import { checkDrawingAnchor, type DrawingAnchor } from "./preview.js";
+import {
+  docxShapeDimensionPoints,
+  docxShapeStrokePoints,
+  docxTextBoxInsetPoints,
+  docxTextBoxParagraphCount,
+  docxTextBoxParagraphUnits,
+  docxTextBoxTextUnits,
+} from "@open-document/wasm/engine-source";
+import type { DrawingAnchor } from "./preview.js";
 import {
   checkDocxDrawingPosition,
   type DocxDrawingPositionEdit,
   checkDocxDrawingHyperlinkEdit,
-  checkDocxDrawingHyperlink,
   type DocxDrawingHyperlinkEdit,
   type DocxDrawingHyperlink,
 } from "./docx-picture.js";
@@ -106,7 +113,10 @@ export function checkDocxShapeEdit(value: unknown): void {
   if (
     ![shape.width, shape.height].every(
       (v) =>
-        typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 14400,
+        typeof v === "number" &&
+        Number.isFinite(v) &&
+        v >= 0 &&
+        v <= docxShapeDimensionPoints,
     ) ||
     (shape.width === 0 && shape.height === 0) ||
     (shape.action === "insert" &&
@@ -118,7 +128,7 @@ export function checkDocxShapeEdit(value: unknown): void {
     typeof shape.lineWidth !== "number" ||
     !Number.isFinite(shape.lineWidth) ||
     shape.lineWidth < 0 ||
-    shape.lineWidth > 1584 ||
+    shape.lineWidth > docxShapeStrokePoints ||
     (shape.stroke !== "" && shape.lineWidth === 0)
   )
     throw new Error("Invalid DOCX shape dimensions or paint");
@@ -127,9 +137,9 @@ export function checkDocxShapeEdit(value: unknown): void {
 function checkTextBoxText(text: unknown): void {
   if (
     typeof text !== "string" ||
-    text.length > 32767 ||
-    text.split("\n").length > 256 ||
-    text.split("\n").some((part) => part.length > 4096) ||
+    text.length > docxTextBoxTextUnits ||
+    text.split("\n").length > docxTextBoxParagraphCount ||
+    text.split("\n").some((part) => part.length > docxTextBoxParagraphUnits) ||
     [...text].some((character) => {
       const code = character.codePointAt(0)!;
       return (
@@ -150,55 +160,14 @@ function checkTextBoxProperties(value: unknown): void {
     body.insets.length !== 4 ||
     !body.insets.every(
       (v) =>
-        typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 14400,
+        typeof v === "number" &&
+        Number.isFinite(v) &&
+        v >= 0 &&
+        v <= docxTextBoxInsetPoints,
     ) ||
     (body.anchor !== "t" && body.anchor !== "ctr" && body.anchor !== "b") ||
     typeof body.wrap !== "boolean" ||
     typeof body.clip !== "boolean"
   )
     throw new Error("Invalid DOCX text box properties");
-}
-
-export function docxShapes(value: unknown): DocxShapes {
-  const source = record(value);
-  if (
-    !integer(source.revision, 0, 2147483647) ||
-    !Array.isArray(source.items) ||
-    source.items.length > 256
-  )
-    throw new Error("Invalid DOCX shape catalog");
-  const seen = new Set<number>();
-  for (const entry of source.items) {
-    const shape = record(entry);
-    checkDocxShapeEdit({ ...shape, action: "properties" });
-    if (
-      typeof shape.id !== "number" ||
-      typeof shape.selected !== "boolean" ||
-      !integer(shape.id, 0, 2147483647) ||
-      seen.has(shape.id) ||
-      ![
-        "name",
-        "reason",
-        "sizeReason",
-        "deleteReason",
-        "positionReason",
-        "textReason",
-      ].every((key) => typeof shape[key] === "string") ||
-      (shape.preset !== "rect" &&
-        shape.preset !== "ellipse" &&
-        shape.preset !== "line" &&
-        shape.preset !== "polyline") ||
-      (shape.preset !== "line" && (shape.width === 0 || shape.height === 0))
-    )
-      throw new Error("Invalid DOCX shape entry");
-    seen.add(shape.id);
-    checkDrawingAnchor(shape.anchor);
-    checkDocxDrawingHyperlink(shape.hyperlink);
-    if (shape.textBox !== null) {
-      if (shape.preset === "line" || shape.preset === "polyline")
-        throw new Error("Line shapes cannot contain text");
-      checkTextBoxProperties(shape.textBox);
-    }
-  }
-  return value as DocxShapes;
 }

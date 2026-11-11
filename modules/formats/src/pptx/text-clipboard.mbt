@@ -198,7 +198,7 @@ fn Session::capture_text_fragment(
   }
   output.write_string("</od:fragment>")
   let fragment = output.to_string()
-  guard fragment.length() <= 1048576 else {
+  guard fragment.length() <= TextFragmentUnits else {
     @failure.reject(
       "limit-exceeded", "Presentation text clipboard exceeds 1Mi units",
     )

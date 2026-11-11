@@ -6,12 +6,25 @@ pub(all) enum FillTarget {
 }
 
 ///|
+pub struct FillPreview {
+  source : String
+  range : String
+  direction : String
+  mode : String
+  geometry : SelectionGeometry
+  end : SelectionGeometry
+} derive(ToJson)
+
+///|
+pub extend FillPreview with ToJson::{to_json}
+
+///|
 pub fn Session::fill_preview(
   self : Session,
   id : Int32,
   target : FillTarget,
   ctrl~ : Bool = false,
-) -> Json raise @failure.Failure {
+) -> FillPreview raise @failure.Failure {
   self.check()
   guard self.grid is Some(grid) &&
     grid.id == id &&
@@ -32,10 +45,13 @@ pub fn Session::fill_preview(
     FillDirection(direction) =>
       match direction {
         "down" =>
-          { row: (source.bottom + 1).min(1048576), column: source.right, }
+          { row: (source.bottom + 1).min(WorksheetRows), column: source.right, }
         "up" => { row: (source.top - 1).max(1), column: source.left, }
         "right" =>
-          { row: source.bottom, column: (source.right + 1).min(16384), }
+          {
+            row: source.bottom,
+            column: (source.right + 1).min(WorksheetColumns),
+          }
         "left" => { row: source.top, column: (source.left - 1).max(1), }
         _ =>
           @failure.reject("invalid-operation", "Invalid fill preview direction")
@@ -167,11 +183,11 @@ pub fn Session::fill_preview(
     right: selected.right,
   }
   {
-    "source": original.name(),
-    "range": range.name(),
-    "direction": direction,
-    "mode": mode,
-    "geometry": grid.range_geometry(range, frozen),
-    "end": grid.range_geometry(end, frozen),
+    source: original.name(),
+    range: range.name(),
+    direction,
+    mode,
+    geometry: grid.range_geometry(range, frozen),
+    end: grid.range_geometry(end, frozen),
   }
 }

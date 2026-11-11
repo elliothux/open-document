@@ -1,4 +1,10 @@
 ///|
+pub const TextColumnCells : Int32 = 4096
+
+///|
+pub const TextColumnBreakPosition : Int32 = 65534
+
+///|
 pub(all) enum TextColumnSplit {
   Delimited(String)
   Fixed(Array[Int32])
@@ -30,20 +36,21 @@ fn Session::text_column_plan(
   settings : TextColumnSettings,
 ) -> TextColumnPlan raise @failure.Failure {
   let source = Range::parse(settings.range)
-  guard source.left == source.right && source.bottom - source.top < 4096 else {
+  guard source.left == source.right &&
+    source.bottom - source.top < TextColumnCells else {
     @failure.reject(
       "invalid-operation", "Text to columns requires at most 4096 cells in one column",
     )
   }
   if settings.split is Fixed(breaks) {
-    guard !breaks.is_empty() && breaks.length() < 4096 else {
+    guard !breaks.is_empty() && breaks.length() < TextColumnCells else {
       @failure.reject(
         "invalid-operation", "Fixed-width splitting requires 1 to 4095 positions",
       )
     }
     let mut previous = 0
     for position in breaks {
-      guard position > previous && position <= 65534 else {
+      guard position > previous && position <= TextColumnBreakPosition else {
         @failure.reject(
           "invalid-operation", "Fixed-width positions must be increasing integers from 1 to 65534",
         )
@@ -52,7 +59,8 @@ fn Session::text_column_plan(
     }
   }
   let current = self.sheets[self.sheet_index(sheet)]
-  guard settings.types.length() <= 4096 && settings.types.all(text_column_type) else {
+  guard settings.types.length() <= TextColumnCells &&
+    settings.types.all(text_column_type) else {
     @failure.reject("invalid-operation", "Invalid text column types")
   }
   let reason = self.dimension_reason(current)
@@ -76,7 +84,7 @@ fn Session::text_column_plan(
       Fixed(breaks) => fixed_column_fields(text, breaks)
     }
     width = width.max(fields.length())
-    guard width * (source.bottom - source.top + 1) <= 4096 else {
+    guard width * (source.bottom - source.top + 1) <= TextColumnCells else {
       @failure.reject(
         "limit-exceeded", "Text to columns output exceeds worksheet or 4096-cell bounds",
       )
@@ -97,7 +105,7 @@ fn Session::text_column_plan(
     settings.types
   }
   let columns = types.filter(kind => kind != "skip").length()
-  guard columns > 0 && source.left + columns - 1 <= 16384 else {
+  guard columns > 0 && source.left + columns - 1 <= WorksheetColumns else {
     @failure.reject(
       "limit-exceeded", "Select at least one output column within worksheet bounds",
     )
@@ -146,6 +154,22 @@ fn Session::text_column_plan(
 }
 
 ///|
+priv struct TextColumnPreview {
+  revision : Int32
+  sheet : String
+  range : String
+  resultRange : String
+  columns : Int32
+  overwrittenCells : Int32
+  preview : Array[Array[String]]
+  types : Array[String]
+  formulas : Bool
+  splitColumns : Int32
+  delimiter : String?
+  breaks : Array[Int32]?
+} derive(ToJson)
+
+///|
 /// Previews converted fields and occupied output cells without changing source or history.
 pub fn Session::text_columns(
   self : Session,
@@ -155,23 +179,25 @@ pub fn Session::text_columns(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let plan = self.text_column_plan(sheet, settings)
-  let result : Map[String, Json] = {
-    "revision": Json(revision),
-    "sheet": Json(sheet),
-    "range": Json(Range::parse(settings.range).name()),
-    "resultRange": Json(plan.target.name()),
-    "columns": Json(plan.target.right - plan.target.left + 1),
-    "overwrittenCells": Json(plan.overwritten),
-    "preview": Json(plan.preview),
-    "types": Json(plan.types),
-    "formulas": Json(settings.formulas),
-    "splitColumns": Json(plan.split_columns),
+  let (delimiter, breaks) = match settings.split {
+    Delimited(delimiter) => (Some(delimiter), None)
+    Fixed(breaks) => (None, Some(breaks))
   }
-  match settings.split {
-    Delimited(delimiter) => result["delimiter"] = Json(delimiter)
-    Fixed(breaks) => result["breaks"] = Json(breaks)
+  let preview : TextColumnPreview = {
+    revision,
+    sheet,
+    range: Range::parse(settings.range).name(),
+    resultRange: plan.target.name(),
+    columns: plan.target.right - plan.target.left + 1,
+    overwrittenCells: plan.overwritten,
+    preview: plan.preview,
+    types: plan.types,
+    formulas: settings.formulas,
+    splitColumns: plan.split_columns,
+    delimiter,
+    breaks,
   }
-  Json(result)
+  ToJson::to_json(preview)
 }
 
 ///|

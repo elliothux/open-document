@@ -1,11 +1,24 @@
 ///|
+pub const GuideCount : Int32 = 64
+
+///|
 pub(all) struct Guide {
   orientation : String
   position : Double
-} derive(Eq)
+} derive(Eq, ToJson)
 
 ///|
 pub extend Guide with Eq::{equal, not_equal}
+
+///|
+pub extend Guide with ToJson::{to_json}
+
+///|
+priv struct GuidesQuery {
+  visible : Bool
+  items : Array[Guide]
+  reason : String
+} derive(ToJson)
 
 ///|
 fn Session::guide_properties(self : Session) -> Tree? raise @failure.Failure {
@@ -60,8 +73,11 @@ fn read_guides(tree : Tree) -> (Bool, Array[Guide]) raise @failure.Failure {
     )
   }
   let nodes = tree.all(list.id, "guide", uri=presentation_uri)
-  guard nodes.length() <= 64 else {
-    @failure.reject("limit-exceeded", "Presentation guides exceed 64")
+  guard nodes.length() <= GuideCount else {
+    @failure.reject(
+      "limit-exceeded",
+      "Presentation guides exceed \{GuideCount}",
+    )
   }
   let guides = nodes.map(node => {
     custom_show_node(tree, node, "guide", ["orient", "pos"], [])
@@ -83,7 +99,7 @@ fn read_guides(tree : Tree) -> (Bool, Array[Guide]) raise @failure.Failure {
 
 ///|
 fn Session::guides_query(self : Session) -> Json {
-  try {
+  let result : GuidesQuery = try {
     let (visible, items) = self
       .guide_properties()
       .map(read_guides)
@@ -91,21 +107,12 @@ fn Session::guides_query(self : Session) -> Json {
     if self.candidate.bind(candidate => candidate.guide) is Some(guide) {
       items[guide.index] = { ..items[guide.index], position: guide.position, }
     }
-    {
-      "visible": visible,
-      "items": items.map(item => {
-        let item : Json = {
-          "orientation": item.orientation,
-          "position": item.position,
-        }
-        item
-      }),
-      "reason": self.slide_visibility_reason(),
-    }
+    { visible, items, reason: self.slide_visibility_reason(), }
   } catch {
     @failure.Failure(message~, ..) =>
-      { "visible": false, "items": [], "reason": message }
+      { visible: false, items: [], reason: message, }
   }
+  ToJson::to_json(result)
 }
 
 ///|
@@ -125,8 +132,11 @@ fn Session::set_guides(
   visible : Bool,
   guides : Array[Guide],
 ) -> Json raise @failure.Failure {
-  guard guides.length() <= 64 else {
-    @failure.reject("limit-exceeded", "Presentation guides exceed 64")
+  guard guides.length() <= GuideCount else {
+    @failure.reject(
+      "limit-exceeded",
+      "Presentation guides exceed \{GuideCount}",
+    )
   }
   for guide in guides {
     guard ["horz", "vert"].contains(guide.orientation) &&

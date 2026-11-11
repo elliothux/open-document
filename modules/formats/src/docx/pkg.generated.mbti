@@ -2,13 +2,84 @@
 package "open_document/formats/docx"
 
 import {
+  "moonbitlang/core/json",
   "open_document/core/archive",
   "open_document/core/failure",
   "open_document/layout",
 }
 
 // Values
-pub fn image_resource_bytes(@layout.ImageResource) -> Bytes raise @failure.Failure
+pub const BibliographyHeadingUnits : Int32 = 255
+
+pub const CaptionTextUnits : Int32 = 1024
+
+pub const ClipboardFragmentUnits : Int32 = 2097152
+
+pub const CommentTextUnits : Int32 = 32767
+
+pub const CoverSubtitleUnits : Int32 = 512
+
+pub const CoverTitleUnits : Int32 = 256
+
+pub const HyperlinkTargetUnits : Int32 = 2048
+
+pub const ImageInputBytes : Int32 = 4194304
+
+pub const IndexLabelUnits : Int32 = 255
+
+pub const InkStrokePoints : Int32 = 4096
+
+pub const ListLevelPatternUnits : Int32 = 256
+
+pub const MarkupSourceUnits : Int32 = 65536
+
+pub const NoteTextUnits : Int32 = 32767
+
+pub const RevisionAuthorUnits : Int32 = 255
+
+pub const RevisionEntries : Int32 = 4096
+
+pub const RunningContentItems : Int32 = 256
+
+pub const RunningContentUnits : Int32 = 8192
+
+pub const RunningDistancePoints : Int32 = 14400
+
+pub const SearchMatchLimit : Int32 = 1000
+
+pub const ShapeDimensionPoints : Int32 = 14400
+
+pub const ShapeStrokePoints : Int32 = 1584
+
+pub const SourceAuthorUnits : Int32 = 1024
+
+pub const SourcePublisherUnits : Int32 = 512
+
+pub const SourceTagUnits : Int32 = 64
+
+pub const SourceTitleUnits : Int32 = 1024
+
+pub const SourceUrlUnits : Int32 = 2048
+
+pub const SourceYearUnits : Int32 = 32
+
+pub const TableGridCells : Int32 = 4096
+
+pub const TableGridColumns : Int32 = 63
+
+pub const TableGridRows : Int32 = 1000
+
+pub const TextBoxInsetPoints : Int32 = 14400
+
+pub const TextBoxParagraphCount : Int32 = 256
+
+pub const TextBoxParagraphUnits : Int32 = 4096
+
+pub const TextBoxTextUnits : Int32 = 32767
+
+pub const TextCommandUnits : Int32 = 65536
+
+pub fn verifies_upload_raster(Bytes) -> Bool
 
 // Errors
 
@@ -33,8 +104,9 @@ pub(all) struct BibliographySource {
   year : String
   publisher : String
   url : String
-} derive(Eq, ToJson)
+} derive(Eq, ToJson, @json.FromJson)
 pub fn BibliographySource::equal(Self, Self) -> Bool
+pub fn BibliographySource::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
 pub fn BibliographySource::not_equal(Self, Self) -> Bool
 pub fn BibliographySource::to_json(Self) -> Json
 
@@ -96,6 +168,13 @@ pub(all) struct ContentRun {
   italic : Bool
 }
 
+pub struct EditState {
+  formatting : FormattingQuery?
+  // private fields
+}
+pub fn EditState::to_json(Self) -> Json
+pub impl ToJson for EditState
+
 pub(all) struct FindOptions {
   matchCase : Bool
   wholeWord : Bool
@@ -109,6 +188,14 @@ pub(all) enum FormatChange[T] {
 } derive(Eq)
 pub fn[T : Eq] FormatChange::equal(Self[T], Self[T]) -> Bool
 pub fn[T : Eq] FormatChange::not_equal(Self[T], Self[T]) -> Bool
+
+pub struct FormattingQuery {
+  // private fields
+}
+pub fn FormattingQuery::has_table(Self) -> Bool
+pub fn FormattingQuery::has_table_cells(Self) -> Bool
+pub fn FormattingQuery::to_json(Self) -> Json
+pub impl ToJson for FormattingQuery
 
 pub(all) enum IndexEdit {
   MarkIndexEntry(String)
@@ -147,6 +234,12 @@ pub(all) struct ListLevelFormat {
 }
 pub fn ListLevelFormat::new(String, String, start? : Int32, restart? : Int32?, align? : String, suffix? : String, left? : FormatChange[Double], first? : FormatChange[Double], character? : CharacterFormat) -> Self
 
+pub struct NavigationResult {
+  hit : @layout.Hit
+  selection : Selection
+  state : EditState
+}
+
 pub(all) struct ParagraphFormat {
   style : FormatChange[String]
   align : FormatChange[String]
@@ -183,6 +276,20 @@ pub(all) enum RulerEdit {
   RulerTab(Int32, Double, String, Bool, Bool)
 }
 
+pub struct RulerResponse {
+  revision : Int32
+  selection : Selection
+  page : Int32
+  width : Double
+  origin : Double
+  extent : Double
+  rtl : Bool
+  reason : String
+  layoutId : Int32
+  // private fields
+} derive(ToJson)
+pub fn RulerResponse::to_json(Self) -> Json
+
 pub(all) enum RunningContent {
   Text(String)
   Link(String, String)
@@ -216,7 +323,7 @@ pub fn Session::apply_format(Self, Int32, Selection, CharacterFormat, ParagraphF
 pub fn Session::begin_composition(Self, Int32) -> Json raise @failure.Failure
 pub fn Session::begin_drawing_gesture(Self, Int32, Int32, Int32, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::bibliography_sources(Self, Int32) -> Json raise @failure.Failure
-pub fn Session::body_fragment_images(Self, Int32, String) -> Json raise @failure.Failure
+pub fn Session::body_fragment_images(Self, Int32, String, encode_image? : (Bytes) -> Json, prepare_pixels? : Bool) -> Json raise @failure.Failure
 pub fn Session::body_page_field(Self, Int32, Selection) -> Json raise @failure.Failure
 pub fn Session::bookmarks(Self, Int32) -> Json raise @failure.Failure
 pub fn Session::cancel_composition(Self, Int32, Int32) -> Json raise @failure.Failure
@@ -233,6 +340,7 @@ pub fn Session::commit_composition(Self, Int32, Int32, String) -> Json raise @fa
 pub fn Session::create(@archive.Budget) -> Self raise @failure.Failure
 pub fn Session::create_content(Array[ContentBlock], @layout.PageSetup, @archive.Budget, @layout.TextProbe, Map[String, String]) -> (Self, Array[Int32]) raise @failure.Failure
 pub fn Session::create_style(Self, Int32, String, String, based_on? : String?) -> Json raise @failure.Failure
+pub fn Session::current_revision(Self) -> Int32 raise @failure.Failure
 pub fn Session::delete(Self, Int32, String) -> Json raise @failure.Failure
 pub fn Session::delete_picture(Self, Int32, Int32) -> Json raise @failure.Failure
 pub fn Session::delete_shape(Self, Int32, Int32) -> Json raise @failure.Failure
@@ -263,6 +371,8 @@ pub fn Session::export_markup(Self, Int32, String, Int32, layout? : @layout.Layo
 pub fn Session::find(Self, Int32, String, FindOptions) -> Json raise @failure.Failure
 pub fn Session::finish_drawing_gesture(Self, Int32, Int32, Double, Double, page? : Int32) -> Json raise @failure.Failure
 pub fn Session::flow(Self) -> @layout.Flow raise @failure.Failure
+pub fn Session::formatting_on_layout(Self, FormattingQuery, @layout.Layout) -> FormattingQuery raise @failure.Failure
+pub fn Session::formatting_query(Self, Int32, Selection, layout? : @layout.Layout) -> FormattingQuery raise @failure.Failure
 pub fn Session::image_bytes(Self, String) -> Bytes raise @failure.Failure
 pub fn Session::indexes(Self, Int32) -> Json raise @failure.Failure
 pub fn Session::insert_body_page_field(Self, Int32, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
@@ -276,11 +386,11 @@ pub fn Session::insert_shape(Self, Int32, String, Double, Double, String, String
 pub fn Session::insert_table(Self, Int32, Selection, Int32, Int32, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::insert_word_art(Self, Int32, String, String, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::list_catalog(Self, Int32) -> Json raise @failure.Failure
-pub fn Session::markup_images(Self, Int32, String, String, mode? : String) -> Json raise @failure.Failure
+pub fn Session::markup_images(Self, Int32, String, String, mode? : String, encode_image? : (Bytes) -> Json, prepare_pixels? : Bool) -> Json raise @failure.Failure
 pub fn Session::math_expressions(Self, Int32) -> Json raise @failure.Failure
 pub fn Session::math_fractions(Self, Int32) -> Json raise @failure.Failure
 pub fn Session::math_scripts(Self, Int32) -> Json raise @failure.Failure
-pub fn Session::navigate(Self, Int32, @layout.Layout, Int32, String, extend_selection~ : Bool) -> @layout.Hit raise @failure.Failure
+pub fn Session::navigate(Self, Int32, @layout.Layout, Int32, String, extend_selection~ : Bool) -> NavigationResult raise @failure.Failure
 pub fn Session::navigate_comment(Self, Int32, String) -> Json raise @failure.Failure
 pub fn Session::note_numbering(Self, Int32, String, Int32) -> Json raise @failure.Failure
 pub fn Session::notes(Self, Int32) -> Json raise @failure.Failure
@@ -293,6 +403,7 @@ pub fn Session::paste_body_fragment(Self, Int32, Selection, String, @layout.Text
 pub fn Session::paste_html(Self, Int32, Selection, String, @layout.TextProbe, Map[String, String], images? : @layout.Images?, mode? : String) -> Json raise @failure.Failure
 pub fn Session::paste_markdown(Self, Int32, Selection, String, @layout.TextProbe, Map[String, String], images? : @layout.Images?, mode? : String) -> Json raise @failure.Failure
 pub fn Session::pictures(Self, Int32) -> Json raise @failure.Failure
+pub fn Session::prepare_image(Self, String, @layout.Images) -> Bool raise @failure.Failure
 pub fn Session::preview_ink(Self, Int32, @layout.Layout, Int32, InkStroke) -> Json raise @failure.Failure
 pub fn Session::query(Self) -> Json raise @failure.Failure
 pub fn Session::query_formatting(Self, Int32, Selection, layout? : @layout.Layout) -> Json raise @failure.Failure
@@ -307,7 +418,7 @@ pub fn Session::replace_tracked_text(Self, Int32, Selection, String, String, Str
 pub fn Session::resolve_revisions(Self, Int32, Array[String], Bool) -> Json raise @failure.Failure
 pub fn Session::revision_rects(Self, Int32, @layout.Layout, String) -> Array[@layout.SelectionRect] raise @failure.Failure
 pub fn Session::revisions(Self, Int32) -> Json raise @failure.Failure
-pub fn Session::ruler(Self, Int32, @layout.Layout) -> Json raise @failure.Failure
+pub fn Session::ruler(Self, Int32, @layout.Layout, Int32) -> RulerResponse raise @failure.Failure
 pub fn Session::running_area(Self, Int32, Int32, String, String) -> Json raise @failure.Failure
 pub fn Session::save(Self) -> Bytes raise @failure.Failure
 pub fn Session::select(Self, Int32, Selection) -> Json raise @failure.Failure
@@ -339,7 +450,7 @@ pub fn Session::shapes(Self, Int32) -> Json raise @failure.Failure
 pub fn Session::style_catalog(Self, Int32, String) -> Json raise @failure.Failure
 pub fn Session::tab(Self, Int32, Bool) -> Json raise @failure.Failure
 pub fn Session::table_clipboard(Self, Int32, Selection, cut? : Bool, layout? : @layout.Layout) -> Json raise @failure.Failure
-pub fn Session::table_fragment_images(Self, Int32, String) -> Json raise @failure.Failure
+pub fn Session::table_fragment_images(Self, Int32, String, encode_image? : (Bytes) -> Json, prepare_pixels? : Bool) -> Json raise @failure.Failure
 pub fn Session::table_of_contents(Self, Int32) -> Json raise @failure.Failure
 pub fn Session::theme_colors(Self, Int32) -> Json raise @failure.Failure
 pub fn Session::theme_fonts(Self, Int32) -> Json raise @failure.Failure

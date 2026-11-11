@@ -21,7 +21,21 @@
 
 MoonBit workspace 保留 `core`、`layout`、`formats`、`bridge` 四个 module，以真实 package 分工。DOCX/PPTX 的嵌入工作簿继续复用 XLSX 核心，Office PDF 输出继续复用 PDF writer；这不引入其他格式的前端编辑器。公开类型留在其所属公共 package，跨包移动后的接口由 `moon info` 生成。
 
-包构建使用 Moon 工具链自带的 `moon-wasm-opt -Oz`，按目标浏览器支持的特性白名单优化共享引擎，再对实际分发字节计算构建身份。优化后的唯一 `engine.wasm` 同时用于同步核心与 Worker；Chromium 主线程的同步实例化限制为 8 MiB。
+四个编辑宿主使用 `web-core/command-queue` 共用有界排队、空闲屏障和代次管理，每个编辑器持有自己的实例。输入法、草稿、错误恢复、后台重绘和关闭策略归领域宿主；DOCX 的恢复屏障在已接受工作之后执行。Office 队列上限为 64 项，PDF 为 128 项。
+
+Editor 按职责拆文件，使用函数模块，不用继承链拆文件。PPTX 的 `PresentationEditor` 直接拥有编辑、保存和导出方法；输出生成沿用 `presentation-output` 函数，初始与更新快照共用 `presentationSnapshot`。
+
+PDF Editor 不再继承 Viewer。`PdfView` 承载共用的阅读状态、队列、搜索、选区和表面生命周期，`PdfViewer.create` 提供独立阅读入口。Editor 组合该视图，负责草稿、提交和属性控件释放。无状态操作归 `createPdfOperations`，由 `editor.operations` 调用；属性控件呈现归 `renderPdfPropertyDraft`，保护原因仍在呈现前更新。
+
+四格式的 Session/Client 直接使用受信任核心的输出类型。字节响应在 Wasm 边界解码一次；宿主输入检查、错误封装与核心资源预算保留。剪贴板、格式片段和编辑使用的标尺状态作为宿主输入时仍需校验。MoonBit 查询响应逐步使用私有 `derive(ToJson)` 结构，按既有字段序列化，不新增公共模型。
+
+共享成功/错误响应、Office 预算及 DOCX 查询外层、文本项和编辑状态使用私有响应结构。原协议中的可空字段继续显式映射为值或 `Json::null()`；直接派生 `Option` 字段会省略 `None`，直接转换 `Some` 也会改变结构。DOCX 关系项和格式详情仍沿用原映射。
+
+PDF 渲染在核心缓存最近一份编码主体，保留原有页面状态更新。固定切片在创建缓存时完成，`id/reused` 每次生成；页内容用原 `Json.stringify()` 序列化。缓存按不可变 regions 对象身份复用，最多 4,194,304 个 UTF-16 单元；更大的响应完整输出但不缓存。视图释放、编辑/字体失效和关闭均清理缓存。Bridge 的 `encoded_response` 只包装核心已编码 JSON，错误仍复用原映射；其他 PDF 响应继续标准序列化，ABI 对象形状保持。
+
+包构建用固定工具链的 `moon-wasm-opt -Oz` 优化全格式和四个单格式引擎，并按分发字节生成 SHA-256 构建身份。任一优化产物超过 8 MiB 时，构建在写入包文件前失败。
+
+`@open-document/wasm/engine.wasm` 是全格式入口，示例默认使用它。只接入一种格式时，可由宿主提供同一包下的 `docx.wasm`、`xlsx.wasm`、`pptx.wasm` 或 `pdf.wasm`。调用 `loadEngine` 时传入该资产的绝对 URL，并从 `@open-document/wasm/engine-source` 读取对应的 `engineBuildIds` 字段。现有全格式入口继续使用 `engineBuildId`。核心和 Worker 使用相同的编译模块。
 
 一个 Bun workspace 管理 `packages/*`，公开依赖由根 `bun.lock` 固定。领域包对 wasm/web-core 使用精确版本；React、React DOM 和公共 UI 是领域 React 入口的可选 peer。消费 React 入口时显式安装这些固定版本。`core`、`web` 不需要 React。
 
@@ -36,16 +50,53 @@ MoonBit workspace 保留 `core`、`layout`、`formats`、`bridge` 四个 module�
 | `@open-document/<format>/react` | 本格式的 `mountEditor`、options 与产品 UI |
 | `@open-document/<format>/worker` | 本格式的独立 Worker 资源 |
 | `@open-document/wasm` | `loadEngine`、不透明 `EngineHandle` 与公共错误 |
-| `@open-document/wasm/engine.wasm` | 唯一分发二进制 |
-| `@open-document/wasm/engine-source` | 与二进制一起生成的 `engineBuildId` |
+| `@open-document/wasm/engine.wasm` | 全格式引擎 |
+| `@open-document/wasm/<format>.wasm` | 单格式引擎 |
+| `@open-document/wasm/engine-source` | 按产物生成的 `engineBuildId` 和 `engineBuildIds` |
 
-`loadEngine({ url, build }, signal?)` 接受绝对 URL 和构建身份。相同身份合并在途获取/编译，失败后显式调用可重试。缓存只保留当前条目；旧请求完成不覆盖新构建。取消只结束当前等待者，不取消其他调用方的共享加载。
+`loadEngine({ url, build }, signal?)` 接受绝对 URL 和构建身份。相同身份复用获取和编译结果，缓存最多五个来源。加载失败后可重试。取消只结束当前等待者，其他调用方继续等待。
 
-句柄持有编译结果，不持有文档状态。各 Client 把同一 `WebAssembly.Module` 结构化克隆到自己的 Worker，不加入 transfer 列表。Worker 各建独立 Instance 与会话，不再接收 Wasm 字节或重新编译。关闭文档释放自己的 Worker 和资源，编译结果仍可复用。共享范围限同一页面显式供应句柄的调用方。
+句柄持有编译结果。Client 首次将 `WebAssembly.Module` 结构化克隆到 Worker，由 Worker 实例化。同一运行环境中的同一 Module 复用一个 Wasm 实例，每个文档各有上下文。实例共享已解析字体和基础字形轮廓。字体别名、回退顺序和资源预算按文档计算。
+
+每个打开的 Client 独占一个 Worker。随包提供的 Worker 确认释放上下文后，可由相同模块和脚本 URL 的后续 Client 复用。浏览器页面最多保留一个空闲 Worker，最长 15 秒。取消在途请求或通信失败时直接终止 Worker。
 
 低层同步调用使用 `openDocx(engine)` 等格式工厂；浏览器使用 `FoundationClient.open(engine, workerUrl, signal?)`、`XlsxClient.open`、`PptxClient.open` 或 `PdfClient.open`。DOCX 的 `FoundationSession`/`FoundationClient` 名称仅表示 DOCX 绑定。每会话只拥有一种格式，公共连接通过类型参数接受该格式协议。
 
-字体仍由宿主显式提供。`addFont` 使用有界八位字符串进入各格式 ABI；Office 文档字节沿既有 JSON/Base64 路径传递。错误构造函数统一归 wasm 基础层。Renderer 位于 `@open-document/web-core/drawing`，绘制合同位于 `@open-document/wasm/abi/drawing`。
+XLSX 的 `XlsxSession` 与 `XlsxClient` 统一使用 `execute(command)`。命令联合类型和返回类型从 core 的无状态处理函数推导，Worker 直接转发。连接使用 `{ id, command }` 区分请求编号与原生对象身份。宿主的查找组合流程位于 `SpreadsheetEditor.search`，共享既有草稿和编辑屏障。
+
+XLSX 视口的单元格以紧凑数组穿过 Wasm 和 Worker。直接会话和浏览器 Client 交付相同的 `XlsxViewport` 字段。
+
+`SpreadsheetEditor` 不再继承 Objects、Clipboard 和 Data 转发类。`objects/clipboard/data/search` 使用函数模块，读取 Editor 的当前状态并复用其 `read/change` 屏障；异步操作执行前继续提交已接受草稿。通用宿主的 `copy()` 委托同一剪贴板操作，验证警告开关仍归 Editor。
+
+DOCX 的 `FoundationSession` 与 `FoundationClient` 使用同一模式。Session 保留修订记录状态和 UTC 时间；Client 在粘贴事务前准备平台图片。样式、主题、列表与格式刷位于 `DocumentEditor.formatting`，使用原宿主的输入分组、队列与历史事务。
+
+`DocumentEditor` 已合并五个基类。审阅、来源、页面、对象、表格、剪贴板和查找归各自的函数模块；文字/段落格式与超链接也归 `formatting`。这些模块复用 `DocumentHost` 的读取、编辑、快照、布局和选区入口。审阅模块保留批注焦点，对象模块保留画笔设置；保存与导出继续由 Editor 的原有队列屏障生成结果。
+
+四格式的 Canvas 共用 `CanvasSurface` 管理图片别名、位图、像素和颜色平面。宿主负责解码与原生资源注册，Surface 负责去重、裁剪与释放，并拒绝关闭后的异步资源入库。
+
+字体由宿主显式提供。`addFont` 使用有界八位字符串进入各格式 ABI。单次输入上限由核心 `inputLimits` 提供，Session 缓存结果，Worker 初始化时带回连接。编码与结构化克隆前共用 `checkFontInput`。累计字体预算由核心字体库检查，见[共享格式合同](formats/shared.md)。ABI 4 将请求 JSON 与最多两个八位字符串分开传入 Wasm，核心按操作检查字节上限。响应 JSON 携带本次调用的输出槽位，宿主读取八位字符串后释放槽位。Wasm 和 Worker 各保留上一批绘制轮廓，重复路径只传键，SDK 交付完整绘制批次。错误类型归 wasm 基础层。Renderer 位于 `@open-document/web-core/drawing`，绘制合同位于 `@open-document/wasm/abi/drawing`。
+
+PPTX 查询还返回导入文件、图片/海报、媒体及 RGBA 注册限额。数值归原生格式与图像模块；Session、Client、媒体准备和六处文件选择入口复用它们。共享 `WasmSession/OfficeSession/Connection` 用限额类型参数保留格式字段；共同字体检查保持。PPTX 的命令输入检查归 `checkPptxInput`，具体接口见[PPTX 合同](formats/pptx-editing.md#pptx)。
+
+DOCX、XLSX、PDF 的 Session 与 Client 也返回各自的输入限额；Editor 的 `inputLimits` 字段复用初始化结果。`checkDocxByteInput/checkXlsxByteInput/checkPdfByteInput` 与共享 `checkByteInput` 在编码或结构化克隆前执行。既有图片和 PDF 文件选择入口在读取文件前使用同一查询。具体字段与累计预算的区别归[共享格式合同](formats/shared.md#输入字节限额)。
+
+PDF 的全部 67 项公开命令与内部 `inputLimits` 已使用类型化请求及私有查找表分发。创建、打开与预算查询使用独立的生命周期表；候选会话查询成功后才关闭旧会话。非负整数、有限数和显式字体配置分别使用 bridge 共有的 `RequestInt/RequestNumber/RequestProfile`，保留原边界检查。固定工具链的默认整数解码会截断小数，默认 Double 解码接受字符串 `"NaN"`，不能直接用于这些输入。结构解码失败仍返回 `invalid-operation`、空 `part` 和 `offset=-1`；消息提供字段路径和解码原因。缺失显式预算仍返回 `invalid-budget`。会话准入先于解码，模型错误沿原错误封装返回。
+
+XLSX 的全部 71 个顶层 ABI 入口已采用类型化解码和查表分发：62 项已打开会话操作、4 项保留特殊准入的分析操作、5 项生命周期和查询。原有会话准入、精确字段、列表与资源限额保持。Office 归档预算使用共有的 `RequestArchiveBudget`，保留七个严格整数字段与显式预算要求。透视表、分列、去重、合并计算、小计和排序的设置也使用类型化解码。打印响应使用 `derive(ToJson)`。
+
+DOCX/PPTX 的创建和打开、PDF 转 Office 也复用该归档预算解码，已删除重复结构及字段映射。PDF 自身的 `PdfBudget` 继续由 PDF 核心定义。
+
+PPTX 的 45 个顶层入口已采用类型化请求和查表分发。导入索引与对象身份保留各自的错误代码，图片缓存保留编辑页和放映页所需的资源。幻灯片和对象编辑的复杂字段仍由现有领域解析器处理。
+
+DOCX 的 125 个顶层入口已迁移到查表分发。位置、选区、输入分组和输入法标识使用类型化字段。布局响应采用 `derive(ToJson)`，图片准备、修订失效和过期布局拒绝沿用原规则。页码、格式和表格等复杂内容由现有领域解析器处理。
+
+共享 Worker 转移保存、导出和 PDF 提取、拆分、转换所返回的完整文件缓冲区。结果仍为原有字节数组及元数据。局部视图、共享缓冲区和图片资源查询沿用结构化克隆。
+
+核心在绘制批次中标出图片裁剪框和可见交集，PPTX 放映媒体重写资源键时保留这两个字段。渐变裁剪保留指令索引，并携带轴向端点及变换顺序。Canvas 使用当前设备变换完成采样与像素对齐。
+
+必填可空字段使用私有解码器，接受标量或 `null`，拒绝缺失字段。固定工具链的 `Option::from_json` 使用单元素数组表示非空值，不能直接用于现有可空标量协议；派生结构的直接可选字段接受标量或缺失，已用固定工具链检查。
+
+页面列表、拆分组与拆分区域各自先检查 1024 项上限，再解码内容；画笔、表单选项、控件与脱敏区域保留各自的 4096 项上限，坐标数组最多 32768 项。脱敏仍区分修订参数错误与 `invalid-selection`。表单 `value/defaultValue` 必须出现，但可为 `null`；图片替换标识、图片 `size` 与打开密码区分缺失和 `null`。渲染缺失的 `activate/reuse` 分别补为 `true/false`。导入和 RGBA 字节沿原有有界字节入口。渲染直接返回核心缓存的编码字符串；其他表项各序列化一次 JSON，外层统一补成功或错误封装。转换与脱敏结果使用 `derive(ToJson)`，转换的空字节结果保留显式 `null`。Office 命令仍在迁移，原手工字段函数仅保留给现有调用者。
 
 ## 默认 Web UI
 
@@ -70,7 +121,7 @@ const mounted = await mountEditor(container, {
 
 URL、字体、profile、容器和保存回调由宿主供应。四种格式入口支持 `{ name, blank: true }` 和挂载后的 `create({ name })`；PDF 核心直接创建空白页树。`core`/`web` 可独立接入，自定义 UI 复用已有编辑器队列。
 
-`mountEditor` 追加实例自己的 open ShadowRoot，不替换宿主 DOM。领域包拥有文件准备、面板和输出动作；共用外壳处理候选替换、保存回调、确认与释放。输入、组合、拖拽和保存屏障仍归编辑宿主。`onSave` 成功后只确认该输出的 revision，浏览器下载不表示宿主已持久化。`close()` 保留未保存和草稿确认，`dispose()` 等待已接受工作后释放。具体合同见[默认 UI 与编辑宿主](formats.md#默认-ui-与编辑宿主)。
+`mountEditor` 追加实例自己的 open ShadowRoot，不替换宿主 DOM。领域包拥有文件准备、面板和输出动作；共用外壳处理候选替换、保存回调、确认与释放。输入、组合、拖拽和保存屏障仍归编辑宿主。`onSave` 成功后只确认该输出的 revision，浏览器下载不表示宿主已持久化。`close()` 保留未保存和草稿确认，`dispose()` 等待已接受工作后释放。具体合同见[默认 UI 与编辑宿主](formats/shared.md#默认-ui-与编辑宿主)。
 
 Tailwind 在构建时扫描共用控件及领域面板，省略 Preflight。生成的 CSS 作为 ESM 字符串进入实例样式；Base UI Portal 和 `styleNonce` 归实例。主题不改变文档颜色。
 
@@ -88,7 +139,7 @@ bun run api
 bun run preview
 ```
 
-`build` 先准备固定依赖并编译 MoonBit，再由 `tools/build-packages.mbtx` 分发唯一 Wasm、生成 SHA-256 构建身份、构建公共层和领域层、分别 bundle Worker，并生成声明文件。领域 ESM 保留对共享包的外部导入；普通 JS 示例由 `tools/build-example.mbtx` 生成分块产物。公开构建不依赖 `test-lab`。首次构建后执行 TS 检查；发布入口的类型解析到生成的 `.d.ts`。
+`build` 先准备固定依赖并编译 MoonBit。随后 `tools/build-packages.mbtx` 分发 Wasm、构建公共层和领域层、打包各格式 Worker 并生成声明文件。领域 ESM 保留对共享包的外部导入。普通 JS 示例由 `tools/build-example.mbtx` 生成分块产物。公开构建独立于 `test-lab`。首次构建后执行 TS 检查，发布入口的类型解析到生成的 `.d.ts`。
 
 `tools/prepare-dependencies.mbtx` 按[补丁清单](../../tools/harfbuzz-patches/index.json)核对固定上游源码及修改后 SHA-256；未知源码失败。依赖与补丁依据归[依赖记录](dependencies.md)。直接运行 Moon 命令前也执行此准备步骤。
 

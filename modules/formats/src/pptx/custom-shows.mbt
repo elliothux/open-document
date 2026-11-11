@@ -1,15 +1,36 @@
 ///|
+pub const CustomShowCount : Int32 = 32
+
+///|
+pub const CustomShowSlides : Int32 = 256
+
+///|
+pub const CustomShowTotalSlides : Int32 = 4096
+
+///|
+pub const CustomShowNameUnits : Int32 = 255
+
+///|
+priv struct SlideCollectionQuery[T] {
+  items : Array[T]
+  reason : String
+} derive(ToJson)
+
+///|
 pub(all) struct CustomShow {
   id : String
   name : String
   slides : Array[String]
-} derive(Eq, ToJson)
+} derive(Eq, ToJson, @json.FromJson)
 
 ///|
 pub extend CustomShow with Eq::{equal, not_equal}
 
 ///|
 pub extend CustomShow with ToJson::{to_json}
+
+///|
+pub extend CustomShow with @json.FromJson::{from_json}
 
 ///|
 fn custom_show_node(
@@ -38,7 +59,7 @@ fn Session::validate_custom_shows(
   self : Session,
   items : Array[CustomShow],
 ) -> Unit raise @failure.Failure {
-  guard items.length() <= 32 else {
+  guard items.length() <= CustomShowCount else {
     @failure.reject("limit-exceeded", "Custom shows exceed 32")
   }
   let ids : Map[String, Bool] = Map([])
@@ -49,7 +70,7 @@ fn Session::validate_custom_shows(
     guard id == item.id &&
       !ids.contains(id) &&
       !item.name.trim().is_empty() &&
-      item.name.length() <= 255 &&
+      item.name.length() <= CustomShowNameUnits &&
       @xml.valid_text(item.name) &&
       !names.contains(item.name.to_lower()) else {
       @failure.reject(
@@ -59,7 +80,8 @@ fn Session::validate_custom_shows(
     ids[id] = true
     names[item.name.to_lower()] = true
     count += item.slides.length()
-    guard item.slides.length() <= 256 && count <= 4096 else {
+    guard item.slides.length() <= CustomShowSlides &&
+      count <= CustomShowTotalSlides else {
       @failure.reject("limit-exceeded", "Custom show entries exceed budget")
     }
     for slide in item.slides {
@@ -98,7 +120,7 @@ fn Session::read_custom_shows(
   }
   custom_show_node(tree, list, "custShowLst", [], ["custShow"])
   let source = tree.document.source()[list.start:list.end]
-  guard tree.children.get(list.id).unwrap_or([]).length() <= 32 else {
+  guard tree.children.get(list.id).unwrap_or([]).length() <= CustomShowCount else {
     @failure.reject("limit-exceeded", "Custom shows exceed 32")
   }
   guard !source.contains("<!--") && !source.contains("<?") else {
@@ -113,7 +135,8 @@ fn Session::read_custom_shows(
     .map(node => {
       custom_show_node(tree, node, "custShow", ["id", "name"], ["sldLst"])
       let members = tree.required(node.id, "sldLst", uri=presentation_uri)
-      guard tree.children.get(members.id).unwrap_or([]).length() <= 256 else {
+      guard tree.children.get(members.id).unwrap_or([]).length() <=
+        CustomShowSlides else {
         @failure.reject("limit-exceeded", "Custom show entries exceed 256")
       }
       custom_show_node(tree, members, "sldLst", [], ["sld"])
@@ -135,7 +158,7 @@ fn Session::read_custom_shows(
           }
           part
         })
-      {
+      CustomShow::{
         id: number(node.attribute("id").unwrap_or(""), 0, 4294967295)
         .to_int64()
         .to_string(),
@@ -148,12 +171,11 @@ fn Session::read_custom_shows(
 }
 
 ///|
-fn Session::custom_show_query(self : Session) -> Json {
-  {
-    "items": self.read_custom_shows(),
-    "reason": self.slide_visibility_reason(),
-  } catch {
-    @failure.Failure(message~, ..) => { "items": [], "reason": message }
+fn Session::custom_show_query(
+  self : Session,
+) -> SlideCollectionQuery[CustomShow] {
+  { items: self.read_custom_shows(), reason: self.slide_visibility_reason(), } catch {
+    @failure.Failure(message~, ..) => { items: [], reason: message, }
   }
 }
 
@@ -206,7 +228,7 @@ fn Session::set_custom_shows(
   self : Session,
   items : Array[CustomShow],
 ) -> Json raise @failure.Failure {
-  guard items.length() <= 32 else {
+  guard items.length() <= CustomShowCount else {
     @failure.reject("limit-exceeded", "Custom shows exceed 32")
   }
   let previous = self.read_custom_shows()

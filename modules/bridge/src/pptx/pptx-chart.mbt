@@ -1,48 +1,68 @@
 ///|
+priv struct ChartEditRequest {
+  kind : String
+  title : String
+  data : String
+  holeSize : @common.RequestInt?
+  legend : String?
+} derive(@json.FromJson)
+
+///|
 fn pptx_chart_edit(
+  action : String,
   change : Json,
-  insert : Bool,
 ) -> @model.ObjectEdit raise @failure.Failure {
+  let insert = action == "insertChart"
   let keys = if insert {
     ["action", "kind", "title", "data", "x", "y", "width", "height"]
   } else {
     ["action", "kind", "title", "data"]
   }
-  let hole_size = if change is Object(fields) && fields.contains("holeSize") {
-    keys.push("holeSize")
-    Some(field_int(change, "holeSize"))
-  } else {
-    None
+  guard change is Object(fields) else {
+    @failure.reject("invalid-operation", "Invalid chart edit fields")
   }
-  let legend = if change is Object(fields) && fields.contains("legend") {
-    keys.push("legend")
-    Some(field_string(change, "legend"))
-  } else {
-    None
+  for key in ["holeSize", "legend"] {
+    if fields.get(key) is Some(value) {
+      guard !(value is Null) else {
+        @failure.reject("invalid-operation", "Chart option cannot be null")
+      }
+      keys.push(key)
+    }
   }
-  guard change is Object(fields) &&
-    fields.length() == keys.length() &&
+  guard fields.length() == keys.length() &&
     fields.keys().all(key => keys.contains(key)) else {
     @failure.reject("invalid-operation", "Invalid chart edit fields")
   }
-  let kind = field_string(change, "kind")
-  let title = field_string(change, "title")
-  let data = field_string(change, "data")
+  let request : ChartEditRequest = @common.request(change)
+  let hole_size = request.holeSize.map(value => value.value)
   if insert {
+    let frame : ObjectFrameRequest = @common.request(change)
     @model.InsertChart(
-      kind,
-      title,
-      data,
-      field_number(change, "x"),
-      field_number(change, "y"),
-      field_number(change, "width"),
-      field_number(change, "height"),
+      request.kind,
+      request.title,
+      request.data,
+      frame.x.value,
+      frame.y.value,
+      frame.width.value,
+      frame.height.value,
       hole_size,
-      legend,
+      request.legend,
     )
-  } else if field_string(change, "action") == "fillChart" {
-    @model.FillChart(kind, title, data, hole_size, legend)
+  } else if action == "fillChart" {
+    @model.FillChart(
+      request.kind,
+      request.title,
+      request.data,
+      hole_size,
+      request.legend,
+    )
   } else {
-    @model.ChartData(kind, title, data, hole_size, legend)
+    @model.ChartData(
+      request.kind,
+      request.title,
+      request.data,
+      hole_size,
+      request.legend,
+    )
   }
 }

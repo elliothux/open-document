@@ -1,4 +1,10 @@
 ///|
+pub const TableStyleRegions : Int32 = 13
+
+///|
+pub const TableStyleStripeSize : Int32 = 1048576
+
+///|
 fn validate_table_style_name(name : String) -> Unit raise @failure.Failure {
   guard !name.is_empty() &&
     name.length() <= 255 &&
@@ -13,7 +19,7 @@ fn validate_table_style_name(name : String) -> Unit raise @failure.Failure {
 fn table_style_elements(
   elements : Array[TableStyleElement],
 ) -> Array[TableStyleElement] raise @failure.Failure {
-  guard elements.length() <= 13 else {
+  guard elements.length() <= TableStyleRegions else {
     @failure.reject(
       "limit-exceeded", "Custom table styles support at most 13 regions",
     )
@@ -23,7 +29,7 @@ fn table_style_elements(
     guard table_element_order().contains(element.kind) &&
       !entries.contains(element.kind) &&
       element.size >= 1 &&
-      element.size <= 1048576 else {
+      element.size <= TableStyleStripeSize else {
       @failure.reject(
         "invalid-operation", "Invalid or repeated custom table style region",
       )
@@ -136,7 +142,7 @@ fn Session::edit_table_style_definition(
     elements.all(element => {
       style.elements
       .get(element.kind)
-      .map(old => old.json() == element.json())
+      .map(old => Json(old) == Json(element))
       .unwrap_or(false)
     }) {
     return self.query()
@@ -184,7 +190,7 @@ fn Session::edit_table_style_definition(
     for element in elements {
       if style.elements
         .get(element.kind)
-        .map(old => old.json() == element.json())
+        .map(old => Json(old) == Json(element))
         .unwrap_or(false) {
         reused[element.kind] = tree
           .all(node.id, "tableStyleElement")

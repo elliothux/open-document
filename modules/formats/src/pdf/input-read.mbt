@@ -384,6 +384,7 @@ pub fn PdfSession::open(
       layoutId: 0,
       display: None,
       views: Map([]),
+      encodedDisplay: None,
       current: pages[0].id,
       selection: (0, 0),
       textRange: None,

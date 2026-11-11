@@ -256,7 +256,7 @@ fn revision_author(
   date : String,
 ) -> Unit raise @failure.Failure {
   guard !author.trim().is_empty() &&
-    author.length() <= 255 &&
+    author.length() <= RevisionAuthorUnits &&
     @xml.valid_text(author) &&
     !author.iter().any(ch => ch < ' ') else {
     @failure.reject(
@@ -337,7 +337,7 @@ fn Session::prepare_review_text(
     revision_author(author, date)
   }
   self.check_document_protection()
-  guard text.length() <= command_limit else {
+  guard text.length() <= TextCommandUnits else {
     @failure.reject("limit-exceeded", "Tracked input exceeds UTF-16 budget")
   }
   guard valid_inline_input(text) &&

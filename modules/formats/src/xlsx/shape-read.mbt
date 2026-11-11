@@ -118,7 +118,7 @@ fn Session::shape_text_style(
     .attribute("sz")
     .map(value => picture_integer(value, maximum=40000) / 100)
     .unwrap_or(base.3)
-  guard !font.is_empty() && font.length() <= 255 && size >= 1 else {
+  guard !font.is_empty() && font.length() <= ShapeFontUnits && size >= 1 else {
     @failure.reject("unsupported-drawing", "Invalid shape font or size")
   }
   (
@@ -391,7 +391,7 @@ fn Session::read_sheet_shape(
     (!flag(nonvisual, "txBox") || preset == "rect") else {
     @failure.reject("unsupported-drawing", "Unsupported shape text geometry")
   }
-  guard text.length() <= 32767 else {
+  guard text.length() <= ShapeTextUnits else {
     @failure.reject("limit-exceeded", "Worksheet shape text exceeds budget")
   }
   let (anchor, rect) = tree.drawing_rect(frame, dimensions, transform?)

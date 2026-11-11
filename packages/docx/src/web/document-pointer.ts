@@ -164,17 +164,19 @@ export class DocumentPointer {
         current.scale,
         frame,
       );
-      const hit = await client.hitTest(
-        initial ? start.layout.id : current.layout.id,
-        initial ? start.page : current.page,
-        initial ? x : clamped.x,
-        initial ? y : clamped.y,
-      );
+      const hit = await client.execute({
+        operation: "hitTest",
+        layoutId: initial ? start.layout.id : current.layout.id,
+        page: initial ? start.page : current.page,
+        x: initial ? x : clamped.x,
+        y: initial ? y : clamped.y,
+      });
       this.host.assertOpen();
-      const state = await client.selectDocx(
-        current.state.revision,
-        pointerDocxSelection(hit, current.state, initial, extend),
-      );
+      const state = await client.execute({
+        operation: "selectDocx",
+        revision: current.state.revision,
+        selection: pointerDocxSelection(hit, current.state, initial, extend),
+      });
       await this.host.selected(state);
     });
   }

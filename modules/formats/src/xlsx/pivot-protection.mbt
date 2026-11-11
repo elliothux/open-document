@@ -114,19 +114,19 @@ fn Session::maintain_pivots(
         }
       }
       for key in keys.keys() {
+        let address = Address::parse(key)
         let old = self.calculation
-          .bind(calc => calc.values.get((old_index, key)))
+          .bind(calc => calc.values.get((old_index, address)))
           .unwrap_or(
             old_sheet.cells.get(key).map(cell => cell.value).unwrap_or(Blank),
           )
         let next = calculation.values
-          .get((next_index, key))
+          .get((next_index, address))
           .unwrap_or(
             next_sheet.cells.get(key).map(cell => cell.value).unwrap_or(Blank),
           )
         if old != next ||
-          old_sheet.style_at(Address::parse(key)) !=
-          next_sheet.style_at(Address::parse(key)) {
+          old_sheet.style_at(address) != next_sheet.style_at(address) {
           changed = true
           break
         }

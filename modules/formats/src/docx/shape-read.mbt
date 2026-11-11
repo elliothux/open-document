@@ -270,7 +270,8 @@ fn WordTree::read_basic_shape(
   } else {
     ("", 0.0)
   }
-  guard line_width <= 1584 && (stroke.is_empty() || line_width > 0) else {
+  guard line_width <= ShapeStrokePoints.to_double() &&
+    (stroke.is_empty() || line_width > 0) else {
     @failure.reject("unsupported-layout", "Shape line width requires support")
   }
   if preset == "polyline" {

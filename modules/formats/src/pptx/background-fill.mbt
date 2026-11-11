@@ -166,7 +166,7 @@ fn gradient_source(
   let points = fill.tree.children.get(stops.id).unwrap_or([])
   guard stops.attributes.is_empty() &&
     points.length() >= 2 &&
-    points.length() <= 32 &&
+    points.length() <= @layout.GradientStopCount &&
     points.all(n => {
       n.uri == drawing_uri &&
       n.name == "gs" &&

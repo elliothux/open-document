@@ -19,72 +19,8 @@ pub fn field_string(json : Json, key : String) -> String raise @failure.Failure 
 }
 
 ///|
-pub fn optional_string(
-  json : Json,
-  key : String,
-) -> String? raise @failure.Failure {
-  guard json is Object(fields) else {
-    @failure.reject("invalid-operation", "Expected object")
-  }
-  match fields.get(key) {
-    Some(Null) => None
-    Some(String(value)) => Some(value)
-    _ => @failure.reject("invalid-operation", "Expected string or null: " + key)
-  }
-}
-
-///|
-pub fn input_bytes(
-  json : Json,
-  ceiling : Int32,
-) -> Bytes raise @failure.Failure {
-  let encoded = field_string(json, "bytes")
-  guard encoded.length().to_int64() <= (ceiling.to_int64() + 2) / 3 * 4 else {
-    @failure.reject("limit-exceeded", "Encoded byte input exceeds budget")
-  }
-  let bytes = @base64.decode(encoded) catch {
-    _ => @failure.reject("invalid-operation", "Invalid base64 byte input")
-  }
-  guard bytes.length() <= ceiling else {
-    @failure.reject("limit-exceeded", "Byte input exceeds budget")
-  }
-  bytes
-}
-
-///|
-pub fn field_number(
-  request : Json,
-  field : String,
-) -> Double raise @failure.Failure {
-  guard request is Object(fields) &&
-    fields.get(field) is Some(Number(value, ..)) &&
-    !value.is_nan() &&
-    !value.is_inf() else {
-    @failure.reject("invalid-operation", "Invalid numeric field: " + field)
-  }
-  value
-}
-
-///|
-pub fn field_boolean(
-  request : Json,
-  field : String,
-) -> Bool raise @failure.Failure {
-  guard request is Object(fields) else {
-    @failure.reject("invalid-operation", "Expected request object")
-  }
-  match fields.get(field) {
-    Some(True) => true
-    Some(False) => false
-    _ => @failure.reject("invalid-operation", "Invalid boolean field: " + field)
-  }
-}
-
-///|
-pub fn font_profile(
-  request : Json,
-) -> Map[String, String] raise @failure.Failure {
-  guard request is { "profile": Object(fields), .. } && fields.length() <= 256 else {
+pub fn font_profile(input : Json) -> Map[String, String] raise @failure.Failure {
+  guard input is Object(fields) && fields.length() <= 256 else {
     @failure.reject(
       "invalid-operation", "Explicit bounded font profile is required",
     )
@@ -103,8 +39,19 @@ pub fn font_profile(
 
 ///|
 pub fn font_input_bytes(input : String) -> Bytes raise @failure.Failure {
-  guard input.length() <= 33554432 else {
+  guard input.length() <= @layout.FontInputBytes else {
     @failure.reject("limit-exceeded", "Font input exceeds budget")
+  }
+  byte_input(input, @layout.FontInputBytes)
+}
+
+///|
+pub fn byte_input(
+  input : String,
+  ceiling : Int32,
+) -> Bytes raise @failure.Failure {
+  guard input.length() <= ceiling else {
+    @failure.reject("limit-exceeded", "Byte input exceeds budget")
   }
   Bytes::makei(input.length(), i => {
     let value = input[i].to_int()
@@ -116,42 +63,123 @@ pub fn font_input_bytes(input : String) -> Bytes raise @failure.Failure {
 }
 
 ///|
+priv struct SuccessResponse {
+  ok : Bool
+  value : Json
+} derive(ToJson)
+
+///|
+priv struct ResponseError {
+  code : String
+  part : String
+  offset : Int32
+  message : String
+} derive(ToJson)
+
+///|
+priv struct FailureResponse {
+  ok : Bool
+  error : ResponseError
+} derive(ToJson)
+
+///|
 pub fn response(operation : () -> Json raise @failure.Failure) -> String {
-  let result : Json = { "ok": true, "value": operation() } catch {
-    @failure.Failure(code~, part~, offset~, message~) =>
-      {
-        "ok": false,
-        "error": {
-          "code": code,
-          "part": part,
-          "offset": offset,
-          "message": message,
-        },
+  let result = try {
+    let result : SuccessResponse = { ok: true, value: operation(), }
+    ToJson::to_json(result)
+  } catch {
+    @failure.Failure(code~, part~, offset~, message~) => {
+      let result : FailureResponse = {
+        ok: false,
+        error: { code, part, offset, message, },
       }
+      ToJson::to_json(result)
+    }
   }
   result.stringify()
 }
 
 ///|
-pub fn parse_request(input : String) -> Json raise @failure.Failure {
-  guard input.length() <= 100000000 else {
-    @failure.reject("limit-exceeded", "ABI input exceeds budget")
-  }
-  @json.parse(input) catch {
-    _ => @failure.reject("invalid-operation", "Invalid request JSON")
+/// Wrap core-encoded JSON without parsing or serializing its payload again.
+pub fn encoded_response(
+  operation : () -> String raise @failure.Failure,
+) -> String {
+  try "{\"ok\":true,\"value\":" + operation() + "}" catch {
+    @failure.Failure(..) as error => response(() => raise error)
   }
 }
 
 ///|
+pub fn parse_request(
+  input : String,
+  first~ : String = "",
+  second~ : String = "",
+) -> Json raise @failure.Failure {
+  guard input.length() <= 100000000 &&
+    first.length().to_int64() + second.length().to_int64() <= 75000000L else {
+    @failure.reject("limit-exceeded", "ABI input exceeds budget")
+  }
+  let request = @json.parse(input) catch {
+    _ => @failure.reject("invalid-operation", "Invalid request JSON")
+  }
+  if first.is_empty() && second.is_empty() {
+    request
+  } else {
+    attach_request_bytes(request, first, second)
+  }
+}
+
+///|
+fn attach_request_bytes(
+  value : Json,
+  first : String,
+  second : String,
+) -> Json raise @failure.Failure {
+  match value {
+    Object(fields) if fields.length() == 1 && fields.contains("$bytes") =>
+      match fields["$bytes"] {
+        Number(0, ..) if !first.is_empty() => Json::string(first)
+        Number(1, ..) if !second.is_empty() => Json::string(second)
+        _ => @failure.reject("invalid-operation", "Invalid byte attachment")
+      }
+    Object(fields) => {
+      for key, item in fields {
+        fields[key] = attach_request_bytes(item, first, second)
+      }
+      value
+    }
+    Array(items) => {
+      for index, item in items {
+        items[index] = attach_request_bytes(item, first, second)
+      }
+      value
+    }
+    _ => value
+  }
+}
+
+///|
+priv struct ArchiveBudgetResponse {
+  fileBytes : Int32
+  entryBytes : Int32
+  totalBytes : Int32
+  retainedBytes : Int32
+  entries : Int32
+  xmlDepth : Int32
+  outputBytes : Int32
+} derive(ToJson)
+
+///|
 pub fn archive_budget() -> Json {
   let budget = @archive.Budget::default()
-  {
-    "fileBytes": budget.file_bytes,
-    "entryBytes": budget.entry_bytes,
-    "totalBytes": budget.total_bytes,
-    "retainedBytes": budget.retained_bytes,
-    "entries": budget.entries,
-    "xmlDepth": budget.xml_depth,
-    "outputBytes": budget.output_bytes,
+  let result : ArchiveBudgetResponse = {
+    fileBytes: budget.file_bytes,
+    entryBytes: budget.entry_bytes,
+    totalBytes: budget.total_bytes,
+    retainedBytes: budget.retained_bytes,
+    entries: budget.entries,
+    xmlDepth: budget.xml_depth,
+    outputBytes: budget.output_bytes,
   }
+  ToJson::to_json(result)
 }

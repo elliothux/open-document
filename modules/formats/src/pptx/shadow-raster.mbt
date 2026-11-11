@@ -40,10 +40,10 @@ fn shadow_bounds(
   let width = (right * 2).ceil() + padding - x
   let height = (bottom * 2).ceil() + padding - y
   guard width > 0 &&
-    width <= 4096 &&
+    width <= @layout.ImageDimension.to_double() &&
     height > 0 &&
-    height <= 4096 &&
-    width * height <= 4194304 else {
+    height <= @layout.ImageDimension.to_double() &&
+    width * height <= (@layout.ImageBytes / 4).to_double() else {
     @failure.reject(
       "limit-exceeded", "Outer shadow bitmap exceeds image budget",
     )

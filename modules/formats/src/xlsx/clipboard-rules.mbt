@@ -1,4 +1,10 @@
 ///|
+pub const CopiedRuleRanges : Int32 = 4096
+
+///|
+pub const CopiedRuleTextUnits : Int32 = 1048576
+
+///|
 pub(all) struct CopiedConditional {
   ranges : Array[Range]
   anchor : Address
@@ -16,7 +22,8 @@ pub(all) struct CopiedValidation {
 fn CopiedCells::check_copied_rules(
   self : CopiedCells,
 ) -> Unit raise @failure.Failure {
-  guard self.conditional.length() <= 4096 && self.validations.length() <= 4096 else {
+  guard self.conditional.length() <= CopiedRuleRanges &&
+    self.validations.length() <= CopiedRuleRanges else {
     @failure.reject("limit-exceeded", "Copied rule count exceeds budget")
   }
   let bounds : Range = {
@@ -33,11 +40,11 @@ fn CopiedCells::check_copied_rules(
     text : String,
   ) raise @failure.Failure {
     guard !ranges.is_empty() &&
-      ranges.length() <= 4096 &&
+      ranges.length() <= CopiedRuleRanges &&
       anchor.row >= 1 &&
-      anchor.row <= 1048576 &&
+      anchor.row <= WorksheetRows &&
       anchor.column >= 1 &&
-      anchor.column <= 16384 else {
+      anchor.column <= WorksheetColumns else {
       @failure.reject("invalid-operation", "Invalid copied rule geometry")
     }
     for range in ranges {
@@ -51,7 +58,7 @@ fn CopiedCells::check_copied_rules(
     }
     count += ranges.length()
     units += text.length()
-    guard count <= 4096 && units <= 1048576 else {
+    guard count <= CopiedRuleRanges && units <= CopiedRuleTextUnits else {
       @failure.reject("limit-exceeded", "Copied rule payload exceeds budget")
     }
   }
@@ -104,12 +111,14 @@ fn CopiedCells::check_copied_rules(
         "invalid-operation", "Invalid copied conditional thresholds or colors",
       )
     }
-    guard texts.all(text => text.length() <= 8192 && @xml.valid_text(text)) else {
+    guard texts.all(text => {
+      text.length() <= FormulaSourceUnits && @xml.valid_text(text)
+    }) else {
       @failure.reject(
         "limit-exceeded", "Copied conditional formula exceeds budget",
       )
     }
-    check(rule.ranges, rule.anchor, settings.json().stringify())
+    check(rule.ranges, rule.anchor, Json(settings).stringify())
   }
   for rule in self.validations {
     rule.settings.check_metadata()

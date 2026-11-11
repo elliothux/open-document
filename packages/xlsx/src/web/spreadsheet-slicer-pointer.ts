@@ -73,11 +73,12 @@ export class SpreadsheetSlicerPointer {
     if (gesture.cancelled || this.gesture !== gesture) return;
     clearTimeout(gesture.timer);
     delete gesture.timer;
-    const result = await this.client.slicerGesture(
-      gesture.revision,
-      gesture.layout,
-      gesture.object,
-      {
+    const result = await this.client.execute({
+      operation: "slicerGestureXlsx",
+      revision: gesture.revision,
+      layout: gesture.layout,
+      id: gesture.object,
+      gesture: {
         first: gesture.first,
         position: gesture.position,
         x: Math.max(
@@ -91,8 +92,8 @@ export class SpreadsheetSlicerPointer {
         additive: gesture.additive,
         commit,
       },
-      this.host.current().profile,
-    );
+      profile: this.host.current().profile,
+    });
     if (gesture.cancelled || this.signal.aborted) return;
     if (result.query) this.host.assign(result.query);
     if (result.drawing) {

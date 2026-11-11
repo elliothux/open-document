@@ -1,4 +1,10 @@
 ///|
+pub const RunningContentItems : Int32 = 256
+
+///|
+pub const RunningContentUnits : Int32 = 8192
+
+///|
 /// Ordered text, links and page fields in a single-section header or footer.
 pub(all) enum RunningContent {
   Text(String)
@@ -39,7 +45,7 @@ fn push_running_text(content : Array[RunningContent], text : String) -> Unit {
 fn normalize_running_content(
   content : Array[RunningContent],
 ) -> Array[RunningContent] raise @failure.Failure {
-  guard content.length() <= 256 else {
+  guard content.length() <= RunningContentItems else {
     @failure.reject("invalid-operation", "Running content exceeds 256 items")
   }
   let result : Array[RunningContent] = []
@@ -50,7 +56,7 @@ fn normalize_running_content(
         guard !text.contains("\r") && !has_region_break(text) else {
           @failure.reject("invalid-operation", "Invalid running text control")
         }
-        guard text.length() <= 8192 - units else {
+        guard text.length() <= RunningContentUnits - units else {
           @failure.reject(
             "invalid-operation", "Running content exceeds 8192 units",
           )
@@ -79,7 +85,7 @@ fn normalize_running_content(
         result.push(item)
       }
     }
-    guard units <= 8192 else {
+    guard units <= RunningContentUnits else {
       @failure.reject("invalid-operation", "Running content exceeds 8192 units")
     }
   }

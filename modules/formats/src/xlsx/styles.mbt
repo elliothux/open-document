@@ -149,11 +149,60 @@ fn color_tint(
 }
 
 ///|
+fn read_cell_font(
+  tree : Tree,
+  font : @xml.Node,
+  theme : Array[String],
+) -> CellStyle raise @failure.Failure {
+  let mut style = default_style()
+  if tree.children
+    .get(font.id)
+    .unwrap_or([])
+    .any(node => {
+      ![
+        "name", "sz", "b", "i", "color", "family", "charset", "scheme", "u", "strike",
+        "vertAlign",
+      ].contains(node.name)
+    }) {
+    style = { ..style, diagnostic: "Unsupported font decoration", }
+  }
+  style = font_decorations(tree, font).applied(style) catch {
+    @failure.Failure(..) =>
+      { ..style, diagnostic: "Unsupported font decoration", }
+  }
+  let toggle = fn(name) raise @failure.Failure {
+    tree
+    .one(font.id, name)
+    .map(node => flag(node, "val", fallback=true))
+    .unwrap_or(false)
+  }
+  let family = tree
+    .one(font.id, "name")
+    .bind(node => node.attribute("val"))
+    .unwrap_or("Calibri")
+  let size = tree
+    .one(font.id, "sz")
+    .bind(node => node.attribute("val"))
+    .map(number)
+    .unwrap_or(11)
+  guard !family.is_empty() && family.length() <= 256 && size >= 1 && size <= 409 else {
+    @failure.reject("malformed-xlsx", "Invalid cell font")
+  }
+  {
+    ..style,
+    font: family +
+    (if toggle("b") { "|bold" } else { "" }) +
+    (if toggle("i") { "|italic" } else { "" }),
+    size,
+    color: read_color(tree.one(font.id, "color"), theme, "000000"),
+  }
+}
+
+///|
 fn read_styles(
-  document : @xml.Document,
+  tree : Tree,
   theme : Array[String],
 ) -> Array[CellStyle] raise @failure.Failure {
-  let tree = Tree::new(document)
   let root = tree.root("styleSheet")
   let children = fn(name) raise @failure.Failure {
     tree
@@ -198,6 +247,7 @@ fn read_styles(
       (20, "h:mm"),
       (21, "hh:mm:ss"),
       (22, "m/d/yy h:mm"),
+      (46, "[h]:mm:ss"),
       (49, "@"),
     ] {
     formats[id] = code
@@ -210,11 +260,11 @@ fn read_styles(
     }
   }
   let result : Array[CellStyle] = []
+  let decoded_fonts : Map[Int32, CellStyle] = Map([])
   for xf in children("cellXfs") {
     guard result.length() < 4096 else {
       @failure.reject("limit-exceeded", "Style count exceeds budget")
     }
-    let mut style = default_style()
     let font_id = natural(xf.attribute("fontId").unwrap_or("0"), 4095)
     let fill_id = natural(xf.attribute("fillId").unwrap_or("0"), 4095)
     let border_id = natural(xf.attribute("borderId").unwrap_or("0"), 4095)
@@ -225,51 +275,13 @@ fn read_styles(
         "malformed-xlsx", "Style component index is out of bounds",
       )
     }
-    let font = fonts[font_id]
-    if tree.children
-      .get(font.id)
-      .unwrap_or([])
-      .any(node => {
-        ![
-          "name", "sz", "b", "i", "color", "family", "charset", "scheme", "u", "strike",
-          "vertAlign",
-        ].contains(node.name)
-      }) {
-      style = { ..style, diagnostic: "Unsupported font decoration", }
-    }
-    style = font_decorations(tree, font).applied(style) catch {
-      @failure.Failure(..) =>
-        { ..style, diagnostic: "Unsupported font decoration", }
-    }
-    let toggle = fn(name) raise @failure.Failure {
-      tree
-      .one(font.id, name)
-      .map(node => flag(node, "val", fallback=true))
-      .unwrap_or(false)
-    }
-    let family = tree
-      .one(font.id, "name")
-      .bind(node => node.attribute("val"))
-      .unwrap_or("Calibri")
-    let size = tree
-      .one(font.id, "sz")
-      .bind(node => node.attribute("val"))
-      .map(number)
-      .unwrap_or(11)
-    guard !family.is_empty() &&
-      family.length() <= 256 &&
-      size >= 1 &&
-      size <= 409 else {
-      @failure.reject("malformed-xlsx", "Invalid cell font")
-    }
-    style = {
-      ..style,
-      font: family +
-      (if toggle("b") { "|bold" } else { "" }) +
-      (if toggle("i") { "|italic" } else { "" }),
-      size,
-      color: read_color(tree.one(font.id, "color"), theme, "000000"),
-    }
+    let mut style = decoded_fonts
+      .get(font_id)
+      .unwrap_or_else(() => {
+        let decoded = read_cell_font(tree, fonts[font_id], theme)
+        decoded_fonts[font_id] = decoded
+        decoded
+      })
     if tree.one(fills[fill_id].id, "patternFill") is Some(pattern) {
       let kind = pattern.attribute("patternType").unwrap_or("none")
       if kind == "solid" {

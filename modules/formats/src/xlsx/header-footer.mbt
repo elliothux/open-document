@@ -64,7 +64,7 @@ fn HeaderFooter::normalized(
       text
     })
   guard [self.headerMargin, self.footerMargin].all(v => {
-    !v.is_nan() && !v.is_inf() && v >= 0 && v <= 14400
+    !v.is_nan() && !v.is_inf() && v >= 0 && v <= PrintPageMaxPoints.to_double()
   }) else {
     @failure.reject("invalid-page", "Invalid header or footer distance")
   }
@@ -87,8 +87,10 @@ fn same_header_footer(a : HeaderFooter, b : HeaderFooter) -> Bool {
 }
 
 ///|
-fn read_header_footer(sheet : Sheet) -> HeaderFooter raise @failure.Failure {
-  let tree = Tree::new(sheet.document)
+fn read_header_footer(
+  sheet : Sheet,
+  tree~ : Tree = Tree::new(sheet.document),
+) -> HeaderFooter raise @failure.Failure {
   let root = tree.sheet_root()
   let node = tree.one(root.id, "headerFooter")
   let keys = HeaderFooter::default().strings().map(pair => pair.0)
@@ -158,18 +160,18 @@ fn read_header_footer(sheet : Sheet) -> HeaderFooter raise @failure.Failure {
 }
 
 ///|
-fn Session::header_footer_query(self : Session, sheet : Sheet) -> Json {
+fn Session::header_footer_query(
+  self : Session,
+  sheet : Sheet,
+  tree : Tree,
+) -> QueryPrintSettings[HeaderFooter] {
   let (settings, reason) = (
-    read_header_footer(sheet),
+    read_header_footer(sheet, tree~),
     self.dimension_reason(sheet),
   ) catch {
     @failure.Failure(message~, ..) => (HeaderFooter::default(), message)
   }
-  let json = settings.to_json()
-  if json is Object(fields) {
-    fields["readOnlyReason"] = Json(reason)
-  }
-  json
+  { settings, readOnlyReason: reason, }
 }
 
 ///|

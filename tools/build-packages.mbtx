@@ -1,14 +1,19 @@
-///|
+----
 import {
   "moonbitlang/async@0.22.4",
   "moonbitlang/async@0.22.4/fs",
   "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/string",
   "moonbitlang/x@0.5.5/crypto",
 }
+----
 
 ///|
-async fn main {
-  let artifact = "_build/wasm-gc/release/build/open_document/bridge/all/all"
+async fn optimized_engine(format : String) -> Bytes {
+  let artifact = "_build/wasm-gc/release/build/open_document/bridge/" +
+    format +
+    "/" +
+    format
   // Use Binaryen supplied by the pinned MoonBit toolchain. Size optimization
   // preserves the synchronous core's Chromium instantiation size budget.
   // Restrict optimization to Chromium-supported features used by MoonBit.
@@ -28,9 +33,220 @@ async fn main {
   .output()
   .check()
   let wasm = @fs.read_file(artifact + ".optimized.wasm").binary()
+  guard wasm.length() <= 8 * 1024 * 1024 else {
+    fail(
+      "\{format} Wasm is \{wasm.length()} bytes and exceeds the 8388608-byte build limit",
+    )
+  }
+  wasm
+}
+
+///|
+fn engine_identity(wasm : Bytes) -> String {
   let identity = StringBuilder()
   for byte in @crypto.sha256(wasm) {
     identity.write_string(byte.to_int().to_string(radix=16).pad_start(2, '0'))
+  }
+  identity.to_string()
+}
+
+///|
+async fn engine_limit(package_path : String, name : String) -> String {
+  let path = "modules/" + package_path + "/pkg.generated.mbti"
+  let prefix = "pub const " + name + " : "
+  let source = @fs.read_file(path).text()
+  guard source.split("\n").find_first(line => line.has_prefix(prefix))
+    is Some(line) &&
+    line.strip_prefix(prefix) is Some(declaration) else {
+    fail("Missing generated integer constant: " + name)
+  }
+  let value = match declaration.strip_prefix("Int32 = ") {
+    Some(value) => value
+    None => declaration.strip_prefix("Int64 = ").unwrap_or("")
+  }
+  guard !value.is_empty() &&
+    value.iter().all(c => c.is_ascii_digit()) &&
+    @string.parse_int64(value) <= 9007199254740991L else {
+    fail("Generated constant must be a JavaScript safe integer: " + name)
+  }
+  value.to_owned()
+}
+
+///|
+async fn main {
+  let limits = [
+    ("formats/src/internal/protection", "PasswordUnits", "officePasswordUnits"),
+    ("formats/src/docx", "HyperlinkTargetUnits", "docxHyperlinkTargetUnits"),
+    ("formats/src/docx", "MarkupSourceUnits", "docxMarkupSourceUnits"),
+    ("formats/src/docx", "ClipboardFragmentUnits", "docxClipboardFragmentUnits"),
+    ("formats/src/docx", "TextCommandUnits", "docxTextCommandUnits"),
+    ("formats/src/docx", "RevisionEntries", "docxRevisionEntries"),
+    ("formats/src/docx", "RevisionAuthorUnits", "docxRevisionAuthorUnits"),
+    ("formats/src/docx", "CommentTextUnits", "docxCommentTextUnits"),
+    ("formats/src/docx", "NoteTextUnits", "docxNoteTextUnits"),
+    ("formats/src/docx", "ShapeDimensionPoints", "docxShapeDimensionPoints"),
+    ("formats/src/docx", "ShapeStrokePoints", "docxShapeStrokePoints"),
+    ("formats/src/docx", "TextBoxInsetPoints", "docxTextBoxInsetPoints"),
+    ("formats/src/docx", "TextBoxParagraphCount", "docxTextBoxParagraphCount"),
+    ("formats/src/docx", "TextBoxParagraphUnits", "docxTextBoxParagraphUnits"),
+    ("formats/src/docx", "TextBoxTextUnits", "docxTextBoxTextUnits"),
+    ("formats/src/docx", "CoverTitleUnits", "docxCoverTitleUnits"),
+    ("formats/src/docx", "CoverSubtitleUnits", "docxCoverSubtitleUnits"),
+    ("formats/src/docx", "CaptionTextUnits", "docxCaptionTextUnits"),
+    ("formats/src/docx", "IndexLabelUnits", "docxIndexLabelUnits"),
+    ("formats/src/docx", "ListLevelPatternUnits", "docxListLevelPatternUnits"),
+    ("formats/src/docx", "RunningContentItems", "docxRunningContentItems"),
+    ("formats/src/docx", "RunningContentUnits", "docxRunningContentUnits"),
+    ("formats/src/docx", "RunningDistancePoints", "docxRunningDistancePoints"),
+    ("formats/src/pptx", "CommentTextUnits", "pptxCommentTextUnits"),
+    ("formats/src/pptx", "ObjectSelectionCount", "pptxObjectSelectionCount"),
+    ("formats/src/pptx", "FooterTextUnits", "pptxFooterTextUnits"),
+    ("formats/src/pptx", "FooterParagraphCount", "pptxFooterParagraphCount"),
+    ("formats/src/xlsx", "ThreadTextUnits", "xlsxThreadTextUnits"),
+    ("formats/src/xlsx", "NoteTextUnits", "xlsxNoteTextUnits"),
+    ("formats/src/docx", "TableGridRows", "docxTableGridRows"),
+    ("formats/src/docx", "TableGridColumns", "docxTableGridColumns"),
+    ("formats/src/docx", "TableGridCells", "docxTableGridCells"),
+    (
+      "formats/src/docx", "BibliographyHeadingUnits", "docxBibliographyHeadingUnits",
+    ),
+    ("formats/src/docx", "SourceTagUnits", "docxSourceTagUnits"),
+    ("formats/src/docx", "SourceAuthorUnits", "docxSourceAuthorUnits"),
+    ("formats/src/docx", "SourceTitleUnits", "docxSourceTitleUnits"),
+    ("formats/src/docx", "SourceYearUnits", "docxSourceYearUnits"),
+    ("formats/src/docx", "SourcePublisherUnits", "docxSourcePublisherUnits"),
+    ("formats/src/docx", "SourceUrlUnits", "docxSourceUrlUnits"),
+    ("formats/src/pptx", "ShowInkBatchPoints", "pptxShowInkBatchPoints"),
+    ("formats/src/pptx", "ShowInkStrokePoints", "pptxShowInkStrokePoints"),
+    ("formats/src/pptx", "ParagraphTabCount", "pptxParagraphTabCount"),
+    ("formats/src/pptx", "CustomShowCount", "pptxCustomShowCount"),
+    ("formats/src/pptx", "CustomShowSlides", "pptxCustomShowSlides"),
+    ("formats/src/pptx", "CustomShowTotalSlides", "pptxCustomShowTotalSlides"),
+    ("formats/src/pptx", "CustomShowNameUnits", "pptxCustomShowNameUnits"),
+    ("formats/src/pptx", "SlideAnimationCount", "pptxSlideAnimationCount"),
+    ("formats/src/pptx", "NotesTextUnits", "pptxNotesTextUnits"),
+    ("formats/src/pptx", "TextFrameUnits", "pptxTextFrameUnits"),
+    ("formats/src/pptx", "TextParagraphUnits", "pptxTextParagraphUnits"),
+    ("formats/src/pptx", "TextFrameParagraphs", "pptxTextFrameParagraphs"),
+    ("formats/src/pptx", "DiagramItemCount", "pptxDiagramItemCount"),
+    ("formats/src/pptx", "DiagramLabelUnits", "pptxDiagramLabelUnits"),
+    ("formats/src/pptx", "DiagramTextUnits", "pptxDiagramTextUnits"),
+    ("formats/src/pptx", "TableRowCount", "pptxTableRowCount"),
+    ("formats/src/pptx", "TableColumnCount", "pptxTableColumnCount"),
+    ("formats/src/pptx", "TableCellCount", "pptxTableCellCount"),
+    ("formats/src/pptx", "SearchMatchLimit", "pptxSearchMatchLimit"),
+    ("formats/src/pptx", "SlideCountLimit", "pptxSlideCountLimit"),
+    ("formats/src/pptx", "SourceNameUnits", "pptxSourceNameUnits"),
+    ("formats/src/pptx", "MediaVolumeMax", "pptxMediaVolumeMax"),
+    ("formats/src/pptx", "GuideCount", "pptxGuideCount"),
+    ("formats/src/pptx", "GridUnitsPerPoint", "pptxGridUnitsPerPoint"),
+    ("formats/src/pptx", "GridSpacingMaxPoints", "pptxGridSpacingMaxPoints"),
+    ("formats/src/pdf", "SearchTextUnits", "pdfSearchTextUnits"),
+    ("formats/src/pdf", "PageOperationCount", "pdfPageOperationCount"),
+    ("formats/src/pdf", "RedactionRegionCount", "pdfRedactionRegionCount"),
+    ("formats/src/xlsx", "CellFragmentCells", "xlsxCellFragmentCells"),
+    ("formats/src/xlsx", "ChartReferenceUnits", "xlsxChartReferenceUnits"),
+    ("formats/src/xlsx", "ChartSeriesCount", "xlsxChartSeriesCount"),
+    (
+      "formats/src/xlsx", "DrawingDescriptionUnits", "xlsxDrawingDescriptionUnits",
+    ),
+    ("formats/src/xlsx", "DrawingNameUnits", "xlsxDrawingNameUnits"),
+    ("formats/src/xlsx", "ShapeFontUnits", "xlsxShapeFontUnits"),
+    ("formats/src/xlsx", "ShapeTextUnits", "xlsxShapeTextUnits"),
+    ("formats/src/xlsx", "CellFragmentMerges", "xlsxCellFragmentMerges"),
+    ("formats/src/xlsx", "CellFragmentTextUnits", "xlsxCellFragmentTextUnits"),
+    ("formats/src/xlsx", "CellClipboardJsonUnits", "xlsxCellClipboardJsonUnits"),
+    ("formats/src/xlsx", "CopiedRuleRanges", "xlsxCopiedRuleRanges"),
+    ("formats/src/xlsx", "CopiedRuleTextUnits", "xlsxCopiedRuleTextUnits"),
+    ("formats/src/xlsx", "CopiedHyperlinkCount", "xlsxCopiedHyperlinkCount"),
+    (
+      "formats/src/xlsx", "CopiedHyperlinkLabelUnits", "xlsxCopiedHyperlinkLabelUnits",
+    ),
+    (
+      "formats/src/xlsx", "CopiedHyperlinkTextUnits", "xlsxCopiedHyperlinkTextUnits",
+    ),
+    ("formats/src/xlsx", "CopiedNoteSourceUnits", "xlsxCopiedNoteSourceUnits"),
+    ("formats/src/xlsx", "SparklineCount", "xlsxSparklineCount"),
+    ("formats/src/xlsx", "SparklineSourceCells", "xlsxSparklineSourceCells"),
+    ("formats/src/xlsx", "SparklineSourceUnits", "xlsxSparklineSourceUnits"),
+    ("formats/src/xlsx", "WorksheetColumns", "xlsxWorksheetColumns"),
+    ("formats/src/xlsx", "WorksheetRows", "xlsxWorksheetRows"),
+    ("formats/src/xlsx", "WorksheetCount", "xlsxWorksheetCount"),
+    ("formats/src/xlsx", "AxisEditCount", "xlsxAxisEditCount"),
+    ("formats/src/xlsx", "DateSeriesStepMax", "xlsxDateSeriesStepMax"),
+    ("formats/src/xlsx", "DefinedNameUnits", "xlsxDefinedNameUnits"),
+    ("formats/src/xlsx", "PrintSheetLimit", "xlsxPrintSheetLimit"),
+    ("formats/src/xlsx", "PrintPaperMinPoints", "xlsxPrintPaperMinPoints"),
+    ("formats/src/xlsx", "PrintPageMaxPoints", "xlsxPrintPageMaxPoints"),
+    ("formats/src/xlsx", "PrintScaleMin", "xlsxPrintScaleMin"),
+    ("formats/src/xlsx", "PrintScaleMax", "xlsxPrintScaleMax"),
+    ("formats/src/xlsx", "PrintFitPageCount", "xlsxPrintFitPageCount"),
+    ("formats/src/xlsx", "PrintAreaUnits", "xlsxPrintAreaUnits"),
+    ("formats/src/xlsx", "PrintTitleUnits", "xlsxPrintTitleUnits"),
+    ("formats/src/xlsx", "HeaderFooterTextUnits", "xlsxHeaderFooterTextUnits"),
+    ("formats/src/xlsx", "CellTextUnits", "xlsxCellTextUnits"),
+    ("formats/src/xlsx", "FormulaSourceUnits", "xlsxFormulaSourceUnits"),
+    ("formats/src/xlsx", "ConditionalRangeUnits", "xlsxConditionalRangeUnits"),
+    ("formats/src/xlsx", "ConditionalTextUnits", "xlsxConditionalTextUnits"),
+    ("formats/src/xlsx", "ConditionalRuleCount", "xlsxConditionalRuleCount"),
+    ("formats/src/xlsx", "ValidationFormulaUnits", "xlsxValidationFormulaUnits"),
+    ("formats/src/xlsx", "ValidationTitleUnits", "xlsxValidationTitleUnits"),
+    ("formats/src/xlsx", "ValidationMessageUnits", "xlsxValidationMessageUnits"),
+    ("formats/src/xlsx", "PivotSourceColumns", "xlsxPivotSourceColumns"),
+    ("formats/src/xlsx", "PivotSourceCells", "xlsxPivotSourceCells"),
+    ("formats/src/xlsx", "PivotFieldsPerRole", "xlsxPivotFieldsPerRole"),
+    ("formats/src/xlsx", "PivotSubtotalFields", "xlsxPivotSubtotalFields"),
+    ("formats/src/xlsx", "PivotGroupUnits", "xlsxPivotGroupUnits"),
+    ("formats/src/xlsx", "PivotDateUnits", "xlsxPivotDateUnitCount"),
+    ("formats/src/xlsx", "PivotMembers", "xlsxPivotMembers"),
+    ("formats/src/xlsx", "PivotFilterUnits", "xlsxPivotFilterUnits"),
+    ("formats/src/xlsx", "PivotValueNameUnits", "xlsxPivotValueNameUnits"),
+    ("formats/src/xlsx", "SlicerMembers", "xlsxSlicerMembers"),
+    ("formats/src/xlsx", "ConsolidationSources", "xlsxConsolidationSources"),
+    (
+      "formats/src/xlsx", "ConsolidationSourceCells", "xlsxConsolidationSourceCells",
+    ),
+    ("formats/src/xlsx", "DuplicateCells", "xlsxDuplicateCells"),
+    ("formats/src/xlsx", "SubtotalCells", "xlsxSubtotalCells"),
+    ("formats/src/xlsx", "TextColumnCells", "xlsxTextColumnCells"),
+    (
+      "formats/src/xlsx", "TextColumnBreakPosition", "xlsxTextColumnBreakPosition",
+    ),
+    ("formats/src/xlsx", "SortKeys", "xlsxSortKeys"),
+    ("formats/src/xlsx", "SortListLabels", "xlsxSortListLabels"),
+    ("formats/src/xlsx", "SortListUnits", "xlsxSortListUnits"),
+    ("formats/src/xlsx", "FilterColumns", "xlsxFilterColumns"),
+    ("formats/src/xlsx", "FilterEntries", "xlsxFilterEntries"),
+    ("formats/src/xlsx", "FilterLabelUnits", "xlsxFilterLabelUnits"),
+    ("formats/src/xlsx", "FilterTextUnits", "xlsxFilterTextUnits"),
+    ("formats/src/xlsx", "TableStyleRegions", "xlsxTableStyleRegionCount"),
+    ("formats/src/xlsx", "TableStyleStripeSize", "xlsxTableStyleStripeSize"),
+    ("layout/src", "ImageBytes", "imageBytes"),
+    ("layout/src", "ImageDimension", "imageDimension"),
+    ("layout/src", "TabStopCount", "tabStopCount"),
+    ("layout/src", "GradientStopCount", "gradientStopCount"),
+    ("layout/src", "TileReplayWork", "tileReplayWork"),
+    ("layout/src", "MathTextUnits", "mathTextUnits"),
+    ("layout/src", "MathFontUnits", "mathFontUnits"),
+    ("layout/src", "PageColumnCount", "docxPageColumnCount"),
+    ("layout/src", "PageBorderSideCount", "docxPageBorderSideCount"),
+    ("layout/src", "NumberingStartMax", "docxNumberingStartMax"),
+    ("formats/src/internal/omml", "LatexSourceUnits", "latexSourceUnits"),
+  ]
+  let limit_exports = StringBuilder()
+  let limit_types = StringBuilder()
+  for (package_path, name, exported) in limits {
+    let value = engine_limit(package_path, name)
+    limit_exports.write_string("export const \{exported} = \{value};\n")
+    limit_types.write_string("export declare const \{exported}: number;\n")
+  }
+  let artifacts : Map[String, Bytes] = Map([])
+  let identities : Map[String, String] = Map([])
+  for format in ["all", "docx", "xlsx", "pptx", "pdf"] {
+    let wasm = optimized_engine(format)
+    let name = if format == "all" { "engine" } else { format }
+    artifacts[name] = wasm
+    identities[format] = engine_identity(wasm)
   }
   for name in ["wasm", "web-core", "ui", "docx", "xlsx", "pptx", "pdf"] {
     if @fs.exists("packages/" + name + "/dist") {
@@ -40,13 +256,22 @@ async fn main {
     }
   }
   @shell.Cmd("mkdir", ["-p", "packages/wasm/dist"]).output().check()
-  @fs.write_file("packages/wasm/dist/engine.wasm", wasm)
+  for name, wasm in artifacts {
+    @fs.write_file("packages/wasm/dist/" + name + ".wasm", wasm)
+  }
   @fs.write_file(
     "packages/wasm/dist/engine-source.js",
-    "export const engineBuildId = \"" + identity.to_string() + "\";\n",
+    "export const engineBuildIds = Object.freeze(" +
+    Json(identities).stringify() +
+    ");\n" +
+    "export const engineBuildId = engineBuildIds.all;\n" +
+    limit_exports.to_string(),
   )
   @fs.write_file(
-    "packages/wasm/dist/engine-source.d.ts", "export declare const engineBuildId: string;\n",
+    "packages/wasm/dist/engine-source.d.ts",
+    "export declare const engineBuildIds: Readonly<Record<\"all\" | \"docx\" | \"xlsx\" | \"pptx\" | \"pdf\", string>>;\n" +
+    "export declare const engineBuildId: string;\n" +
+    limit_types.to_string(),
   )
   @shell.Cmd("bun", [
     "x", "tailwindcss", "-i", "packages/ui/src/styles/ui.css", "-o", "packages/ui/dist/styles.css",

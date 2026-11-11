@@ -98,61 +98,87 @@ fn PdfSession::owned_objects(
 }
 
 ///|
+pub struct PdfObjectEntry {
+  id : String
+  kind : String
+  placement : PdfPlacement
+  foreground : Bool
+  text : String
+  font : String
+  size : Double
+  color : String
+  role : String
+  readOnlyReason : String
+} derive(ToJson)
+
+///|
+pub extend PdfObjectEntry with ToJson::{to_json}
+
+///|
+pub struct PdfObjects {
+  revision : Int32
+  page : String
+  objects : Array[PdfObjectEntry]
+} derive(ToJson)
+
+///|
+pub extend PdfObjects with ToJson::{to_json}
+
+///|
 pub fn PdfSession::objects(
   self : PdfSession,
   revision : Int32,
   id : String,
   supplied : @layout.TextProbe,
   profile : Map[String, String],
-) -> Json raise @failure.Failure {
+) -> PdfObjects raise @failure.Failure {
   self.check(revision)
   pdf_bound(self.budget, () => {
     let page = self.page(id)
     let objects = self.owned_objects(page)
-    let entries : Array[Json] = objects.map(object => {
+    let entries : Array[PdfObjectEntry] = objects.map(object => {
       let form = resolve(self.document, object.form)
       let dictionary = match form {
         PdfStreamObject(s) => s.dictionary
         _ => dict([])
       }
       let role = raw(dictionary, "ODRole")
-      let result : Json = {
-        "id": object.id,
-        "kind": object.kind,
-        "placement": object.placement,
-        "foreground": object.foreground,
-        "text": if object.kind == "text" {
+      {
+        id: object.id,
+        kind: object.kind,
+        placement: object.placement,
+        foreground: object.foreground,
+        text: if object.kind == "text" {
           pdf_text_string(raw(dictionary, "ODText"))
         } else {
           ""
         },
-        "font": if object.kind == "text" {
+        font: if object.kind == "text" {
           pdf_text_string(raw(dictionary, "ODFont"))
         } else {
           ""
         },
-        "size": if object.kind == "text" {
+        size: if object.kind == "text" {
           number(raw(dictionary, "ODSize"))
         } else {
           0.0
         },
-        "color": if object.kind == "text" {
+        color: if object.kind == "text" {
           pdf_text_string(raw(dictionary, "ODColor"))
         } else {
           ""
         },
-        "role": if role is PdfNameObject(name) {
+        role: if role is PdfNameObject(name) {
           @utf8.decode_lossy(name.bytes())[1:].to_owned()
         } else {
           "image"
         },
-        "readOnlyReason": if object.kind == "unsupported" {
+        readOnlyReason: if object.kind == "unsupported" {
           "Unknown SDK PDF object type"
         } else {
           self.readOnlyReason
         },
       }
-      result
     })
     let display = self.build_display(
       id,
@@ -162,12 +188,12 @@ pub fn PdfSession::objects(
     )
     defer display.probe.close()
     for target in display.sources {
-      entries.push(source_object_json(self, display, target))
+      entries.push(source_object_entry(self, display, target))
     }
     guard entries.length() <= 4096 else {
       @failure.reject("limit-exceeded", "PDF object catalog exceeds budget")
     }
-    { "revision": revision, "page": id, "objects": entries }
+    { revision, page: id, objects: entries, }
   })
 }
 

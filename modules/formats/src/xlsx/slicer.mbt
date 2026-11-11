@@ -112,7 +112,10 @@ fn Session::read_slicers(
         cache,
         columns,
         row_height,
-        start: natural(node.attribute("startItem").unwrap_or("0"), 4095),
+        start: natural(
+          node.attribute("startItem").unwrap_or("0"),
+          SlicerMembers - 1,
+        ),
         show_caption: flag(node, "showCaption", fallback=true),
         locked: flag(node, "lockedPosition"),
         style,

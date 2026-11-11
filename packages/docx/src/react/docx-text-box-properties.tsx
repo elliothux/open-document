@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { DocxTextBoxProperties as Properties } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { docxTextBoxInsetPoints } from "@open-document/wasm/engine-source";
 
 export function DocxTextBoxProperties({
   controller,
@@ -42,7 +43,7 @@ export function DocxTextBoxProperties({
               required
               step="any"
               min={0}
-              max={14400}
+              max={docxTextBoxInsetPoints}
               value={
                 Number.isFinite(draft.insets[index]) ? draft.insets[index] : ""
               }

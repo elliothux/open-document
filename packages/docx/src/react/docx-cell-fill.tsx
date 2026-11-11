@@ -25,7 +25,7 @@ export function DocxCellFill({
       onSubmit={(event) => {
         event.preventDefault();
         controller.run(() =>
-          editor.editTable({
+          editor.tables.editTable({
             action: "cellFill",
             value: color.slice(1),
             themeColor,
@@ -72,7 +72,7 @@ export function DocxCellFill({
         onMouseDown={(event) => event.preventDefault()}
         onClick={() =>
           controller.run(() =>
-            editor.editTable({ action: "cellFill", value: null }),
+            editor.tables.editTable({ action: "cellFill", value: null }),
           )
         }
       >

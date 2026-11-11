@@ -27,6 +27,7 @@ pub struct Session {
   priv redo : Array[Edit]
   priv mut history_bytes : Int32
   priv mut revision : Int32
+  priv mut flow_cache : FlowCache?
   priv mut composition : Composition?
   priv mut composition_id : Int32
   priv mut drawing_gesture : DrawingGesture?
@@ -141,6 +142,7 @@ fn Session::from_package(opc : @opc.Package) -> Session raise @failure.Failure {
     redo: [],
     history_bytes: 0,
     revision: 0,
+    flow_cache: None,
     composition: None,
     composition_id: 0,
     drawing_gesture: None,
@@ -152,6 +154,14 @@ fn Session::from_package(opc : @opc.Package) -> Session raise @failure.Failure {
 }
 
 ///|
+pub fn Session::current_revision(
+  self : Session,
+) -> Int32 raise @failure.Failure {
+  ignore(self.document())
+  self.revision
+}
+
+///|
 fn Session::document(self : Session) -> @xml.Document raise @failure.Failure {
   guard !self.closed && self.document is Some(document) else {
     @failure.reject("closed-session", "DOCX session is closed")
@@ -160,11 +170,30 @@ fn Session::document(self : Session) -> @xml.Document raise @failure.Failure {
 }
 
 ///|
+priv struct QueryText {
+  id : Int32
+  paragraph : Int32
+  run : Int32
+  text : String
+} derive(ToJson)
+
+///|
+priv struct QueryState {
+  revision : Int32
+  compositionId : Json
+  mainPart : String
+  texts : Array[QueryText]
+  relationships : ReadOnlyArray[@opc.Relationship]
+  diagnostics : Array[String]
+  decodedBytes : Int32
+} derive(ToJson)
+
+///|
 pub fn Session::query(self : Session) -> Json raise @failure.Failure {
   let document = self.display_document()
   let tree = WordTree::new(document)
   let nodes = tree.nodes
-  let texts : Array[Json] = []
+  let texts : Array[QueryText] = []
   for
     node in (if self.composition is Some(_) {
       docx_texts(tree)
@@ -172,33 +201,24 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
       self.texts
     }) {
     texts.push({
-      "id": node.id,
-      "paragraph": node.paragraph,
-      "run": node.run,
-      "text": inline_text(nodes[node.id]),
+      id: node.id,
+      paragraph: node.paragraph,
+      run: node.run,
+      text: inline_text(nodes[node.id]),
     })
   }
-  let rels : Array[Json] = []
-  for rel in self.relationships() {
-    rels.push({
-      "owner": rel.owner,
-      "id": rel.id,
-      "type": rel.kind,
-      "target": rel.target,
-      "external": rel.external,
-    })
-  }
-  {
-    "revision": self.revision,
-    "compositionId": self.composition
+  let result : QueryState = {
+    revision: self.revision,
+    compositionId: self.composition
     .map(composition => Json(composition.id))
     .unwrap_or(Json::null()),
-    "mainPart": self.main,
-    "texts": texts,
-    "relationships": rels,
-    "diagnostics": self.diagnostics,
-    "decodedBytes": self.opc.decoded_bytes(),
+    mainPart: self.main,
+    texts,
+    relationships: self.relationships(),
+    diagnostics: self.diagnostics,
+    decodedBytes: self.opc.decoded_bytes(),
   }
+  ToJson::to_json(result)
 }
 
 ///|
@@ -216,7 +236,7 @@ pub fn Session::replace(
   let nodes = WordTree::new(document).nodes
   let texts = self.texts.filter(item => item.paragraph == node.paragraph)
   let before = inline_text(nodes[id])
-  guard text.length() <= command_limit else {
+  guard text.length() <= TextCommandUnits else {
     @failure.reject("limit-exceeded", "Command input exceeds UTF-16 budget")
   }
   if before == text && nodes[id].name != "drawing" {
@@ -316,6 +336,7 @@ pub fn Session::close(self : Session) -> Unit {
   self.opc.close()
   self.encrypted_source = None
   self.document = None
+  self.flow_cache = None
   self.parts.clear()
   self.media.clear()
   self.texts.clear()

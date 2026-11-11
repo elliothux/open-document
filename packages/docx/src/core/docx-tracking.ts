@@ -1,4 +1,4 @@
-import { integer, record } from "@open-document/wasm/abi/validation";
+import { docxRevisionAuthorUnits } from "@open-document/wasm/engine-source";
 
 export interface DocxTracking {
   revision: number;
@@ -13,7 +13,7 @@ export function checkTrackingAuthor(
   if (
     value !== null &&
     (typeof value !== "string" ||
-      value.length > 255 ||
+      value.length > docxRevisionAuthorUnits ||
       !value.trim() ||
       !value.isWellFormed() ||
       Array.from(value).some(
@@ -21,18 +21,4 @@ export function checkTrackingAuthor(
       ))
   )
     throw new Error("Invalid revision author");
-}
-
-export function docxTracking(value: unknown): DocxTracking {
-  const result = record(value);
-  if (
-    !integer(result.revision, 0, 2147483647) ||
-    typeof result.enabled !== "boolean" ||
-    typeof result.author !== "string" ||
-    typeof result.reason !== "string" ||
-    (result.enabled ? !result.author.trim() : result.author !== "")
-  )
-    throw new Error("Invalid revision recording state");
-  checkTrackingAuthor(result.enabled ? result.author : null);
-  return value as DocxTracking;
 }

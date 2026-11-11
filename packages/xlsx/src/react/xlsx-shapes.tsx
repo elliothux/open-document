@@ -9,6 +9,11 @@ import {
 } from "../web/xlsx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import {
+  xlsxDrawingDescriptionUnits,
+  xlsxDrawingNameUnits,
+  xlsxShapeTextUnits,
+} from "@open-document/wasm/engine-source";
 
 export function XlsxShapes({
   controller,
@@ -28,7 +33,7 @@ export function XlsxShapes({
   const [catalog, setCatalog] = useState<Catalog>();
   const [draft, setDraft] = useState<XlsxShape>();
   const load = async (last = false) => {
-    const value = await editor.shapes();
+    const value = await editor.objects.shapes();
     setCatalog(value);
     setDraft(
       (last
@@ -67,7 +72,7 @@ export function XlsxShapes({
         onSubmit={(event) => {
           event.preventDefault();
           controller.run(async () => {
-            await editor.insertShape(
+            await editor.objects.insertShape(
               kind,
               size.width,
               size.height,
@@ -125,7 +130,7 @@ export function XlsxShapes({
             <textarea
               value={text}
               disabled={kind === "line"}
-              maxLength={32767}
+              maxLength={xlsxShapeTextUnits}
               onChange={(event) => setText(event.currentTarget.value)}
             />
           </label>
@@ -172,7 +177,7 @@ export function XlsxShapes({
           onSubmit={(event) => {
             event.preventDefault();
             controller.run(async () => {
-              await editor.setShape(draft.id, draft);
+              await editor.objects.setShape(draft.id, draft);
               await load();
             });
           }}
@@ -183,7 +188,7 @@ export function XlsxShapes({
               {t.xlsxShapeName}
               <input
                 value={draft.name}
-                maxLength={255}
+                maxLength={xlsxDrawingNameUnits}
                 required
                 onChange={(event) =>
                   setDraft({ ...draft, name: event.currentTarget.value })
@@ -194,7 +199,7 @@ export function XlsxShapes({
               {t.xlsxPictureAlt}
               <input
                 value={draft.description}
-                maxLength={1024}
+                maxLength={xlsxDrawingDescriptionUnits}
                 onChange={(event) =>
                   setDraft({ ...draft, description: event.currentTarget.value })
                 }
@@ -335,7 +340,7 @@ export function XlsxShapes({
               {t.objectText}
               <textarea
                 value={draft.text}
-                maxLength={32767}
+                maxLength={xlsxShapeTextUnits}
                 disabled={draft.kind === "line"}
                 onChange={(event) =>
                   setDraft({ ...draft, text: event.currentTarget.value })
@@ -476,7 +481,7 @@ export function XlsxShapes({
                 type="button"
                 onClick={() =>
                   controller.run(async () => {
-                    await editor.editSheet({
+                    await editor.objects.editSheet({
                       action: "drawingOrder",
                       objectId: draft.id,
                       direction,
@@ -492,7 +497,7 @@ export function XlsxShapes({
               type="button"
               onClick={() =>
                 controller.run(async () => {
-                  await editor.deleteShape(draft.id);
+                  await editor.objects.deleteShape(draft.id);
                   await load();
                 })
               }
@@ -503,7 +508,7 @@ export function XlsxShapes({
               type="button"
               onClick={() =>
                 controller.run(async () => {
-                  await editor.editSheet({
+                  await editor.objects.editSheet({
                     action: "duplicateDrawing",
                     objectId: draft.id,
                   });
@@ -515,13 +520,17 @@ export function XlsxShapes({
             </button>
             <button
               type="button"
-              onClick={() => controller.run(() => editor.cutDrawing(draft.id))}
+              onClick={() =>
+                controller.run(() => editor.clipboard.cutDrawing(draft.id))
+              }
             >
               {t.cutDrawing}
             </button>
             <button
               type="button"
-              onClick={() => controller.run(() => editor.copyDrawing(draft.id))}
+              onClick={() =>
+                controller.run(() => editor.clipboard.copyDrawing(draft.id))
+              }
             >
               {t.copyDrawing}
             </button>

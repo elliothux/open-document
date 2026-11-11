@@ -1,4 +1,7 @@
 ///|
+pub const TabStopCount : Int32 = 64
+
+///|
 pub(all) struct TabStop {
   position : Double
   align : String
@@ -13,7 +16,7 @@ pub extend TabStop with ToJson::{to_json}
 
 ///|
 pub fn validate_tabs(stops : Array[TabStop]) -> Unit raise @failure.Failure {
-  guard stops.length() <= 64 else {
+  guard stops.length() <= TabStopCount else {
     @failure.reject("limit-exceeded", "Too many tab stops")
   }
   let mut previous = -1.0

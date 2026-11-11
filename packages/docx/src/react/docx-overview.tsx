@@ -33,7 +33,7 @@ export function DocxOverview({
       try {
         await editor.whenIdle();
         if (!active) return;
-        const value = await editor.overview();
+        const value = await editor.review.overview();
         if (active) setResult(value);
       } catch (error) {
         if (active) throw error;
@@ -106,7 +106,9 @@ export function DocxOverview({
                     title={heading.reason || undefined}
                     disabled={disabled || blocked || stale || !!heading.reason}
                     onClick={() =>
-                      controller.run(() => editor.selectHeading(result, index))
+                      controller.run(() =>
+                        editor.review.selectHeading(result, index),
+                      )
                     }
                   >
                     {`${heading.level}. ${heading.text}`}

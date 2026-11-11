@@ -3,13 +3,16 @@ pub(all) struct ConditionalStop {
   kind : String
   value : String
   color : String
-} derive(Eq, ToJson)
+} derive(Eq, ToJson, @json.FromJson)
 
 ///|
 pub extend ConditionalStop with Eq::{equal, not_equal}
 
 ///|
 pub extend ConditionalStop with ToJson::{to_json}
+
+///|
+pub extend ConditionalStop with @json.FromJson::{from_json}
 
 ///|
 fn ConditionalStop::check(
@@ -23,7 +26,7 @@ fn ConditionalStop::check(
   guard ["min", "max", "num", "percent", "percentile", "formula"].contains(
       self.kind,
     ) &&
-    self.value.length() <= 8192 &&
+    self.value.length() <= FormulaSourceUnits &&
     @xml.valid_text(self.value) &&
     self.color.length() == 6 &&
     self.color.iter().all(c => c.is_ascii_hexdigit()) else {
@@ -96,12 +99,22 @@ fn ConditionalRules::scale_bounds(
   rule : ConditionalRule,
   sheets : Array[Sheet],
   index : Int32,
-  values : Map[(Int32, String), Value],
+  values : Map[(Int32, Address), Value],
   work : FormulaWork,
 ) -> Array[Double] raise @failure.Failure {
-  if self.scales.get(rule.priority) is Some(bounds) {
-    return bounds
-  }
+  self.scales.value(rule.priority, work, () => {
+    compute_scale_bounds(rule, sheets, index, values, work)
+  })
+}
+
+///|
+fn compute_scale_bounds(
+  rule : ConditionalRule,
+  sheets : Array[Sheet],
+  index : Int32,
+  values : Map[(Int32, Address), Value],
+  work : FormulaWork,
+) -> Array[Double] raise @failure.Failure {
   let numbers : Array[Double] = []
   for cell in sheets[index].cells.values() {
     work.spend()
@@ -115,7 +128,6 @@ fn ConditionalRules::scale_bounds(
   }
   let bounds : Array[Double] = []
   if numbers.is_empty() {
-    self.scales[rule.priority] = bounds
     return bounds
   }
   let low = numbers.fold(init=numbers[0], (a, b) => a.min(b))
@@ -162,6 +174,10 @@ fn ConditionalRules::scale_bounds(
         numbers[next] * (position - first.to_double())
       }
       _ => {
+        let origin = work.origin
+        defer {
+          work.origin = origin
+        }
         work.origin = rule.anchor
         let value = rule_expression(
           stop.value,
@@ -173,7 +189,6 @@ fn ConditionalRules::scale_bounds(
         ).evaluate(sheets, index, values, work, 0)
         guard value is Number(value) else {
           bounds.clear()
-          self.scales[rule.priority] = bounds
           return bounds
         }
         value
@@ -189,7 +204,6 @@ fn ConditionalRules::scale_bounds(
   if rule.icons is None {
     bounds.sort()
   }
-  self.scales[rule.priority] = bounds
   bounds
 }
 
@@ -224,7 +238,7 @@ fn ConditionalRules::scale_fill(
   address : Address,
   sheets : Array[Sheet],
   index : Int32,
-  values : Map[(Int32, String), Value],
+  values : Map[(Int32, Address), Value],
   work : FormulaWork,
 ) -> String? raise @failure.Failure {
   guard calculated_cell(sheets, values, index, address) is Number(value) else {

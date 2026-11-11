@@ -1,23 +1,40 @@
 ///|
+priv struct GuideVisibilityRequest {
+  visible : Bool
+} derive(@json.FromJson)
+
+///|
+priv struct GuideItemRequest {
+  orientation : String
+  position : @common.RequestNumber
+} derive(@json.FromJson)
+
+///|
+priv struct SnappingRequest {
+  grid : Bool
+  objects : Bool
+  spacing : @common.RequestNumber
+} derive(@json.FromJson)
+
+///|
 fn pptx_guide_edit(change : Json) -> @model.SlideEdit raise @failure.Failure {
   guard change is Object(fields) &&
     fields.length() == 3 &&
     fields.get("items") is Some(Array(items)) &&
-    items.length() <= 64 else {
+    items.length() <= @model.GuideCount else {
     @failure.reject(
       "invalid-operation", "A bounded presentation guide list is required",
     )
   }
+  let request : GuideVisibilityRequest = @common.request(change)
   @model.Guides(
-    field_boolean(change, "visible"),
+    request.visible,
     items.map(item => {
       guard item is Object(fields) && fields.length() == 2 else {
         @failure.reject("invalid-operation", "Invalid presentation guide")
       }
-      {
-        orientation: field_string(item, "orientation"),
-        position: field_number(item, "position"),
-      }
+      let guide : GuideItemRequest = @common.request(item)
+      { orientation: guide.orientation, position: guide.position.value, }
     }),
   )
 }
@@ -29,9 +46,10 @@ fn pptx_snapping_edit(change : Json) -> @model.SlideEdit raise @failure.Failure 
       "invalid-operation", "Snapping requires grid, objects and spacing",
     )
   }
+  let request : SnappingRequest = @common.request(change)
   @model.Snapping({
-    grid: field_boolean(change, "grid"),
-    objects: field_boolean(change, "objects"),
-    spacing: field_number(change, "spacing"),
+    grid: request.grid,
+    objects: request.objects,
+    spacing: request.spacing.value,
   })
 }

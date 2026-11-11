@@ -9,6 +9,10 @@ import type {
 } from "../core/foundation.js";
 import type { EditorSnapshot } from "@open-document/web-core/editor-state";
 import type { PageLayout } from "../core/preview.js";
+import type {
+  DocxSelectionView,
+  DocxSelectionViewRequest,
+} from "../core/docx-hit.js";
 
 export type DocumentOverview = DocxOverview & { documentId: string };
 
@@ -53,35 +57,21 @@ export function pointerDocxSelection(
   };
 }
 
-export async function queryDocxSelectionGeometry(
-  client: FoundationClient,
+export function docxSelectionRequest(
   state: EditState,
-  layout: PageLayout,
-  assertOpen: () => void,
-) {
+): DocxSelectionViewRequest | undefined {
   const selection = state.selection;
-  const layoutId = layout.id,
-    revision = layout.revision;
-  const caret = selection
-    ? await client.caret(layoutId, selection.focus)
-    : undefined;
-  assertOpen();
-  const geometry = selection
-    ? await client.selectionGeometry(layoutId, selection)
-    : undefined;
-  assertOpen();
-  if (
-    (caret && (caret.layoutId !== layoutId || caret.revision !== revision)) ||
-    (geometry &&
-      (geometry.layoutId !== layoutId || geometry.revision !== revision))
-  )
-    throw new Error("Selection geometry belongs to a stale layout");
-  const formatting =
-    selection && state.formatting?.table
-      ? await client.queryFormatting(state.revision, selection)
-      : state.formatting;
-  assertOpen();
-  return { caret, geometry, formatting };
+  if (!selection) return undefined;
+  const formatTable = !!state.formatting?.table;
+  return {
+    revision: state.revision,
+    selection,
+    formatTable,
+    describeText:
+      state.compositionId === null &&
+      state.drawingGestureId === null &&
+      (formatTable || !state.formatting?.cellSelection.value),
+  };
 }
 
 export async function selectFirstDocxPosition(
@@ -102,9 +92,13 @@ export async function selectFirstDocxPosition(
     offset: line.start,
     affinity: "after" as const,
   };
-  return client.selectDocx(state.revision, {
-    anchor: position,
-    focus: position,
+  return client.execute({
+    operation: "selectDocx",
+    revision: state.revision,
+    selection: {
+      anchor: position,
+      focus: position,
+    },
   });
 }
 
@@ -170,12 +164,12 @@ export function assertDocxSelection(
     throw new Error("Document or selection changed during clipboard write");
 }
 
-export async function docxSelectionDescription(
-  client: FoundationClient,
+export function docxSelectionDescription(
   state: EditState,
   page: number,
   stopped: boolean,
-): Promise<string> {
+  view: DocxSelectionView | undefined,
+): string {
   if (stopped) return "Selection unavailable while editing is stopped";
   if (state.compositionId !== null) return "Text composition in progress";
   if (state.drawingGestureId !== null) return "Drawing gesture in progress";
@@ -188,14 +182,8 @@ export async function docxSelectionDescription(
     selection.anchor.offset === selection.focus.offset
   )
     return `Insertion point on page ${page + 1}`;
-  try {
-    return `Selected text: ${(await client.selectedText(state.revision, selection)).replaceAll("\ufffc", "[drawing]")}`;
-  } catch (error) {
-    if (
-      !(error instanceof DocumentError) ||
-      (error.code !== "protected-content" && error.code !== "limit-exceeded")
-    )
-      throw error;
-    return `Selected content is unavailable: ${error.message}`;
-  }
+  if (!view) throw new Error("Missing DOCX selection view");
+  return view.selectionError
+    ? `Selected content is unavailable: ${view.selectionError}`
+    : `Selected text: ${view.selectedText.replaceAll("\ufffc", "[drawing]")}`;
 }

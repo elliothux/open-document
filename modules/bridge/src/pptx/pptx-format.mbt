@@ -1,231 +1,239 @@
 ///|
-fn pptx_table_style(
-  change : Json,
-) -> @model.TableStyleSettings raise @failure.Failure {
-  guard change is { "style": style, .. } &&
-    style is Object(fields) &&
-    fields.length() == 7 &&
-    fields
-    .keys()
-    .all(key => {
-      [
-        "id", "firstRow", "lastRow", "firstColumn", "lastColumn", "bandRows", "bandColumns",
-      ].contains(key)
-    }) else {
-    @failure.reject("invalid-operation", "Invalid table style settings")
-  }
-  {
-    id: field_string(style, "id"),
-    first_row: field_boolean(style, "firstRow"),
-    last_row: field_boolean(style, "lastRow"),
-    first_column: field_boolean(style, "firstColumn"),
-    last_column: field_boolean(style, "lastColumn"),
-    band_rows: field_boolean(style, "bandRows"),
-    band_columns: field_boolean(style, "bandColumns"),
-  }
+priv struct TextFormatEditRequest[T] {
+  format : T
+} derive(@json.FromJson)
+
+///|
+priv struct TextAlignmentRequest {
+  alignment : String
+} derive(@json.FromJson)
+
+///|
+priv struct TextFormatRequest {
+  font : String?
+  size : @common.RequestNumber?
+  bold : Bool?
+  italic : Bool?
+  color : String?
+  underline : Bool?
+  strike : Bool?
+  highlight : String?
+  script : String?
+  spacing : @common.RequestNumber?
+} derive(@json.FromJson)
+
+///|
+priv struct TextSpacingRequest {
+  unit : String
+  value : @common.RequestNumber
+} derive(@json.FromJson)
+
+///|
+fn TextSpacingRequest::spacing(
+  input : TextSpacingRequest,
+) -> @model.TextSpacing {
+  { unit: input.unit, value: input.value.value, }
 }
 
 ///|
-fn pptx_text_format(value : Json) -> @model.TextFormat raise @failure.Failure {
+priv struct ParagraphFormatRequest {
+  left : @common.RequestNumber?
+  right : @common.RequestNumber?
+  first : @common.RequestNumber?
+  before : TextSpacingRequest?
+  after : TextSpacingRequest?
+  line : TextSpacingRequest?
+  list : ListFormatInput?
+  level : @common.RequestInt?
+  rtl : Bool?
+  tabs : @common.RequiredNullable[Array[ParagraphTabRequest]]?
+  defaultTab : @common.RequiredNullable[@common.RequestNumber]?
+  listFont : @common.RequiredNullable[String]?
+  listSize : @common.RequiredNullable[TextSpacingRequest]?
+  listColor : @common.RequiredNullable[String]?
+} derive(@json.FromJson)
+
+///|
+priv struct ParagraphTabRequest {
+  position : @common.RequestNumber
+  align : String
+} derive(@json.FromJson)
+
+///|
+priv struct BulletRequest {
+  value : String
+} derive(@json.FromJson)
+
+///|
+priv struct NumberedListRequest {
+  value : String
+  start : @common.RequestInt
+} derive(@json.FromJson)
+
+///|
+priv struct TextFormatInput {
+  value : @model.TextFormat
+}
+
+///|
+impl @json.FromJson for TextFormatInput with fn from_json(value, path) {
   guard value is Object(fields) &&
     fields
-    .keys()
-    .all(key => {
+    .iter()
+    .all(pair => {
       [
         "font", "size", "bold", "italic", "color", "underline", "strike", "highlight",
         "script", "spacing",
-      ].contains(key)
+      ].contains(pair.0) &&
+      !(pair.1 is Null)
     }) else {
-    @failure.reject("invalid-operation", "Unknown text format fields")
+    raise @json.JsonDecodeError((path, "Invalid text format fields"))
   }
-  @model.TextFormat::new(
-    font?=if fields.contains("font") {
-      Some(field_string(value, "font"))
-    } else {
-      None
-    },
-    size?=if fields.contains("size") {
-      Some(field_number(value, "size"))
-    } else {
-      None
-    },
-    spacing?=if fields.contains("spacing") {
-      Some(field_number(value, "spacing"))
-    } else {
-      None
-    },
-    bold?=if fields.contains("bold") {
-      Some(field_boolean(value, "bold"))
-    } else {
-      None
-    },
-    italic?=if fields.contains("italic") {
-      Some(field_boolean(value, "italic"))
-    } else {
-      None
-    },
-    color?=if fields.contains("color") {
-      Some(field_string(value, "color"))
-    } else {
-      None
-    },
-    underline?=if fields.contains("underline") {
-      Some(field_boolean(value, "underline"))
-    } else {
-      None
-    },
-    strike?=if fields.contains("strike") {
-      Some(field_boolean(value, "strike"))
-    } else {
-      None
-    },
-    highlight?=if fields.contains("highlight") {
-      Some(field_string(value, "highlight"))
-    } else {
-      None
-    },
-    script?=if fields.contains("script") {
-      Some(field_string(value, "script"))
-    } else {
-      None
-    },
-  )
+  let request : TextFormatRequest = @json.from_json(value, path~)
+  {
+    value: @model.TextFormat::new(
+      font?=request.font,
+      size?=request.size.map(value => value.value),
+      spacing?=request.spacing.map(value => value.value),
+      bold?=request.bold,
+      italic?=request.italic,
+      color?=request.color,
+      underline?=request.underline,
+      strike?=request.strike,
+      highlight?=request.highlight,
+      script?=request.script,
+    ),
+  }
 }
 
 ///|
-fn pptx_text_spacing(value : Json) -> @model.TextSpacing raise @failure.Failure {
+priv struct ParagraphFormatInput {
+  value : @model.ParagraphFormat
+}
+
+///|
+impl @json.FromJson for ParagraphFormatInput with fn from_json(value, path) {
   guard value is Object(fields) &&
-    fields.keys().all(key => ["unit", "value"].contains(key)) else {
-    @failure.reject("invalid-operation", "Unknown paragraph spacing fields")
+    fields
+    .iter()
+    .all(pair => {
+      match pair.0 {
+        "tabs" | "defaultTab" | "listFont" | "listSize" | "listColor" => true
+        "left"
+        | "right"
+        | "first"
+        | "before"
+        | "after"
+        | "line"
+        | "list"
+        | "level"
+        | "rtl" => !(pair.1 is Null)
+        _ => false
+      }
+    }) else {
+    raise @json.JsonDecodeError((path, "Invalid paragraph format fields"))
   }
-  { unit: field_string(value, "unit"), value: field_number(value, "value"), }
+  if fields.get("tabs") is Some(value) && !(value is Null) {
+    guard value is Array(tabs) && tabs.length() <= @model.ParagraphTabCount else {
+      raise @json.JsonDecodeError(
+        (path.add_key("tabs"), "Invalid paragraph tabs"),
+      )
+    }
+    guard tabs.all(tab => tab is Object(fields) && fields.length() == 2) else {
+      raise @json.JsonDecodeError(
+        (path.add_key("tabs"), "Invalid paragraph tab fields"),
+      )
+    }
+  }
+  for key in ["before", "after", "line", "listSize"] {
+    if fields.get(key) is Some(value) && !(value is Null) {
+      guard value is Object(fields) && fields.length() == 2 else {
+        raise @json.JsonDecodeError(
+          (path.add_key(key), "Invalid paragraph spacing fields"),
+        )
+      }
+    }
+  }
+  let request : ParagraphFormatRequest = @json.from_json(value, path~)
+  {
+    value: @model.ParagraphFormat::new(
+      tabs?=request.tabs.map(value => {
+        value.value.map(tabs => {
+          tabs.map(tab => @model.ParagraphTab::{
+            position: tab.position.value,
+            align: tab.align,
+          })
+        })
+      }),
+      default_tab?=request.defaultTab.map(value => {
+        value.value.map(number => number.value)
+      }),
+      rtl?=request.rtl,
+      left?=request.left.map(value => value.value),
+      right?=request.right.map(value => value.value),
+      first?=request.first.map(value => value.value),
+      before?=request.before.map(TextSpacingRequest::spacing),
+      after?=request.after.map(TextSpacingRequest::spacing),
+      line?=request.line.map(TextSpacingRequest::spacing),
+      level?=request.level.map(value => value.value),
+      list?=request.list.map(value => value.value),
+      list_font?=request.listFont.map(value => value.value),
+      list_size?=request.listSize.map(value => {
+        value.value.map(TextSpacingRequest::spacing)
+      }),
+      list_color?=request.listColor.map(value => value.value),
+    ),
+  }
 }
 
 ///|
 fn pptx_paragraph_format(
   value : Json,
 ) -> @model.ParagraphFormat raise @failure.Failure {
-  guard value is Object(fields) &&
-    fields
-    .keys()
-    .all(key => {
-      [
-        "left", "right", "first", "before", "after", "line", "list", "level", "rtl",
-        "listFont", "listSize", "listColor", "tabs", "defaultTab",
-      ].contains(key)
-    }) else {
-    @failure.reject("invalid-operation", "Unknown paragraph format fields")
-  }
-  let number = fn(key) raise @failure.Failure {
-    if fields.contains(key) {
-      Some(field_number(value, key))
-    } else {
-      None
-    }
-  }
-  let spacing = fn(key) raise @failure.Failure {
-    fields.get(key).map(pptx_text_spacing)
-  }
-  @model.ParagraphFormat::new(
-    tabs?=fields
-      .get("tabs")
-      .map(v => {
-        if v is Null {
-          None
-        } else {
-          guard v is Array(tabs) && tabs.length() <= 32 else {
-            @failure.reject("invalid-operation", "Invalid paragraph tabs")
-          }
-          Some(
-            tabs.map(tab => {
-              guard tab is Object(values) &&
-                values.length() == 2 &&
-                values.contains("position") &&
-                values.contains("align") else {
-                @failure.reject(
-                  "invalid-operation", "Invalid paragraph tab fields",
-                )
-              }
-              @model.ParagraphTab::{
-                position: field_number(tab, "position"),
-                align: field_string(tab, "align"),
-              }
-            }),
-          )
-        }
-      }),
-    default_tab?=fields
-      .get("defaultTab")
-      .map(v => {
-        if v is Null {
-          None
-        } else {
-          Some(field_number(value, "defaultTab"))
-        }
-      }),
-    rtl?=if fields.contains("rtl") {
-      Some(field_boolean(value, "rtl"))
-    } else {
-      None
-    },
-    left?=number("left"),
-    right?=number("right"),
-    first?=number("first"),
-    before?=spacing("before"),
-    after?=spacing("after"),
-    line?=spacing("line"),
-    level?=if fields.contains("level") {
-      Some(field_int(value, "level"))
-    } else {
-      None
-    },
-    list?=fields.get("list").map(pptx_list_format),
-    list_font?=fields
-      .get("listFont")
-      .map(v => {
-        if v is Null {
-          None
-        } else {
-          Some(field_string(value, "listFont"))
-        }
-      }),
-    list_size?=fields
-      .get("listSize")
-      .map(v => if v is Null { None } else { Some(pptx_text_spacing(v)) }),
-    list_color?=fields
-      .get("listColor")
-      .map(v => {
-        if v is Null {
-          None
-        } else {
-          Some(field_string(value, "listColor"))
-        }
-      }),
-  )
+  let request : ParagraphFormatInput = @common.request(value)
+  request.value
 }
 
 ///|
-fn pptx_list_format(value : Json) -> @model.ListFormat raise @failure.Failure {
-  guard value is Object(fields) else {
-    @failure.reject("invalid-operation", "List format is required")
-  }
-  let kind = field_string(value, "kind")
-  let keys = match kind {
-    "none" => ["kind"]
-    "bullet" => ["kind", "value"]
-    "number" => ["kind", "value", "start"]
-    _ => []
-  }
-  guard !keys.is_empty() && fields.keys().all(key => keys.contains(key)) else {
-    @failure.reject("invalid-operation", "Unknown list format fields")
-  }
-  match kind {
-    "none" => @model.NoList
-    "bullet" => @model.Bullet(field_string(value, "value"))
-    _ =>
-      @model.Numbered(field_string(value, "value"), field_int(value, "start"))
-  }
+priv struct ListFormatInput {
+  value : @model.ListFormat
 }
+
+///|
+impl @json.FromJson for ListFormatInput with fn from_json(value, path) {
+  guard value is Object(fields) else {
+    raise @json.JsonDecodeError((path, "List format is required"))
+  }
+  guard value is { "kind": String(kind), .. } else {
+    raise @json.JsonDecodeError((path, "List kind is required"))
+  }
+  let value = match kind {
+    "none" if fields.length() == 1 => @model.NoList
+    "bullet" if fields.length() == 2 => {
+      let request : BulletRequest = @json.from_json(value, path~)
+      @model.Bullet(request.value)
+    }
+    "number" if fields.length() == 3 => {
+      let request : NumberedListRequest = @json.from_json(value, path~)
+      @model.Numbered(request.value, request.start.value)
+    }
+    _ => raise @json.JsonDecodeError((path, "Invalid list format fields"))
+  }
+  { value, }
+}
+
+///|
+priv struct GradientStopRequest {
+  position : @common.RequestNumber
+  color : String
+  opacity : @common.RequestNumber
+} derive(@json.FromJson)
+
+///|
+priv struct LinearGradientRequest {
+  angle : @common.RequestNumber
+  scaled : Bool
+} derive(@json.FromJson)
 
 ///|
 fn pptx_gradient_stops(
@@ -233,36 +241,34 @@ fn pptx_gradient_stops(
 ) -> Array[@layout.GradientStop] raise @failure.Failure {
   guard value is { "stops": Array(stops), .. } &&
     stops.length() >= 2 &&
-    stops.length() <= 32 else {
+    stops.length() <= @layout.GradientStopCount else {
     @failure.reject("invalid-operation", "Gradients require 2..32 stops")
   }
   stops.map(stop => {
-    guard stop is Object(fields) &&
-      fields.length() == 3 &&
-      fields.contains("position") &&
-      fields.contains("opacity") &&
-      fields.contains("color") else {
+    guard stop is Object(fields) && fields.length() == 3 else {
       @failure.reject(
         "invalid-operation", "Gradient stops require position, color and opacity",
       )
     }
+    let stop : GradientStopRequest = @common.request(stop)
     {
-      position: field_number(stop, "position"),
-      color: field_string(stop, "color"),
-      opacity: field_number(stop, "opacity"),
+      position: stop.position.value,
+      color: stop.color,
+      opacity: stop.opacity.value,
     }
   })
 }
 
 ///|
-fn pptx_gradient_edit(value : Json) -> @model.ObjectEdit raise @failure.Failure {
-  if field_string(value, "action") == "radialGradientFill" {
+fn pptx_gradient_edit(
+  action : String,
+  value : Json,
+) -> @model.ObjectEdit raise @failure.Failure {
+  if action == "radialGradientFill" {
     @model.RadialGradientFill(pptx_gradient_stops(value))
   } else {
-    @model.GradientFill(
-      pptx_gradient_stops(value),
-      field_number(value, "angle"),
-      field_boolean(value, "scaled"),
-    )
+    let stops = pptx_gradient_stops(value)
+    let gradient : LinearGradientRequest = @common.request(value)
+    @model.GradientFill(stops, gradient.angle.value, gradient.scaled)
   }
 }

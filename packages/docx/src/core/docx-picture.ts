@@ -1,5 +1,4 @@
 import { record, integer } from "@open-document/wasm/abi/validation";
-import { encodeBytes } from "@open-document/wasm/abi/session";
 import { checkDrawingAnchor, type DrawingAnchor } from "./preview.js";
 import type { DocxPosition } from "./docx-hit.js";
 import { isDocxSelection } from "./docx-search.js";
@@ -114,12 +113,6 @@ export function checkDocxDrawingHyperlinkEdit(value: unknown): void {
     throw new Error("Invalid DOCX drawing hyperlink identity");
   checkDocxHyperlink(edit.target);
 }
-export function checkDocxDrawingHyperlink(value: unknown): void {
-  const link = record(value);
-  if (typeof link.reason !== "string" || (link.reason && link.target !== null))
-    throw new Error("Invalid DOCX drawing hyperlink state");
-  checkDocxHyperlink(link.target);
-}
 export function checkDocxDrawingPosition(value: unknown): void {
   const edit = record(value);
   if (edit.action !== "position" || !integer(edit.id, 0, 2147483647))
@@ -133,14 +126,8 @@ export function checkDocxDrawingPosition(value: unknown): void {
     throw new Error("Invalid DOCX drawing anchor target");
 }
 function checkImageBytes(bytes: unknown): void {
-  if (!(bytes instanceof Uint8Array) || !bytes.length || bytes.length > 4194304)
+  if (!(bytes instanceof Uint8Array) || !bytes.length)
     throw new Error("Invalid DOCX image input");
-}
-export function prepareDocxPictureEdit(picture: DocxPictureEdit): unknown {
-  checkDocxPictureEdit(picture);
-  return picture.action === "replace" || picture.action === "insert"
-    ? { ...picture, bytes: encodeBytes(picture.bytes) }
-    : picture;
 }
 export function checkDocxPicture(value: unknown): void {
   const picture = record(value),
@@ -162,40 +149,4 @@ export function checkDocxPicture(value: unknown): void {
     crop[1] + crop[3] >= 1
   )
     throw new Error("Invalid DOCX picture size or crop");
-}
-export function docxPictures(value: unknown): DocxPictures {
-  const result = record(value);
-  if (
-    !Number.isSafeInteger(result.revision) ||
-    Number(result.revision) < 0 ||
-    !Array.isArray(result.images) ||
-    result.images.length > 256
-  )
-    throw new Error("Invalid DOCX picture list");
-  for (const value of result.images) {
-    const image = record(value);
-    if (
-      typeof image.name !== "string" ||
-      typeof image.selected !== "boolean" ||
-      typeof image.reason !== "string" ||
-      typeof image.deleteReason !== "string" ||
-      typeof image.replaceReason !== "string" ||
-      typeof image.positionReason !== "string" ||
-      !Number.isSafeInteger(image.id) ||
-      Number(image.id) < 0
-    )
-      throw new Error("Invalid DOCX picture entry");
-    checkDrawingAnchor(image.anchor);
-    checkDocxDrawingHyperlink(image.hyperlink);
-    if (!image.reason) checkDocxPicture(image);
-    else if (
-      image.width !== 0 ||
-      image.height !== 0 ||
-      !Array.isArray(image.crop) ||
-      image.crop.length !== 4 ||
-      image.crop.some((v: unknown) => v !== 0)
-    )
-      throw new Error("Invalid protected DOCX picture");
-  }
-  return value as DocxPictures;
 }

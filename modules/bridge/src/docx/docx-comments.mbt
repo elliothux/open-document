@@ -1,61 +1,84 @@
 ///|
+priv struct CommentAuthorRequest {
+  text : String
+  author : String
+  initials : String
+  date : String
+} derive(@json.FromJson)
+
+///|
+priv struct CommentIdentityRequest {
+  id : String
+} derive(@json.FromJson)
+
+///|
 fn docx_comment_edit(
-  request : Json,
+  change : Json,
 ) -> @model.CommentEdit raise @failure.Failure {
-  guard request is { "change": Object(fields) as change, .. } else {
+  guard change is Object(fields) else {
     @failure.reject("invalid-operation", "Invalid comment command")
   }
-  let action = field_string(change, "action")
-  let allowed = match action {
-    "add" | "addWord" =>
-      ["action", "text", "author", "initials", "date", "selection"]
-    "reply" => ["action", "id", "text", "author", "initials", "date"]
-    "resolve" => ["action", "id", "done"]
-    "update" => ["action", "id", "text"]
-    "remove" | "goTo" => ["action", "id"]
-    _ => @failure.reject("invalid-operation", "Unknown comment command")
-  }
-  guard fields.length() == allowed.length() &&
-    fields.keys().all(k => allowed.contains(k)) else {
-    @failure.reject("invalid-operation", "Invalid comment fields")
-  }
-  match action {
-    "reply" =>
-      @model.ReplyComment(
-        field_string(change, "id"),
-        field_string(change, "text"),
-        field_string(change, "author"),
-        field_string(change, "initials"),
-        field_string(change, "date"),
-      )
-    "resolve" => {
-      guard fields.get("done") is Some(True | False as done) else {
-        @failure.reject("invalid-operation", "Invalid comment resolved state")
+  match (change, fields.length()) {
+    (
+      {
+        "action": String("add" | "addWord" as action),
+        "selection": selection,
+        ..
+      },
+      6,
+    ) => {
+      let input : CommentAuthorRequest = @common.request(change)
+      let selection : SelectionRequest = @common.request(selection)
+      if action == "add" {
+        @model.AddComment(
+          input.text,
+          input.author,
+          input.initials,
+          input.date,
+          selection.selection(),
+        )
+      } else {
+        @model.AddWordComment(
+          input.text,
+          input.author,
+          input.initials,
+          input.date,
+          selection.selection(),
+        )
       }
-      @model.SetCommentResolved(field_string(change, "id"), done is True)
     }
-    "add" =>
-      @model.AddComment(
-        field_string(change, "text"),
-        field_string(change, "author"),
-        field_string(change, "initials"),
-        field_string(change, "date"),
-        field_selection(change),
+    ({ "action": String("reply"), "id": String(id), .. }, 6) => {
+      let input : CommentAuthorRequest = @common.request(change)
+      @model.ReplyComment(
+        id,
+        input.text,
+        input.author,
+        input.initials,
+        input.date,
       )
-    "addWord" =>
-      @model.AddWordComment(
-        field_string(change, "text"),
-        field_string(change, "author"),
-        field_string(change, "initials"),
-        field_string(change, "date"),
-        field_selection(change),
-      )
-    "update" =>
-      @model.UpdateComment(
-        field_string(change, "id"),
-        field_string(change, "text"),
-      )
-    "goTo" => @model.GoToComment(field_string(change, "id"))
-    _ => @model.RemoveComment(field_string(change, "id"))
+    }
+    (
+      {
+        "action": String("resolve"),
+        "id": String(id),
+        "done": True
+        | False as done,
+        ..
+      },
+      3,
+    ) => @model.SetCommentResolved(id, done is True)
+    (
+      { "action": String("update"), "id": String(id), "text": String(text), .. },
+      3,
+    ) => @model.UpdateComment(id, text)
+    ({ "action": String("goTo" | "remove" as action), .. }, 2) => {
+      let input : CommentIdentityRequest = @common.request(change)
+      if action == "goTo" {
+        @model.GoToComment(input.id)
+      } else {
+        @model.RemoveComment(input.id)
+      }
+    }
+    _ => @failure.reject("invalid-operation", "Invalid comment fields")
   }
 }

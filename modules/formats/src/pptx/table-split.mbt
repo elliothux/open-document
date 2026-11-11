@@ -213,10 +213,10 @@ fn Session::split_table_cell(
   profile : Map[String, String],
 ) -> Json raise @failure.Failure {
   guard rows >= 1 &&
-    rows <= 1000 &&
+    rows <= TableRowCount &&
     columns >= 1 &&
-    columns <= 63 &&
-    rows.to_int64() * columns.to_int64() <= 4096 else {
+    columns <= TableColumnCount &&
+    rows.to_int64() * columns.to_int64() <= TableCellCount.to_int64() else {
     @failure.reject("invalid-operation", "Invalid split cell dimensions")
   }
   guard self.selection.objects.length() == 1 else {
@@ -266,7 +266,9 @@ fn Session::split_table_cell(
   let y = refined_table_grid(old_y, cuts_y)
   let nr = y.length() - 1
   let nc = x.length() - 1
-  guard nr <= 1000 && nc <= 63 && nr.to_int64() * nc.to_int64() <= 4096 else {
+  guard nr <= TableRowCount &&
+    nc <= TableColumnCount &&
+    nr.to_int64() * nc.to_int64() <= TableCellCount.to_int64() else {
     @failure.reject(
       "limit-exceeded", "Split table exceeds row column or cell budget",
     )

@@ -1,4 +1,7 @@
 ///|
+pub const FieldWidgetCount : Int32 = 4096
+
+///|
 priv struct FormField {
   number : Int32
   id : String
@@ -38,7 +41,8 @@ fn PdfSession::fields(
       ) {
       if reference is PdfIndirect(id) &&
         is_name(raw(resolve(document, reference), "Subtype"), "Widget") {
-        guard !page_widgets.contains(id) && page_widgets.length() < 4096 else {
+        guard !page_widgets.contains(id) &&
+          page_widgets.length() < FieldWidgetCount else {
           @failure.reject("invalid-pdf", "Duplicate or excessive PDF widget")
         }
         page_widgets[id] = page.id
@@ -90,7 +94,7 @@ fn PdfSession::fields(
       (if prefix.is_empty() { "" } else { prefix + "." }) +
       pdf_text_string(partial)
     }
-    guard name.length() <= 32767 else {
+    guard name.length() <= TextUnits else {
       @failure.reject("limit-exceeded", "PDF field name exceeds budget")
     }
     let kids = get(document, object, "Kids")
@@ -174,7 +178,7 @@ fn PdfSession::fields(
       (kind == "text" && (flags & (8192 | 1048576 | 16777216 | 33554432)) != 0) {
       reason = "Unsupported PDF field type or flags"
     }
-    let max_length = attributes.get("MaxLen").map(integer).unwrap_or(32767)
+    let max_length = attributes.get("MaxLen").map(integer).unwrap_or(TextUnits)
     guard max_length >= 0 else {
       @failure.reject("invalid-pdf", "Negative PDF field MaxLen")
     }
@@ -297,7 +301,7 @@ fn PdfSession::fields(
         base_reason
       },
       multiline,
-      maxLength: max_length.min(32767),
+      maxLength: max_length.min(TextUnits),
       onState: on_state,
       options,
       exportStates,
@@ -317,24 +321,47 @@ fn PdfSession::fields(
 }
 
 ///|
-fn field_json(field : FormField) -> Json raise @failure.Failure {
+priv struct PdfQueryFieldOption {
+  value : String
+  label : String
+} derive(ToJson)
+
+///|
+priv struct PdfQueryFieldWidget {
+  id : String
+  page : String
+} derive(ToJson)
+
+///|
+priv struct PdfQueryField {
+  id : String
+  name : String
+  kind : String
+  value : Json
+  readOnlyReason : String
+  multiline : Bool
+  maxLength : Int32
+  options : Array[PdfQueryFieldOption]
+  multiSelect : Bool
+  widgets : Array[PdfQueryFieldWidget]
+} derive(ToJson)
+
+///|
+fn field_query(field : FormField) -> PdfQueryField raise @failure.Failure {
   {
-    "id": field.id,
-    "name": field.name,
-    "kind": field.kind,
-    "value": field.value,
-    "readOnlyReason": field.reason,
-    "multiline": field.multiline,
-    "maxLength": field.maxLength,
-    "options": field.options.map(option => {
-      "value": option.0,
-      "label": option.1,
-    }),
-    "multiSelect": field.kind == "list" &&
+    id: field.id,
+    name: field.name,
+    kind: field.kind,
+    value: field.value,
+    readOnlyReason: field.reason,
+    multiline: field.multiline,
+    maxLength: field.maxLength,
+    options: field.options.map(option => { value: option.0, label: option.1, }),
+    multiSelect: field.kind == "list" &&
     (field.attributes.get("Ff").map(integer).unwrap_or(0) & 2097152) != 0,
-    "widgets": field.widgets.map(widget => {
-      "id": widget.0.to_string(),
-      "page": widget.1,
+    widgets: field.widgets.map(widget => {
+      id: widget.0.to_string(),
+      page: widget.1,
     }),
   }
 }

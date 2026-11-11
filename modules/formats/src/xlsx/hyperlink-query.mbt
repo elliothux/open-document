@@ -37,8 +37,8 @@ fn check_hyperlink_target(target : String) -> Unit raise @failure.Failure {
 ///|
 fn hyperlink_nodes(tree : Tree) -> Array[@xml.Node] raise @failure.Failure {
   for n in tree.document.nodes() {
-    guard !["hyperlinks", "hyperlink"].contains(n.name) ||
-      n.uri == spreadsheet_uri else {
+    guard n.uri == spreadsheet_uri ||
+      (n.name != "hyperlinks" && n.name != "hyperlink") else {
       @failure.reject(
         "protected-content", "Extended hyperlinks require editing support",
       )
@@ -137,8 +137,8 @@ fn Session::hyperlink_at(
   self : Session,
   sheet : Sheet,
   target : Range,
+  tree~ : Tree = Tree::new(sheet.document),
 ) -> (String?, Bool) raise @failure.Failure {
-  let tree = Tree::new(sheet.document)
   let links = self.hyperlink_relations(sheet.id)
   let nodes = hyperlink_nodes(tree)
   let anchor : Address = { row: target.top, column: target.left, }
@@ -305,9 +305,10 @@ fn Session::hyperlink_query(
   self : Session,
   sheet : Sheet,
   range : Range,
-) -> Json {
+  tree : Tree,
+) -> QueryHyperlink {
   let (target, mixed, reason) = try {
-    let (target, mixed) = self.hyperlink_at(sheet, range)
+    let (target, mixed) = self.hyperlink_at(sheet, range, tree~)
     (target, mixed, self.hyperlink_reason(sheet, range))
   } catch {
     @failure.Failure(message~, ..) => (None, true, message)
@@ -329,9 +330,9 @@ fn Session::hyperlink_query(
     ""
   }
   {
-    "target": target.map(t => Json(t)).unwrap_or(Json::null()),
-    "mixed": mixed,
-    "readOnlyReason": reason,
-    "navigationReason": navigation_reason,
+    target: { value: target, },
+    mixed,
+    readOnlyReason: reason,
+    navigationReason: navigation_reason,
   }
 }

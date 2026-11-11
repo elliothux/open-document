@@ -17,7 +17,7 @@
 
 ## API 与生命周期
 
-实际签名、草稿规则和资源所有权归[格式合同](../references/formats.md#默认-ui-与编辑宿主)，可运行普通 JS 示例与构建命令归[开发说明](../references/development.md#默认-web-ui)。
+实际签名、草稿规则和资源所有权归[格式合同](../references/formats/shared.md#默认-ui-与编辑宿主)，可运行普通 JS 示例与构建命令归[开发说明](../references/development.md#默认-web-ui)。
 
 - 返回值按 `format` 区分当前只读 `editor` 属性，提供同格式 `open`、`save`、`close`、`dispose` 和跨替换保持的状态订阅。
 - 输出携带 `documentId/revision/format/bytes`。宿主保存回调成功才确认原格式基线，后续编辑仍未保存；下载只记录生成，PDF 不清除 Office 修改。

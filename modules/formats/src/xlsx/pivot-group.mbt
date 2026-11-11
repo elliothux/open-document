@@ -140,7 +140,7 @@ fn pivot_number_bounds(
   guard start < end &&
     !end.is_inf() &&
     !(end - start).is_inf() &&
-    ((end - start) / interval).ceil() <= 4094 &&
+    ((end - start) / interval).ceil() <= (PivotMembers - 2).to_double() &&
     !(start + interval).is_inf() &&
     pivot_group_compare(start + interval, start) > 0 else {
     @failure.reject(

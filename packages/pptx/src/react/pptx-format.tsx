@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { pptxParagraphTabCount } from "@open-document/wasm/engine-source";
 import type { PresentationEditor } from "../web/presentation-editor.js";
 import type {
   PptxTextFormat,
@@ -447,7 +448,7 @@ export function PptxTabs({
           <button
             type="button"
             disabled={
-              draft.length >= 32 ||
+              draft.length >= pptxParagraphTabCount ||
               draft.some(
                 (tab) => !Number.isFinite(tab.position) || tab.position >= 1584,
               )

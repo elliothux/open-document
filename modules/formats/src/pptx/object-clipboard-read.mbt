@@ -1,4 +1,7 @@
 ///|
+pub const ObjectFragmentUnits : Int32 = 100663296
+
+///|
 priv struct ObjectFragment {
   tree : Tree
   selection : Array[String]
@@ -44,7 +47,7 @@ fn read_object_fragment(
   value : String,
   budget : @archive.Budget,
 ) -> ObjectFragment raise @failure.Failure {
-  guard value.length() <= 100663296 else {
+  guard value.length() <= ObjectFragmentUnits else {
     @failure.reject("limit-exceeded", "Object clipboard exceeds 96Mi units")
   }
   let data = @json.parse(value) catch {

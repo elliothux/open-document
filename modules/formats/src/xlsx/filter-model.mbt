@@ -1,8 +1,26 @@
 ///|
+pub const FilterColumns : Int32 = 256
+
+///|
+pub const FilterEntries : Int32 = 4096
+
+///|
+pub const FilterLabelUnits : Int32 = 32767
+
+///|
+pub const FilterTextUnits : Int32 = 1048576
+
+///|
 pub(all) struct FilterCondition {
   operator : String
   value : String
-} derive(Eq)
+} derive(Eq, ToJson, @json.FromJson)
+
+///|
+pub extend FilterCondition with ToJson::{to_json}
+
+///|
+pub extend FilterCondition with @json.FromJson::{from_json}
 
 ///|
 pub(all) enum FilterRule {
@@ -66,7 +84,7 @@ fn filter_rows(
     if token.is_empty() {
       continue
     }
-    let row = natural(token.to_owned(), 1048576)
+    let row = natural(token.to_owned(), WorksheetRows)
     guard row > range.top &&
       row <= range.bottom &&
       !result.contains(row) &&
@@ -88,7 +106,7 @@ fn filter_settings(settings : FilterSettings) -> Range raise @failure.Failure {
     (range.bottom - range.top + 1).to_int64() *
     (range.right - range.left + 1).to_int64() <=
     4096 &&
-    settings.columns.length() <= 256 else {
+    settings.columns.length() <= FilterColumns else {
     @failure.reject(
       "limit-exceeded", "Filters require a header and at most 4096 cells and 256 columns",
     )
@@ -134,7 +152,8 @@ fn filter_settings(settings : FilterSettings) -> Range raise @failure.Failure {
         []
       }
       Dates(groups, values~, ..) => {
-        guard !groups.is_empty() && groups.length() + values.length() <= 4096 else {
+        guard !groups.is_empty() &&
+          groups.length() + values.length() <= FilterEntries else {
           @failure.reject(
             "invalid-operation", "Date filters require 1..4096 groups and at most 4096 combined entries",
           )
@@ -148,7 +167,7 @@ fn filter_settings(settings : FilterSettings) -> Range raise @failure.Failure {
           units += group.length()
           seen[group] = true
         }
-        guard units <= 1048576 else {
+        guard units <= FilterTextUnits else {
           @failure.reject(
             "limit-exceeded", "Date filter groups exceed text budget",
           )
@@ -164,7 +183,7 @@ fn filter_settings(settings : FilterSettings) -> Range raise @failure.Failure {
         []
       }
       Values(values, ..) => {
-        guard values.length() <= 4096 else {
+        guard values.length() <= FilterEntries else {
           @failure.reject("invalid-operation", "Too many filter labels")
         }
         values
@@ -184,13 +203,13 @@ fn filter_settings(settings : FilterSettings) -> Range raise @failure.Failure {
     let seen_labels : Map[String, Bool] = Map([])
     for value in labels {
       units += value.length()
-      guard value.length() <= 32767 &&
+      guard value.length() <= FilterLabelUnits &&
         @xml.valid_text(value) &&
         (
           !(column.rule is Values(_, ..) || column.rule is Dates(_, ..)) ||
           !seen_labels.contains(value)
         ) &&
-        units <= 1048576 else {
+        units <= FilterTextUnits else {
         @failure.reject(
           "invalid-operation", "Invalid filter values or text budget",
         )
@@ -213,8 +232,10 @@ fn filter_attributes(
 }
 
 ///|
-fn read_filter(sheet : Sheet) -> AutoFilterState? raise @failure.Failure {
-  let tree = Tree::new(sheet.document)
+fn read_filter(
+  sheet : Sheet,
+  tree~ : Tree = Tree::new(sheet.document),
+) -> AutoFilterState? raise @failure.Failure {
   guard tree.one(tree.sheet_root().id, "autoFilter") is Some(root) else {
     return None
   }
@@ -262,7 +283,7 @@ fn read_filter_node(
     if node.name == "filterColumn" {
       filter_attributes(node, ["colId", "hiddenButton", "showButton"])
       let column = range.left +
-        natural(node.attribute("colId").unwrap_or(""), 16383)
+        natural(node.attribute("colId").unwrap_or(""), WorksheetColumns - 1)
       guard column <= range.right &&
         !flags.contains(column) &&
         flags.length() < 256 else {
@@ -450,7 +471,7 @@ fn read_filter_node(
       }
       filter_attributes(filters, ["blank"])
       let entries = tree.children.get(filters.id).unwrap_or([])
-      guard entries.length() <= 4096 else {
+      guard entries.length() <= FilterEntries else {
         @failure.reject("limit-exceeded", "Too many filter values")
       }
       let groups : Array[String] = []

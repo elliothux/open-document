@@ -1,4 +1,8 @@
 import { record } from "@open-document/wasm/abi/validation";
+import {
+  pptxSearchMatchLimit,
+  pptxTextFrameUnits,
+} from "@open-document/wasm/engine-source";
 
 export interface PptxFindOptions {
   matchCase?: boolean;
@@ -68,7 +72,7 @@ function integer(value: unknown, maximum = 2147483647): boolean {
 function text(value: unknown): boolean {
   return (
     typeof value === "string" &&
-    value.length <= 32767 &&
+    value.length <= pptxTextFrameUnits &&
     value.isWellFormed() &&
     !Array.from(value).some((c) => {
       const code = c.charCodeAt(0);
@@ -96,35 +100,9 @@ export function preparePptxSearch(
     command.operation === "replacePptxMatches" &&
     (!text(command.replacement) ||
       command.replacement.includes("\r") ||
-      (command.index !== undefined && !integer(command.index, 999)))
+      (command.index !== undefined &&
+        !integer(command.index, pptxSearchMatchLimit - 1)))
   )
     throw new Error("Invalid presentation replacement input");
   return { ...command, options: pptxFindOptions(command.options) };
-}
-export function pptxSearchResult(value: unknown): PptxSearchResult {
-  const result = record(value);
-  if (
-    !integer(result.revision) ||
-    typeof result.truncated !== "boolean" ||
-    !Array.isArray(result.matches) ||
-    result.matches.length > 1000 ||
-    !result.matches.every((value: unknown) => {
-      const item = record(value);
-      return (
-        typeof item.slide === "string" &&
-        item.slide.length <= 4096 &&
-        typeof item.object === "string" &&
-        item.object.length <= 1024 &&
-        integer(item.anchor, 32767) &&
-        integer(item.focus, 32767) &&
-        Number(item.anchor) < Number(item.focus) &&
-        typeof item.hidden === "boolean" &&
-        typeof item.snippet === "string" &&
-        item.snippet.length <= 80 &&
-        typeof item.reason === "string"
-      );
-    })
-  )
-    throw new Error("Invalid presentation search result");
-  return value as PptxSearchResult;
 }

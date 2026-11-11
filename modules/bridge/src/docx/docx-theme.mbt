@@ -1,4 +1,17 @@
 ///|
+priv struct ThemeFontRequest {
+  kind : String
+  script : String
+  font : String
+} derive(@json.FromJson)
+
+///|
+priv struct ThemeFontsRequest {
+  revision : @common.RequestInt
+  profile : @common.RequestProfile
+} derive(@json.FromJson)
+
+///|
 fn Context::docx_theme_fonts(
   self : Context,
   session : @model.Session,
@@ -10,27 +23,23 @@ fn Context::docx_theme_fonts(
     @failure.reject("invalid-operation", "Invalid DOCX theme font changes")
   }
   let changes = fonts.map(font => {
-    guard font is Object(fields) &&
-      fields.length() == 3 &&
-      fields.keys().all(key => ["kind", "script", "font"].contains(key)) else {
+    guard font is Object(fields) && fields.length() == 3 else {
       @failure.reject("invalid-operation", "Invalid DOCX theme font change")
     }
+    let font : ThemeFontRequest = @common.request(font)
     @model.ThemeFontEdit::{
-      kind: field_string(font, "kind"),
-      script: field_string(font, "script"),
-      font: field_string(font, "font"),
+      kind: font.kind,
+      script: font.script,
+      font: font.font,
     }
   })
-  let revision = field_int(request, "revision")
+  let command : ThemeFontsRequest = @common.request(request)
+  let revision = command.revision.value
   let result = session.set_theme_fonts(
     revision,
     changes,
     self.probe,
-    font_profile(request),
+    command.profile.value,
   )
-  if result is { "revision": Number(current, ..), .. } &&
-    current != revision.to_double() {
-    self.layout = None
-  }
-  result
+  self.clear_edit_layout(result, previous=revision)
 }

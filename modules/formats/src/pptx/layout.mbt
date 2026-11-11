@@ -670,7 +670,7 @@ pub fn Session::layout(
     "id": self.sequence,
     "revision": self.revision,
     "slide": slide.tree.part,
-    "regions": document.drawing(images),
+    "regions": document.drawing(images, glyph_raster=FractionalGlyphs),
     "outlines": probe.outline_resources(),
     "images": resources,
     "diagnostics": diagnostics,

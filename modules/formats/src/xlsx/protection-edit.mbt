@@ -1,10 +1,14 @@
 ///|
-fn Session::protection_reason(self : Session, sheet : Sheet) -> String {
+fn Session::protection_reason(
+  self : Session,
+  sheet : Sheet,
+  tree? : Tree,
+) -> String {
   if !self.read_only.is_empty() {
     return self.read_only
   }
   try {
-    let tree = Tree::new(sheet.document)
+    let tree = tree.unwrap_or_else(() => Tree::new(sheet.document))
     let root = tree.root("worksheet")
     let reason = sheet_protection_reason(tree, root.id, selection=false)
     guard reason.is_empty() else { return reason }
@@ -39,19 +43,19 @@ fn Session::protection_reason(self : Session, sheet : Sheet) -> String {
 fn Session::protection_query(
   self : Session,
   sheet : Sheet,
-) -> Json raise @failure.Failure {
-  let tree = Tree::new(sheet.document)
+  tree : Tree,
+) -> QueryProtection raise @failure.Failure {
   let node = tree.one(tree.sheet_root().id, "sheetProtection")
   {
-    "protected": sheet.locked,
-    "passwordRequired": node
+    locked: sheet.locked,
+    passwordRequired: node
     .map(n => {
       ["password", "hashValue", "algorithmName", "saltValue", "spinCount"].any(key => {
         n.attribute(key) is Some(_)
       })
     })
     .unwrap_or(false),
-    "reason": self.protection_reason(sheet),
+    reason: self.protection_reason(sheet, tree~),
   }
 }
 

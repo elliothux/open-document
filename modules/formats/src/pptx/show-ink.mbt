@@ -1,4 +1,10 @@
 ///|
+pub const ShowInkBatchPoints : Int32 = 64
+
+///|
+pub const ShowInkStrokePoints : Int32 = 4096
+
+///|
 pub(all) enum ShowInkChange {
   BeginInk(String, Double, Array[(Double, Double)])
   AppendInk(Array[(Double, Double)])
@@ -29,7 +35,7 @@ pub fn Session::ink_show(
     BeginInk(_, _, points) | AppendInk(points) | FinishInk(points) => points
     _ => []
   }
-  guard points.length() <= 64 &&
+  guard points.length() <= ShowInkBatchPoints &&
     points.all(point => {
       let (x, y) = point
       !x.is_nan() &&
@@ -42,7 +48,8 @@ pub fn Session::ink_show(
       y <= self.height
     }) else {
     @failure.reject(
-      "invalid-operation", "Ink requires at most 64 points inside the slide",
+      "invalid-operation",
+      "Ink requires at most \{ShowInkBatchPoints} points inside the slide",
     )
   }
   let next = match change {
@@ -91,7 +98,7 @@ pub fn Session::ink_show(
         }
       }
       guard show.ink_strokes < 256 &&
-        stroke.points.length() <= 4096 &&
+        stroke.points.length() <= ShowInkStrokePoints &&
         show.ink_points <= 32768 - stroke.points.length() else {
         @failure.reject(
           "limit-exceeded", "Slideshow ink exceeds stroke or point budget",

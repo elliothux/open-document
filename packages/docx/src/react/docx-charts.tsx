@@ -35,7 +35,7 @@ export function DocxCharts({
     }
   };
   const load = async () => {
-    const value = await editor.charts();
+    const value = await editor.objects.charts();
     setCatalog(value);
     choose(
       value.items.find((item) => item.selected) ??
@@ -58,7 +58,7 @@ export function DocxCharts({
     let active = true;
     controller.run(async () => {
       try {
-        const value = await editor.charts(),
+        const value = await editor.objects.charts(),
           selected = value.items.find((item) => item.selected);
         if (active && selected) {
           setCatalog(value);
@@ -146,7 +146,7 @@ export function DocxCharts({
           disabled={insertDisabled || invalid}
           onClick={() =>
             controller.run(async () => {
-              await editor.insertChart({ ...draft, width, height });
+              await editor.objects.insertChart({ ...draft, width, height });
               await load();
               editor.focus();
             })
@@ -167,7 +167,11 @@ export function DocxCharts({
           onClick={() =>
             controller.run(async () => {
               if (!catalog || id === undefined) return;
-              await editor.editChart(catalog, id, { ...draft, width, height });
+              await editor.objects.editChart(catalog, id, {
+                ...draft,
+                width,
+                height,
+              });
               await load();
             })
           }
@@ -180,7 +184,7 @@ export function DocxCharts({
           onClick={() =>
             controller.run(async () => {
               if (!catalog || id === undefined) return;
-              await editor.editChart(catalog, id, {
+              await editor.objects.editChart(catalog, id, {
                 action: "resize",
                 width,
                 height,
@@ -197,7 +201,7 @@ export function DocxCharts({
           onClick={() =>
             controller.run(async () => {
               if (!catalog || id === undefined) return;
-              await editor.editChart(catalog, id, null);
+              await editor.objects.editChart(catalog, id, null);
               await load();
             })
           }
@@ -220,7 +224,7 @@ export function DocxCharts({
             disabled={disabled || stale}
             apply={async (anchor) => {
               if (!catalog) return;
-              await editor.editChart(catalog, current.id, {
+              await editor.objects.editChart(catalog, current.id, {
                 action: "position",
                 anchor,
               });

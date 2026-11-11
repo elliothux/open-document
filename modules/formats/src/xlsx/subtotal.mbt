@@ -1,4 +1,7 @@
 ///|
+pub const SubtotalCells : Int32 = 4096
+
+///|
 pub(all) struct SubtotalSettings {
   range : String
   groupColumn : Int32
@@ -48,7 +51,7 @@ fn Session::subtotal_plan(
   }
   guard (requested.bottom - requested.top + 1).to_int64() *
     (requested.right - requested.left + 1).to_int64() <=
-    4096L else {
+    SubtotalCells.to_int64() else {
     @failure.reject("limit-exceeded", "Subtotal source exceeds 4096 cells")
   }
   let index = self.sheet_index(sheet)
@@ -129,10 +132,10 @@ fn Session::subtotal_plan(
   }
   groups.push({ label, first, last: source.bottom, total: source.bottom + 1, })
   let target = { ..source, bottom: source.bottom + groups.length() + 1, }
-  guard target.bottom <= 1048576 &&
+  guard target.bottom <= WorksheetRows &&
     (target.bottom - target.top + 1).to_int64() *
     (target.right - target.left + 1).to_int64() <=
-    4096L else {
+    SubtotalCells.to_int64() else {
     @failure.reject(
       "limit-exceeded", "Subtotal result exceeds worksheet or 4096-cell bounds",
     )
@@ -358,6 +361,28 @@ fn Session::subtotal_plan(
 }
 
 ///|
+priv struct SubtotalPreviewGroup {
+  label : String
+  firstRow : Int32
+  lastRow : Int32
+  totalRow : Int32
+} derive(ToJson)
+
+///|
+priv struct SubtotalPreview {
+  revision : Int32
+  sheet : String
+  range : String
+  groupColumn : Int32
+  valueColumn : Int32
+  operation : String
+  resultRange : String
+  grandTotalRow : Int32
+  groups : Array[SubtotalPreviewGroup]
+  preview : Array[Array[String]]
+} derive(ToJson)
+
+///|
 /// Previews adjacent-group subtotal rows, a grand total and outlines without changing source.
 pub fn Session::subtotals(
   self : Session,
@@ -367,26 +392,24 @@ pub fn Session::subtotals(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let plan = self.subtotal_plan(sheet, settings)
-  {
-    "revision": revision,
-    "sheet": sheet,
-    "range": settings.range,
-    "groupColumn": settings.groupColumn,
-    "valueColumn": settings.valueColumn,
-    "operation": settings.operation,
-    "resultRange": plan.target.name(),
-    "grandTotalRow": plan.target.bottom,
-    "groups": plan.groups.map(group => {
-      (
-        {
-          "label": group.label,
-          "firstRow": group.first,
-          "lastRow": group.last,
-          "totalRow": group.total,
-        } : Json)
+  let preview : SubtotalPreview = {
+    revision,
+    sheet,
+    range: settings.range,
+    groupColumn: settings.groupColumn,
+    valueColumn: settings.valueColumn,
+    operation: settings.operation,
+    resultRange: plan.target.name(),
+    grandTotalRow: plan.target.bottom,
+    groups: plan.groups.map(group => {
+      label: group.label,
+      firstRow: group.first,
+      lastRow: group.last,
+      totalRow: group.total,
     }),
-    "preview": plan.preview,
+    preview: plan.preview,
   }
+  ToJson::to_json(preview)
 }
 
 ///|

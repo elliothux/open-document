@@ -4,7 +4,7 @@
 
 MoonBit/WASM 输出定位后的绘制指令，平台 Renderer 执行绘制。内容与交互覆盖层独立更新。内部布局继续负责命中、选区和 PDF，宿主保留输入顺序、资源接入与生命周期。
 
-[P4 DOCX 编辑](p4-docx-editing.md)是首个接入场景。当前支持的正文、单个表格单元格编辑及文字、表格、内联图片沿此路径呈现。核心/宿主职责归 [SDK 合同](../references/sdk.md)，实际 API 与边界归[格式合同](../references/formats.md#通用绘制输出)，执行方法归[测试说明](../references/testing.md)。
+[P4 DOCX 编辑](p4-docx-editing.md)是首个接入场景。当前支持的正文、单个表格单元格编辑及文字、表格、内联图片沿此路径呈现。核心/宿主职责归 [SDK 合同](../references/sdk.md)，实际 API 与边界归[格式合同](../references/formats/shared.md#通用绘制输出)，执行方法归[测试说明](../references/testing.md)。
 
 ## 通用合同
 
@@ -96,7 +96,7 @@ Chromium 的 17 项现有功能用例分次通过，覆盖点击/拖选、空白
 
 ## P5 接入
 
-[P5](p5-xlsx-editing.md)已将绘制批次统一为 `regions` / `drawRegion`，抽出共用 `CanvasSurface`。DOCX 保留图片准备和分页语义，XLSX 提供核心网格语义。PDF writer 消费两种格式共有的 `PositionedDocument`，包含定位文字、glyph/Unicode、图形与页面；表格打印独立于屏幕视口。当前合同见[格式说明](../references/formats.md#通用绘制输出)。
+[P5](p5-xlsx-editing.md)已将绘制批次统一为 `regions` / `drawRegion`，抽出共用 `CanvasSurface`。DOCX 保留图片准备和分页语义，XLSX 提供核心网格语义。PDF writer 消费两种格式共有的 `PositionedDocument`，包含定位文字、glyph/Unicode、图形与页面；表格打印独立于屏幕视口。当前合同见[格式说明](../references/formats/shared.md#通用绘制输出)。
 
 ## P6 接入
 

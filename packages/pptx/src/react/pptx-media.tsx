@@ -2,8 +2,11 @@ import type { PresentationEditor } from "../web/presentation-editor.js";
 import { preparePresentationMedia } from "../web/pptx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { pptxMediaVolumeMax } from "@open-document/wasm/engine-source";
 import { useEffect, useRef, useState } from "react";
 import type { PptxMediaPlayback } from "../web/pptx.js";
+
+const volumeUnitsPerPercent = pptxMediaVolumeMax / 100;
 
 export function PptxMedia({
   controller,
@@ -65,10 +68,14 @@ export function PptxMedia({
               selection = JSON.stringify(editor.query.selection),
               signal = events.current?.signal;
             controller.run(async () => {
-              if (!file.size || file.size > 16777216)
+              if (!file.size || file.size > editor.inputLimits.mediaBytes)
                 throw new Error(t.mediaInputLimit);
               const bytes = new Uint8Array(await file.arrayBuffer());
-              const prepared = await preparePresentationMedia(bytes, signal);
+              const prepared = await preparePresentationMedia(
+                bytes,
+                editor.inputLimits,
+                signal,
+              );
               if (
                 editor.query.revision !== revision ||
                 editor.query.slide !== slide ||
@@ -149,12 +156,14 @@ function MediaPlayback({
           required
           min={0}
           max={100}
-          step={0.001}
-          value={draft.volume / 1000}
+          step={1 / volumeUnitsPerPercent}
+          value={draft.volume / volumeUnitsPerPercent}
           onChange={(event) =>
             setDraft({
               ...draft,
-              volume: Math.round(event.currentTarget.valueAsNumber * 1000),
+              volume: Math.round(
+                event.currentTarget.valueAsNumber * volumeUnitsPerPercent,
+              ),
             })
           }
         />

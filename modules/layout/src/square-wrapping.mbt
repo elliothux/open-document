@@ -149,6 +149,7 @@ fn merged_fragments(
     textHeight: ascent + text_descent,
     textAscent: ascent,
     baseline,
+    grid: first.grid,
     line: {
       ..first.line,
       text: fragments.map(item => item.line.text).join(""),

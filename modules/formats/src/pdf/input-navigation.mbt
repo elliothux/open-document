@@ -1,6 +1,52 @@
 ///|
-fn navigation_blocked(reason : String) -> Json {
-  { "kind": "blocked", "page": "", "uri": "", "reason": reason }
+pub struct PdfNavigationTarget {
+  kind : String
+  page : String
+  uri : String
+  reason : String
+} derive(ToJson)
+
+///|
+pub extend PdfNavigationTarget with ToJson::{to_json}
+
+///|
+pub struct PdfOutlineEntry {
+  id : String
+  title : String
+  level : Int32
+  target : PdfNavigationTarget
+} derive(ToJson)
+
+///|
+pub extend PdfOutlineEntry with ToJson::{to_json}
+
+///|
+pub struct PdfNavigationLink {
+  id : String
+  page : String
+  x : Double
+  y : Double
+  width : Double
+  height : Double
+  target : PdfNavigationTarget
+} derive(ToJson)
+
+///|
+pub extend PdfNavigationLink with ToJson::{to_json}
+
+///|
+pub struct PdfNavigation {
+  revision : Int32
+  outlines : Array[PdfOutlineEntry]
+  links : Array[PdfNavigationLink]
+} derive(ToJson)
+
+///|
+pub extend PdfNavigation with ToJson::{to_json}
+
+///|
+fn navigation_blocked(reason : String) -> PdfNavigationTarget {
+  { kind: "blocked", page: "", uri: "", reason, }
 }
 
 ///|
@@ -38,7 +84,7 @@ fn PdfSession::named_destination(
 fn PdfSession::navigation_target(
   self : PdfSession,
   object : @syntax.PdfObject,
-) -> Json raise {
+) -> PdfNavigationTarget raise {
   let action = get(self.document, object, "A")
   let mut destination = raw(object, "Dest")
   if action != @syntax.PdfNull {
@@ -57,7 +103,7 @@ fn PdfSession::navigation_target(
           c.to_int() != 127 &&
           c != '\\'
         }) {
-        return { "kind": "uri", "page": "", "uri": uri, "reason": "" }
+        return { kind: "uri", page: "", uri, reason: "", }
       }
       return navigation_blocked("Unsafe or unsupported PDF URI")
     }
@@ -95,7 +141,7 @@ fn PdfSession::navigation_target(
     for index, page in self.pages {
       if target == @syntax.PdfIndirect(page.number) ||
         target == @syntax.PdfInteger(index) {
-        return { "kind": "page", "page": page.id, "uri": "", "reason": "" }
+        return { kind: "page", page: page.id, uri: "", reason: "", }
       }
     }
   }
@@ -103,11 +149,13 @@ fn PdfSession::navigation_target(
 }
 
 ///|
-pub fn PdfSession::navigation(self : PdfSession) -> Json raise @failure.Failure {
+pub fn PdfSession::navigation(
+  self : PdfSession,
+) -> PdfNavigation raise @failure.Failure {
   self.check(self.revision)
   pdf_bound(self.budget, () => {
-    let outlines : Array[Json] = []
-    let links : Array[Json] = []
+    let outlines : Array[PdfOutlineEntry] = []
+    let links : Array[PdfNavigationLink] = []
     let seen : Map[Int32, Bool] = Map([])
     fn walk(reference : @syntax.PdfObject, level : Int32) -> Unit raise {
       @pdfcore.sdk_depth(level)
@@ -125,10 +173,10 @@ pub fn PdfSession::navigation(self : PdfSession) -> Json raise @failure.Failure 
         let title = pdf_text_string(get(self.document, object, "Title"))
         check_pdf_text(title)
         outlines.push({
-          "id": "\{id}",
-          "title": title,
-          "level": level,
-          "target": self.navigation_target(object),
+          id: "\{id}",
+          title,
+          level,
+          target: self.navigation_target(object),
         })
         walk(raw(object, "First"), level + 1)
         current = raw(object, "Next")
@@ -156,16 +204,16 @@ pub fn PdfSession::navigation(self : PdfSession) -> Json raise @failure.Failure 
         let (a, b) = page.matrix.point(x, y)
         let (c, d) = page.matrix.point(r, t)
         links.push({
-          "id": "\{page.id}:\{index}",
-          "page": page.id,
-          "x": a.min(c),
-          "y": b.min(d),
-          "width": (c - a).abs(),
-          "height": (d - b).abs(),
-          "target": self.navigation_target(object),
+          id: "\{page.id}:\{index}",
+          page: page.id,
+          x: a.min(c),
+          y: b.min(d),
+          width: (c - a).abs(),
+          height: (d - b).abs(),
+          target: self.navigation_target(object),
         })
       }
     }
-    { "revision": self.revision, "outlines": outlines, "links": links }
+    { revision: self.revision, outlines, links, }
   })
 }

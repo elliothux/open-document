@@ -8,7 +8,7 @@ priv struct Geometry {
   flip_x : Bool
   flip_y : Bool
   matrix : @layout.Matrix
-}
+} derive(ToJson(fields(flip_x(rename="flipX"), flip_y(rename="flipY"))))
 
 ///|
 priv struct TextRun {

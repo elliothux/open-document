@@ -88,7 +88,9 @@ pub fn Session::capture_format(
     for column in range.left..<=range.right {
       columns.push(
         Json::object(
-          self.styles[sheet.style_at({ row, column, })].format_values(),
+          self.styles[sheet.style_at({ row, column, })]
+          .cell_format()
+          .format_values(),
         ),
       )
     }
@@ -118,7 +120,8 @@ pub fn Session::apply_format(
   self.check_revision(revision)
   guard pattern.length() > 0 &&
     pattern[0].length() > 0 &&
-    pattern.length().to_int64() * pattern[0].length().to_int64() <= 4096L &&
+    pattern.length().to_int64() * pattern[0].length().to_int64() <=
+    CellFragmentCells.to_int64() &&
     pattern.all(row => row.length() == pattern[0].length()) else {
     @failure.reject(
       "invalid-operation", "Expected a bounded rectangular cell format",
@@ -142,7 +145,7 @@ pub fn Session::apply_format(
   } else {
     selected
   }
-  guard target.bottom <= 1048576 && target.right <= 16384 else {
+  guard target.bottom <= WorksheetRows && target.right <= WorksheetColumns else {
     @failure.reject(
       "invalid-operation", "Copied cell format leaves the worksheet",
     )

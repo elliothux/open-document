@@ -1,3 +1,7 @@
+import {
+  xlsxWorksheetColumns,
+  xlsxWorksheetRows,
+} from "@open-document/wasm/engine-source";
 import type { PanelProps } from "./panels.js";
 import { messages } from "@open-document/ui/messages";
 
@@ -36,7 +40,12 @@ export function XlsxOutlinePanel({
               disabled={last - first >= 4095}
               onClick={() =>
                 controller.run(() =>
-                  editor.editSheet({ action: "group", axis, first, last }),
+                  editor.objects.editSheet({
+                    action: "group",
+                    axis,
+                    first,
+                    last,
+                  }),
                 )
               }
             >
@@ -47,7 +56,12 @@ export function XlsxOutlinePanel({
               disabled={last - first >= 4095}
               onClick={() =>
                 controller.run(() =>
-                  editor.editSheet({ action: "ungroup", axis, first, last }),
+                  editor.objects.editSheet({
+                    action: "ungroup",
+                    axis,
+                    first,
+                    last,
+                  }),
                 )
               }
             >
@@ -58,7 +72,7 @@ export function XlsxOutlinePanel({
               disabled={!outline.groups.length}
               onClick={() =>
                 controller.run(() =>
-                  editor.editSheet({ action: "clearOutline", axis }),
+                  editor.objects.editSheet({ action: "clearOutline", axis }),
                 )
               }
             >
@@ -71,7 +85,11 @@ export function XlsxOutlinePanel({
                 onChange={(event) => {
                   const after = event.currentTarget.checked;
                   controller.run(() =>
-                    editor.editSheet({ action: "outlineSummary", axis, after }),
+                    editor.objects.editSheet({
+                      action: "outlineSummary",
+                      axis,
+                      after,
+                    }),
                   );
                 }}
               />
@@ -89,7 +107,10 @@ export function XlsxOutlinePanel({
                     disabled={
                       group.last - group.first >= 4095 ||
                       group.summary < 1 ||
-                      group.summary > (axis === "rows" ? 1048576 : 16384) ||
+                      group.summary >
+                        (axis === "rows"
+                          ? xlsxWorksheetRows
+                          : xlsxWorksheetColumns) ||
                       outline.groups.some(
                         (outer) =>
                           outer.level < group.level &&
@@ -100,7 +121,7 @@ export function XlsxOutlinePanel({
                     }
                     onClick={() =>
                       controller.run(() =>
-                        editor.editSheet({
+                        editor.objects.editSheet({
                           action: "collapseGroup",
                           axis,
                           first: group.first,

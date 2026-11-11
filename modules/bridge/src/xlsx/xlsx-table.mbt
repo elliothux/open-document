@@ -1,244 +1,303 @@
 ///|
-fn xlsx_table_edit(change : Json) -> @model.SheetEdit raise @failure.Failure {
-  let action = field_string(change, "action")
-  if action == "tableStyleDefinition" || action == "deleteTableStyle" {
-    let keys = if action == "tableStyleDefinition" {
-      ["action", "original", "name", "elements"]
-    } else {
-      ["action", "name", "replacement"]
-    }
-    guard change is Object(fields) &&
-      fields.length() == keys.length() &&
-      fields.keys().all(key => keys.contains(key)) else {
-      @failure.reject(
-        "invalid-operation", "Invalid table style definition command",
-      )
-    }
-    let optional = fn(key) raise @failure.Failure {
-      match fields.get(key) {
-        Some(Null) => None
-        Some(String(value)) => Some(value)
-        _ => @failure.reject("invalid-operation", "Expected a name or null")
+priv struct TableIdRequest {
+  id : @common.RequestInt
+} derive(@json.FromJson)
+
+///|
+priv struct TableStyleDefinitionRequest {
+  original : @common.RequiredNullable[String]
+  name : String
+  elements : Array[TableStyleRegionRequest]
+} derive(@json.FromJson)
+
+///|
+priv struct TableStyleDeleteRequest {
+  name : String
+  replacement : @common.RequiredNullable[String]
+} derive(@json.FromJson)
+
+///|
+priv struct TableStyleRegionRequest {
+  kind : String
+  size : @common.RequestInt
+  format : CellFormatRequest
+  vertical : @common.RequiredNullable[@model.CellBorder]
+  horizontal : @common.RequiredNullable[@model.CellBorder]
+} derive(@json.FromJson)
+
+///|
+priv struct TableStyleRequest {
+  id : @common.RequestInt
+  style : TableStyleOptionsRequest
+} derive(@json.FromJson)
+
+///|
+priv struct TableStyleOptionsRequest {
+  name : @common.RequiredNullable[String]
+  firstColumn : Bool
+  lastColumn : Bool
+  rowStripes : Bool
+  columnStripes : Bool
+} derive(@json.FromJson)
+
+///|
+priv struct TableTotalsRequest {
+  id : @common.RequestInt
+  visible : Bool
+} derive(@json.FromJson)
+
+///|
+priv struct TableColumnTotalRequest {
+  id : @common.RequestInt
+  column : @common.RequestInt
+  total : TableColumnTotalInput
+} derive(@json.FromJson)
+
+///|
+priv struct TableColumnFormulaRequest {
+  id : @common.RequestInt
+  column : @common.RequestInt
+  formula : @common.RequiredNullable[String]
+} derive(@json.FromJson)
+
+///|
+priv struct TableResizeRequest {
+  id : @common.RequestInt
+  range : String
+} derive(@json.FromJson)
+
+///|
+priv struct TableCreateRequest {
+  range : String
+  name : String
+} derive(@json.FromJson)
+
+///|
+priv struct TableRenameRequest {
+  id : @common.RequestInt
+  name : String
+} derive(@json.FromJson)
+
+///|
+priv struct TableColumnRenameRequest {
+  id : @common.RequestInt
+  column : @common.RequestInt
+  name : String
+} derive(@json.FromJson)
+
+///|
+priv struct OutlineGroupRequest {
+  axis : String
+  first : @common.RequestInt
+  last : @common.RequestInt
+} derive(@json.FromJson)
+
+///|
+priv struct OutlineCollapseRequest {
+  axis : String
+  first : @common.RequestInt
+  last : @common.RequestInt
+  level : @common.RequestInt
+  collapsed : Bool
+} derive(@json.FromJson)
+
+///|
+priv struct OutlineAxisRequest {
+  axis : String
+} derive(@json.FromJson)
+
+///|
+priv struct OutlineSummaryRequest {
+  axis : String
+  after : Bool
+} derive(@json.FromJson)
+
+///|
+fn[T : @json.FromJson] table_request(
+  input : Json,
+  fields : Int32,
+) -> T raise @failure.Failure {
+  // Every decoded field is required. Exact cardinality excludes unknown fields.
+  guard input is Object(values) && values.length() == fields else {
+    @failure.reject("invalid-operation", "Invalid table edit fields")
+  }
+  @common.request(input)
+}
+
+///|
+fn TableStyleRegionRequest::element(
+  request : TableStyleRegionRequest,
+) -> @model.TableStyleElement {
+  {
+    kind: request.kind,
+    size: request.size.value,
+    format: request.format.value,
+    vertical: request.vertical.value,
+    horizontal: request.horizontal.value,
+  }
+}
+
+///|
+priv struct TableColumnTotalInput {
+  value : @model.TableTotal
+}
+
+///|
+impl @json.FromJson for TableColumnTotalInput with fn from_json(input, path) {
+  guard input is Object(fields) else {
+    raise @json.JsonDecodeError((path, "Expected column total settings"))
+  }
+  let value = match (input, fields.length()) {
+    ({ "kind": String("none"), .. }, 1) => @model.TableTotal::Clear
+    ({ "kind": String("label"), "text": String(text), .. }, 2) =>
+      @model.TableTotal::Label(text)
+    ({ "kind": String("formula"), "formula": String(formula), .. }, 2) =>
+      @model.TableTotal::Formula(formula)
+    ({ "kind": String("aggregate"), "function": String(function), .. }, 2) =>
+      @model.TableTotal::Aggregate(function)
+    _ => raise @json.JsonDecodeError((path, "Invalid column total fields"))
+  }
+  { value, }
+}
+
+///|
+fn xlsx_table_edit(
+  action : String,
+  change : Json,
+) -> @model.SheetEdit raise @failure.Failure {
+  match action {
+    "tableStyleDefinition" => {
+      guard change is { "elements": Array(elements), .. } &&
+        elements.length() <= @model.TableStyleRegions else {
+        @failure.reject("invalid-operation", "Invalid table style regions")
       }
-    }
-    if action == "deleteTableStyle" {
-      return @model.DeleteTableStyle(
-        field_string(change, "name"),
-        optional("replacement"),
-      )
-    }
-    guard fields.get("elements") is Some(Array(elements)) &&
-      elements.length() <= 13 else {
-      @failure.reject("invalid-operation", "Invalid table style regions")
-    }
-    return @model.TableStyleDefinition(
-      optional("original"),
-      field_string(change, "name"),
-      elements.map(element => {
-        guard element is Object(fields) &&
-          fields.length() == 5 &&
-          fields
-          .keys()
-          .all(key => {
-            ["kind", "size", "format", "vertical", "horizontal"].contains(key)
-          }) else {
+      for element in elements {
+        guard element is Object(fields) && fields.length() == 5 else {
           @failure.reject(
             "invalid-operation", "Invalid table style region fields",
           )
         }
-        let border = fn(key) raise @failure.Failure {
-          guard fields.get(key) is Some(value) else {
-            @failure.reject("invalid-operation", "Missing table style border")
-          }
-          if value is Null {
-            None
-          } else {
-            guard value is Object(edge) &&
-              edge.length() == 2 &&
-              edge.contains("style") &&
-              edge.contains("color") else {
-              @failure.reject(
-                "invalid-operation", "Invalid table style border fields",
-              )
-            }
-            Some(@model.CellBorder::{
-              style: field_string(value, "style"),
-              color: field_string(value, "color"),
-            })
+        for key in ["vertical", "horizontal"] {
+          guard fields.get(key) is Some(Null) ||
+            (fields.get(key) is Some(Object(border)) && border.length() == 2) else {
+            @failure.reject(
+              "invalid-operation", "Invalid table style border fields",
+            )
           }
         }
-        @model.TableStyleElement::{
-          kind: field_string(element, "kind"),
-          size: field_int(element, "size"),
-          format: xlsx_cell_format(fields["format"]),
-          vertical: border("vertical"),
-          horizontal: border("horizontal"),
-        }
-      }),
-    )
-  }
-  if action == "tableStyle" {
-    guard change is { "style": Object(fields) as style, .. } &&
-      change is Object(command) &&
-      command.length() == 3 &&
-      command.keys().all(key => ["action", "id", "style"].contains(key)) &&
-      fields.length() == 5 &&
-      fields
-      .keys()
-      .all(key => {
-        ["name", "firstColumn", "lastColumn", "rowStripes", "columnStripes"].contains(
-          key,
-        )
-      }) else {
-      @failure.reject("invalid-operation", "Invalid table style fields")
-    }
-    let name = match style {
-      { "name": Null, .. } => None
-      { "name": String(name), .. } => Some(name)
-      _ =>
-        @failure.reject(
-          "invalid-operation", "Expected a table style name or null",
-        )
-    }
-    return @model.TableStyle(field_int(change, "id"), {
-      name,
-      first_column: field_boolean(style, "firstColumn"),
-      last_column: field_boolean(style, "lastColumn"),
-      row_stripes: field_boolean(style, "rowStripes"),
-      column_stripes: field_boolean(style, "columnStripes"),
-    })
-  }
-  if [
-      "tableFilter", "tableFilterClear", "tableFilterRemove", "tableFilterReapply",
-    ].contains(action) {
-    let keys = if action == "tableFilter" {
-      ["action", "id", "columns"]
-    } else {
-      ["action", "id"]
-    }
-    guard change is Object(fields) &&
-      fields.length() == keys.length() &&
-      fields.keys().all(key => keys.contains(key)) else {
-      @failure.reject("invalid-operation", "Invalid table filter fields")
-    }
-    let id = field_int(change, "id")
-    return match action {
-      "tableFilter" => @model.TableFilter(id, xlsx_filter_columns(change))
-      "tableFilterClear" => @model.TableFilterClear(id)
-      "tableFilterRemove" => @model.TableFilterRemove(id)
-      _ => @model.TableFilterReapply(id)
-    }
-  }
-  if action == "tableTotals" ||
-    action == "tableTotal" ||
-    action == "tableColumnFormula" ||
-    action == "resizeTable" ||
-    action == "createTable" ||
-    action == "renameTable" ||
-    action == "renameTableColumn" {
-    let keys = if action == "tableTotals" {
-      ["action", "id", "visible"]
-    } else if action == "tableTotal" {
-      ["action", "id", "column", "total"]
-    } else if action == "tableColumnFormula" {
-      ["action", "id", "column", "formula"]
-    } else if action == "resizeTable" {
-      ["action", "id", "range"]
-    } else if action == "createTable" {
-      ["action", "range", "name"]
-    } else if action == "renameTable" {
-      ["action", "id", "name"]
-    } else {
-      ["action", "id", "column", "name"]
-    }
-    guard change is Object(fields) &&
-      fields.length() == keys.length() &&
-      fields.keys().all(key => keys.contains(key)) else {
-      @failure.reject("invalid-operation", "Invalid table edit fields")
-    }
-  }
-  match action {
-    "tableTotals" =>
-      @model.TableTotals(
-        field_int(change, "id"),
-        field_boolean(change, "visible"),
+      }
+      let request : TableStyleDefinitionRequest = table_request(change, 4)
+      @model.TableStyleDefinition(
+        request.original.value,
+        request.name,
+        request.elements.map(TableStyleRegionRequest::element),
       )
+    }
+    "deleteTableStyle" => {
+      let request : TableStyleDeleteRequest = table_request(change, 3)
+      @model.DeleteTableStyle(request.name, request.replacement.value)
+    }
+    "tableStyle" => {
+      guard change is { "style": Object(fields), .. } && fields.length() == 5 else {
+        @failure.reject("invalid-operation", "Invalid table style options")
+      }
+      let request : TableStyleRequest = table_request(change, 3)
+      let style = request.style
+      @model.TableStyle(request.id.value, {
+        name: style.name.value,
+        first_column: style.firstColumn,
+        last_column: style.lastColumn,
+        row_stripes: style.rowStripes,
+        column_stripes: style.columnStripes,
+      })
+    }
+    "tableFilter"
+    | "tableFilterClear"
+    | "tableFilterRemove"
+    | "tableFilterReapply" => {
+      let request : TableIdRequest = table_request(
+        change,
+        if action == "tableFilter" {
+          3
+        } else {
+          2
+        },
+      )
+      let id = request.id.value
+      match action {
+        "tableFilter" => @model.TableFilter(id, xlsx_filter_columns(change))
+        "tableFilterClear" => @model.TableFilterClear(id)
+        "tableFilterRemove" => @model.TableFilterRemove(id)
+        _ => @model.TableFilterReapply(id)
+      }
+    }
+    "tableTotals" => {
+      let request : TableTotalsRequest = table_request(change, 3)
+      @model.TableTotals(request.id.value, request.visible)
+    }
     "tableTotal" => {
-      guard change is { "total": Object(fields) as total, .. } else {
-        @failure.reject("invalid-operation", "Expected column total settings")
-      }
-      let kind = field_string(total, "kind")
-      let keys = match kind {
-        "none" => ["kind"]
-        "label" => ["kind", "text"]
-        "formula" => ["kind", "formula"]
-        "aggregate" => ["kind", "function"]
-        _ => @failure.reject("invalid-operation", "Unknown column total kind")
-      }
-      guard fields.length() == keys.length() &&
-        fields.keys().all(key => keys.contains(key)) else {
-        @failure.reject("invalid-operation", "Invalid column total fields")
-      }
-      let setting = match kind {
-        "none" => @model.TableTotal::Clear
-        "label" => @model.TableTotal::Label(field_string(total, "text"))
-        "formula" => @model.TableTotal::Formula(field_string(total, "formula"))
-        _ => @model.TableTotal::Aggregate(field_string(total, "function"))
-      }
+      let request : TableColumnTotalRequest = table_request(change, 4)
       @model.TableColumnTotal(
-        field_int(change, "id"),
-        field_int(change, "column"),
-        setting,
+        request.id.value,
+        request.column.value,
+        request.total.value,
       )
     }
     "tableColumnFormula" => {
-      let formula = match change {
-        { "formula": Null, .. } => None
-        { "formula": String(text), .. } => Some(text)
-        _ => @failure.reject("invalid-operation", "Expected a formula or null")
-      }
+      let request : TableColumnFormulaRequest = table_request(change, 4)
       @model.TableColumnFormula(
-        field_int(change, "id"),
-        field_int(change, "column"),
-        formula,
+        request.id.value,
+        request.column.value,
+        request.formula.value,
       )
     }
-    "resizeTable" =>
-      @model.ResizeTable(field_int(change, "id"), field_string(change, "range"))
-    "createTable" =>
-      @model.CreateTable(
-        field_string(change, "range"),
-        field_string(change, "name"),
-      )
-    "group" | "ungroup" =>
+    "resizeTable" => {
+      let request : TableResizeRequest = table_request(change, 3)
+      @model.ResizeTable(request.id.value, request.range)
+    }
+    "createTable" => {
+      let request : TableCreateRequest = table_request(change, 3)
+      @model.CreateTable(request.range, request.name)
+    }
+    "group" | "ungroup" => {
+      let request : OutlineGroupRequest = @common.request(change)
       @model.GroupOutline(
-        field_string(change, "axis"),
-        field_int(change, "first"),
-        field_int(change, "last"),
-        field_string(change, "action") == "ungroup",
+        request.axis,
+        request.first.value,
+        request.last.value,
+        action == "ungroup",
       )
-    "collapseGroup" =>
+    }
+    "collapseGroup" => {
+      let request : OutlineCollapseRequest = @common.request(change)
       @model.CollapseOutline(
-        field_string(change, "axis"),
-        field_int(change, "first"),
-        field_int(change, "last"),
-        field_int(change, "level"),
-        field_boolean(change, "collapsed"),
+        request.axis,
+        request.first.value,
+        request.last.value,
+        request.level.value,
+        request.collapsed,
       )
-    "clearOutline" => @model.ClearOutline(field_string(change, "axis"))
-    "outlineSummary" =>
-      @model.OutlineSummary(
-        field_string(change, "axis"),
-        field_boolean(change, "after"),
-      )
-    "renameTable" =>
-      @model.RenameTable(field_int(change, "id"), field_string(change, "name"))
-    "renameTableColumn" =>
+    }
+    "clearOutline" => {
+      let input : OutlineAxisRequest = @common.request(change)
+      @model.ClearOutline(input.axis)
+    }
+    "outlineSummary" => {
+      let request : OutlineSummaryRequest = @common.request(change)
+      @model.OutlineSummary(request.axis, request.after)
+    }
+    "renameTable" => {
+      let request : TableRenameRequest = table_request(change, 3)
+      @model.RenameTable(request.id.value, request.name)
+    }
+    "renameTableColumn" => {
+      let request : TableColumnRenameRequest = table_request(change, 4)
       @model.RenameTableColumn(
-        field_int(change, "id"),
-        field_int(change, "column"),
-        field_string(change, "name"),
+        request.id.value,
+        request.column.value,
+        request.name,
       )
+    }
     _ => @failure.reject("invalid-operation", "Unknown table or outline action")
   }
 }

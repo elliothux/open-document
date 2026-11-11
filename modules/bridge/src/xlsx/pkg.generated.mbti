@@ -2,23 +2,33 @@
 package "open_document/bridge/xlsx"
 
 import {
+  "open_document/bridge/common",
   "open_document/layout",
 }
 
 // Values
+pub fn abi_version() -> Int32
+
 pub fn add_font(Context, String, String) -> String
 
-pub fn call(Context, String) -> String
+pub fn call(Context, String, first? : String, second? : String) -> String
+
+pub fn call_wire(Context, String, String, String) -> String
 
 pub fn close(Context) -> Unit
 
 pub fn new_context() -> Context
+
+pub fn take_output(Context, Int32) -> String?
 
 // Errors
 
 // Types and methods
 pub struct Context {
   probe : @layout.TextProbe
+  output : @common.OutputBytes
+  outlines : @common.OutlineDelta
+  mut chart_tiles : Map[String, Json]
   mut xlsx : @open_document/formats/xlsx.Session?
   mut closed : Bool
   images : @layout.Images

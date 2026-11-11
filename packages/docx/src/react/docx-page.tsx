@@ -17,6 +17,10 @@ import type {
 } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import {
+  docxNumberingStartMax,
+  docxPageColumnCount,
+} from "@open-document/wasm/engine-source";
 import { DocxPageBordersForm } from "./docx-page-borders.js";
 import { listFormats } from "../web/foundation.js";
 
@@ -52,7 +56,7 @@ export function DocxPage({
     "portrait",
   );
   const load = async (index = section) => {
-    const value = await editor.pageSetup(index);
+    const value = await editor.pages.pageSetup(index);
     setSettings(value);
     setDraft(value.page ?? undefined);
     setNumbering(value.numbering.value ?? { start: null, format: "decimal" });
@@ -125,7 +129,7 @@ export function DocxPage({
         disabled={disabled || !editor.getSnapshot().data.selection}
         onClick={() =>
           controller.run(async () => {
-            await editor.insertSectionBreak(sectionBreak);
+            await editor.pages.insertSectionBreak(sectionBreak);
             await load();
           })
         }
@@ -157,7 +161,9 @@ export function DocxPage({
         type="button"
         disabled={disabled || !editor.getSnapshot().data.selection}
         onClick={() =>
-          controller.run(() => editor.insertBodyPageField({ field: "PAGE" }))
+          controller.run(() =>
+            editor.pages.insertBodyPageField({ field: "PAGE" }),
+          )
         }
       >
         {t.insertBodyPageNumber}
@@ -167,7 +173,7 @@ export function DocxPage({
         disabled={disabled || !editor.getSnapshot().data.selection}
         onClick={() =>
           controller.run(() =>
-            editor.insertBodyPageField({ field: "NUMPAGES" }),
+            editor.pages.insertBodyPageField({ field: "NUMPAGES" }),
           )
         }
       >
@@ -176,7 +182,9 @@ export function DocxPage({
       <button
         type="button"
         disabled={disabled}
-        onClick={() => controller.run(() => editor.updateBodyPageFields())}
+        onClick={() =>
+          controller.run(() => editor.pages.updateBodyPageFields())
+        }
       >
         {t.updateBodyPageFields}
       </button>
@@ -247,7 +255,7 @@ export function DocxPage({
           onSubmit={(event) => {
             event.preventDefault();
             controller.run(async () => {
-              await editor.setPageColumns(section, {
+              await editor.pages.setPageColumns(section, {
                 ...columns,
                 custom: columns.custom.map((column, index) =>
                   index === columns.custom.length - 1
@@ -273,7 +281,7 @@ export function DocxPage({
               <input
                 type="number"
                 min={1}
-                max={12}
+                max={docxPageColumnCount}
                 step={1}
                 required
                 value={Number.isFinite(columns.count) ? columns.count : ""}
@@ -286,7 +294,7 @@ export function DocxPage({
                       columns.custom.length &&
                       Number.isInteger(count) &&
                       count >= 1 &&
-                      count <= 12
+                      count <= docxPageColumnCount
                         ? customColumns(count)
                         : columns.custom,
                   });
@@ -305,7 +313,7 @@ export function DocxPage({
                       : customColumns(
                           Number.isInteger(columns.count) &&
                             columns.count >= 1 &&
-                            columns.count <= 12
+                            columns.count <= docxPageColumnCount
                             ? columns.count
                             : 2,
                         ),
@@ -413,7 +421,7 @@ export function DocxPage({
               type="button"
               onClick={() =>
                 controller.run(async () => {
-                  await editor.setPageColumns(section, null);
+                  await editor.pages.setPageColumns(section, null);
                   await load();
                 })
               }
@@ -429,7 +437,7 @@ export function DocxPage({
           onSubmit={(event) => {
             event.preventDefault();
             controller.run(async () => {
-              await editor.setPageNumbering(section, numbering);
+              await editor.pages.setPageNumbering(section, numbering);
               await load();
             });
           }}
@@ -461,7 +469,7 @@ export function DocxPage({
               <input
                 type="number"
                 min={0}
-                max={4294967295}
+                max={docxNumberingStartMax}
                 step={1}
                 required
                 disabled={numbering.start === null}
@@ -506,7 +514,7 @@ export function DocxPage({
               type="button"
               onClick={() =>
                 controller.run(async () => {
-                  await editor.setPageNumbering(section, null);
+                  await editor.pages.setPageNumbering(section, null);
                   await load();
                 })
               }
@@ -526,7 +534,7 @@ export function DocxPage({
           state={state}
           apply={(borders) =>
             controller.run(async () => {
-              await editor.setPageBorders(section, borders);
+              await editor.pages.setPageBorders(section, borders);
               await load();
             })
           }
@@ -537,7 +545,7 @@ export function DocxPage({
           onSubmit={(event) => {
             event.preventDefault();
             controller.run(async () => {
-              await editor.setPageBackground(color.slice(1));
+              await editor.pages.setPageBackground(color.slice(1));
               await load();
             });
           }}
@@ -559,7 +567,7 @@ export function DocxPage({
               type="button"
               onClick={() =>
                 controller.run(async () => {
-                  await editor.setPageBackground(null);
+                  await editor.pages.setPageBackground(null);
                   await load();
                 })
               }
@@ -575,7 +583,7 @@ export function DocxPage({
           onSubmit={(event) => {
             event.preventDefault();
             controller.run(async () => {
-              await editor.setPageSetup({ ...draft, orientation });
+              await editor.pages.setPageSetup({ ...draft, orientation });
               await load();
             });
           }}

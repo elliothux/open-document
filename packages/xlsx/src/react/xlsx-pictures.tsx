@@ -3,6 +3,10 @@ import type { SpreadsheetEditor } from "../web/spreadsheet-editor.js";
 import type { XlsxPictures as Catalog, XlsxPicture } from "../web/xlsx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import {
+  xlsxDrawingDescriptionUnits,
+  xlsxDrawingNameUnits,
+} from "@open-document/wasm/engine-source";
 
 export function XlsxPictures({
   controller,
@@ -20,7 +24,7 @@ export function XlsxPictures({
   const [draft, setDraft] = useState<XlsxPicture>();
   const [size, setSize] = useState({ width: 120, height: 80 });
   const load = async (last = false) => {
-    const value = await editor.pictures();
+    const value = await editor.objects.pictures();
     setCatalog(value);
     setDraft(
       (last
@@ -68,9 +72,9 @@ export function XlsxPictures({
               event.currentTarget.value = "";
               if (!file) return;
               controller.run(async () => {
-                if (!file.size || file.size > 2097152)
+                if (!file.size || file.size > editor.inputLimits.imageBytes)
                   throw new Error(t.xlsxPictureLimit);
-                await editor.insertPicture(
+                await editor.objects.insertPicture(
                   new Uint8Array(await file.arrayBuffer()),
                   size.width,
                   size.height,
@@ -117,7 +121,7 @@ export function XlsxPictures({
           onSubmit={(event) => {
             event.preventDefault();
             controller.run(async () => {
-              await editor.setPicture(draft.id, draft);
+              await editor.objects.setPicture(draft.id, draft);
               await load();
             });
           }}
@@ -134,7 +138,7 @@ export function XlsxPictures({
                   if (!file) return;
                   controller.run(async () => {
                     const source = editor.currentState;
-                    if (!file.size || file.size > 2097152)
+                    if (!file.size || file.size > editor.inputLimits.imageBytes)
                       throw new Error(t.xlsxPictureLimit);
                     const bytes = new Uint8Array(await file.arrayBuffer());
                     if (
@@ -142,7 +146,7 @@ export function XlsxPictures({
                       editor.currentState.sheet !== source.sheet
                     )
                       throw new Error(t.xlsxPictureReload);
-                    await editor.replacePicture(draft.id, bytes);
+                    await editor.objects.replacePicture(draft.id, bytes);
                     await load();
                   });
                 }}
@@ -152,7 +156,7 @@ export function XlsxPictures({
               {t.xlsxPictureName}
               <input
                 value={draft.name}
-                maxLength={255}
+                maxLength={xlsxDrawingNameUnits}
                 onChange={(event) =>
                   setDraft({ ...draft, name: event.currentTarget.value })
                 }
@@ -162,7 +166,7 @@ export function XlsxPictures({
               {t.xlsxPictureAlt}
               <input
                 value={draft.description}
-                maxLength={1024}
+                maxLength={xlsxDrawingDescriptionUnits}
                 onChange={(event) =>
                   setDraft({ ...draft, description: event.currentTarget.value })
                 }
@@ -260,7 +264,7 @@ export function XlsxPictures({
                     (item) => item.id === draft.id,
                   );
                   if (!picture) return;
-                  await editor.setPicture(draft.id, {
+                  await editor.objects.setPicture(draft.id, {
                     ...picture,
                     crop: [0, 0, 0, 0],
                   });
@@ -283,7 +287,7 @@ export function XlsxPictures({
                 type="button"
                 onClick={() =>
                   controller.run(async () => {
-                    await editor.editSheet({
+                    await editor.objects.editSheet({
                       action: "drawingOrder",
                       objectId: draft.id,
                       direction,
@@ -299,7 +303,7 @@ export function XlsxPictures({
               type="button"
               onClick={() =>
                 controller.run(async () => {
-                  await editor.deletePicture(draft.id);
+                  await editor.objects.deletePicture(draft.id);
                   await load();
                 })
               }
@@ -310,7 +314,7 @@ export function XlsxPictures({
               type="button"
               onClick={() =>
                 controller.run(async () => {
-                  await editor.editSheet({
+                  await editor.objects.editSheet({
                     action: "duplicateDrawing",
                     objectId: draft.id,
                   });
@@ -322,13 +326,17 @@ export function XlsxPictures({
             </button>
             <button
               type="button"
-              onClick={() => controller.run(() => editor.cutDrawing(draft.id))}
+              onClick={() =>
+                controller.run(() => editor.clipboard.cutDrawing(draft.id))
+              }
             >
               {t.cutDrawing}
             </button>
             <button
               type="button"
-              onClick={() => controller.run(() => editor.copyDrawing(draft.id))}
+              onClick={() =>
+                controller.run(() => editor.clipboard.copyDrawing(draft.id))
+              }
             >
               {t.copyDrawing}
             </button>

@@ -5,7 +5,7 @@ priv struct OutlineGroup {
   level : Int32
   summary : Int32
   collapsed : Bool
-}
+} derive(ToJson)
 
 ///|
 priv struct OutlineAxis {
@@ -46,18 +46,15 @@ fn outline_settings(tree : Tree) -> (Bool, Bool) raise @failure.Failure {
 fn Sheet::outline_axis(
   self : Sheet,
   rows : Bool,
+  tree~ : Tree = Tree::new(self.document),
 ) -> OutlineAxis raise @failure.Failure {
-  let tree = Tree::new(self.document)
   let (below, right) = outline_settings(tree)
   let after = if rows { below } else { right }
-  let limit = if rows { 1048576 } else { 16384 }
+  let limit = if rows { WorksheetRows } else { WorksheetColumns }
   let bands : Array[(Int32, Int32, Int32)] = []
   let collapsed : Map[Int32, Bool] = Map([])
   let items = if rows {
-    self.rows
-    .iter()
-    .map(pair => (pair.0, pair.0, tree.nodes[pair.1]))
-    .to_array()
+    self.rows.iter().map(pair => (pair.0, pair.0, tree.nodes[pair.1]))
   } else {
     tree
     .one(tree.sheet_root().id, "cols")
@@ -70,9 +67,13 @@ fn Sheet::outline_axis(
         node,
       )
     })
+    .iter()
   }
   for (first, last, node) in items {
-    let level = natural(node.attribute("outlineLevel").unwrap_or("0"), 7)
+    let level = node
+      .attribute("outlineLevel")
+      .map(text => natural(text, 7))
+      .unwrap_or(0)
     if level > 0 {
       bands.push((first, last, level))
     }
@@ -134,34 +135,24 @@ fn OutlineAxis::level(self : OutlineAxis, index : Int32) -> Int32 {
 }
 
 ///|
-fn OutlineAxis::json(self : OutlineAxis) -> Json {
-  {
-    "summaryAfter": self.summary_after,
-    "groups": self.groups.map(group => {
-      let value : Json = {
-        "first": group.first,
-        "last": group.last,
-        "level": group.level,
-        "summary": group.summary,
-        "collapsed": group.collapsed,
-      }
-      value
-    }),
-  }
+fn OutlineAxis::query(self : OutlineAxis) -> QueryOutlineAxis {
+  { summaryAfter: self.summary_after, groups: self.groups, }
 }
 
 ///|
-fn Session::outline_query(self : Session, sheet : Sheet) -> Json {
+fn Session::outline_query(
+  self : Session,
+  sheet : Sheet,
+  tree : Tree,
+) -> QueryOutline {
   {
-    "rows": sheet.outline_axis(true).json(),
-    "columns": sheet.outline_axis(false).json(),
-    "reason": self.dimension_reason(sheet),
+    rows: sheet.outline_axis(true, tree~).query(),
+    columns: sheet.outline_axis(false, tree~).query(),
+    reason: self.dimension_reason(sheet),
   } catch {
-    @failure.Failure(message~, ..) =>
-      {
-        "rows": { "summaryAfter": true, "groups": [] },
-        "columns": { "summaryAfter": true, "groups": [] },
-        "reason": message,
-      }
+    @failure.Failure(message~, ..) => {
+      let empty : QueryOutlineAxis = { summaryAfter: true, groups: [], }
+      { rows: empty, columns: empty, reason: message, }
+    }
   }
 }

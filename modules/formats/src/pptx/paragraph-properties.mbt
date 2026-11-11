@@ -2,7 +2,13 @@
 pub(all) struct TextSpacing {
   unit : String
   value : Double
-}
+} derive(Eq, ToJson)
+
+///|
+pub extend TextSpacing with Eq::{equal, not_equal}
+
+///|
+pub extend TextSpacing with ToJson::{to_json}
 
 ///|
 pub(all) struct ParagraphFormat {
@@ -154,36 +160,90 @@ fn ParagraphFormat::normalized(
 }
 
 ///|
-fn spacing_value(value : ParagraphGap) -> Json {
+fn spacing_value(value : ParagraphGap) -> TextSpacing {
   match value {
-    Points(value) => { "unit": "point", "value": value }
+    Points(value) => { unit: "point", value, }
     Percent(value) =>
-      { "unit": "percent", "value": (value * 100000).round() / 1000 }
+      { unit: "percent", value: (value * 100000).round() / 1000, }
   }
 }
 
 ///|
-fn paragraph_values(paragraph : TextParagraph) -> Array[Json] {
-  [
-    Json(paragraph.left),
-    Json(paragraph.right),
-    Json(paragraph.first),
-    spacing_value(paragraph.before),
-    spacing_value(paragraph.after),
-    match paragraph.spacing {
-      Auto(value) =>
-        { "unit": "percent", "value": (value * 100000 / 240).round() / 1000 }
-      Exact(value) | AtLeast(value) => { "unit": "point", "value": value / 20 }
-    },
-    paragraph.list.query(),
-    Json(paragraph.level),
-    Json(paragraph.rtl),
-    Json(paragraph.bullet_style.font.split("|").to_array()[0].to_owned()),
-    { "unit": paragraph.bullet_size.unit, "value": paragraph.bullet_size.value },
-    Json(paragraph.bullet_style.color.to_lower()),
-    Json(paragraph.tabs),
-    Json(paragraph.default_tab),
-  ]
+fn paragraph_line_spacing(paragraph : TextParagraph) -> TextSpacing {
+  match paragraph.spacing {
+    Auto(value) =>
+      { unit: "percent", value: (value * 100000 / 240).round() / 1000, }
+    Exact(value) | AtLeast(value) => { unit: "point", value: value / 20, }
+  }
+}
+
+///|
+priv struct ParagraphValues {
+  left : Double?
+  right : Double?
+  first : Double?
+  before : TextSpacing?
+  after : TextSpacing?
+  line : TextSpacing?
+  list : Json?
+  level : Int32?
+  rtl : Bool?
+  listFont : String?
+  listSize : TextSpacing?
+  listColor : String?
+  tabs : Array[ParagraphTab]?
+  defaultTab : Double?
+}
+
+///|
+fn[T : ToJson] nullable_json(value : T?) -> Json {
+  value.map(item => ToJson::to_json(item)).unwrap_or(Json::null())
+}
+
+///|
+impl ToJson for ParagraphValues with fn to_json(self) {
+  {
+    "left": nullable_json(self.left),
+    "right": nullable_json(self.right),
+    "first": nullable_json(self.first),
+    "before": nullable_json(self.before),
+    "after": nullable_json(self.after),
+    "line": nullable_json(self.line),
+    "list": nullable_json(self.list),
+    "level": nullable_json(self.level),
+    "rtl": nullable_json(self.rtl),
+    "listFont": nullable_json(self.listFont),
+    "listSize": nullable_json(self.listSize),
+    "listColor": nullable_json(self.listColor),
+    "tabs": nullable_json(self.tabs),
+    "defaultTab": nullable_json(self.defaultTab),
+  }
+}
+
+///|
+fn paragraph_values(paragraph : TextParagraph?) -> Map[String, Json] {
+  let values : ParagraphValues = {
+    left: paragraph.map(p => p.left),
+    right: paragraph.map(p => p.right),
+    first: paragraph.map(p => p.first),
+    before: paragraph.map(p => spacing_value(p.before)),
+    after: paragraph.map(p => spacing_value(p.after)),
+    line: paragraph.map(paragraph_line_spacing),
+    list: paragraph.map(p => p.list.query()),
+    level: paragraph.map(p => p.level),
+    rtl: paragraph.map(p => p.rtl),
+    listFont: paragraph.map(p => {
+      p.bullet_style.font.split("|").to_array()[0].to_owned()
+    }),
+    listSize: paragraph.map(p => p.bullet_size),
+    listColor: paragraph.map(p => p.bullet_style.color.to_lower()),
+    tabs: paragraph.map(p => p.tabs),
+    defaultTab: paragraph.map(p => p.default_tab),
+  }
+  guard ToJson::to_json(values) is Object(fields) else {
+    abort("Expected paragraph values object")
+  }
+  fields
 }
 
 ///|
@@ -259,7 +319,6 @@ fn paragraph_markup(
   if format.level is Some(level) && level != paragraph.level {
     attrs["lvl"] = level.to_string()
   }
-  let current = paragraph_values(paragraph)
   for
     (name, value, effective) in [
       ("marL", left, paragraph.left),
@@ -271,13 +330,12 @@ fn paragraph_markup(
     }
   }
   for
-    (name, value, index) in [
-      ("spcBef", format.before, 3),
-      ("spcAft", format.after, 4),
-      ("lnSpc", format.line, 5),
+    (name, value, effective) in [
+      ("spcBef", format.before, spacing_value(paragraph.before)),
+      ("spcAft", format.after, spacing_value(paragraph.after)),
+      ("lnSpc", format.line, paragraph_line_spacing(paragraph)),
     ] {
-    if value is Some(value) &&
-      (style || current[index] != { "unit": value.unit, "value": value.value }) {
+    if value is Some(value) && (style || effective != value) {
       let kind = if value.unit == "point" { "spcPts" } else { "spcPct" }
       let number = (value.value *
         (if value.unit == "point" { 100 } else { 1000 }))

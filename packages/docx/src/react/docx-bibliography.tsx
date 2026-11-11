@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { docxBibliographyHeadingUnits } from "@open-document/wasm/engine-source";
 import type { DocumentEditor, DocumentSources } from "../web/editor.js";
 import type { EditorController } from "./context.js";
 import type { messages } from "@open-document/ui/messages";
@@ -25,7 +26,9 @@ export function DocxBibliography({
         onSubmit={(event) => {
           event.preventDefault();
           if (source)
-            controller.run(() => editor.insertBibliography(source, title));
+            controller.run(() =>
+              editor.sources.insertBibliography(source, title),
+            );
         }}
       >
         <fieldset
@@ -35,7 +38,7 @@ export function DocxBibliography({
             {t.bibliographyTitle}
             <input
               required
-              maxLength={255}
+              maxLength={docxBibliographyHeadingUnits}
               value={title}
               onChange={(event) => setTitle(event.currentTarget.value)}
             />
@@ -53,7 +56,7 @@ export function DocxBibliography({
             disabled={disabled || !!item.reason}
             onClick={() =>
               controller.run(() =>
-                editor.editBibliography(source, {
+                editor.sources.editBibliography(source, {
                   action: "update",
                   paragraph: item.paragraph,
                 }),
@@ -67,7 +70,7 @@ export function DocxBibliography({
             disabled={disabled || !!item.reason}
             onClick={() =>
               controller.run(() =>
-                editor.editBibliography(source, {
+                editor.sources.editBibliography(source, {
                   action: "delete",
                   paragraph: item.paragraph,
                 }),

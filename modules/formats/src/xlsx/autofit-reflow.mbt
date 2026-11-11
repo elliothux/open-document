@@ -185,11 +185,13 @@ fn Session::reflow_dimensions(
       rules
     })
     for name, cell in candidate.cells {
-      let value = calculation.values.get((index, name)).unwrap_or(cell.value)
+      let value = calculation.values
+        .get((index, cell.address))
+        .unwrap_or(cell.value)
       let before = previous.bind(entry => entry.1.cells.get(name))
       if before is Some(before) && previous is Some((old_index, old_sheet)) {
         let original = self.calculation
-          .bind(item => item.values.get((old_index, name)))
+          .bind(item => item.values.get((old_index, before.address)))
           .unwrap_or(before.value)
         original_work.remaining = work.formulas.remaining
         let original_style = old_conditional

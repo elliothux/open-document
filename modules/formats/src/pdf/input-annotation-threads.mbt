@@ -225,17 +225,38 @@ pub fn PdfSession::delete_annotation_thread(
 }
 
 ///|
+pub struct PdfAnnotationReply {
+  id : String
+  page : String
+  parent : String
+  text : String
+  author : String
+} derive(ToJson)
+
+///|
+pub extend PdfAnnotationReply with ToJson::{to_json}
+
+///|
+pub struct PdfAnnotationThread {
+  revision : Int32
+  entries : Array[PdfAnnotationReply]
+} derive(ToJson)
+
+///|
+pub extend PdfAnnotationThread with ToJson::{to_json}
+
+///|
 pub fn PdfSession::annotation_thread(
   self : PdfSession,
   revision : Int32,
   page : String,
   annotation : String,
-) -> Json raise @failure.Failure {
+) -> PdfAnnotationThread raise @failure.Failure {
   self.check(revision)
   pdf_bound(self.budget, () => {
     let n = self.annotation_target(self.page(page), annotation)
     let members = self.annotation_thread_members(n, true)
-    let entries : Array[Json] = []
+    let entries : Array[PdfAnnotationReply] = []
     for p in self.pages {
       for
         reference in annotation_refs(
@@ -250,19 +271,19 @@ pub fn PdfSession::annotation_thread(
           continue
         }
         entries.push({
-          "id": "\{id}:\{self.generations.get(id).unwrap_or(0)}",
-          "page": p.id,
-          "parent": match raw(object, "IRT") {
+          id: "\{id}:\{self.generations.get(id).unwrap_or(0)}",
+          page: p.id,
+          parent: match raw(object, "IRT") {
             PdfIndirect(parent) =>
               "\{parent}:\{self.generations.get(parent).unwrap_or(0)}"
             _ => ""
           },
-          "text": if raw(object, "Contents") == @syntax.PdfNull {
+          text: if raw(object, "Contents") == @syntax.PdfNull {
             ""
           } else {
             pdf_text_string(raw(object, "Contents"))
           },
-          "author": if raw(object, "T") == @syntax.PdfNull {
+          author: if raw(object, "T") == @syntax.PdfNull {
             ""
           } else {
             pdf_text_string(raw(object, "T"))
@@ -270,7 +291,7 @@ pub fn PdfSession::annotation_thread(
         })
       }
     }
-    { "revision": revision, "entries": entries }
+    { revision, entries, }
   })
 }
 

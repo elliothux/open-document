@@ -54,32 +54,6 @@ export function checkPptxThemeFont(value: unknown): void {
   )
     throw new Error("Invalid theme font");
 }
-export function pptxThemeFonts(value: unknown): PptxThemeFont[] {
-  if (!Array.isArray(value) || value.length < 6 || value.length > 256)
-    throw new Error("Invalid theme fonts");
-  const seen = new Set<string>();
-  for (const item of value) {
-    const font = record(item);
-    checkPptxThemeFont({
-      kind: font.kind,
-      script: font.script,
-      font: font.font === null || font.font === "" ? "Default" : font.font,
-    });
-    const key = `${font.kind}:${font.script}`;
-    if (
-      seen.has(key) ||
-      typeof font.reason !== "string" ||
-      (font.font !== null && typeof font.font !== "string")
-    )
-      throw new Error("Invalid theme font slot");
-    seen.add(key);
-  }
-  for (const kind of ["major", "minor"])
-    for (const script of ["latin", "ea", "cs"])
-      if (!seen.has(`${kind}:${script}`))
-        throw new Error("Missing theme font slot");
-  return value as PptxThemeFont[];
-}
 export function checkPptxThemeColor(value: unknown): void {
   const change = record(value);
   if (
@@ -92,21 +66,4 @@ export function checkPptxThemeColor(value: unknown): void {
     )
   )
     throw new Error("Invalid theme color");
-}
-export function pptxThemeColors(value: unknown): PptxThemeColor[] {
-  if (!Array.isArray(value) || value.length !== slots.length)
-    throw new Error("Invalid theme palette");
-  const seen = new Set<string>();
-  for (const item of value) {
-    const color = record(item);
-    checkPptxThemeColor({ slot: color.slot, color: color.color ?? "000000" });
-    if (
-      seen.has(String(color.slot)) ||
-      typeof color.reason !== "string" ||
-      (color.color !== null && typeof color.color !== "string")
-    )
-      throw new Error("Invalid theme palette color");
-    seen.add(String(color.slot));
-  }
-  return value as PptxThemeColor[];
 }

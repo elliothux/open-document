@@ -102,7 +102,7 @@ fn sheet_reference_formula(
       }
     }
   }
-  guard units <= 8192 else {
+  guard units <= FormulaSourceUnits else {
     @failure.reject("limit-exceeded", "Renamed formula exceeds source budget")
   }
   if ranges.is_empty() {
@@ -120,6 +120,24 @@ fn sheet_reference_formula(
 }
 
 ///|
+fn Tree::reference_problem(self : Tree, node : @xml.Node) -> String? {
+  if node.uri != spreadsheet_uri ||
+    (
+      node.name == "extLst" &&
+      !self.children.get(node.id).unwrap_or([]).is_empty()
+    ) {
+    return Some("Worksheet extensions require reference-aware renaming")
+  }
+  if node.name == "f" {
+    let kind = node.attribute("t").unwrap_or("normal")
+    if kind != "normal" && kind != "shared" {
+      return Some("Formula groups require renaming support")
+    }
+  }
+  None
+}
+
+///|
 fn Session::sheet_rename_reason(
   self : Session,
   structure~ : Bool = true,
@@ -130,6 +148,7 @@ fn Session::sheet_rename_reason(
   charts~ : Bool = false,
   analysis~ : Bool = false,
   threads~ : Bool = false,
+  current_tree? : Tree,
 ) -> String {
   try {
     let reason = self.sheet_edit_reason(structure~, analysis~)
@@ -180,12 +199,18 @@ fn Session::sheet_rename_reason(
         return "Worksheet resource references require renaming support"
       }
     }
+    let reference_sensitive = self.read_cache().reference_sensitive
     for sheet in self.sheets {
       ignore(self.read_sheet_notes(sheet, allow_threads=threads))
       if threads {
         self.check_thread_fallbacks(sheet, self.read_sheet_threads(sheet))
       }
-      let tree = Tree::new(sheet.document)
+      let tree = if current_tree is Some(tree) &&
+        physical_equal(tree.document, sheet.document) {
+        tree
+      } else {
+        Tree::new(sheet.document)
+      }
       let root = tree.root("worksheet")
       if pictures && tree.one(root.id, "drawing") is Some(_) {
         guard self.font_context is Some((probe, profile)) else {
@@ -193,7 +218,7 @@ fn Session::sheet_rename_reason(
         }
         self.check_sheet_pictures(sheet, probe, profile, charts~)
       }
-      ignore(read_filter(sheet))
+      ignore(read_filter(sheet, tree~))
       self.check_sort_metadata(tree)
       let filter = tree.one(root.id, "autoFilter")
       let sparkline = if sparklines &&
@@ -237,6 +262,18 @@ fn Session::sheet_rename_reason(
           return "Worksheet content requires reference-aware renaming"
         }
       }
+      let needs_scan = reference_sensitive
+        .get(sheet.id)
+        .unwrap_or_else(() => {
+          let found = tree.document
+            .nodes()
+            .any(node => tree.reference_problem(node) is Some(_))
+          reference_sensitive[sheet.id] = found
+          found
+        })
+      if !needs_scan {
+        continue
+      }
       for node in tree.document.nodes() {
         if preserved_extension is Some(extension) &&
           node.start >= extension.start &&
@@ -254,18 +291,8 @@ fn Session::sheet_rename_reason(
           node.end <= filter.end {
           continue
         }
-        if node.uri != spreadsheet_uri ||
-          (
-            node.name == "extLst" &&
-            !tree.children.get(node.id).unwrap_or([]).is_empty()
-          ) {
-          return "Worksheet extensions require reference-aware renaming"
-        }
-        if node.name == "f" &&
-          !["normal", "shared"].contains(
-            node.attribute("t").unwrap_or("normal"),
-          ) {
-          return "Formula groups require renaming support"
+        if tree.reference_problem(node) is Some(reason) {
+          return reason
         }
       }
     }

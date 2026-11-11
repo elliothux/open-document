@@ -439,7 +439,7 @@ fn Session::capture_table_fragment(
   markers? : Map[Int32, String],
   body~ : Bool = false,
 ) -> String raise @failure.Failure {
-  let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
+  let limit = self.opc.budget.entry_bytes.min(ClipboardFragmentUnits)
   let output = StringBuilder()
   let properties = if body {
     tree

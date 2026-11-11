@@ -138,8 +138,8 @@ pub fn Session::replace_matches(
   text : String,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
-  guard matches.length() <= 1000 &&
-    text.length() <= command_limit &&
+  guard matches.length() <= SearchMatchLimit &&
+    text.length() <= TextCommandUnits &&
     valid_inline_input(text) else {
     @failure.reject(
       "invalid-operation", "Invalid replacement input or match count",
@@ -321,8 +321,12 @@ pub fn Session::replace_all(
   guard !result.truncated else {
     @failure.reject("limit-exceeded", "Replace all exceeds the match limit")
   }
-  guard result.matches.iter().all(item => item.2.is_empty()) else {
+  guard result.matches.iter().all(item => item.reason.is_empty()) else {
     @failure.reject("protected-content", "Search includes protected matches")
   }
-  self.replace_matches(revision, result.matches.map(item => item.0), text)
+  self.replace_matches(
+    revision,
+    result.matches.map(item => item.selection),
+    text,
+  )
 }

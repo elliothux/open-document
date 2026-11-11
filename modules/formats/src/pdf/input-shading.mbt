@@ -393,7 +393,7 @@ fn ContentContext::axial_shading(
       stops.push(stop)
     }
   }
-  guard stops.length() <= 32 else {
+  guard stops.length() <= @layout.GradientStopCount else {
     @failure.reject("limit-exceeded", "PDF shading stops exceed budget")
   }
   @layout.validate_gradient_stops(stops)

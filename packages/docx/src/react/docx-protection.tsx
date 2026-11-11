@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { officePasswordUnits } from "@open-document/wasm/engine-source";
 import type { DocumentEditor, DocumentProtection } from "../web/editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
@@ -23,7 +24,7 @@ export function DocxProtection({
     source?.documentId !== snapshot.documentId ||
     source.revision !== snapshot.revision;
   const load = async () => {
-    setSource(await editor.documentProtection());
+    setSource(await editor.pages.documentProtection());
     setPassword("");
     setConfirmation("");
   };
@@ -46,7 +47,7 @@ export function DocxProtection({
               try {
                 if (!source.protected && password !== confirmation)
                   throw new Error(t.protectionPasswordMismatch);
-                await editor.setDocumentProtection(
+                await editor.pages.setDocumentProtection(
                   source,
                   !source.protected,
                   password,
@@ -68,7 +69,7 @@ export function DocxProtection({
               {t.documentProtectionPassword}
               <input
                 type="password"
-                maxLength={255}
+                maxLength={officePasswordUnits}
                 value={password}
                 autoComplete={
                   source.protected ? "current-password" : "new-password"
@@ -82,7 +83,7 @@ export function DocxProtection({
                 {t.protectionConfirm}
                 <input
                   type="password"
-                  maxLength={255}
+                  maxLength={officePasswordUnits}
                   value={confirmation}
                   autoComplete="new-password"
                   onChange={(event) =>

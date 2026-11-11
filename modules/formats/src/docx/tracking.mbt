@@ -12,23 +12,32 @@ fn WordTree::has_review_markup(self : WordTree, paragraph : Int32) -> Bool {
 }
 
 ///|
+priv struct TrackingState {
+  revision : Int32
+  enabled : Bool
+  author : String
+  reason : String
+} derive(ToJson)
+
+///|
 /// Returns this session's recording mode; author identity is supplied by the host.
 pub fn Session::tracking(
   self : Session,
   revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
-  {
-    "revision": revision,
-    "enabled": self.tracking_context is Some(_),
-    "author": self.tracking_context.map(context => context.0).unwrap_or(""),
-    "reason": try {
+  let state : TrackingState = {
+    revision,
+    enabled: self.tracking_context is Some(_),
+    author: self.tracking_context.map(context => context.0).unwrap_or(""),
+    reason: try {
       self.check_document_protection()
       ""
     } catch {
       @failure.Failure(message~, ..) => message
     },
   }
+  ToJson::to_json(state)
 }
 
 ///|

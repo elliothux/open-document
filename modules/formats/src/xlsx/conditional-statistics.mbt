@@ -60,7 +60,7 @@ fn ConditionalFormat::check_nonformula(
     )
   }
   if self.text is Some(text) {
-    guard text.length() <= 8192 && @xml.valid_text(text) else {
+    guard text.length() <= ConditionalTextUnits && @xml.valid_text(text) else {
       @failure.reject("invalid-operation", "Invalid conditional text")
     }
   }
@@ -113,84 +113,73 @@ fn ConditionalRules::statistical_match(
   address : Address,
   sheets : Array[Sheet],
   index : Int32,
-  values : Map[(Int32, String), Value],
+  values : Map[(Int32, Address), Value],
   work : FormulaWork,
 ) -> Bool raise @failure.Failure {
   guard calculated_cell(sheets, values, index, address) is Number(actual) else {
     return false
   }
-  let bounds = self.scales
-    .get(rule.priority)
-    .unwrap_or_else(() => {
-      let numbers : Array[Double] = []
-      for cell in sheets[index].cells.values() {
-        work.spend()
-        if rule.ranges.any(range => {
-            work.spend()
-            range.contains(cell.address)
-          }) &&
-          calculated_cell(sheets, values, index, cell.address) is Number(value) {
-          numbers.push(value)
-        }
+  let bounds = self.scales.value(rule.priority, work, () => {
+    let numbers : Array[Double] = []
+    for cell in sheets[index].cells.values() {
+      work.spend()
+      if rule.ranges.any(range => {
+          work.spend()
+          range.contains(cell.address)
+        }) &&
+        calculated_cell(sheets, values, index, cell.address) is Number(value) {
+        numbers.push(value)
       }
-      let bounds : Array[Double] = []
-      if !numbers.is_empty() {
-        if rule.rank is Some(rank) {
-          work.spend(amount=numbers.length() * 13)
-          numbers.sort_by((a, b) => {
-            if a < b {
-              -1
-            } else if a > b {
-              1
-            } else {
-              0
-            }
-          })
-          let count = (if rank.percent {
-              numbers.length() * rank.rank / 100
-            } else {
-              rank.rank
-            })
-            .max(1)
-            .min(numbers.length())
-          bounds.push(
-            numbers[if rank.bottom {
-              count - 1
-            } else {
-              numbers.length() - count
-            }],
-          )
-        } else if rule.average is Some(average) {
-          let origin = numbers[0]
-          let mut mean = 0.0
-          for i, number in numbers {
-            work.spend()
-            mean += (number - origin - mean) / (i + 1).to_double()
-          }
-          let deviation = if average.stdDev == 0 {
-            0.0
+    }
+    let bounds : Array[Double] = []
+    if !numbers.is_empty() {
+      if rule.rank is Some(rank) {
+        work.spend(amount=numbers.length() * 13)
+        numbers.sort_by((a, b) => if a < b { -1 } else if a > b { 1 } else { 0 })
+        let count = (if rank.percent {
+            numbers.length() * rank.rank / 100
           } else {
-            guard variance_result(numbers, false, work) is Number(variance) else {
-              @failure.reject(
-                "limit-exceeded", "Conditional variance exceeds numeric range",
-              )
-            }
-            variance.sqrt() * average.stdDev.to_double()
-          }
-          let threshold = origin +
-            mean +
-            (if average.above { deviation } else { -deviation })
-          guard !threshold.is_nan() && !threshold.is_inf() else {
+            rank.rank
+          })
+          .max(1)
+          .min(numbers.length())
+        bounds.push(
+          numbers[if rank.bottom {
+            count - 1
+          } else {
+            numbers.length() - count
+          }],
+        )
+      } else if rule.average is Some(average) {
+        let origin = numbers[0]
+        let mut mean = 0.0
+        for i, number in numbers {
+          work.spend()
+          mean += (number - origin - mean) / (i + 1).to_double()
+        }
+        let deviation = if average.stdDev == 0 {
+          0.0
+        } else {
+          guard variance_result(numbers, false, work) is Number(variance) else {
             @failure.reject(
-              "limit-exceeded", "Conditional average exceeds numeric range",
+              "limit-exceeded", "Conditional variance exceeds numeric range",
             )
           }
-          bounds.push(threshold)
+          variance.sqrt() * average.stdDev.to_double()
         }
+        let threshold = origin +
+          mean +
+          (if average.above { deviation } else { -deviation })
+        guard !threshold.is_nan() && !threshold.is_inf() else {
+          @failure.reject(
+            "limit-exceeded", "Conditional average exceeds numeric range",
+          )
+        }
+        bounds.push(threshold)
       }
-      self.scales[rule.priority] = bounds
-      bounds
-    })
+    }
+    bounds
+  })
   guard bounds is [threshold] else { return false }
   if rule.rank is Some(rank) {
     return if rank.bottom { actual <= threshold } else { actual >= threshold }

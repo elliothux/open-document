@@ -62,7 +62,7 @@ fn resized_table_formula(
   }
   output.write_view(text[cursor:])
   let result = output.to_string()
-  guard result.length() <= 8192 else {
+  guard result.length() <= FormulaSourceUnits else {
     @failure.reject("limit-exceeded", "Resized table formula exceeds budget")
   }
   result

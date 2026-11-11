@@ -1,21 +1,26 @@
 ///|
-fn xlsx_value(content : Json) -> @model.Value raise @failure.Failure {
-  guard content is Object(fields) &&
+priv struct CellValueRequest {
+  value : @model.Value
+}
+
+///|
+impl @json.FromJson for CellValueRequest with fn from_json(input, path) {
+  guard input is Object(fields) &&
     fields.length() == 2 &&
-    fields.keys().all(key => ["kind", "value"].contains(key)) else {
-    @failure.reject("invalid-operation", "Invalid cell value fields")
+    input is { "kind": String(kind), "value": content, .. } else {
+    raise @json.JsonDecodeError((path, "Invalid cell value fields"))
   }
-  match field_string(content, "kind") {
-    "blank" => {
-      guard content is { "value": Null, .. } else {
-        @failure.reject("invalid-operation", "Expected blank value")
-      }
-      @model.Blank
+  let value = match (kind, content) {
+    ("blank", Null) => @model.Blank
+    ("text", String(value)) => @model.Text(value)
+    ("error", String(value)) => @model.Error(value)
+    ("number", value) => {
+      let number : @common.RequestNumber = @json.from_json(value, path~)
+      @model.Number(number.value)
     }
-    "text" => @model.Text(field_string(content, "value"))
-    "error" => @model.Error(field_string(content, "value"))
-    "number" => @model.Number(field_number(content, "value"))
-    "boolean" => @model.Boolean(field_boolean(content, "value"))
-    _ => @failure.reject("invalid-operation", "Unknown cell value kind")
+    ("boolean", True) => @model.Boolean(true)
+    ("boolean", False) => @model.Boolean(false)
+    _ => raise @json.JsonDecodeError((path, "Invalid cell value"))
   }
+  { value, }
 }

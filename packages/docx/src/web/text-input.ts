@@ -38,35 +38,73 @@ export class TextInput extends NativeTextInput<EditState> {
       signal,
       {
         async begin(revision) {
-          const state = await client.beginComposition(revision);
+          const state = await client.execute({
+            operation: "beginComposition",
+            revision: revision,
+          });
           if (state.compositionId === null)
             throw new Error("Core did not begin composition");
           return { state, id: state.compositionId };
         },
         update: (revision, id, text) =>
-          client.updateComposition(revision, id, text),
+          client.execute({
+            operation: "updateComposition",
+            revision: revision,
+            compositionId: id,
+            text: text,
+          }),
         commit: (revision, id, text) =>
-          client.commitComposition(revision, id, text),
-        cancel: (revision, id) => client.cancelComposition(revision, id),
+          client.execute({
+            operation: "commitComposition",
+            revision: revision,
+            compositionId: id,
+            text: text,
+          }),
+        cancel: (revision, id) =>
+          client.execute({
+            operation: "cancelComposition",
+            revision: revision,
+            compositionId: id,
+          }),
         replace: (revision, text, group) =>
-          client.replaceRange(revision, selection(), text, group),
-        delete: (revision, direction) => client.deleteDocx(revision, direction),
+          client.execute({
+            operation: "replaceRange",
+            revision: revision,
+            selection: selection(),
+            text: text,
+            inputGroup: group,
+          }),
+        delete: (revision, direction) =>
+          client.execute({
+            operation: "deleteDocx",
+            revision: revision,
+            direction: direction,
+          }),
         navigate: async (revision, direction, extend) =>
           (
-            await client.navigateDocx(
-              revision,
-              host.layoutId(),
-              direction,
-              extend,
-            )
+            await client.execute({
+              operation: "navigateDocx",
+              revision: revision,
+              layoutId: host.layoutId(),
+              direction: direction,
+              extend: extend,
+              selectionView: true,
+            })
           ).state,
         softBreak: DOCX_SOFT_BREAK,
         pageBreak: DOCX_PAGE_BREAK,
         columnBreak: DOCX_COLUMN_BREAK,
         nativeEnter: true,
-        enter: (revision) => client.enterDocx(revision),
-        tab: (revision, backward) => client.tabDocx(revision, backward),
-        selectAll: (revision) => client.selectAllDocx(revision),
+        enter: (revision) =>
+          client.execute({ operation: "enterDocx", revision: revision }),
+        tab: (revision, backward) =>
+          client.execute({
+            operation: "tabDocx",
+            revision: revision,
+            backward: backward,
+          }),
+        selectAll: (revision) =>
+          client.execute({ operation: "selectAllDocx", revision: revision }),
       },
       {
         ...host,

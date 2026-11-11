@@ -48,7 +48,7 @@ fn Session::find_text(
   text : String,
   options : FindOptions,
 ) -> (Array[TextMatch], Bool) raise @failure.Failure {
-  guard text.length() <= 32767 && @xml.valid_text(text) else {
+  guard text.length() <= TextFrameUnits && @xml.valid_text(text) else {
     @failure.reject("invalid-operation", "Search text is invalid or excessive")
   }
   let selected = self.index(slide)
@@ -81,7 +81,7 @@ fn Session::find_text(
         }
         let boundaries = @layout.grapheme_boundaries(value)
         for (anchor, focus) in ranges {
-          if matches.length() == 1000 {
+          if matches.length() == SearchMatchLimit {
             return (matches, true)
           }
           let a = match boundaries.binary_search((anchor - 16).max(0)) {
@@ -108,6 +108,24 @@ fn Session::find_text(
 }
 
 ///|
+priv struct SearchMatch {
+  slide : String
+  object : String
+  anchor : Int32
+  focus : Int32
+  hidden : Bool
+  snippet : String
+  reason : String
+} derive(ToJson)
+
+///|
+priv struct SearchResult {
+  revision : Int32
+  truncated : Bool
+  matches : Array[SearchMatch]
+} derive(ToJson)
+
+///|
 /// Find literal text in slide/source-object order without changing document state.
 pub fn Session::find(
   self : Session,
@@ -119,17 +137,21 @@ pub fn Session::find(
   self.check_revision(revision)
   self.check_idle()
   let (matches, truncated) = self.find_text(slide, text, options)
-  {
-    "revision": revision,
-    "truncated": truncated,
-    "matches": matches.map(item => {
-      "slide": Json(self.slides[item.slide].tree.part),
-      "object": Json(item.object),
-      "anchor": Json(item.anchor),
-      "focus": Json(item.focus),
-      "hidden": Json(self.slides[item.slide].hidden),
-      "snippet": Json(item.snippet),
-      "reason": Json(item.reason),
+  let result : SearchResult = {
+    revision,
+    truncated,
+    matches: matches.map(item => {
+      slide: self.slides[item.slide].tree.part,
+      object: item.object,
+      anchor: item.anchor,
+      focus: item.focus,
+      hidden: self.slides[item.slide].hidden,
+      snippet: item.snippet,
+      reason: item.reason,
     }),
   }
+  ToJson::to_json(result)
 }
+
+///|
+pub const SearchMatchLimit : Int32 = 1000

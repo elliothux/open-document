@@ -1,13 +1,23 @@
 ///|
-fn pptx_objects(request : Json) -> Array[String] raise @failure.Failure {
-  guard request is Object(fields) &&
-    fields.get("objects") is Some(Array(values)) &&
-    values.length() <= 256 else {
-    @failure.reject(
-      "invalid-operation", "A bounded object selection is required",
+priv struct ObjectSelectionRequest {
+  values : Array[Json]
+}
+
+///|
+impl @json.FromJson for ObjectSelectionRequest with fn from_json(input, path) {
+  guard input is Array(values) && values.length() <= @model.ObjectSelectionCount else {
+    raise @json.JsonDecodeError(
+      (path, "A bounded object selection is required"),
     )
   }
-  values.map(value => {
+  { values, }
+}
+
+///|
+fn ObjectSelectionRequest::identities(
+  self : ObjectSelectionRequest,
+) -> Array[String] raise @failure.Failure {
+  self.values.map(value => {
     guard value is String(id) && id.length() <= 1024 else {
       @failure.reject("invalid-object", "Invalid selected object identity")
     }

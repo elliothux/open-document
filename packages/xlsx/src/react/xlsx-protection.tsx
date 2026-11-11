@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { officePasswordUnits } from "@open-document/wasm/engine-source";
 import type { SpreadsheetEditor } from "../web/spreadsheet-editor.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
@@ -41,7 +42,7 @@ export function XlsxProtection({
             try {
               if (!current.protected && password !== confirmation)
                 throw new Error(t.protectionPasswordMismatch);
-              await editor.editSheet({
+              await editor.objects.editSheet({
                 action: workbook ? "workbookProtection" : "protection",
                 enabled: !current.protected,
                 password,
@@ -62,7 +63,7 @@ export function XlsxProtection({
               autoComplete={
                 current.protected ? "current-password" : "new-password"
               }
-              maxLength={255}
+              maxLength={officePasswordUnits}
               value={password}
               onChange={(event) => setPassword(event.currentTarget.value)}
             />
@@ -74,7 +75,7 @@ export function XlsxProtection({
                 type="password"
                 aria-label={t.protectionConfirm}
                 autoComplete="new-password"
-                maxLength={255}
+                maxLength={officePasswordUnits}
                 value={confirmation}
                 onChange={(event) => setConfirmation(event.currentTarget.value)}
               />

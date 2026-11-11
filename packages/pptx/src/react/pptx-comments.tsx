@@ -6,6 +6,7 @@ import {
 } from "../web/pptx.js";
 import type { PanelProps } from "./panels.js";
 import { messages } from "@open-document/ui/messages";
+import { pptxCommentTextUnits } from "@open-document/wasm/engine-source";
 
 export function PptxComments(props: PanelProps) {
   const { controller, state, file, disabled } = props;
@@ -113,7 +114,7 @@ export function PptxComments(props: PanelProps) {
           <textarea
             aria-label={parent ? t.commentReplyText : t.commentText}
             value={text}
-            maxLength={32767}
+            maxLength={pptxCommentTextUnits}
             disabled={!author}
             onChange={(event) => setText(event.currentTarget.value)}
           />
@@ -176,7 +177,7 @@ function CommentEntry({
           <textarea
             aria-label={t.commentText}
             value={text}
-            maxLength={32767}
+            maxLength={pptxCommentTextUnits}
             onChange={(event) => setText(event.currentTarget.value)}
           />
         </label>

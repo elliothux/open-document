@@ -87,7 +87,7 @@ fn read_comment_entries(
       }) &&
       !raw.contains("<!--") &&
       !raw.contains("<?") &&
-      text.text.length() <= 32767 else {
+      text.text.length() <= CommentTextUnits else {
       @failure.reject("protected-content", "Opaque comment text is protected")
     }
     units += text.text.length()

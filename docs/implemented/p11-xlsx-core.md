@@ -1,6 +1,6 @@
 # P11 XLSX 核心功能
 
-状态：`implemented`。五批最低交付范围已接通核心、同步 Wasm/Worker SDK、默认 UI、历史及保存输出。基于 [P5](p5-xlsx-editing.md) 和 [P9](p9-web-sdk-ui.md)，复用 P10 的包创建与多部件事务。当前支持范围与预算归[格式合同](../references/formats.md#p5-xlsx-合同)，功能差距归 [G3](../g3-genoffice-sdk-gap.md#表格xlsx)，后续归[路线图](../references/roadmap.md)。
+状态：`implemented`。五批最低交付范围已接通核心、同步 Wasm/Worker SDK、默认 UI、历史及保存输出。基于 [P5](p5-xlsx-editing.md) 和 [P9](p9-web-sdk-ui.md)，复用 P10 的包创建与多部件事务。当前支持范围与预算归[格式合同](../references/formats/xlsx-editing.md#p5-xlsx-合同)，功能差距归 [G3](../g3-genoffice-sdk-gap.md#表格xlsx)，后续归[路线图](../references/roadmap.md)。
 
 ## 已交付结果
 
@@ -12,7 +12,7 @@
 | 分析与绘图 | 可刷新原生透视表、行列/值/筛选字段、常用聚合和日期/数值分组、切片器及日期时间线；常用二维图表、折线/柱/盈亏迷你图、普通图片/形状/文本框及受支持锚点 |
 | 交换与输出 | UTF-8 CSV/TSV 导入、当前表/选区 CSV 值导出；页面设置、打印区域、重复标题、页眉页脚、适合页数及多表 PDF/打印 |
 
-合并计算支持同工作簿多表来源、按位置或最左列标签归并及五种聚合，结果通过原生绝对引用随数值更新。分类汇总支持相邻标签、求和/非空计数/平均、汇总行和总计、两级大纲；插行同步公式与批注资源，一次完整撤销。两者都先返回有界预览，再绑定修订提交，范围归[合并计算](../references/formats.md#合并计算)和[分类汇总](../references/formats.md#分类汇总)。
+合并计算支持同工作簿多表来源、按位置或最左列标签归并及五种聚合，结果通过原生绝对引用随数值更新。分类汇总支持相邻标签、求和/非空计数/平均、汇总行和总计、两级大纲；插行同步公式与批注资源，一次完整撤销。两者都先返回有界预览，再绑定修订提交，范围归[合并计算](../references/formats/xlsx-editing.md#合并计算)和[分类汇总](../references/formats/xlsx-editing.md#分类汇总)。
 
 ## 实现与完整性
 

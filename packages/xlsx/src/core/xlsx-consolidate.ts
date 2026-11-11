@@ -1,4 +1,8 @@
-import { integer, record } from "@open-document/wasm/abi/validation";
+import { record } from "@open-document/wasm/abi/validation";
+import {
+  xlsxConsolidationSourceCells,
+  xlsxConsolidationSources,
+} from "@open-document/wasm/engine-source";
 import { xlsxBounds } from "./xlsx-geometry.js";
 
 export const consolidateFunctions = [
@@ -30,7 +34,7 @@ export function checkXlsxConsolidateSettings(value: unknown): void {
     ) ||
     !Array.isArray(settings.sources) ||
     !settings.sources.length ||
-    settings.sources.length > 32 ||
+    settings.sources.length > xlsxConsolidationSources ||
     !consolidateFunctions.some((fn) => fn === settings.operation) ||
     typeof settings.leftLabels !== "boolean"
   )
@@ -53,49 +57,7 @@ export function checkXlsxConsolidateSettings(value: unknown): void {
     )
       throw new Error("Invalid consolidation source");
     cells += (range.bottom - range.top + 1) * (range.right - range.left + 1);
-    if (cells > 65536) throw new Error("Consolidation sources exceed limits");
+    if (cells > xlsxConsolidationSourceCells)
+      throw new Error("Consolidation sources exceed limits");
   }
-}
-export function xlsxConsolidation(value: unknown): XlsxConsolidation {
-  const result = record(value);
-  checkXlsxConsolidateSettings({
-    sources: result.sources,
-    target: result.target,
-    operation: result.operation,
-    leftLabels: result.leftLabels,
-  });
-  const target = xlsxBounds(result.target),
-    range = xlsxBounds(result.resultRange),
-    rows = range.bottom - range.top + 1,
-    columns = range.right - range.left + 1;
-  if (
-    !integer(result.revision, 0, 2147483647) ||
-    typeof result.sheet !== "string" ||
-    !result.sheet ||
-    result.sheet.length > 65535 ||
-    range.top !== target.top ||
-    range.left !== target.left ||
-    rows * columns > 4096 ||
-    !integer(result.overwrittenCells, 0, rows * columns) ||
-    !Array.isArray(result.preview) ||
-    result.preview.length !== Math.min(rows, 10)
-  )
-    throw new Error("Invalid consolidation preview");
-  let units = 0;
-  for (const row of result.preview) {
-    if (!Array.isArray(row) || row.length !== columns)
-      throw new Error("Invalid consolidation preview width");
-    for (const text of row) {
-      if (
-        typeof text !== "string" ||
-        !text.isWellFormed() ||
-        text.length > 32767
-      )
-        throw new Error("Invalid consolidation preview text");
-      units += text.length;
-      if (units > 1048576)
-        throw new Error("Consolidation preview exceeds text budget");
-    }
-  }
-  return value as XlsxConsolidation;
 }

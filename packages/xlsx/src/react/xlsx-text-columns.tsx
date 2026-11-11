@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { xlsxTextColumnCells } from "@open-document/wasm/engine-source";
 import type { SpreadsheetEditor } from "../web/spreadsheet-editor.js";
 import {
   checkXlsxTextColumnSettings,
@@ -56,7 +57,9 @@ export function XlsxTextColumns({
     ["dmy", t.columnTypeDmy],
     ["skip", t.columnTypeSkip],
   ] as const;
-  const bounded = range.left === range.right && range.bottom - range.top < 4096;
+  const bounded =
+    range.left === range.right &&
+    range.bottom - range.top < xlsxTextColumnCells;
   const positions = breakText.split(",").map((value) => Number(value.trim()));
   const settings: XlsxTextColumnSettings =
     mode === "fixed"
@@ -208,7 +211,7 @@ export function XlsxTextColumns({
         disabled={!valid}
         onClick={() =>
           controller.run(async () => {
-            const result = await editor.textColumns(settings);
+            const result = await editor.data.textColumns(settings);
             setPreview(result);
             setOverwrite(false);
             setConversions({
@@ -261,7 +264,7 @@ export function XlsxTextColumns({
             disabled={!ready || (preview.overwrittenCells > 0 && !overwrite)}
             onClick={() =>
               controller.run(() =>
-                editor.editSheet(
+                editor.objects.editSheet(
                   {
                     action: "textToColumns",
                     settings:

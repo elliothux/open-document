@@ -147,7 +147,7 @@ fn math_value(
   style : @layout.TextStyle,
 ) -> @layout.MathFormula raise @failure.Failure {
   guard !style.font.trim().is_empty() &&
-    style.font.length() <= 255 &&
+    style.font.length() <= @layout.MathFontUnits &&
     @xml.valid_text(style.font) &&
     style.font
     .iter()

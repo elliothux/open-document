@@ -53,28 +53,59 @@ fn table_row_height_limit(
 }
 
 ///|
+priv struct TableDimensionsValue {
+  id : Int32
+  autoFit : Bool
+  row : Int32
+  columns : Int32
+  column : Int32
+  columnWidths : Array[Double]
+  width : Double
+  rowHeight : Double
+  rowSplit : Bool
+  rowHeightRule : String
+  rows : Int32
+  headerRows : Int32
+  cellVerticalAlign : String
+  cellMargins : @layout.CellMargins
+  cellBorders : Map[String, Json]
+  tableBorders : Map[String, Json]
+  tableMargins : @layout.CellMargins
+  align : String
+  cellFill : Json
+  maxWidth : Double
+  maxRowHeight : Double
+} derive(ToJson)
+
+///|
+priv struct TableDimensions {
+  start : Position
+  value : TableDimensionsValue
+}
+
+///|
 fn Session::table_dimensions(
   self : Session,
   tree : WordTree,
   range : ParagraphRange?,
   layout : @layout.Layout?,
-) -> Json raise @failure.Failure {
-  guard range is Some(range) else { return Json::null() }
+) -> TableDimensions? raise @failure.Failure {
+  guard range is Some(range) else { return None }
   let cell = tree.nodes[range.start.paragraph].parent
   guard tree.nodes[cell].uri == word_uri && tree.nodes[cell].name == "tc" else {
-    return Json::null()
+    return None
   }
   let row = tree.nodes[cell].parent
   let id = tree.nodes[row].parent
   let flow = self.flow()
   guard flow.tables.iter().find_first(t => t.id == id) is Some(table) else {
-    return Json::null()
+    return None
   }
   let rows = tree.table_children(id, "tr")
-  guard rows.length() == table.rows.length() else { return Json::null() }
+  guard rows.length() == table.rows.length() else { return None }
   for r, row in rows {
     if tree.table_children(row, "tc").length() != table.rows[r].length() {
-      return Json::null()
+      return None
     }
   }
   let index = rows.search(row).unwrap()
@@ -84,51 +115,50 @@ fn Session::table_dimensions(
     span,
   ) => sum + span)
   let fill = table.fills[index][column]
-  let (page, columns) = page_area_for_position(
-    flow,
-    table_start_position(table),
-  )
+  let start = table_start_position(table)
+  let (page, columns) = page_area_for_position(flow, start)
   let border_defaults = border_defaults(tree, self.styles([]), id, [])
-  {
-    "id": id,
-    "autoFit": table.autoFit,
-    "row": index,
-    "columns": table.widths.length(),
-    "column": logical_column,
-    "columnWidths": table.widths,
-    "width": table.widths.iter().fold(init=0.0, (sum, width) => sum + width),
-    "rowHeight": table.heights[index],
-    "rowSplit": table.splitRows[index],
-    "rowHeightRule": if table.exactHeights[index] {
-      "exact"
-    } else {
-      "atLeast"
-    },
-    "rows": rows.length(),
-    "headerRows": table.headerRows,
-    "cellVerticalAlign": table.verticalAligns[index][column],
-    "cellMargins": Json(table.margins[index][column]),
-    "cellBorders": Json(cell_border_query(table, index, column)),
-    "tableBorders": Json::object(
-      Map::from_array(
+  Some({
+    start,
+    value: {
+      id,
+      autoFit: table.autoFit,
+      row: index,
+      columns: table.widths.length(),
+      column: logical_column,
+      columnWidths: table.widths,
+      width: table.widths.iter().fold(init=0.0, (sum, width) => sum + width),
+      rowHeight: table.heights[index],
+      rowSplit: table.splitRows[index],
+      rowHeightRule: if table.exactHeights[index] {
+        "exact"
+      } else {
+        "atLeast"
+      },
+      rows: rows.length(),
+      headerRows: table.headerRows,
+      cellVerticalAlign: table.verticalAligns[index][column],
+      cellMargins: table.margins[index][column],
+      cellBorders: cell_border_query(table, index, column),
+      tableBorders: Map::from_array(
         ["top", "left", "bottom", "right", "insideH", "insideV"].map(side => {
           (side, Json(border_defaults.get(side).unwrap_or(empty_border())))
         }),
       ),
-    ),
-    "tableMargins": Json(table_margin_defaults(tree, self.styles([]), id, [])),
-    "align": table.align,
-    "cellFill": if fill.is_empty() {
-      Json::null()
-    } else {
-      Json(fill)
+      tableMargins: table_margin_defaults(tree, self.styles([]), id, []),
+      align: table.align,
+      cellFill: if fill.is_empty() {
+        Json::null()
+      } else {
+        Json(fill)
+      },
+      maxWidth: layout
+      .map(layout => column_width_in(flow, layout, start))
+      .unwrap_or_else(() => columns.width(page))
+      .min(14400),
+      maxRowHeight: table_row_height_limit(table, index, page),
     },
-    "maxWidth": layout
-    .map(layout => column_width_in(flow, layout, table_start_position(table)))
-    .unwrap_or_else(() => columns.width(page))
-    .min(14400),
-    "maxRowHeight": table_row_height_limit(table, index, page),
-  }
+  })
 }
 
 ///|
@@ -348,7 +378,7 @@ fn Session::size_table(
       is Some(change) {
       changes.push(change)
     }
-    guard value > 0 && model.widths.length() <= 63 else {
+    guard value > 0 && model.widths.length() <= TableGridColumns else {
       @failure.reject(
         "invalid-operation", "Table width exceeds the page or column limit",
       )

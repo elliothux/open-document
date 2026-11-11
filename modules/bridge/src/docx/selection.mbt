@@ -1,26 +1,51 @@
 ///|
+priv struct PositionRequest {
+  paragraph : @common.RequestInt
+  offset : @common.RequestInt
+  affinity : String
+  bidiLevel : @common.RequestInt?
+  frameStart : @common.RequestInt?
+} derive(@json.FromJson)
+
+///|
+fn PositionRequest::position(self : PositionRequest) -> @model.Position {
+  {
+    paragraph: self.paragraph.value,
+    offset: self.offset.value,
+    affinity: self.affinity,
+    bidiLevel: self.bidiLevel.map(value => value.value),
+    frameStart: self.frameStart.map(value => value.value),
+  }
+}
+
+///|
+priv struct SelectionRequest {
+  anchor : PositionRequest
+  focus : PositionRequest
+} derive(@json.FromJson)
+
+///|
+priv struct RevisionSelectionRequest {
+  revision : @common.RequestInt
+  selection : SelectionRequest
+} derive(@json.FromJson)
+
+///|
+fn SelectionRequest::selection(self : SelectionRequest) -> @model.Selection {
+  { anchor: self.anchor.position(), focus: self.focus.position(), }
+}
+
+///|
 fn field_selection(json : Json) -> @model.Selection raise @failure.Failure {
-  guard json is { "selection": { "anchor": anchor, "focus": focus, .. }, .. } else {
+  guard json is { "selection": selection, .. } else {
     @failure.reject("invalid-operation", "Explicit selection is required")
   }
-  { anchor: field_position(anchor), focus: field_position(focus), }
+  let command : SelectionRequest = @common.request(selection)
+  command.selection()
 }
 
 ///|
 fn field_position(json : Json) -> @model.Position raise @failure.Failure {
-  {
-    paragraph: field_int(json, "paragraph"),
-    offset: field_int(json, "offset"),
-    affinity: field_string(json, "affinity"),
-    bidiLevel: if json is Object(fields) && fields.contains("bidiLevel") {
-      Some(field_int(json, "bidiLevel"))
-    } else {
-      None
-    },
-    frameStart: if json is Object(fields) && fields.contains("frameStart") {
-      Some(field_int(json, "frameStart"))
-    } else {
-      None
-    },
-  }
+  let command : PositionRequest = @common.request(json)
+  command.position()
 }

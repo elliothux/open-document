@@ -13,29 +13,23 @@ pub fn Session::capture_format(
   revision : Int32,
   selection : Selection,
 ) -> Json raise @failure.Failure {
-  let result = self.query_formatting(revision, selection)
-  guard result
-    is {
-      "reason": String(reason),
-      "character": Object(character),
-      "paragraph": Object(paragraph),
-      ..
-    } else {
-    abort("Invalid internal formatting result")
+  let result = self.formatting_query(revision, selection)
+  guard result.reason.is_empty() else {
+    @failure.reject("protected-content", result.reason)
   }
-  guard reason.is_empty() else { @failure.reject("protected-content", reason) }
-  let groups : Map[String, Json] = Map([])
-  for (name, fields) in [("character", character), ("paragraph", paragraph)] {
+  fn uniform(fields : Map[String, FormatSummary]) -> Map[String, Json] {
     let values : Map[String, Json] = Map([])
     for key, field in fields {
-      if key != "style" &&
-        field is { "kind": String("value"), "value": value, .. } {
+      if key != "style" && field is FormatUniform(value) {
         values[key] = value
       }
     }
-    groups[name] = Json(values)
+    values
   }
-  Json(groups)
+  {
+    "character": uniform(result.character),
+    "paragraph": uniform(result.paragraph),
+  }
 }
 
 ///|

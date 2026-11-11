@@ -7,6 +7,11 @@ import type {
 } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import {
+  docxShapeDimensionPoints,
+  docxShapeStrokePoints,
+  docxTextBoxTextUnits,
+} from "@open-document/wasm/engine-source";
 import { DocxDrawingPosition } from "./docx-drawing-position.js";
 import { DocxDrawingLink } from "./docx-drawing-link.js";
 import { DocxTextBoxProperties } from "./docx-text-box-properties.js";
@@ -34,7 +39,7 @@ export function DocxShapes({
     text: string;
   }>({ preset: "rect", width: 120, height: 80, text: "" });
   const load = async (known?: ReadonlySet<number>) => {
-    const value = await editor.shapes();
+    const value = await editor.objects.shapes();
     setCatalog(value);
     setDraft(
       (known && value.items.find((item) => !known.has(item.id))) ??
@@ -57,7 +62,7 @@ export function DocxShapes({
     let active = true;
     controller.run(async () => {
       try {
-        const value = await editor.shapes();
+        const value = await editor.objects.shapes();
         const selected = value.items.find((item) => item.selected);
         if (active && selected) {
           setCatalog(value);
@@ -100,8 +105,8 @@ export function DocxShapes({
         state={state}
         disabled={disabled || !editor.getSnapshot().data.selection}
         apply={async (preset, text) => {
-          const before = await editor.shapes();
-          await editor.editShape(before.revision, {
+          const before = await editor.objects.shapes();
+          await editor.objects.editShape(before.revision, {
             action: "insertWordArt",
             preset,
             text,
@@ -114,9 +119,9 @@ export function DocxShapes({
         onSubmit={(event) => {
           event.preventDefault();
           controller.run(async () => {
-            const before = await editor.shapes();
+            const before = await editor.objects.shapes();
             const { preset, text, ...size } = creation;
-            await editor.editShape(before.revision, {
+            await editor.objects.editShape(before.revision, {
               action: "insert",
               ...size,
               preset: preset === "textBox" ? "rect" : preset,
@@ -171,7 +176,7 @@ export function DocxShapes({
                 required
                 step="any"
                 min={creation.preset === "line" ? 0 : 1 / 12700}
-                max={14400}
+                max={docxShapeDimensionPoints}
                 value={Number.isFinite(creation[key]) ? creation[key] : ""}
                 onChange={(event) =>
                   setCreation({
@@ -187,7 +192,7 @@ export function DocxShapes({
               {t.docxTextBoxInitialText}
               <textarea
                 rows={3}
-                maxLength={32767}
+                maxLength={docxTextBoxTextUnits}
                 value={creation.text}
                 onChange={(event) =>
                   setCreation({ ...creation, text: event.currentTarget.value })
@@ -241,12 +246,12 @@ export function DocxShapes({
             state={state}
             hyperlink={shape.hyperlink}
             goTo={async (name) => {
-              await editor.editBookmark({ action: "goTo", name });
+              await editor.review.editBookmark({ action: "goTo", name });
             }}
             disabled={disabled || stale}
             apply={async (target) => {
               if (!catalog) return;
-              await editor.editShape(catalog.revision, {
+              await editor.objects.editShape(catalog.revision, {
                 action: "hyperlink",
                 id: shape.id,
                 target,
@@ -264,7 +269,7 @@ export function DocxShapes({
               disabled={disabled || stale}
               apply={async (properties) => {
                 if (!catalog) return;
-                await editor.editShape(catalog.revision, {
+                await editor.objects.editShape(catalog.revision, {
                   action: "textBox",
                   id: shape.id,
                   properties,
@@ -281,7 +286,7 @@ export function DocxShapes({
             disabled={disabled || stale}
             apply={async (anchor) => {
               if (!catalog) return;
-              await editor.editShape(catalog.revision, {
+              await editor.objects.editShape(catalog.revision, {
                 action: "position",
                 id: shape.id,
                 anchor,
@@ -294,7 +299,7 @@ export function DocxShapes({
               event.preventDefault();
               controller.run(async () => {
                 if (!catalog) return;
-                await editor.editShape(catalog.revision, {
+                await editor.objects.editShape(catalog.revision, {
                   action: "properties",
                   id: draft.id,
                   width: draft.width,
@@ -327,7 +332,11 @@ export function DocxShapes({
                         ? 0
                         : 1 / 12700
                     }
-                    max={key === "lineWidth" ? 1584 : 14400}
+                    max={
+                      key === "lineWidth"
+                        ? docxShapeStrokePoints
+                        : docxShapeDimensionPoints
+                    }
                     disabled={key !== "lineWidth" && !!shape.sizeReason}
                     title={key !== "lineWidth" ? shape.sizeReason : undefined}
                     value={Number.isFinite(draft[key]) ? draft[key] : ""}
@@ -375,7 +384,7 @@ export function DocxShapes({
             onClick={() =>
               controller.run(async () => {
                 if (!catalog) return;
-                await editor.editShape(catalog.revision, {
+                await editor.objects.editShape(catalog.revision, {
                   action: "delete",
                   id: shape.id,
                 });

@@ -22,17 +22,27 @@ fn formula_result(value : Value) -> Value {
 }
 
 ///|
+fn logical_fold(name : String, result : Bool, value : Value) -> Bool {
+  let logical = logical_value(value) == Boolean(true)
+  match name {
+    "AND" => result && logical
+    "OR" => result || logical
+    _ => result != logical
+  }
+}
+
+///|
 fn logical_function(
   name : String,
   args : Array[Expression],
   sheets : Array[Sheet],
   sheet : Int32,
-  values : Map[(Int32, String), Value],
+  values : Map[(Int32, Address), Value],
   work : FormulaWork,
   depth : Int32,
   hyperlink~ : Ref[String?]? = None,
 ) -> Value raise @failure.Failure {
-  if name == "AND" || name == "OR" {
+  if name is ("AND" | "OR" | "XOR") {
     let mut result = name == "AND"
     let mut seen = false
     for arg in args {
@@ -63,12 +73,7 @@ fn logical_function(
                 error = Some((cell.address, message))
               }
             value => {
-              let logical = logical_value(value) == Boolean(true)
-              result = if name == "AND" {
-                result && logical
-              } else {
-                result || logical
-              }
+              result = logical_fold(name, result, value)
               seen = true
             }
           }
@@ -85,12 +90,7 @@ fn logical_function(
         if value is Error(_) {
           return value
         }
-        let logical = logical_value(value) == Boolean(true)
-        result = if name == "AND" {
-          result && logical
-        } else {
-          result || logical
-        }
+        result = logical_fold(name, result, value)
         seen = true
       }
     }

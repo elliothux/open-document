@@ -1,63 +1,38 @@
+import {
+  docxClipboardFragmentUnits,
+  docxTableGridCells,
+  docxTableGridColumns,
+  docxTableGridRows,
+  docxTextCommandUnits,
+} from "@open-document/wasm/engine-source";
+import type { DocxInputLimits } from "./docx-input.js";
 import { record } from "@open-document/wasm/abi/validation";
-import { isDocxSelection } from "./docx-search.js";
 import type { DocxSelection } from "./docx-hit.js";
 import {
   wordBorderThemeSlots,
   type DocxPageBorder,
 } from "./docx-page-borders.js";
 
-export interface DocxFragmentImages {
+export interface DocxFragmentImages<Bytes = Uint8Array> {
   revision: number;
-  images: { key: string; bytes: Uint8Array }[];
+  images: {
+    key: string;
+    width: number;
+    height: number;
+    allowTranspose?: true;
+    rgba?: true;
+    bytes: Bytes;
+  }[];
 }
 export function docxFragmentImages(
-  value: unknown,
-  encoded: boolean,
+  result: DocxFragmentImages<string>,
 ): DocxFragmentImages {
-  const result = record(value);
-  if (
-    typeof result.revision !== "number" ||
-    !Number.isInteger(result.revision) ||
-    result.revision < 0 ||
-    !Array.isArray(result.images) ||
-    result.images.length > 256
-  )
-    throw new Error("Invalid fragment images");
-  const images: unknown[] = result.images;
-  const keys = new Set<string>();
-  let size = 0;
   return {
     revision: result.revision,
-    images: images.map((value) => {
-      const image = record(value);
-      if (
-        typeof image.key !== "string" ||
-        !image.key ||
-        image.key.length > 256 ||
-        keys.has(image.key) ||
-        (encoded
-          ? typeof image.bytes !== "string"
-          : !(image.bytes instanceof Uint8Array))
-      )
-        throw new Error("Invalid fragment image resource");
-      keys.add(image.key);
-      let bytes: Uint8Array;
-      if (encoded) {
-        if (typeof image.bytes !== "string" || image.bytes.length > 2097152)
-          throw new Error("Invalid encoded image bytes");
-        bytes = Uint8Array.from(atob(image.bytes), (value) =>
-          value.charCodeAt(0),
-        );
-      } else {
-        if (!(image.bytes instanceof Uint8Array))
-          throw new Error("Invalid decoded image bytes");
-        bytes = image.bytes;
-      }
-      size += bytes.length;
-      if (!bytes.length || size > 2097152)
-        throw new Error("Fragment image bytes exceed budget");
-      return { key: image.key, bytes };
-    }),
+    images: result.images.map((image) => ({
+      ...image,
+      bytes: Uint8Array.from(atob(image.bytes), (value) => value.charCodeAt(0)),
+    })),
   };
 }
 
@@ -66,22 +41,6 @@ export interface DocxTableClipboard {
   selection: DocxSelection;
   fragment: string | null;
   reason: string;
-}
-
-export function docxTableClipboard(value: unknown): DocxTableClipboard {
-  const result = record(value);
-  if (
-    typeof result.text !== "string" ||
-    result.text.length > 65536 ||
-    (result.fragment !== null &&
-      (typeof result.fragment !== "string" ||
-        result.fragment.length === 0 ||
-        result.fragment.length > 2097152)) ||
-    typeof result.reason !== "string" ||
-    !isDocxSelection(result.selection)
-  )
-    throw new Error("Invalid table clipboard returned by Wasm");
-  return value as DocxTableClipboard;
 }
 
 export interface DocxBorderStyle {
@@ -214,13 +173,20 @@ export type DocxTableEdit =
   | { action: "cellMargins" | "tableMargins"; value: DocxCellMargins | null }
   | { action: "tableAlign"; value: "left" | "center" | "right" };
 
-export function checkDocxTableEdit(value: unknown): void {
+export function checkDocxTableEdit(
+  value: unknown,
+  limits?: () => Pick<
+    DocxInputLimits,
+    "clipboardFragmentUnits" | "textCommandUnits"
+  >,
+): void {
   const change = record(value);
   if (change.action === "pasteFragment") {
     if (
       typeof change.fragment !== "string" ||
       change.fragment.length === 0 ||
-      change.fragment.length > 2097152 ||
+      change.fragment.length >
+        (limits?.().clipboardFragmentUnits ?? docxClipboardFragmentUnits) ||
       Object.keys(change).some((key) => key !== "action" && key !== "fragment")
     )
       throw new Error("Invalid rich table clipboard");
@@ -229,7 +195,8 @@ export function checkDocxTableEdit(value: unknown): void {
   if (change.action === "pasteCells") {
     if (
       typeof change.text !== "string" ||
-      change.text.length > 65536 ||
+      change.text.length >
+        (limits?.().textCommandUnits ?? docxTextCommandUnits) ||
       Object.keys(change).some((key) => key !== "action" && key !== "text")
     )
       throw new Error("Invalid table clipboard text");
@@ -254,7 +221,7 @@ export function checkDocxTableEdit(value: unknown): void {
       typeof change.value !== "number" ||
       !Number.isSafeInteger(change.value) ||
       change.value < 0 ||
-      change.value > 1000
+      change.value > docxTableGridRows
     )
       throw new Error("Invalid header row count");
     return;
@@ -308,7 +275,7 @@ export function checkDocxTableEdit(value: unknown): void {
       (typeof change.column !== "number" ||
         !Number.isSafeInteger(change.column) ||
         change.column < 0 ||
-        change.column >= 63 ||
+        change.column >= docxTableGridColumns ||
         typeof change.value !== "number" ||
         change.value < 12)
     )
@@ -354,10 +321,10 @@ export function checkDocxTableSize(rows: number, columns: number): void {
     !Number.isInteger(rows) ||
     !Number.isInteger(columns) ||
     rows < 1 ||
-    rows > 1000 ||
+    rows > docxTableGridRows ||
     columns < 1 ||
-    columns > 63 ||
-    rows * columns > 4096
+    columns > docxTableGridColumns ||
+    rows * columns > docxTableGridCells
   )
     throw new Error("Invalid table dimensions");
 }

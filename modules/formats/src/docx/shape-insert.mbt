@@ -141,18 +141,28 @@ fn shape_markup(
 }
 
 ///|
+pub const TextBoxTextUnits : Int32 = 32767
+
+///|
+pub const TextBoxParagraphCount : Int32 = 256
+
+///|
+pub const TextBoxParagraphUnits : Int32 = 4096
+
+///|
 fn text_box_markup(
   text : String,
   limit : Int32,
 ) -> String raise @failure.Failure {
-  guard text.length() <= 32767 else {
+  guard text.length() <= TextBoxTextUnits else {
     @failure.reject("limit-exceeded", "Text box initial text exceeds budget")
   }
   guard valid_inline_input(text) && !has_region_break(text) else {
     @failure.reject("invalid-operation", "Invalid text box initial text")
   }
   let parts : Array[StringView] = text.split("\n").collect()
-  guard parts.length() <= 256 && parts.all(part => part.length() <= 4096) else {
+  guard parts.length() <= TextBoxParagraphCount &&
+    parts.all(part => part.length() <= TextBoxParagraphUnits) else {
     @failure.reject("limit-exceeded", "Text box initial text exceeds budget")
   }
   let output = StringBuilder()

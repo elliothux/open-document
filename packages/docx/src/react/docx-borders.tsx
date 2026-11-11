@@ -69,7 +69,7 @@ export function DocxBorders({
               color: color.slice(1),
               ...(kind === "set" && themeColor ? { themeColor } : {}),
             };
-    controller.run(() => editor.editTable({ action: scope, value }));
+    controller.run(() => editor.tables.editTable({ action: scope, value }));
   };
   const labels = {
     top: t.topCellBorder,

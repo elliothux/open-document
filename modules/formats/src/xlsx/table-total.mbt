@@ -94,9 +94,12 @@ fn Session::write_table_total(
     Formula(text) => {
       let text = text.trim().to_owned()
       let text = text.strip_prefix("=").unwrap_or(text[:]).to_owned()
-      guard !text.is_empty() && text.length() <= 8192 && @xml.valid_text(text) else {
+      guard !text.is_empty() &&
+        text.length() <= FormulaSourceUnits &&
+        @xml.valid_text(text) else {
         @failure.reject(
-          "limit-exceeded", "Table total formula must contain 1..8192 UTF-16 units",
+          "limit-exceeded",
+          "Table total formula must contain 1..\{FormulaSourceUnits} UTF-16 units",
         )
       }
       let expression = parse_formula(text)

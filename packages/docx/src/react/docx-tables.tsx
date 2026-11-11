@@ -4,6 +4,11 @@ import type { DocumentEditor } from "../web/editor.js";
 import type { DocxTableEdit, DocxCellMargins } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import {
+  docxTableGridCells,
+  docxTableGridColumns,
+  docxTableGridRows,
+} from "@open-document/wasm/engine-source";
 import { DocxMargins } from "./docx-margins.js";
 import { DocxBorders } from "./docx-borders.js";
 import { DocxCellFill } from "./docx-cell-fill.js";
@@ -81,7 +86,7 @@ export function DocxTables({
               key={mode}
               onClick={() =>
                 controller.run(() =>
-                  editor.editTable({ action: "autoFit", mode }),
+                  editor.tables.editTable({ action: "autoFit", mode }),
                 )
               }
             >
@@ -130,7 +135,9 @@ export function DocxTables({
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          controller.run(() => editor.insertTable(rowCount, columnCount));
+          controller.run(() =>
+            editor.tables.insertTable(rowCount, columnCount),
+          );
         }}
       >
         <fieldset disabled={disabled || !body}>
@@ -139,7 +146,7 @@ export function DocxTables({
             <input
               type="number"
               min={1}
-              max={1000}
+              max={docxTableGridRows}
               required
               value={rows}
               onChange={(event) => setRows(event.currentTarget.value)}
@@ -150,7 +157,7 @@ export function DocxTables({
             <input
               type="number"
               min={1}
-              max={63}
+              max={docxTableGridColumns}
               required
               value={columns}
               onChange={(event) => setColumns(event.currentTarget.value)}
@@ -161,7 +168,7 @@ export function DocxTables({
             disabled={
               !Number.isInteger(rowCount) ||
               !Number.isInteger(columnCount) ||
-              rowCount * columnCount > 4096
+              rowCount * columnCount > docxTableGridCells
             }
           >
             {t.insertTable}
@@ -207,7 +214,7 @@ export function DocxTables({
             disabled={!!selected && change === "splitTable"}
             onMouseDown={(event) => event.preventDefault()}
             onClick={() =>
-              controller.run(() => editor.editTable({ action: change }))
+              controller.run(() => editor.tables.editTable({ action: change }))
             }
           >
             {t[change]}
@@ -218,7 +225,7 @@ export function DocxTables({
         onSubmit={(event) => {
           event.preventDefault();
           controller.run(() =>
-            editor.editTable({
+            editor.tables.editTable({
               action: "merge",
               rows: mergeRowCount,
               columns: mergeColumnCount,
@@ -233,7 +240,7 @@ export function DocxTables({
             <input
               type="number"
               min={1}
-              max={1000}
+              max={docxTableGridRows}
               required
               value={selected ? mergeRowCount : mergeRows}
               readOnly={!!selected}
@@ -245,7 +252,7 @@ export function DocxTables({
             <input
               type="number"
               min={1}
-              max={63}
+              max={docxTableGridColumns}
               required
               value={selected ? mergeColumnCount : mergeColumns}
               readOnly={!!selected}
@@ -256,7 +263,7 @@ export function DocxTables({
             type="submit"
             disabled={
               mergeRowCount * mergeColumnCount <= 1 ||
-              mergeRowCount * mergeColumnCount > 4096
+              mergeRowCount * mergeColumnCount > docxTableGridCells
             }
           >
             {t.mergeCells}
@@ -267,7 +274,7 @@ export function DocxTables({
         onSubmit={(event) => {
           event.preventDefault();
           controller.run(() =>
-            editor.editTable({
+            editor.tables.editTable({
               action: "splitCell",
               rows: Number(splitRows),
               columns: Number(splitColumns),
@@ -282,7 +289,7 @@ export function DocxTables({
             <input
               type="number"
               min={1}
-              max={1000}
+              max={docxTableGridRows}
               required
               value={splitRows}
               onChange={(event) => setSplitRows(event.currentTarget.value)}
@@ -293,7 +300,7 @@ export function DocxTables({
             <input
               type="number"
               min={1}
-              max={63}
+              max={docxTableGridColumns}
               required
               value={splitColumns}
               onChange={(event) => setSplitColumns(event.currentTarget.value)}
@@ -303,7 +310,7 @@ export function DocxTables({
             type="submit"
             disabled={
               Number(splitRows) * Number(splitColumns) <= 1 ||
-              Number(splitRows) * Number(splitColumns) > 4096
+              Number(splitRows) * Number(splitColumns) > docxTableGridCells
             }
           >
             {t.splitCell}
@@ -375,7 +382,7 @@ function TableProperties({
           onChange={(event) => {
             const value = event.currentTarget.checked;
             controller.run(() =>
-              editor.editTable({ action: "rowSplit", value }),
+              editor.tables.editTable({ action: "rowSplit", value }),
             );
           }}
         />
@@ -386,7 +393,7 @@ function TableProperties({
           onSubmit={(event) => {
             event.preventDefault();
             controller.run(() =>
-              editor.editTable({
+              editor.tables.editTable({
                 action: "columnWidth",
                 column: columnIndex,
                 value: Number(columnWidth),
@@ -435,7 +442,10 @@ function TableProperties({
         onSubmit={(event) => {
           event.preventDefault();
           controller.run(() =>
-            editor.editTable({ action: "headerRows", value: Number(headers) }),
+            editor.tables.editTable({
+              action: "headerRows",
+              value: Number(headers),
+            }),
           );
         }}
       >
@@ -445,7 +455,7 @@ function TableProperties({
             type="number"
             required
             min={0}
-            max={Math.min(rows, 1000)}
+            max={Math.min(rows, docxTableGridRows)}
             step={1}
             value={headers}
             onChange={(event) => setHeaders(event.currentTarget.value)}
@@ -472,7 +482,7 @@ function TableProperties({
             onMouseDown={(event) => event.preventDefault()}
             onClick={() =>
               controller.run(() =>
-                editor.editTable({ action: "tableAlign", value }),
+                editor.tables.editTable({ action: "tableAlign", value }),
               )
             }
           >
@@ -512,7 +522,7 @@ function TableProperties({
             onMouseDown={(event) => event.preventDefault()}
             onClick={() =>
               controller.run(() =>
-                editor.editTable({ action: "cellVerticalAlign", value }),
+                editor.tables.editTable({ action: "cellVerticalAlign", value }),
               )
             }
           >
@@ -541,7 +551,7 @@ function TableProperties({
             event.preventDefault();
             if (tableWidth !== "")
               controller.run(() =>
-                editor.editTable({
+                editor.tables.editTable({
                   action: "tableWidth",
                   value: Number(tableWidth),
                 }),

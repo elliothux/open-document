@@ -509,9 +509,9 @@ fn read_text(
       })
     }
     guard runs.iter().fold(init=0, (sum, run) => sum + run.text.length()) <=
-      4096 &&
-      units <= 32767 &&
-      paragraphs.length() < 256 else {
+      TextParagraphUnits &&
+      units <= TextFrameUnits &&
+      paragraphs.length() < TextFrameParagraphs else {
       @failure.reject("limit-exceeded", "Text frame exceeds budget")
     }
     let (resolved, diagnostic) = read_paragraph_style(

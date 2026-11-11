@@ -34,7 +34,7 @@ MoonBit 继续拥有文档状态、编辑、计算、排版和序列化。DOCX/P
 
 ## 验证与边界
 
-2026-10-28 在固定本地工具链及 Chromium 上完成以下定向检查，详见[测试说明](../references/testing.md#r1-领域拆包与共享加载)。
+2026-10-28 在固定本地工具链及 Chromium 上完成以下定向检查，详见[测试说明](../../test-lab/cases/history/testing-r1.json)。
 
 - Moon check/build/info、严格 TypeScript、lint、格式和锁文件检查通过。
 - 18 项定向单元检查通过，覆盖 Loader 并发、取消、失败重试、新旧构建竞争、克隆失败释放及既有边界校验。

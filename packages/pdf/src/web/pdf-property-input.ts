@@ -1,3 +1,4 @@
+import type { PdfInputLimits } from "../core/pdf.js";
 import { PdfObjectInputs } from "./pdf-object-input.js";
 import { PdfFieldInputs } from "./pdf-field-input.js";
 import { PdfInkInputs } from "./pdf-annotation-input.js";
@@ -17,24 +18,31 @@ export class PdfPropertyInputs {
   readonly inkInputs: PdfInkInputs;
   readonly widgetInputs: PdfFieldWidgetInputs;
   readonly cropInputs: PdfImageCropInputs;
+  readonly textUnits: number;
   private readonly events = new AbortController();
   private readonly emit: () => void;
 
-  constructor(change: () => void, composition: (active: boolean) => void) {
+  constructor(
+    change: () => void,
+    composition: (active: boolean) => void,
+    limits: PdfInputLimits,
+  ) {
     const signal = this.events.signal;
     this.emit = () => {
       if (!signal.aborted) change();
     };
     this.objectInputs = new PdfObjectInputs(this.emit);
-    this.fieldInputs = new PdfFieldInputs(this.emit);
+    this.textUnits = limits.textUnits;
+    this.fieldInputs = new PdfFieldInputs(this.emit, this.textUnits);
     this.inkInputs = new PdfInkInputs(
       this.emit,
+      limits,
       () => this.objectInputs.read("").placement,
     );
     this.widgetInputs = new PdfFieldWidgetInputs(this.emit);
     this.cropInputs = new PdfImageCropInputs(this.emit);
     this.text.setAttribute("aria-label", "PDF property text");
-    this.text.maxLength = 32767;
+    this.text.maxLength = this.textUnits;
     this.checked.type = "checkbox";
     this.checked.setAttribute("aria-label", "PDF checkbox value");
     this.fieldChoice.setAttribute("aria-label", "PDF choice value");

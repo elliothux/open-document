@@ -8,6 +8,7 @@ import type { XlsxClient } from "./xlsx.js";
 import type { SpreadsheetEditor } from "./spreadsheet-editor.js";
 import { checkCopiedFormatFonts } from "./spreadsheet-format.js";
 import { bindClipboard } from "@open-document/web-core/clipboard";
+import { xlsxCellClipboardJsonUnits } from "@open-document/wasm/engine-source";
 
 const cellMime = "web application/x-open-document-cells";
 const cutMime = "web application/x-open-document-cut";
@@ -25,7 +26,7 @@ export function bindSpreadsheetClipboard(
   input: HTMLElement,
   signal: AbortSignal,
   host: Pick<
-    SpreadsheetEditor,
+    SpreadsheetEditor["clipboard"],
     "copy" | "cutSelection" | "paste" | "pasteCells" | "pasteDrawing"
   >,
   composing: () => boolean,
@@ -70,12 +71,17 @@ export async function copyCellData(
 ): Promise<void> {
   if (typeof cut !== "boolean") throw new Error("Invalid cell cut option");
   if (!structured) {
-    await navigator.clipboard.writeText(await client.copy(state.revision));
+    await navigator.clipboard.writeText(
+      await client.execute({ operation: "copyXlsx", revision: state.revision }),
+    );
     pendingCut = false;
     pendingDrawing = false;
     return;
   }
-  const text = await client.copy(state.revision);
+  const text = await client.execute({
+    operation: "copyXlsx",
+    revision: state.revision,
+  });
   const data: Record<string, Blob> = {
     "text/plain": new Blob([text], { type: "text/plain" }),
   };
@@ -94,8 +100,13 @@ export async function copyCellData(
       { type: "application/x-open-document-cut" },
     );
   } else {
-    const json = JSON.stringify(await client.captureCells(state.revision));
-    if (json.length > 4194304)
+    const json = JSON.stringify(
+      await client.execute({
+        operation: "captureXlsxCells",
+        revision: state.revision,
+      }),
+    );
+    if (json.length > xlsxCellClipboardJsonUnits)
       throw new Error("Cell clipboard exceeds byte budget");
     data[cellMime] = new Blob([json], {
       type: "application/x-open-document-cells",
@@ -144,12 +155,13 @@ export async function copySpreadsheetDrawing(
   objectId: string,
   profile: Record<string, string>,
 ): Promise<void> {
-  const copied = await client.captureDrawing(
-    state.revision,
-    state.sheet,
-    objectId,
-    profile,
-  );
+  const copied = await client.execute({
+    operation: "captureDrawingXlsx",
+    revision: state.revision,
+    sheet: state.sheet,
+    objectId: objectId,
+    profile: profile,
+  });
   await navigator.clipboard.write([
     new ClipboardItem({
       "text/plain": new Blob([copied.text], { type: "text/plain" }),
@@ -182,7 +194,13 @@ export async function pasteSpreadsheetDrawing(
     if (closed()) throw new Error("Editor is disposed");
     await prepare(fragment);
     if (closed()) throw new Error("Editor is disposed");
-    return client.pasteDrawing(state.revision, state.sheet, fragment, profile);
+    return client.execute({
+      operation: "pasteDrawingXlsx",
+      revision: state.revision,
+      sheet: state.sheet,
+      fragment: fragment,
+      profile: profile,
+    });
   }
   const blob = await item.getType(drawingCutMime);
   if (blob.size > 4096) throw new Error("Invalid drawing cut clipboard");
@@ -208,7 +226,12 @@ export async function pasteSpreadsheetDrawing(
   } as const;
   checkXlsxSheetEdit(change);
   if (closed()) throw new Error("Editor is disposed");
-  return client.editSheet(state.revision, state.sheet, change);
+  return client.execute({
+    operation: "editXlsxSheet",
+    revision: state.revision,
+    sheet: state.sheet,
+    change: change,
+  });
 }
 
 export async function pasteSpreadsheetCells(
@@ -250,11 +273,16 @@ export async function pasteSpreadsheetCells(
     if (mode !== "all" || transpose)
       throw new Error("Cut cells require Paste all cells without transpose");
     if (closed()) throw new Error("Editor is disposed");
-    return client.editSheet(state.revision, state.sheet, {
-      action: "moveCells",
-      sourceSheet: cut.sheet,
-      source: cut.range,
-      destination: state.selection.address,
+    return client.execute({
+      operation: "editXlsxSheet",
+      revision: state.revision,
+      sheet: state.sheet,
+      change: {
+        action: "moveCells",
+        sourceSheet: cut.sheet,
+        source: cut.range,
+        destination: state.selection.address,
+      },
     });
   }
   const blob = await item.getType(cellMime);
@@ -271,11 +299,12 @@ export async function pasteSpreadsheetCells(
       state.formatting,
       profile,
     );
-  return client.pasteCells(
-    state.revision,
-    cells,
-    mode,
-    transpose,
-    acceptWarnings,
-  );
+  return client.execute({
+    operation: "pasteXlsxCells",
+    revision: state.revision,
+    copied: cells,
+    mode: mode,
+    transpose: transpose,
+    acceptWarnings: acceptWarnings,
+  });
 }

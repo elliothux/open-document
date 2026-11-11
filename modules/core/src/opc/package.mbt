@@ -5,7 +5,10 @@ pub(all) struct Relationship {
   kind : String
   target : String
   external : Bool
-}
+} derive(ToJson(fields(kind(rename="type"))))
+
+///|
+pub extend Relationship with ToJson::{to_json}
 
 ///|
 pub struct Package {
@@ -64,18 +67,21 @@ pub fn Package::relationships(
 ) -> ReadOnlyArray[Relationship] raise @failure.Failure {
   self.check()
   if !removed.is_empty() ||
-    replacements
-    .keys()
-    .any(name => {
-      name.to_lower().has_suffix(".rels") ||
-      name == "[Content_Types].xml" ||
-      !self.names.contains(name.to_lower())
-    }) {
+    replacements.keys().any(name => self.changes_metadata(name)) {
     return ReadOnlyArray::from_array(
-      self.checked_relationships(replacements, removed),
+      self.checked_metadata(replacements, removed).1,
     )
   }
   ReadOnlyArray::from_array(self.relationships)
+}
+
+///|
+/// Relationship metadata only needs reloading for metadata parts and new entries.
+pub fn Package::changes_metadata(self : Package, name : String) -> Bool {
+  let key = name.to_lower()
+  key.has_suffix(".rels") ||
+  name == "[Content_Types].xml" ||
+  !self.names.contains(key)
 }
 
 ///|
@@ -119,7 +125,17 @@ pub fn Package::save(
   removed~ : Array[String] = [],
 ) -> Bytes raise @failure.Failure {
   self.validate_changes(replacements, removed~)
-  let output = self.archive.save(replacements, removed~)
+  self.archive.save(replacements, removed~)
+}
+
+///|
+/// Reopen serialized output for test-time package and changed-XML verification.
+pub fn Package::verify_output(
+  self : Package,
+  output : Bytes,
+  replacements : Map[String, Bytes],
+) -> Unit raise @failure.Failure {
+  self.check()
   let candidate = Package::open(output, {
     ..self.budget,
     file_bytes: self.budget.output_bytes,
@@ -127,7 +143,6 @@ pub fn Package::save(
   })
   defer candidate.close()
   candidate.validate_xml(replacements)
-  output
 }
 
 ///|
@@ -136,15 +151,28 @@ pub fn Package::validate_changes(
   replacements : Map[String, Bytes],
   removed~ : Array[String] = [],
 ) -> Unit raise @failure.Failure {
-  ignore(self.checked_relationships(replacements, removed))
+  let (types, _) = self.checked_metadata(replacements, removed)
+  for name, bytes in replacements {
+    if types.get(name.to_lower()) is Some(kind) &&
+      (kind.has_suffix("+xml") || kind.has_suffix("/xml")) {
+      ignore(
+        @xml.Document::parse(
+          bytes,
+          name,
+          self.budget.xml_depth,
+          self.budget.entry_bytes,
+        ),
+      )
+    }
+  }
 }
 
 ///|
-fn Package::checked_relationships(
+fn Package::checked_metadata(
   self : Package,
   replacements : Map[String, Bytes],
   removed : Array[String],
-) -> Array[Relationship] raise @failure.Failure {
+) -> (Map[String, String], Array[Relationship]) raise @failure.Failure {
   self.check()
   guard !self.signed else {
     @failure.reject(
@@ -173,22 +201,16 @@ fn Package::checked_relationships(
   }
   ignore(self.archive.validate_changes(replacements, removed~))
   if !removed.is_empty() ||
-    replacements
-    .keys()
-    .any(name => {
-      name.to_lower().has_suffix(".rels") ||
-      name == "[Content_Types].xml" ||
-      !self.names.contains(name.to_lower())
-    }) {
-    let (_, relationships, signed) = self.replacement_metadata(
+    replacements.keys().any(name => self.changes_metadata(name)) {
+    let (types, relationships, signed) = self.replacement_metadata(
       replacements, removed,
     )
     guard !signed else {
       @failure.reject("unsupported-package", "Cannot introduce signature parts")
     }
-    relationships
+    (types, relationships)
   } else {
-    self.relationships
+    (self.types, self.relationships)
   }
 }
 

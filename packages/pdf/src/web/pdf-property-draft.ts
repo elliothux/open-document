@@ -1,3 +1,4 @@
+import type { PdfObjectDrag } from "./pdf-object-drag.js";
 import type { PdfQuery } from "../core/pdf.js";
 import type { PdfClient } from "./pdf.js";
 import type { PdfPropertyInputs } from "./pdf-property-input.js";
@@ -104,4 +105,117 @@ export async function propertyDraft(
     controls.text.value = annotation.text;
   } else draft = undefined;
   return draft;
+}
+
+export function renderPdfPropertyDraft(
+  controls: PdfPropertyInputs,
+  draft: Draft | undefined,
+  field: PdfQuery["fields"][number] | undefined,
+  paused: boolean,
+  applying: boolean,
+  propertyReason: string,
+  objectDrag: PdfObjectDrag,
+): void {
+  controls.text.hidden =
+    !draft ||
+    typeof draft.original === "boolean" ||
+    draft.kind === "objectGeometry" ||
+    draft.kind === "pageGeometry" ||
+    draft.kind === "imageCrop" ||
+    (!!field && ["radio", "choice", "list"].includes(field.kind));
+  controls.fieldChoice.hidden =
+    !field || !["radio", "choice", "list"].includes(field.kind);
+  controls.checked.hidden = !draft || typeof draft.original !== "boolean";
+  controls.x.hidden = controls.y.hidden =
+    draft?.kind !== "note" && draft?.kind !== "fieldCopy";
+  for (const [input, axis] of [
+    [controls.x, "horizontal"],
+    [controls.y, "vertical"],
+  ] as const) {
+    input.min = draft?.kind === "fieldCopy" ? "-14400" : "0";
+    const label =
+      draft?.kind === "fieldCopy"
+        ? `Field ${axis} offset`
+        : `Note ${axis} position`;
+    input.setAttribute("aria-label", label);
+    const caption = input.parentElement?.querySelector("span");
+    if (caption) caption.textContent = label;
+  }
+  for (const input of [
+    controls.text,
+    controls.checked,
+    controls.fieldChoice,
+    controls.x,
+    controls.y,
+  ])
+    if (input.parentElement) input.parentElement.hidden = input.hidden;
+  controls.text.rows = field?.multiline ? 4 : 2;
+  controls.text.maxLength = field?.maxLength ?? controls.textUnits;
+  controls.text.disabled = controls.checked.disabled =
+    paused || applying || !!propertyReason;
+  controls.x.disabled = controls.y.disabled = controls.text.disabled;
+  controls.fieldChoice.disabled = controls.text.disabled;
+  controls.fieldInputs.show(
+    draft?.kind === "newField" || draft?.kind === "fieldDesign",
+    controls.text.disabled,
+    draft?.kind === "fieldDesign",
+  );
+  controls.widgetInputs.show(
+    draft?.kind === "fieldDesign",
+    controls.text.disabled,
+  );
+  controls.inkInputs.show(draft?.kind === "newInk", controls.text.disabled);
+  controls.cropInputs.show(draft?.kind === "imageCrop", controls.text.disabled);
+  controls.objectInputs.show(
+    draft?.originalSpec !== undefined && draft.kind !== "imageCrop",
+    draft?.kind !== "objectGeometry",
+    controls.text.disabled,
+    !draft?.id.includes("/source/"),
+    draft?.kind === "newDrawing" ||
+      draft?.kind === "newInk" ||
+      draft?.kind === "annotationStyle" ||
+      draft?.kind === "annotationReply",
+    draft?.kind === "pageGeometry" ? draft.pageAction : undefined,
+  );
+  if (draft?.kind === "newField")
+    for (const key of ["rotation", "foreground"] as const) {
+      const label = controls.objectInputs.inputs[key].parentElement;
+      if (label) label.hidden = true;
+    }
+  if (draft?.kind === "fieldDesign")
+    for (const key of [
+      "x",
+      "y",
+      "width",
+      "height",
+      "rotation",
+      "foreground",
+    ] as const) {
+      const label = controls.objectInputs.inputs[key].parentElement;
+      if (label) label.hidden = true;
+    }
+  if (
+    draft?.kind === "newDrawing" ||
+    draft?.kind === "newInk" ||
+    draft?.kind === "annotationStyle"
+  )
+    for (const key of ["rotation", "points"] as const) {
+      const label = controls.objectInputs.inputs[key].parentElement;
+      if (label && (key !== "points" || draft.kind !== "newDrawing"))
+        label.hidden = true;
+    }
+  if (draft?.kind === "annotationReply")
+    for (const [key, control] of Object.entries(controls.objectInputs.inputs)) {
+      if (control.parentElement)
+        control.parentElement.hidden = key !== "author";
+    }
+  const movable =
+    !paused &&
+    !applying &&
+    !propertyReason &&
+    (draft?.kind === "textObject" || draft?.kind === "objectGeometry");
+  objectDrag.show(
+    movable ? draft.page : undefined,
+    movable ? draft.id : undefined,
+  );
 }

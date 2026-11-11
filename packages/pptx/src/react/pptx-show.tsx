@@ -1,4 +1,9 @@
 import { useState } from "react";
+import {
+  pptxCustomShowCount,
+  pptxCustomShowNameUnits,
+  pptxCustomShowSlides,
+} from "@open-document/wasm/engine-source";
 import type {
   PresentationEditor,
   PresentationShowLabels,
@@ -155,7 +160,7 @@ function CustomShows({
             {t.customShowName}
             <input
               required
-              maxLength={255}
+              maxLength={pptxCustomShowNameUnits}
               value={name}
               onChange={(event) => setName(event.currentTarget.value)}
             />
@@ -208,21 +213,24 @@ function CustomShows({
           </label>
           <button
             type="button"
-            disabled={slides.length >= 256}
+            disabled={slides.length >= pptxCustomShowSlides}
             onClick={() => setSlides([...slides, target])}
           >
             {t.customShowAddSlide}
           </button>
           <button
             type="submit"
-            disabled={!name.trim() || (!item && current.items.length >= 32)}
+            disabled={
+              !name.trim() ||
+              (!item && current.items.length >= pptxCustomShowCount)
+            }
           >
             {t.customShowApply}
           </button>
         </form>
         <button
           type="button"
-          disabled={!item || current.items.length >= 32}
+          disabled={!item || current.items.length >= pptxCustomShowCount}
           onClick={() => {
             setId("");
             setName(name + " (2)");

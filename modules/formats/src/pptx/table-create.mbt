@@ -1,4 +1,13 @@
 ///|
+pub const TableRowCount : Int32 = 1000
+
+///|
+pub const TableColumnCount : Int32 = 63
+
+///|
+pub const TableCellCount : Int32 = 4096
+
+///|
 fn table_markup(
   id : String,
   rows : Int32,
@@ -57,10 +66,10 @@ fn Session::insert_table(
   profile : Map[String, String],
 ) -> Json raise @failure.Failure {
   guard rows >= 1 &&
-    rows <= 1000 &&
+    rows <= TableRowCount &&
     columns >= 1 &&
-    columns <= 63 &&
-    rows.to_int64() * columns.to_int64() <= 4096 else {
+    columns <= TableColumnCount &&
+    rows.to_int64() * columns.to_int64() <= TableCellCount.to_int64() else {
     @failure.reject("invalid-operation", "Invalid table dimensions")
   }
   validate_object_box(x, y, width, height, false)

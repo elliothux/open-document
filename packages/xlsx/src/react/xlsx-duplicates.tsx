@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { xlsxDuplicateCells } from "@open-document/wasm/engine-source";
 import type { SpreadsheetEditor } from "../web/spreadsheet-editor.js";
 import type { XlsxDuplicates } from "../web/xlsx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
@@ -23,7 +24,8 @@ export function XlsxDuplicates({
     range = native?.range ?? query.selection.range,
     address = native?.table.range ?? query.selection.address;
   const bounded =
-    (range.bottom - range.top + 1) * (range.right - range.left + 1) <= 4096;
+    (range.bottom - range.top + 1) * (range.right - range.left + 1) <=
+    xlsxDuplicateCells;
   const [header, setHeader] = useState(native?.table.headerRow ?? false);
   const [columns, setColumns] = useState(() =>
     bounded
@@ -96,7 +98,7 @@ export function XlsxDuplicates({
         onClick={() =>
           controller.run(async () =>
             setPreview(
-              await editor.duplicates({
+              await editor.data.duplicates({
                 range: address,
                 header,
                 columns,
@@ -138,7 +140,7 @@ export function XlsxDuplicates({
             disabled={!ready || !preview.removedRows.length}
             onClick={() =>
               controller.run(() =>
-                editor.editSheet(
+                editor.objects.editSheet(
                   {
                     action: "removeDuplicates",
                     settings: {

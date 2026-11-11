@@ -3,12 +3,82 @@ package "open_document/formats/pptx"
 
 import {
   "moonbitlang/core/debug",
+  "moonbitlang/core/json",
   "open_document/core/archive",
   "open_document/core/failure",
   "open_document/layout",
 }
 
 // Values
+pub const CommentTextUnits : Int32 = 32767
+
+pub const CustomShowCount : Int32 = 32
+
+pub const CustomShowNameUnits : Int32 = 255
+
+pub const CustomShowSlides : Int32 = 256
+
+pub const CustomShowTotalSlides : Int32 = 4096
+
+pub const DiagramItemCount : Int32 = 16
+
+pub const DiagramLabelUnits : Int32 = 4096
+
+pub const DiagramTextUnits : Int32 = 32767
+
+pub const FooterParagraphCount : Int32 = 256
+
+pub const FooterTextUnits : Int32 = 4096
+
+pub const GridSpacingMaxPoints : Int32 = 144
+
+pub const GridUnitsPerPoint : Int32 = 12700
+
+pub const GuideCount : Int32 = 64
+
+pub const ImageInputBytes : Int32 = 4194304
+
+pub const MediaInputBytes : Int32 = 16777216
+
+pub const MediaVolumeMax : Int32 = 100000
+
+pub const NotesTextUnits : Int32 = 32767
+
+pub const ObjectFragmentUnits : Int32 = 100663296
+
+pub const ObjectSelectionCount : Int32 = 256
+
+pub const ParagraphTabCount : Int32 = 32
+
+pub const SearchMatchLimit : Int32 = 1000
+
+pub const ShowInkBatchPoints : Int32 = 64
+
+pub const ShowInkStrokePoints : Int32 = 4096
+
+pub const SlideAnimationCount : Int32 = 128
+
+pub const SlideCountLimit : Int32 = 256
+
+pub const SlideImportBytes : Int32 = 33554432
+
+pub const SourceNameUnits : Int32 = 1024
+
+pub const TableCellCount : Int32 = 4096
+
+pub const TableColumnCount : Int32 = 63
+
+pub const TableRowCount : Int32 = 1000
+
+pub const TextFragmentUnits : Int32 = 1048576
+
+pub const TextFrameParagraphs : Int32 = 256
+
+pub const TextFrameUnits : Int32 = 32767
+
+pub const TextParagraphUnits : Int32 = 4096
+
+pub fn verifies_upload_raster(Bytes) -> Bool
 
 // Errors
 
@@ -102,8 +172,9 @@ pub(all) struct CustomShow {
   id : String
   name : String
   slides : Array[String]
-} derive(Eq, ToJson)
+} derive(Eq, ToJson, @json.FromJson)
 pub fn CustomShow::equal(Self, Self) -> Bool
+pub fn CustomShow::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
 pub fn CustomShow::not_equal(Self, Self) -> Bool
 pub fn CustomShow::to_json(Self) -> Json
 
@@ -139,9 +210,10 @@ pub fn FooterDate::not_equal(Self, Self) -> Bool
 pub(all) struct Guide {
   orientation : String
   position : Double
-} derive(Eq)
+} derive(Eq, ToJson)
 pub fn Guide::equal(Self, Self) -> Bool
 pub fn Guide::not_equal(Self, Self) -> Bool
+pub fn Guide::to_json(Self) -> Json
 
 pub struct ImageTile {
   sx : Double
@@ -183,9 +255,10 @@ pub(all) struct MediaPlaybackSettings {
   cycling : Bool
   volume : Int32
   mute : Bool
-} derive(Eq)
+} derive(Eq, ToJson)
 pub fn MediaPlaybackSettings::equal(Self, Self) -> Bool
 pub fn MediaPlaybackSettings::not_equal(Self, Self) -> Bool
+pub fn MediaPlaybackSettings::to_json(Self) -> Json
 
 pub(all) enum ObjectEdit {
   InsertMath(String, @layout.TextStyle, Double, Double, Double, Double)
@@ -306,7 +379,7 @@ pub fn Session::follow_hyperlink(Self, Int32) -> Json raise @failure.Failure
 pub fn Session::hit(Self, Int32, Double, Double, Double, text? : Bool) -> Json raise @failure.Failure
 pub fn Session::image_bytes(Self, String) -> Bytes raise @failure.Failure
 pub fn Session::image_keys(Self, Bool, Bool) -> Array[String] raise @failure.Failure
-pub fn Session::import_slide_info(Self, Int32, Bytes, Array[Int32]) -> Json raise @failure.Failure
+pub fn Session::import_slide_info(Self, Int32, Bytes, Array[Int32], encode_image? : (Bytes) -> Json, encode_media? : (Bytes) -> Json) -> Json raise @failure.Failure
 pub fn Session::import_slides(Self, Int32, Bytes, Array[Int32], String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::ink_show(Self, Int32, Int32, Double, ShowInkChange) -> Json raise @failure.Failure
 pub fn Session::invalidate_geometry(Self) -> Unit
@@ -314,11 +387,13 @@ pub fn Session::layout(Self, @layout.TextProbe, Map[String, String], @layout.Ima
 pub fn Session::media_bytes(Self, String) -> Bytes raise @failure.Failure
 pub fn Session::media_show(Self, Int32, Int32?, Double, ShowMediaChange) -> Json raise @failure.Failure
 pub fn Session::navigate(Self, Int32, Int32, String, Bool) -> Json raise @failure.Failure
-pub fn Session::object_fragment_images(Self, Int32, String) -> Array[String] raise @failure.Failure
-pub fn Session::object_fragment_media(Self, Int32, String) -> Array[Json] raise @failure.Failure
+pub fn Session::object_fragment_images(Self, Int32, String) -> Array[Bytes] raise @failure.Failure
+pub fn Session::object_fragment_media(Self, Int32, String, encode_media? : (Bytes) -> Json) -> Array[Json] raise @failure.Failure
+pub fn Session::object_fragment_resources(Self, Int32, String, (Bytes) -> Json, (Bytes) -> Json) -> Json raise @failure.Failure
 pub fn Session::open(Bytes, @archive.Budget, date_time? : String) -> Self raise @failure.Failure
 pub fn Session::paste_object_fragment(Self, Int32, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::paste_text_fragment(Self, Int32, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
+pub fn Session::prepare_image(Self, String, @layout.Images) -> (Bytes, @layout.ImageResource?) raise @failure.Failure
 pub fn Session::print_drawing(Self, Int32, Bool, Bool, @layout.TextProbe, Map[String, String], @layout.Images) -> Json raise @failure.Failure
 pub fn Session::print_layout(Self, Int32, Bool, Bool, @layout.TextProbe, Map[String, String]) -> @layout.PositionedDocument raise @failure.Failure
 pub fn Session::query(Self) -> Json raise @failure.Failure
@@ -457,9 +532,11 @@ pub(all) struct TableStyleSettings {
   last_column : Bool
   band_rows : Bool
   band_columns : Bool
-} derive(Eq)
+} derive(Eq, ToJson, @json.FromJson)
 pub fn TableStyleSettings::equal(Self, Self) -> Bool
+pub fn TableStyleSettings::from_json(Json, @json.JsonPath) -> Self raise @json.JsonDecodeError
 pub fn TableStyleSettings::not_equal(Self, Self) -> Bool
+pub fn TableStyleSettings::to_json(Self) -> Json
 
 pub(all) struct TextFormat {
   font : String?
@@ -478,7 +555,10 @@ pub fn TextFormat::new(font? : String, size? : Double, spacing? : Double, bold? 
 pub(all) struct TextSpacing {
   unit : String
   value : Double
-}
+} derive(Eq, ToJson)
+pub fn TextSpacing::equal(Self, Self) -> Bool
+pub fn TextSpacing::not_equal(Self, Self) -> Bool
+pub fn TextSpacing::to_json(Self) -> Json
 
 // Type aliases
 

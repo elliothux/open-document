@@ -323,7 +323,7 @@ fn Session::html_fragment(
 ) -> String raise @failure.Failure {
   check_markup_mode(mode)
   guard !html.trim().is_empty() &&
-    html.length() <= 65536 &&
+    html.length() <= MarkupSourceUnits &&
     html.iter().filter(c => c == '<').count() <= 2048 else {
     @failure.reject("limit-exceeded", "HTML exceeds source or tag budget")
   }

@@ -3,6 +3,7 @@ import type { PresentationEditor } from "../web/presentation-editor.js";
 import type { PptxObjectEdit } from "../web/pptx.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
+import { pptxDiagramTextUnits } from "@open-document/wasm/engine-source";
 
 export function PptxDiagram({
   controller,
@@ -62,7 +63,7 @@ export function PptxDiagram({
           {t.diagramItems}
           <textarea
             value={labels}
-            maxLength={32767}
+            maxLength={pptxDiagramTextUnits}
             onChange={(event) => setLabels(event.currentTarget.value)}
           />
         </label>

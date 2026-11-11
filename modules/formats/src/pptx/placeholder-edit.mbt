@@ -223,12 +223,7 @@ fn Session::insert_placeholder_changes(
   }
   let reason = self.modification_reason()
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
-  guard placeholder_type(kind) &&
-    @xml.valid_text(text) &&
-    !text.contains("\r") &&
-    text.length() <= 32767 &&
-    text.split("\n").count() <= 256 &&
-    text.split("\n").all(p => p.length() <= 4096) else {
+  guard placeholder_type(kind) && valid_text_frame_content(text) else {
     @failure.reject("invalid-operation", "Invalid placeholder type or text")
   }
   validate_object_box(x, y, width, height, false)

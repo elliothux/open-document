@@ -1,4 +1,10 @@
 ///|
+pub const AnnotationCoordinates : Int32 = 32768
+
+///|
+pub const InkStrokeCount : Int32 = 4096
+
+///|
 fn drawing_annotation_kind(object : @syntax.PdfObject) -> Bool {
   ["Square", "Circle", "Line", "Ink"].any(kind => {
     is_name(raw(object, "Subtype"), kind)
@@ -301,7 +307,7 @@ pub fn PdfSession::add_drawing_annotation(
       } else {
         [spec.points]
       }
-      guard paths.length() <= 4096 else {
+      guard paths.length() <= InkStrokeCount else {
         @failure.reject("limit-exceeded", "Ink stroke count exceeds budget")
       }
       let output : Array[@syntax.PdfObject] = []
@@ -309,7 +315,7 @@ pub fn PdfSession::add_drawing_annotation(
       for path in paths {
         guard path.length() >= 4 &&
           path.length() % 2 == 0 &&
-          path.length() <= 32768 - units &&
+          path.length() <= AnnotationCoordinates - units &&
           (spec.kind != "Line" || path.length() == 4) else {
           @failure.reject(
             "invalid-operation", "Bounded line or ink coordinates are required",
@@ -349,7 +355,7 @@ pub fn PdfSession::add_drawing_annotation(
     }
     let reference = tx.add(drawing_annotation_appearance(tx, object))
     let refs = annotation_refs(self.document, tx.object(page.number))
-    guard refs.length() < 4096 else {
+    guard refs.length() < PageAnnotationCount else {
       @failure.reject("limit-exceeded", "PDF annotations exceed budget")
     }
     tx.objects[page.number] = tx

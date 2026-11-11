@@ -44,8 +44,8 @@ fn Session::move_drawing(
     x: dimensions.columns.position(range.left),
     y: dimensions.rows.position(range.top),
   }
-  guard rect.x + rect.width <= dimensions.columns.position(16385) &&
-    rect.y + rect.height <= dimensions.rows.position(1048577) else {
+  guard rect.x + rect.width <= dimensions.columns.position(WorksheetColumns + 1) &&
+    rect.y + rect.height <= dimensions.rows.position(WorksheetRows + 1) else {
     @failure.reject(
       "invalid-operation", "Moved drawing would exceed the worksheet",
     )

@@ -15,6 +15,7 @@ priv struct PagePosition {
 
 ///|
 struct PaginationCache {
+  units : Int32
   context : String
   keys : Array[String]
   positions : Array[PagePosition]
@@ -147,12 +148,12 @@ fn Pagination::append_tail(
 }
 
 ///|
-fn PaginationCache::bounded(
+fn PaginationCache::units(
   context : String,
   keys : Array[String],
   positions : Array[PagePosition],
   pages : Array[PageFrame],
-) -> Bool {
+) -> Int32 {
   let mut units = context.length() +
     positions.length() * 11 +
     pages.length() * 2
@@ -163,10 +164,10 @@ fn PaginationCache::bounded(
     units += key.length()
   }
   if units > 1048576 {
-    return false
+    return 1048577
   }
   for page in pages {
-    units += paragraph_cache_units("", page.lines) + page.borders.length() * 6
+    units += paragraph_cache_units(0, page.lines) + page.borders.length() * 6
     for fill in page.fills {
       units += 4 + fill.color.length()
     }
@@ -174,10 +175,10 @@ fn PaginationCache::bounded(
       units += 4 + area.paragraphs.length()
     }
     if units > 1048576 {
-      return false
+      return 1048577
     }
   }
-  true
+  units
 }
 
 ///|

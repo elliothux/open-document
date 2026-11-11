@@ -282,10 +282,10 @@ fn Session::merge_table_cells(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   guard rows >= 1 &&
-    rows <= 1000 &&
+    rows <= TableGridRows &&
     columns >= 1 &&
-    columns <= 63 &&
-    rows.to_int64() * columns.to_int64() <= 4096L else {
+    columns <= TableGridColumns &&
+    rows.to_int64() * columns.to_int64() <= TableGridCells.to_int64() else {
     @failure.reject("invalid-operation", "Invalid table merge dimensions")
   }
   let document = self.document()

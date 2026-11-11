@@ -40,9 +40,9 @@ fn Session::paste_table_fragment(
   let right = left + source.model.widths.length()
   let rows = bottom.max(grid.rows.length())
   let columns = right.max(grid.model.widths.length())
-  guard rows <= 1000 &&
-    columns <= 63 &&
-    rows.to_int64() * columns.to_int64() <= 4096 else {
+  guard rows <= TableGridRows &&
+    columns <= TableGridColumns &&
+    rows.to_int64() * columns.to_int64() <= TableGridCells.to_int64() else {
     @failure.reject("limit-exceeded", "Pasted rich table exceeds cell budget")
   }
   for row in top..<bottom.min(grid.rows.length()) {

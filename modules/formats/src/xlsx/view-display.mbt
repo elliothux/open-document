@@ -28,6 +28,9 @@ fn ViewSettings::display(
     }
   }
   guard fields is Some(tokens) else { return value.display() }
+  guard !tokens.any(token => token is Elapsed(_, _)) else {
+    return value.display()
+  }
   // The SDK uses fixed ISO dates and 24-hour times instead of a host locale.
   let time = tokens.any(token => {
       token is Field(field, _) && ["h", "n", "s", "f", "a"].contains(field)

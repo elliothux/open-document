@@ -33,11 +33,25 @@ fn show_media_visible(object : Object, show : ShowState) -> Bool {
 }
 
 ///|
+priv struct ShowMediaQuery {
+  object : String
+  label : String
+  kind : String
+  key : String
+  contentType : String
+  token : Int32
+  state : String
+  reason : String
+  visible : Bool
+  playback : MediaPlaybackSettings
+} derive(ToJson)
+
+///|
 fn Session::show_media_query(
   self : Session,
   show : ShowState,
-) -> Array[Json] raise @failure.Failure {
-  let result : Array[Json] = []
+) -> Array[ShowMediaQuery] raise @failure.Failure {
+  let result : Array[ShowMediaQuery] = []
   let mut units = 0
   let visibility = show.animation_state()
   let (settings, settings_reason) = (
@@ -69,22 +83,21 @@ fn Session::show_media_query(
       )
     }
     result.push({
-      "object": object.id,
-      "label": object.name,
-      "kind": media.kind,
-      "key": media.key,
-      "contentType": media.content_type,
-      "token": state.token,
-      "state": state.state,
-      "reason": reason,
-      "visible": show.effect is None &&
+      object: object.id,
+      label: object.name,
+      kind: media.kind,
+      key: media.key,
+      contentType: media.content_type,
+      token: state.token,
+      state: state.state,
+      reason,
+      visible: show.effect is None &&
       object.geometry is Some(_) &&
       visibility.get(object.id).map(value => value.opacity > 0).unwrap_or(true),
-      "playback": settings
+      playback: settings
       .get(object.id)
       .map(value => value.1)
-      .unwrap_or(MediaPlaybackSettings::initial())
-      .json(),
+      .unwrap_or(MediaPlaybackSettings::initial()),
     })
   }
   result

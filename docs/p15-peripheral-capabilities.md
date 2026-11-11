@@ -1,6 +1,6 @@
 # P15 次要与外围能力接入
 
-状态：`planned`，2026-11-02。本阶段对应[路线图](references/roadmap.md)的功能优先级 P2（见 [G3 功能对照](g3-genoffice-sdk-gap.md) 的 D20、D22、F17、F18、C07–C09）。在 [R2 架构精简](r2-architecture-and-performance.md)、[C0](implemented/c0-real-file-compatibility.md)/[C1](c1-corpus-and-producer-compatibility.md) 核心兼容及 [P16.1 无浏览器核心闭环](p16-cross-host-runtime.md)完成后推进。所有外围能力均通过 MoonBit 核心的事务与校验接口工作，外部模型、OCR、证书与网络存储由宿主显式注入。
+状态：`planned`，2026-11-02。本阶段对应[路线图](references/roadmap.md)的功能优先级 P2（见 [G3 功能对照](g3-genoffice-sdk-gap.md) 的 D20、D22、F17、F18、C07–C09）。在 [R2 架构精简](implemented/r2-architecture-and-performance.md)、[C0](implemented/c0-real-file-compatibility.md)/[C1](c1-corpus-and-producer-compatibility.md) 核心兼容及 [P16.1 无浏览器核心闭环](p16-cross-host-runtime.md)完成后推进。所有外围能力均通过 MoonBit 核心的事务与校验接口工作，外部模型、OCR、证书与网络存储由宿主显式注入。
 
 ## 用户结果与范围
 

@@ -7,7 +7,7 @@ fn math_fraction_style(
     format ==
     CharacterFormat::new(family=Set(family), size=Set(size), color=Set(color)) &&
     !family.trim().is_empty() &&
-    family.length() <= 255 &&
+    family.length() <= @layout.MathFontUnits &&
     @xml.valid_text(family) &&
     family.iter().all(c => c.to_int() >= 32 && c != '\u2028' && c != '\u2029') &&
     size >= 0.5 &&

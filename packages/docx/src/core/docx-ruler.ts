@@ -1,4 +1,5 @@
 import { record } from "@open-document/wasm/abi/validation";
+import { tabStopCount } from "@open-document/wasm/engine-source";
 import { isDocxSelection } from "./docx-search.js";
 import type { DocxSelection } from "./docx-hit.js";
 
@@ -62,7 +63,7 @@ export function checkDocxRulerEdit(
       ? typeof edit.index !== "number" ||
         !Number.isInteger(edit.index) ||
         edit.index < -1 ||
-        edit.index > 63 ||
+        edit.index >= tabStopCount ||
         typeof edit.align !== "string" ||
         !aligns.includes(edit.align) ||
         typeof edit.remove !== "boolean" ||
@@ -90,7 +91,7 @@ export function docxRuler(value: unknown): DocxRuler {
     typeof result.extent !== "number" ||
     !(result.extent > 0 && result.extent <= 14400) ||
     !Array.isArray(result.markers) ||
-    result.markers.length > 70
+    result.markers.length > tabStopCount + kinds.length
   )
     throw new Error("Invalid DOCX ruler result");
   for (const entry of result.markers) {
@@ -104,7 +105,7 @@ export function docxRuler(value: unknown): DocxRuler {
       !Number.isInteger(marker.index) ||
       (marker.kind === "tab"
         ? marker.index < 0 ||
-          marker.index > 63 ||
+          marker.index >= tabStopCount ||
           typeof marker.align !== "string" ||
           !aligns.includes(marker.align) ||
           typeof marker.leader !== "string" ||

@@ -85,7 +85,12 @@ fn source_changes(
         if value.kind == old.value.kind {
           old.value.publisher
         } else {
-          source_leaf(tree, old.node, source_publisher_key(value.kind), 512)
+          source_leaf(
+            tree,
+            old.node,
+            source_publisher_key(value.kind),
+            SourcePublisherUnits,
+          )
         },
         value.publisher,
       ),

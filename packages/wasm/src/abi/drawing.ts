@@ -1,4 +1,24 @@
 import { record } from "./validation.js";
+import { gradientStopCount } from "@open-document/wasm/engine-source";
+
+export type RasterHeader =
+  | {
+      width: number;
+      height: number;
+      allowTranspose?: true;
+      coreVerified?: true;
+    }
+  | { error: string };
+
+export interface EncodedImage<Bytes = Uint8Array> {
+  kind: "encoded";
+  bytes: Bytes;
+  header: RasterHeader;
+}
+
+export type ImagePreparation<Bytes = Uint8Array> =
+  | EncodedImage<Bytes>
+  | { kind: "rgba"; key: string; width: number; height: number; bytes: Bytes };
 
 export interface DrawRect {
   x: number;
@@ -6,6 +26,13 @@ export interface DrawRect {
   width: number;
   height: number;
 }
+
+export type ClipBounds = [
+  left: number,
+  top: number,
+  right: number,
+  bottom: number,
+];
 
 export interface GradientStop {
   position: number;
@@ -16,7 +43,11 @@ export interface GradientStop {
 export function checkGradientStops(
   value: unknown,
 ): asserts value is GradientStop[] {
-  if (!Array.isArray(value) || value.length < 2 || value.length > 32)
+  if (
+    !Array.isArray(value) ||
+    value.length < 2 ||
+    value.length > gradientStopCount
+  )
     throw new Error("Gradients require 2..32 stops");
   let previous = 0;
   for (const item of value) {
@@ -42,16 +73,23 @@ export function checkGradientStops(
   }
 }
 
-export interface DrawGlyph {
-  outline: string;
-  upem: number;
-  /** Global SFNT y bounds; native vector outlines carry null. */
-  fontBounds: [number, number, number, number] | null;
-  strokeWidth: number;
-  x: number;
-  y: number;
-  scaleX: number;
-  scaleY: number;
+export type DrawGlyphRun<Outline extends string | number = string> = [
+  upem: number,
+  fontBounds: [number, number, number, number] | null,
+  strokeWidth: number,
+  scaleX: number,
+  scaleY: number,
+  glyphs: [outline: Outline, x: number, y: number][],
+];
+
+export interface PdfGlyphCommand {
+  op: "pdfGlyphs";
+  color: string;
+  matrix: [a: number, b: number, c: number, d: number];
+  origin: [x: number, y: number];
+  outlines: string[];
+  /** Each glyph position is the translation of the shared matrix. */
+  run: DrawGlyphRun<number>;
 }
 
 export interface DrawMatrix {
@@ -76,6 +114,28 @@ export type PathSegment =
     }
   | { op: "close" };
 
+export type StrokeGeometry =
+  "segments" | "rectangles" | "openRectangle" | "closed" | "curve";
+
+export type RectangleDashSpan = [
+  edge: number,
+  length: number,
+  start: number,
+  end: number,
+  join: boolean,
+];
+
+export interface GradientClip {
+  axial?: {
+    transforms: DrawMatrix[];
+    startX: number;
+    endX: number;
+    y: number;
+    startBounded: boolean;
+    endBounded: boolean;
+  };
+}
+
 export type DrawCommand =
   | {
       op: "tile";
@@ -86,6 +146,7 @@ export type DrawCommand =
       matrix: DrawMatrix;
       resolution: { x: number; y: number };
       commands: DrawCommand[];
+      replay?: true;
     }
   | { op: "layer"; opacity: number; commands: DrawCommand[] }
   | { op: "mask"; mask: DrawCommand[]; commands: DrawCommand[] }
@@ -93,10 +154,23 @@ export type DrawCommand =
   // Scoped by transform/clip restores; vector paths use device pixel centers.
   | { op: "pixelCenters" }
   | { op: "integerScreenGlyphs" }
-  | { op: "clipPath"; path: PathSegment[]; evenOdd: boolean }
-  | { op: "fillRect"; rect: DrawRect & { color: string } }
+  | ({
+      op: "clipPath";
+      evenOdd: boolean;
+      shading?: GradientClip;
+    } & ({ path: PathSegment[] } | { rectangle: ClipBounds }))
+  | {
+      op: "fillRect";
+      rect: DrawRect & { color: string };
+      screenFractional?: true;
+    }
   | { op: "gradientRect"; rect: DrawRect; stops: GradientStop[] }
-  | { op: "radialGradientRect"; rect: DrawRect; stops: GradientStop[] }
+  | {
+      op: "radialGradientRect";
+      rect: DrawRect;
+      stops: GradientStop[];
+      circles: [number, number, number, number, number, number];
+    }
   | {
       op: "patternRect";
       rect: DrawRect;
@@ -113,10 +187,19 @@ export type DrawCommand =
       lineWidth: number;
       screenFractional?: true;
     }
-  | { op: "glyphs"; x: number; y: number; color: string; glyphs: DrawGlyph[] }
+  | { op: "glyphs"; x: number; y: number; color: string; runs: DrawGlyphRun[] }
+  | PdfGlyphCommand
+  | {
+      op: "strokeBands";
+      color: string;
+      lineWidth: number;
+      bands: [y: number, height: number, spans: [x: number, width: number][]][];
+    }
   | {
       op: "image";
       image: DrawRect & { key: string; interpolate: boolean | null };
+      preservePixels?: true;
+      crop?: { clip: DrawRect; visible: DrawRect };
     }
   | {
       op: "path";
@@ -124,10 +207,17 @@ export type DrawCommand =
       fill: string;
       stroke: string;
       lineWidth: number;
+      strokeGeometry?: StrokeGeometry | undefined;
+      strokeNonRectangular?: true;
+      strokeOutline?: PathSegment[] | undefined;
+      strokeBounds?: ClipBounds;
+      strokeDashes?: [number, number][][] | undefined;
+      strokeDashesAxisAligned?: boolean;
+      rectangleDashes?: RectangleDashSpan[];
       textRule?: true;
     }
   | { op: "transform"; matrix: DrawMatrix }
-  | { op: "clipRect"; rect: DrawRect }
+  | { op: "clipRect"; rect: DrawRect; shading?: GradientClip }
   | { op: "restore" };
 
 export interface DrawStyle {
@@ -152,352 +242,10 @@ export interface DrawingBatch {
 export interface DrawingRegion {
   width: number;
   height: number;
+  backingClip?: true;
+  deviceClips?: true;
+  imageSampling?: "coverage";
+  strokeRaster?: "integer" | "fractional" | "coverage";
+  glyphRaster?: "integer" | "fractional" | "coverage";
   commands: DrawCommand[];
-}
-
-function finite(value: unknown): number {
-  if (
-    typeof value !== "number" ||
-    !Number.isFinite(value) ||
-    Math.abs(value) > 1e9
-  )
-    throw new Error("Invalid drawing number");
-  return value;
-}
-
-export function drawingMatrix(value: unknown): DrawMatrix {
-  const matrix = record(value);
-  for (const key of ["a", "b", "c", "d", "e", "f"]) finite(matrix[key]);
-  const a = finite(matrix.a),
-    b = finite(matrix.b),
-    c = finite(matrix.c),
-    d = finite(matrix.d);
-  const determinant = a * d - b * c;
-  const scale = Math.max(Math.abs(a), Math.abs(b), Math.abs(c), Math.abs(d));
-  if (!determinant || Math.abs(determinant) < 1e-9 * scale * scale)
-    throw new Error("Noninvertible drawing matrix");
-  const e = finite(matrix.e),
-    f = finite(matrix.f);
-  for (const value of [
-    d / determinant,
-    -b / determinant,
-    -c / determinant,
-    a / determinant,
-    (c * f - d * e) / determinant,
-    (b * e - a * f) / determinant,
-  ])
-    finite(value);
-  return value as DrawMatrix;
-}
-
-function rect(value: unknown): void {
-  const object = record(value);
-  finite(object.x);
-  finite(object.y);
-  if (finite(object.width) < 0 || finite(object.height) < 0)
-    throw new Error("Invalid drawing rectangle");
-}
-
-function color(value: unknown): void {
-  if (typeof value !== "string" || !/^[0-9a-fA-F]{6}$/.test(value))
-    throw new Error("Invalid drawing color");
-}
-
-export function drawingBatch(value: unknown): DrawingBatch {
-  const batch = record(value);
-  if (
-    !Array.isArray(batch.outlines) ||
-    !Array.isArray(batch.images) ||
-    !Array.isArray(batch.regions) ||
-    batch.regions.length === 0 ||
-    batch.regions.length > 1024 ||
-    batch.images.length > 256
-  )
-    throw new Error("Invalid drawing batch");
-  const outlines = new Set<string>();
-  let pathUnits = 0;
-  for (const value of batch.outlines) {
-    const outline = record(value);
-    if (
-      typeof outline.key !== "string" ||
-      !outline.key ||
-      outlines.has(outline.key) ||
-      typeof outline.path !== "string"
-    )
-      throw new Error("Invalid drawing outline");
-    pathUnits += outline.path.length;
-    if (pathUnits > 8388608) throw new Error("Drawing outlines exceed budget");
-    outlines.add(outline.key);
-  }
-  const images = new Set<string>();
-  for (const key of batch.images) {
-    if (typeof key !== "string" || !key || images.has(key))
-      throw new Error("Invalid drawing image resource");
-    images.add(key);
-  }
-  let payload = 0;
-  const validateCommands = (values: unknown[], depth: number): void => {
-    let clips = 0;
-    for (const value of values) {
-      if (++payload > 1048576)
-        throw new Error("Drawing payload exceeds budget");
-      const command = record(value);
-      switch (command.op) {
-        case "tile": {
-          const width = finite(command.width),
-            height = finite(command.height);
-          const columns = finite(command.columns),
-            rows = finite(command.rows);
-          const resolution = record(command.resolution);
-          if (
-            width <= 0 ||
-            height <= 0 ||
-            !Number.isInteger(columns) ||
-            !Number.isInteger(rows) ||
-            columns < 1 ||
-            rows < 1 ||
-            columns * rows > 4096 ||
-            finite(resolution.x) <= 0 ||
-            finite(resolution.y) <= 0 ||
-            !Array.isArray(command.commands) ||
-            depth >= 4
-          )
-            throw new Error("Invalid drawing tile");
-          drawingMatrix(command.matrix);
-          validateCommands(command.commands, depth + 1);
-          break;
-        }
-        case "mask": {
-          if (
-            !Array.isArray(command.commands) ||
-            !Array.isArray(command.mask) ||
-            depth >= 3
-          )
-            throw new Error("Invalid drawing mask");
-          validateCommands(command.commands, depth + 2);
-          validateCommands(command.mask, depth + 2);
-          break;
-        }
-        case "layer": {
-          const opacity = finite(command.opacity);
-          if (
-            opacity < 0 ||
-            opacity > 1 ||
-            !Array.isArray(command.commands) ||
-            depth >= 4
-          )
-            throw new Error("Invalid drawing layer");
-          validateCommands(command.commands, depth + 1);
-          break;
-        }
-        case "pixelCenters":
-        case "integerScreenGlyphs":
-          if (Object.keys(command).length !== 1)
-            throw new Error("Invalid drawing mode command");
-          break;
-        case "fillRect":
-          rect(command.rect);
-          color(record(command.rect).color);
-          break;
-        case "patternRect":
-          rect(command.rect);
-          color(command.zero);
-          color(command.one);
-          if (
-            finite(command.period) < 0.01 ||
-            finite(command.period) > 14400 ||
-            (command.screenDevice !== undefined &&
-              typeof command.screenDevice !== "boolean") ||
-            !Array.isArray(command.mask) ||
-            command.mask.length !== 8 ||
-            !command.mask.every(
-              (row) => Number.isInteger(row) && row >= 0 && row <= 255,
-            )
-          )
-            throw new Error("Invalid drawing bitmap pattern");
-          break;
-        case "gradientRect":
-        case "radialGradientRect":
-          rect(command.rect);
-          checkGradientStops(command.stops);
-          payload += command.stops.length;
-          if (payload > 1048576)
-            throw new Error("Drawing payload exceeds budget");
-          break;
-        case "strokeRect":
-          rect(command.rect);
-          color(command.color);
-          if (
-            finite(command.lineWidth) <= 0 ||
-            (command.screenFractional !== undefined &&
-              command.screenFractional !== true)
-          )
-            throw new Error("Invalid drawing line width");
-          break;
-        case "glyphs":
-          color(command.color);
-          finite(command.x);
-          finite(command.y);
-          if (!Array.isArray(command.glyphs))
-            throw new Error("Invalid drawing glyph batch");
-          for (const value of command.glyphs) {
-            if (++payload > 1048576)
-              throw new Error("Drawing glyphs exceed budget");
-            const glyph = record(value);
-            if (
-              typeof glyph.outline !== "string" ||
-              !outlines.has(glyph.outline)
-            )
-              throw new Error("Missing drawing outline");
-            finite(glyph.x);
-            finite(glyph.y);
-            const scale = Math.max(
-              Math.abs(finite(glyph.scaleX)),
-              Math.abs(finite(glyph.scaleY)),
-            );
-            if (
-              !Number.isInteger(glyph.upem) ||
-              finite(glyph.upem) < 1 ||
-              finite(glyph.upem) > 65536
-            )
-              throw new Error("Invalid glyph units per em");
-            const bounds = glyph.fontBounds;
-            if (
-              bounds !== null &&
-              (!Array.isArray(bounds) ||
-                bounds.length !== 4 ||
-                ![0, 1, 2, 3].every((index) => {
-                  const value = bounds[index];
-                  return (
-                    typeof value === "number" &&
-                    Number.isInteger(value) &&
-                    value >= -65536 &&
-                    value <= 65536
-                  );
-                }) ||
-                bounds[0] > bounds[2] ||
-                bounds[1] > bounds[3])
-            )
-              throw new Error("Invalid glyph font bounds");
-            const stroke = finite(glyph.strokeWidth);
-            if (
-              stroke < 0 ||
-              (stroke > 1024 && (scale === 0 || stroke * scale > 32))
-            )
-              throw new Error("Invalid glyph outline stroke width");
-          }
-          break;
-        case "image": {
-          rect(command.image);
-          const image = record(command.image);
-          if (
-            image.interpolate !== null &&
-            typeof image.interpolate !== "boolean"
-          )
-            throw new Error("Invalid image interpolation");
-          if (typeof image.key !== "string" || !images.has(image.key))
-            throw new Error("Missing drawing image");
-          break;
-        }
-        case "style": {
-          const style = record(command.style);
-          for (const key of ["fillAlpha", "strokeAlpha"]) {
-            const alpha = finite(style[key]);
-            if (alpha < 0 || alpha > 1)
-              throw new Error("Invalid drawing alpha");
-          }
-          if (
-            Object.keys(style).length !== 9 ||
-            ![0, 1, 2].includes(finite(style.cap)) ||
-            ![0, 1, 2].includes(finite(style.join)) ||
-            finite(style.miter) < 1 ||
-            typeof style.evenOdd !== "boolean" ||
-            typeof style.blend !== "string" ||
-            !["normal", "multiply", "difference"].includes(style.blend) ||
-            !Array.isArray(style.dash) ||
-            style.dash.length > 256
-          )
-            throw new Error("Invalid drawing style");
-          finite(style.dashOffset);
-          for (const item of style.dash)
-            if (finite(item) < 0) throw new Error("Invalid drawing dash");
-          if (style.dash.length && style.dash.every((item) => item === 0))
-            throw new Error("Empty drawing dash");
-          break;
-        }
-        case "clipPath":
-        case "path": {
-          if (command.op === "path") {
-            if (command.fill !== "") color(command.fill);
-            if (command.stroke !== "") color(command.stroke);
-            if (finite(command.lineWidth) < 0)
-              throw new Error("Invalid drawing width");
-          } else {
-            if (typeof command.evenOdd !== "boolean" || ++clips > 32)
-              throw new Error("Invalid drawing clip");
-          }
-          if (
-            !Array.isArray(command.path) ||
-            (command.op === "path" && command.path.length === 0) ||
-            (command.path.length > 0 && record(command.path[0]).op !== "move")
-          )
-            throw new Error("Invalid drawing path");
-          if (command.op === "path" && command.textRule !== undefined) {
-            if (
-              command.textRule !== true ||
-              command.fill !== "" ||
-              command.stroke === "" ||
-              finite(command.lineWidth) <= 0 ||
-              command.path.length !== 2
-            )
-              throw new Error("Invalid text rule");
-            const start = record(command.path[0]);
-            const end = record(command.path[1]);
-            if (end.op !== "line" || start.y !== end.y || start.x === end.x)
-              throw new Error("Invalid text rule");
-          }
-          for (const value of command.path) {
-            if (++payload > 1048576)
-              throw new Error("Drawing path exceeds budget");
-            const segment = record(value);
-            if (segment.op === "close") continue;
-            if (!["move", "line", "cubic"].includes(String(segment.op)))
-              throw new Error("Unknown path operation");
-            finite(segment.x);
-            finite(segment.y);
-            if (segment.op === "cubic")
-              for (const key of ["x1", "y1", "x2", "y2"]) finite(segment[key]);
-          }
-          break;
-        }
-        case "transform":
-          drawingMatrix(command.matrix);
-          if (++clips > 32) throw new Error("Drawing nesting exceeds budget");
-          break;
-        case "clipRect":
-          rect(command.rect);
-          if (++clips > 32) throw new Error("Drawing nesting exceeds budget");
-          break;
-        case "restore":
-          if (--clips < 0) throw new Error("Invalid drawing clip stack");
-          break;
-        default:
-          throw new Error(`Unknown drawing command: ${String(command.op)}`);
-      }
-    }
-    if (clips !== 0) throw new Error("Unclosed drawing clip");
-  };
-  for (const value of batch.regions) {
-    const page = record(value);
-    if (
-      finite(page.width) <= 0 ||
-      finite(page.width) > 14400 ||
-      finite(page.height) <= 0 ||
-      finite(page.height) > 14400 ||
-      !Array.isArray(page.commands)
-    )
-      throw new Error("Invalid drawing region");
-    validateCommands(page.commands, 0);
-  }
-  return value as DrawingBatch;
 }

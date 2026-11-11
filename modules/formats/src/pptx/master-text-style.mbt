@@ -67,10 +67,42 @@ fn master_text_properties(paragraph : Ref?) -> Ref? raise @failure.Failure {
 }
 
 ///|
-fn Session::master_text_styles(self : Session, current : Slide) -> Json {
+priv struct MasterTextFormatQuery {
+  font : String
+  size : Double
+  spacing : Double
+  bold : Bool
+  italic : Bool
+  color : String
+  underline : Bool
+  strike : Bool
+  highlight : String
+  script : String
+} derive(ToJson)
+
+///|
+priv struct MasterTextStyleQuery {
+  kind : String
+  level : Int32
+  format : Json
+  reason : String
+  paragraph : Json
+} derive(ToJson)
+
+///|
+priv struct MasterTextStylesQuery {
+  items : Array[MasterTextStyleQuery]
+  reason : String
+} derive(ToJson)
+
+///|
+fn Session::master_text_styles(
+  self : Session,
+  current : Slide,
+) -> MasterTextStylesQuery {
   try {
     guard current.tree.document.nodes()[0].name == "sldMaster" else {
-      return { "items": [], "reason": "Select a master source" }
+      return { items: [], reason: "Select a master source", }
     }
     let tree = current.tree
     let theme_part = relation(self.opc, tree.part, "theme", parts=self.parts).unwrap()
@@ -78,7 +110,7 @@ fn Session::master_text_styles(self : Session, current : Slide) -> Json {
       load_tree(self.opc, self.cache, theme_part, parts=self.parts),
       [tree],
     )
-    let items : Array[Json] = []
+    let items : Array[MasterTextStyleQuery] = []
     for kind in ["title", "body", "other"] {
       for level in 0..<9 {
         let (format, reason) = try {
@@ -92,34 +124,34 @@ fn Session::master_text_styles(self : Session, current : Slide) -> Json {
             "+mn-lt",
           )
           let fonts = style.font.split("|").to_array()
-          let format : Json = {
-            "font": fonts[0].to_owned(),
-            "size": style.size,
-            "spacing": style.spacing,
-            "bold": fonts.contains("bold"),
-            "italic": fonts.contains("italic"),
-            "color": style.color.to_lower(),
-            "underline": style.underline,
-            "strike": style.strike,
-            "highlight": style.highlight.to_lower(),
-            "script": style.script,
+          let format : MasterTextFormatQuery = {
+            font: fonts[0].to_owned(),
+            size: style.size,
+            spacing: style.spacing,
+            bold: fonts.contains("bold"),
+            italic: fonts.contains("italic"),
+            color: style.color.to_lower(),
+            underline: style.underline,
+            strike: style.strike,
+            highlight: style.highlight.to_lower(),
+            script: style.script,
           }
-          (format, "")
+          (ToJson::to_json(format), "")
         } catch {
           @failure.Failure(message~, ..) => (Json::null(), message)
         }
         items.push({
-          "kind": kind,
-          "level": level,
-          "format": format,
-          "reason": reason,
-          "paragraph": self.master_paragraph_query(tree, theme, kind, level),
+          kind,
+          level,
+          format,
+          reason,
+          paragraph: self.master_paragraph_query(tree, theme, kind, level),
         })
       }
     }
-    { "items": items, "reason": self.modification_reason() }
+    { items, reason: self.modification_reason(), }
   } catch {
-    @failure.Failure(message~, ..) => { "items": [], "reason": message }
+    @failure.Failure(message~, ..) => { items: [], reason: message, }
   }
 }
 

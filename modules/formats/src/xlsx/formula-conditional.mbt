@@ -4,7 +4,7 @@ fn counting_function(
   args : Array[Expression],
   sheets : Array[Sheet],
   sheet : Int32,
-  calculated : Map[(Int32, String), Value],
+  calculated : Map[(Int32, Address), Value],
   work : FormulaWork,
   depth : Int32,
 ) -> Value raise @failure.Failure {
@@ -36,7 +36,7 @@ fn conditional_function(
   args : Array[Expression],
   sheets : Array[Sheet],
   sheet : Int32,
-  calculated : Map[(Int32, String), Value],
+  calculated : Map[(Int32, Address), Value],
   work : FormulaWork,
   depth : Int32,
 ) -> Value raise @failure.Failure {

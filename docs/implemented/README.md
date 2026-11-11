@@ -19,7 +19,9 @@
 | [P14 兼容与性能](p14-compatibility-performance.md) | 七个真实文件兼容批次、精确历史/保存输出，以及 DOCX 首次布局优化 |
 | [R0 通用渲染架构与薄 Renderer](r0-renderer-foundation.md) | DOCX/XLSX/PPTX/PDF Web 接入；有序路径/矩阵/样式与核心指令、共用 Canvas 表面、独立覆盖层与资源身份；其他平台待需求 |
 | [R1 领域拆包与共享 Wasm 加载](r1-domain-packages-shared-wasm.md) | 四格式独立 core/web/react/worker、领域 Bridge、唯一 Wasm、共享 Module 与独立会话 |
+| [R2 架构精简、核心下沉与性能重构](r2-architecture-and-performance.md) | 核心缓存、命令协议、绘制下沉、增量传输、单格式 Wasm 与登记兼容性复核 |
 | [G2 测试流水线与 Agent 改进闭环](g2-test-pipeline.md) | 冻结双路径报告、真实文件、受控恢复、独立性能与本地 Docker；不声明远端 CI 或盲测 |
+| [P0–P3 审查与修复记录](p0-p3-review.md) | 2026-10-10 的原始审查、已修复问题和当时的验证边界 |
 
 设计和调研不等于产品实现，活动工作见[文档索引](../README.md)。
 

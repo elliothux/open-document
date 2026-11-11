@@ -1,4 +1,9 @@
-import { record, hasFields } from "@open-document/wasm/abi/validation";
+import { record } from "@open-document/wasm/abi/validation";
+import {
+  xlsxValidationFormulaUnits,
+  xlsxValidationMessageUnits,
+  xlsxValidationTitleUnits,
+} from "@open-document/wasm/engine-source";
 
 export const validationKinds = [
   "none",
@@ -62,12 +67,12 @@ export function checkXlsxDataValidation(value: unknown): void {
   if (!booleans.every((k) => typeof rule[k] === "boolean"))
     throw new Error("Invalid data validation flag");
   for (const [key, limit] of [
-    ["formula1", 8192],
-    ["formula2", 8192],
-    ["errorTitle", 32],
-    ["promptTitle", 32],
-    ["error", 255],
-    ["prompt", 255],
+    ["formula1", xlsxValidationFormulaUnits],
+    ["formula2", xlsxValidationFormulaUnits],
+    ["errorTitle", xlsxValidationTitleUnits],
+    ["promptTitle", xlsxValidationTitleUnits],
+    ["error", xlsxValidationMessageUnits],
+    ["prompt", xlsxValidationMessageUnits],
   ] as const) {
     const text = rule[key];
     if (
@@ -94,20 +99,4 @@ export function checkXlsxDataValidation(value: unknown): void {
         rule.formula2 === ""))
   )
     throw new Error("Missing data validation formula");
-}
-
-export function xlsxValidationState(value: unknown): XlsxValidationState {
-  const state = record(value);
-  if (
-    !hasFields(state, ["readOnlyReason", "optionsReason"], []) ||
-    typeof state.mixed !== "boolean" ||
-    typeof state.promptVisible !== "boolean" ||
-    !Array.isArray(state.options) ||
-    state.options.length > 4096 ||
-    !state.options.every((o) => typeof o === "string" && o.isWellFormed()) ||
-    state.options.reduce((sum, value) => sum + value.length, 0) > 1048576
-  )
-    throw new Error("Invalid data validation query");
-  if (state.rule !== null) checkXlsxDataValidation(state.rule);
-  return value as XlsxValidationState;
 }

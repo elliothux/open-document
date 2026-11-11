@@ -1,4 +1,8 @@
 import { useRef, useState } from "react";
+import {
+  docxRunningContentUnits,
+  docxRunningDistancePoints,
+} from "@open-document/wasm/engine-source";
 import type { DocumentEditor } from "../web/editor.js";
 import type {
   DocxRunningArea,
@@ -46,7 +50,7 @@ export function DocxRunning({
   const stale =
     area?.revision !== state.document?.revision || area?.section !== section;
   const load = async () => {
-    const value = await editor.runningArea(section, kind, variant);
+    const value = await editor.pages.runningArea(section, kind, variant);
     setArea(value);
     setContent(runningDraft(value.content));
     active.current = null;
@@ -126,7 +130,7 @@ export function DocxRunning({
           disabled={disabled || stale || (!area.shared && !area.linked)}
           onClick={() =>
             controller.run(async () => {
-              await editor.setRunningLink(section, kind, variant, false);
+              await editor.pages.setRunningLink(section, kind, variant, false);
               await load();
             })
           }
@@ -140,7 +144,7 @@ export function DocxRunning({
           disabled={disabled || stale || area.linked}
           onClick={() =>
             controller.run(async () => {
-              await editor.setRunningLink(section, kind, variant, true);
+              await editor.pages.setRunningLink(section, kind, variant, true);
               await load();
             })
           }
@@ -153,7 +157,7 @@ export function DocxRunning({
           onSubmit={(event) => {
             event.preventDefault();
             controller.run(async () => {
-              await editor.setRunningArea(
+              await editor.pages.setRunningArea(
                 section,
                 kind,
                 variant,
@@ -191,8 +195,8 @@ export function DocxRunning({
               type="button"
               onClick={() =>
                 controller.run(async () => {
-                  await editor.setRunningOptions(section, first, even);
-                  const value = await editor.runningArea(
+                  await editor.pages.setRunningOptions(section, first, even);
+                  const value = await editor.pages.runningArea(
                     section,
                     kind,
                     variant,
@@ -214,7 +218,7 @@ export function DocxRunning({
                     {kind === "header" ? t.header : t.footer}
                     <textarea
                       data-index={index}
-                      maxLength={8192}
+                      maxLength={docxRunningContentUnits}
                       value={item.text}
                       onFocus={(event) => {
                         active.current = event.currentTarget;
@@ -335,7 +339,7 @@ export function DocxRunning({
               <input
                 type="number"
                 min={0}
-                max={14400}
+                max={docxRunningDistancePoints}
                 step={0.05}
                 required
                 value={Number.isFinite(distance) ? distance : ""}

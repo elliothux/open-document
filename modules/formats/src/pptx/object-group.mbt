@@ -30,7 +30,7 @@ fn Session::group_members(
       }
       let children = slide.objects.filter(child => child.parent == object.id)
       expanded += children.length()
-      guard expanded <= 256 else {
+      guard expanded <= ObjectSelectionCount else {
         @failure.reject(
           "limit-exceeded", "Ungrouping selection exceeds 256 members",
         )
@@ -233,7 +233,7 @@ fn Session::ungroup_changes(
     })
     selected.append(children.map(child => child.id))
   }
-  guard selected.length() <= 256 else {
+  guard selected.length() <= ObjectSelectionCount else {
     @failure.reject(
       "limit-exceeded", "Ungrouping selection exceeds 256 members",
     )

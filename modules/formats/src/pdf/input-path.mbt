@@ -40,14 +40,24 @@ fn ContentContext::paint_path(
     self.commands.push(@layout.Style(style))
     self.scope(@layout.Transform(state.matrix))
     self.extracted_path(path, state, fill, stroke, style, depth)
-    self.commands.push(
-      @layout.Path(
-        path_in(path, state.matrix.inverse()),
-        fill,
-        stroke,
-        state.width,
-      ),
+    let command = @layout.DrawCommand::linear_path(
+      path_in(path, state.matrix.inverse()),
+      fill,
+      stroke,
+      state.width,
+      style,
+      8192 - self.preparedStrokePoints.val,
     )
+    if command is OutlinedPath(_, _, _, _, outline) {
+      self.preparedStrokePoints.val += outline.length()
+    } else if command is DashedPath(_, _, _, _, pieces) {
+      self.preparedStrokePoints.val += pieces.fold(init=0, (sum, piece) => {
+        sum + piece.length()
+      })
+    } else if command is RectangleDashedPath(_, _, _, _, spans) {
+      self.preparedStrokePoints.val += spans.length() * 2
+    }
+    self.commands.push(command.prepare_fill_outline(style))
     self.restore()
     self.apply_mask(state, command_start, depth)
   }

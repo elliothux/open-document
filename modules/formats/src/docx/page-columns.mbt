@@ -24,7 +24,7 @@ fn WordTree::page_columns(
   let flag = node.attribute("sep", uri=word_uri).unwrap_or("0")
   let equal = node.attribute("equalWidth", uri=word_uri).unwrap_or("1")
   guard count >= 1 &&
-    count <= 12 &&
+    count <= @layout.PageColumnCount.to_double() &&
     count.floor() == count &&
     gap >= 0 &&
     gap <= 14400 &&
@@ -56,7 +56,7 @@ fn WordTree::page_columns(
     ) catch {
       _ => @failure.reject("protected-content", "Invalid column spacing")
     }
-    guard custom.length() < 12 &&
+    guard custom.length() < @layout.PageColumnCount &&
       width >= 240 &&
       width <= 288000 &&
       width.floor() == width &&

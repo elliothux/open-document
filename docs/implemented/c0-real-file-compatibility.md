@@ -20,7 +20,7 @@ C43 按用户选择跟随固定 ONLYOFFICE 10.0 外观，包括复合饼图显�
 
 MoonBit 负责格式读取、状态、编辑、布局、计算和序列化。TypeScript 继续负责平台事件、Worker 和图元执行。原生图表沿 ONLYOFFICE 的独立参考行为修复，共用曲线、投影、色带、文字和描边能力。普通 Canvas 的填充直线多边形复用既有有界描边策略。
 
-最终图表修复包括单曲线扇区的打印底纹规则、原生标签位置、零长线段省略、曲面轴端裁边、精确色带顶点和相邻直线的独立路径。产品代码不识别测试文件，也不通过放宽断言取得通过。实现边界归[工作表图表](../references/formats.md#工作表图表)。
+最终图表修复包括单曲线扇区的打印底纹规则、原生标签位置、零长线段省略、曲面轴端裁边、精确色带顶点和相邻直线的独立路径。产品代码不识别测试文件，也不通过放宽断言取得通过。实现边界归[工作表图表](../references/formats/xlsx-objects.md#工作表图表)。
 
 ## 验收
 
@@ -45,6 +45,6 @@ MoonBit 负责格式读取、状态、编辑、布局、计算和序列化。Typ
 
 本批只证明固定输入和登记操作。旧二进制、未声明图表组合、其他密码方案及长尾 PDF 编码继续受支持范围和资源预算约束。原生源改写仍按各格式权限保护。
 
-更广生产工具、CJK、开源语料和历史账本归[C1](../c1-corpus-and-producer-compatibility.md)。核心下沉和性能重构归[R2](../r2-architecture-and-performance.md)，外围能力与跨宿主沿[路线图](../references/roadmap.md)推进。
+更广生产工具、CJK、开源语料和历史账本归[C1](../c1-corpus-and-producer-compatibility.md)。核心下沉和性能重构归[R2](r2-architecture-and-performance.md)，外围能力与跨宿主沿[路线图](../references/roadmap.md)推进。
 
 未运行全仓、性能套件、其他浏览器、Windows/Word 或 VoiceOver 验收。

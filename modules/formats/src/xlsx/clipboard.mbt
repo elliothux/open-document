@@ -13,7 +13,7 @@ pub fn Session::paste(
     bottom: self.selection.1.top + rows.length() - 1,
     right: self.selection.1.left + rows[0].length() - 1,
   }
-  guard target.bottom <= 1048576 && target.right <= 16384 else {
+  guard target.bottom <= WorksheetRows && target.right <= WorksheetColumns else {
     @failure.reject(
       "invalid-address", "Clipboard rectangle exceeds worksheet bounds",
     )
@@ -45,7 +45,7 @@ fn Session::clear_contents(
   let range = self.selection.1
   let height = range.bottom - range.top + 1
   let width = range.right - range.left + 1
-  guard height.to_int64() * width.to_int64() <= 4096L else {
+  guard height.to_int64() * width.to_int64() <= RectangularEditCells.to_int64() else {
     @failure.reject("limit-exceeded", "Clear rectangle exceeds budget")
   }
   self.replace(
@@ -83,7 +83,7 @@ pub fn Session::copy(
         let key = address.name()
         let cell = sheet.cells.get(key)
         let value = self.calculation
-          .bind(calculation => calculation.values.get((index, key)))
+          .bind(calculation => calculation.values.get((index, address)))
           .unwrap_or(cell.map(cell => cell.value).unwrap_or(Blank))
         if cell.bind(cell => cell.formula) is Some(_) && value == Blank {
           "Not calculated"

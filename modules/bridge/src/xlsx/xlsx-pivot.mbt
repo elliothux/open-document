@@ -1,194 +1,252 @@
 ///|
-fn xlsx_analysis_query(
-  session : @model.Session,
-  operation : String,
-  request : Json,
-) -> Json raise @failure.Failure {
-  let revision = field_int(request, "revision")
-  if operation == "pivotPreviewXlsx" {
-    guard request is { "settings": settings, .. } else {
-      @failure.reject("invalid-operation", "Pivot settings are required")
-    }
-    return session.pivot_preview(
-      revision,
-      xlsx_pivot_settings(settings),
-      part=match request {
-        Object(fields) if !fields.contains("part") => None
-        { "part": String(part), .. } => Some(part)
-        _ =>
-          @failure.reject("invalid-operation", "Invalid pivot preview target")
-      },
-    )
-  }
-  let sheet = field_string(request, "sheet")
-  if operation == "timelinesXlsx" {
-    session.timelines(revision, sheet)
-  } else if operation == "slicersXlsx" {
-    session.slicers(revision, sheet)
-  } else {
-    session.pivots(revision, sheet)
-  }
+priv struct PivotSettingsFields {
+  sourceSheet : String
+  source : String
+  rows : Array[@common.RequestInt]
+  columns : Array[@common.RequestInt]
+  filters : Array[PivotFilterRequest]
+  subtotals : Array[@common.RequestInt]
+  numberGroups : Array[PivotNumberGroupRequest]
+  dateGroups : Array[PivotDateGroupRequest]
+  values : Array[PivotValueRequest]
+} derive(@json.FromJson)
+
+///|
+priv struct PivotFilterRequest {
+  field : @common.RequestInt
+  report : Bool
+  values : @common.RequiredNullable[Array[CellValueRequest]]
+} derive(@json.FromJson)
+
+///|
+priv struct PivotDateGroupRequest {
+  field : @common.RequestInt
+  units : Array[String]
+} derive(@json.FromJson)
+
+///|
+priv struct PivotNumberGroupRequest {
+  field : @common.RequestInt
+  start : @common.RequiredNullable[@common.RequestNumber]
+  end : @common.RequiredNullable[@common.RequestNumber]
+  interval : @common.RequestNumber
+} derive(@json.FromJson)
+
+///|
+priv struct PivotValueRequest {
+  field : @common.RequestInt
+  aggregate : String
+  name : String
+  showDataAs : String
+  baseField : @common.RequiredNullable[@common.RequestInt]
+  baseItem : Json
+} derive(@json.FromJson)
+
+///|
+priv struct PivotSettingsRequest {
+  value : @model.PivotSettings
 }
 
 ///|
-fn xlsx_pivot_settings(
-  value : Json,
-) -> @model.PivotSettings raise @failure.Failure {
-  guard value is Object(fields) &&
-    fields.length() == 9 &&
-    fields
-    .keys()
-    .all(k => {
-      [
-        "sourceSheet", "source", "rows", "columns", "filters", "subtotals", "numberGroups",
-        "dateGroups", "values",
-      ].contains(k)
-    }) &&
-    fields.get("rows") is Some(Array(rows)) &&
-    fields.get("columns") is Some(Array(columns)) &&
-    columns.length() <= 8 &&
-    fields.get("filters") is Some(Array(filters)) &&
-    filters.length() <= 8 &&
-    fields.get("subtotals") is Some(Array(subtotals)) &&
-    subtotals.length() <= 14 &&
-    fields.get("numberGroups") is Some(Array(groups)) &&
-    groups.length() <= 16 &&
-    fields.get("dateGroups") is Some(Array(dates)) &&
-    dates.length() + groups.length() <= 16 &&
-    fields.get("values") is Some(Array(values)) &&
-    rows.length() > 0 &&
-    rows.length() <= 8 &&
-    values.length() > 0 &&
-    values.length() <= 8 else {
-    @failure.reject("invalid-operation", "Invalid pivot settings")
+fn pivot_axis_field(
+  field : @common.RequestInt,
+  path : @json.JsonPath,
+) -> Int32 raise @json.JsonDecodeError {
+  guard field.value < @model.PivotSourceColumns else {
+    raise @json.JsonDecodeError((path, "Invalid pivot axis field"))
   }
-  {
-    sourceSheet: field_string(value, "sourceSheet"),
-    source: field_string(value, "source"),
-    dateGroups: dates.map(group => {
-      guard group is Object(fields) &&
-        fields.length() == 2 &&
-        fields.keys().all(key => ["field", "units"].contains(key)) &&
-        fields.get("units") is Some(Array(units)) &&
-        units.length() > 0 &&
-        units.length() <= 4 else {
-        @failure.reject("invalid-operation", "Invalid pivot calendar group")
-      }
-      @model.PivotDateGroup::{
-        field: field_int(group, "field"),
-        units: units.map(value => {
-          guard value is String(unit) else {
-            @failure.reject("invalid-operation", "Invalid pivot calendar unit")
-          }
-          unit
-        }),
-      }
+  field.value
+}
+
+///|
+impl @json.FromJson for PivotSettingsRequest with fn from_json(input, path) {
+  guard input is Object(fields) &&
+    fields.length() == 9 &&
+    input
+    is {
+      "rows": Array(rows),
+      "columns": Array(columns),
+      "filters": Array(filters),
+      "subtotals": Array(subtotals),
+      "numberGroups": Array(groups),
+      "dateGroups": Array(dates),
+      "values": Array(values),
+      ..
+    } &&
+    rows.length() > 0 &&
+    rows.length() <= @model.PivotFieldsPerRole &&
+    columns.length() <= @model.PivotFieldsPerRole &&
+    filters.length() <= @model.PivotFieldsPerRole &&
+    subtotals.length() <= @model.PivotSubtotalFields &&
+    groups.length() <= @model.PivotGroupUnits &&
+    dates.length() + groups.length() <= @model.PivotGroupUnits &&
+    values.length() > 0 &&
+    values.length() <= @model.PivotFieldsPerRole else {
+    raise @json.JsonDecodeError((path, "Invalid pivot settings"))
+  }
+  // Bound collections before decoding their members into typed records.
+  for group in dates {
+    guard group is Object(fields) &&
+      fields.length() == 2 &&
+      group is { "units": Array(units), .. } &&
+      units.length() > 0 &&
+      units.length() <= @model.PivotDateUnits else {
+      raise @json.JsonDecodeError((path, "Invalid pivot calendar group"))
+    }
+  }
+  for group in groups {
+    guard group is Object(fields) && fields.length() == 4 else {
+      raise @json.JsonDecodeError((path, "Invalid pivot numeric group"))
+    }
+  }
+  for filter in filters {
+    guard filter is Object(fields) &&
+      fields.length() == 3 &&
+      (
+        filter is { "values": Null, .. } ||
+        (
+          filter is { "values": Array(members), .. } &&
+          members.length() <= @model.PivotMembers
+        )
+      ) else {
+      raise @json.JsonDecodeError((path, "Invalid pivot report filter"))
+    }
+  }
+  for value in values {
+    guard value is Object(fields) && fields.length() == 6 else {
+      raise @json.JsonDecodeError((path, "Invalid pivot value field"))
+    }
+  }
+  let request : PivotSettingsFields = @json.from_json(input, path~)
+  let value : @model.PivotSettings = {
+    sourceSheet: request.sourceSheet,
+    source: request.source,
+    dateGroups: request.dateGroups.map(group => {
+      field: group.field.value,
+      units: group.units,
     }),
-    numberGroups: groups.map(group => {
-      guard group is Object(fields) &&
-        fields.length() == 4 &&
-        fields
-        .keys()
-        .all(key => ["field", "start", "end", "interval"].contains(key)) &&
-        fields.get("interval") is Some(Number(interval, ..)) else {
-        @failure.reject("invalid-operation", "Invalid pivot numeric group")
-      }
-      @model.PivotNumberGroup::{
-        field: field_int(group, "field"),
-        start: match fields.get("start") {
-          Some(Null) => None
-          Some(Number(value, ..)) => Some(value)
-          _ =>
-            @failure.reject("invalid-operation", "Invalid pivot numeric start")
-        },
-        end: match fields.get("end") {
-          Some(Null) => None
-          Some(Number(value, ..)) => Some(value)
-          _ => @failure.reject("invalid-operation", "Invalid pivot numeric end")
-        },
-        interval,
-      }
+    numberGroups: request.numberGroups.map(group => {
+      field: group.field.value,
+      start: group.start.value.map(number => number.value),
+      end: group.end.value.map(number => number.value),
+      interval: group.interval.value,
     }),
-    subtotals: subtotals.map(value => {
-      guard value is Number(number, ..) &&
-        number >= 0 &&
-        number < 64 &&
-        number == number.trunc() else {
-        @failure.reject("invalid-operation", "Invalid pivot subtotal field")
-      }
-      number.to_int()
+    subtotals: request.subtotals.map(field => pivot_axis_field(field, path)),
+    rows: request.rows.map(field => pivot_axis_field(field, path)),
+    columns: request.columns.map(field => pivot_axis_field(field, path)),
+    filters: request.filters.map(filter => {
+      field: filter.field.value,
+      report: filter.report,
+      values: filter.values.value.map(members => members.map(item => item.value)),
     }),
-    rows: rows.map(value => {
-      guard value is Number(number, ..) &&
-        number >= 0 &&
-        number < 64 &&
-        number == number.trunc() else {
-        @failure.reject("invalid-operation", "Invalid pivot row field")
-      }
-      number.to_int()
-    }),
-    columns: columns.map(value => {
-      guard value is Number(number, ..) &&
-        number >= 0 &&
-        number < 64 &&
-        number == number.trunc() else {
-        @failure.reject("invalid-operation", "Invalid pivot column field")
-      }
-      number.to_int()
-    }),
-    filters: filters.map(filter => {
-      guard filter is Object(fields) &&
-        fields.length() == 3 &&
-        fields.keys().all(key => ["field", "values", "report"].contains(key)) &&
-        fields.get("report") is Some(False | True) &&
-        fields.get("values") is Some(values) else {
-        @failure.reject("invalid-operation", "Invalid pivot report filter")
-      }
-      let values = match values {
+    values: request.values.map(value => {
+      let baseItem = match value.baseItem {
         Null => None
-        Array(values) if values.length() <= 4096 => Some(values.map(xlsx_value))
-        _ => @failure.reject("invalid-operation", "Invalid pivot report values")
-      }
-      @model.PivotFilter::{
-        field: field_int(filter, "field"),
-        report: fields["report"] == Json(true),
-        values,
-      }
-    }),
-    values: values.map(value => {
-      guard value is Object(fields) &&
-        fields.length() == 6 &&
-        fields
-        .keys()
-        .all(k => {
-          ["field", "aggregate", "name", "showDataAs", "baseField", "baseItem"].contains(
-            k,
-          )
-        }) else {
-        @failure.reject("invalid-operation", "Invalid pivot value field")
+        String("previous") => Some(@model.PivotBaseItem::Previous)
+        String("next") => Some(@model.PivotBaseItem::Next)
+        item => {
+          let cell : CellValueRequest = @json.from_json(item, path~)
+          Some(@model.PivotBaseItem::Member(cell.value))
+        }
       }
       @model.PivotValue::{
-        field: field_int(value, "field"),
-        aggregate: field_string(value, "aggregate"),
-        showDataAs: field_string(value, "showDataAs"),
-        baseField: match value {
-          { "baseField": Null, .. } => None
-          _ => Some(field_int(value, "baseField"))
-        },
-        baseItem: match value {
-          { "baseItem": Null, .. } => None
-          { "baseItem": String("previous"), .. } =>
-            Some(@model.PivotBaseItem::Previous)
-          { "baseItem": String("next"), .. } => Some(@model.PivotBaseItem::Next)
-          { "baseItem": item, .. } =>
-            Some(@model.PivotBaseItem::Member(xlsx_value(item)))
-          _ =>
-            @failure.reject("invalid-operation", "Pivot base item is required")
-        },
-        name: field_string(value, "name"),
+        field: value.field.value,
+        aggregate: value.aggregate,
+        showDataAs: value.showDataAs,
+        baseField: value.baseField.value.map(field => field.value),
+        baseItem,
+        name: value.name,
       }
     }),
   }
+  { value, }
+}
+
+///|
+priv struct TimelineEndpointRequest {
+  name : String
+  handle : @common.RequestInt
+  level : @common.RequestInt
+  position : @common.RequestInt
+} derive(@json.FromJson)
+
+///|
+priv struct TimelineLevelRequest {
+  name : String
+  level : @common.RequestInt
+} derive(@json.FromJson)
+
+///|
+priv struct TimelineScrollRequest {
+  name : String
+  level : @common.RequestInt
+  position : @common.RequestInt
+} derive(@json.FromJson)
+
+///|
+priv struct TimelineRangeRequest {
+  start : String
+  end : String
+} derive(@json.FromJson)
+
+///|
+priv struct TimelineFilterRequest {
+  name : String
+  range : @common.RequiredNullable[TimelineRangeRequest]
+} derive(@json.FromJson)
+
+///|
+priv struct SlicerScrollRequest {
+  layout : @common.RequestInt
+  id : String
+  position : @common.RequestInt
+} derive(@json.FromJson)
+
+///|
+priv struct SlicerSelectionRequest {
+  layout : @common.RequestInt
+  id : String
+  index : @common.RequiredNullable[@common.RequestInt]
+  additive : Bool
+} derive(@json.FromJson)
+
+///|
+priv struct SlicerFilterRequest {
+  name : String
+  indices : Array[@common.RequestInt]
+} derive(@json.FromJson)
+
+///|
+priv struct PivotSourceRevisionRequest {
+  sourceRevision : @common.RequestInt
+} derive(@json.FromJson)
+
+///|
+priv struct PivotCreateRequest {
+  name : String
+  destination : String
+  settings : PivotSettingsRequest
+} derive(@json.FromJson)
+
+///|
+priv struct PivotUpdateRequest {
+  part : String
+  settings : PivotSettingsRequest
+} derive(@json.FromJson)
+
+///|
+priv struct PivotPartRequest {
+  part : String
+} derive(@json.FromJson)
+
+///|
+fn slicer_member_index(
+  value : @common.RequestInt,
+) -> Int32 raise @failure.Failure {
+  guard value.value < @model.SlicerMembers else {
+    @failure.reject("invalid-operation", "Invalid slicer member index")
+  }
+  value.value
 }
 
 ///|
@@ -196,206 +254,141 @@ fn xlsx_pivot_edit(
   session : @model.Session,
   revision : Int32,
   sheet : String,
+  action : String,
   change : Json,
 ) -> Json raise @failure.Failure {
-  let action = field_string(change, "action")
-  if action == "setTimelineEndpoint" {
-    guard change is Object(fields) &&
-      fields.length() == 5 &&
-      fields
-      .keys()
-      .all(key => {
-        ["action", "name", "handle", "level", "position"].contains(key)
-      }) else {
-      @failure.reject("invalid-operation", "Invalid timeline endpoint command")
-    }
-    return session.set_timeline_endpoint(
-      revision,
-      sheet,
-      field_string(change, "name"),
-      field_int(change, "handle"),
-      field_int(change, "level"),
-      field_int(change, "position"),
-    )
+  guard change is Object(fields) && fields.contains("action") else {
+    @failure.reject("invalid-operation", "Invalid analysis command")
   }
-  if action == "setTimelineLevel" || action == "scrollTimeline" {
-    let keys = if action == "setTimelineLevel" {
-      ["action", "name", "level"]
-    } else {
-      ["action", "name", "level", "position"]
-    }
-    guard change is Object(fields) &&
-      fields.length() == keys.length() &&
-      fields.keys().all(key => keys.contains(key)) else {
-      @failure.reject("invalid-operation", "Invalid timeline view command")
-    }
-    if action == "setTimelineLevel" {
-      return session.set_timeline_level(
+  match action {
+    "setTimelineEndpoint" if fields.length() == 5 => {
+      let input : TimelineEndpointRequest = @common.request(change)
+      session.set_timeline_endpoint(
         revision,
         sheet,
-        field_string(change, "name"),
-        field_int(change, "level"),
+        input.name,
+        input.handle.value,
+        input.level.value,
+        input.position.value,
       )
     }
-    return session.scroll_timeline(
-      revision,
-      sheet,
-      field_string(change, "name"),
-      field_int(change, "level"),
-      field_int(change, "position"),
-    )
-  }
-  if action == "filterTimeline" {
-    guard change is Object(fields) &&
-      fields.length() == 3 &&
-      fields.keys().all(key => ["action", "name", "range"].contains(key)) else {
-      @failure.reject("invalid-operation", "Invalid timeline filter command")
+    "setTimelineLevel" if fields.length() == 3 => {
+      let input : TimelineLevelRequest = @common.request(change)
+      session.set_timeline_level(revision, sheet, input.name, input.level.value)
     }
-    let range = match fields.get("range") {
-      Some(Null) => None
-      Some(Object(range) as value) if range.length() == 2 &&
-        range.keys().all(key => ["start", "end"].contains(key)) =>
-        Some((field_string(value, "start"), field_string(value, "end")))
-      _ =>
-        @failure.reject(
-          "invalid-operation", "Timeline range or null is required",
-        )
-    }
-    return session.filter_timeline(
-      revision,
-      sheet,
-      field_string(change, "name"),
-      range,
-    )
-  }
-  if action == "deleteSlicer" || action == "deleteTimeline" {
-    guard change is Object(fields) &&
-      fields.length() == 2 &&
-      fields.keys().all(key => ["action", "name"].contains(key)) else {
-      @failure.reject("invalid-operation", "Invalid analysis deletion command")
-    }
-    if action == "deleteTimeline" {
-      return session.delete_timeline(
+    "scrollTimeline" if fields.length() == 4 => {
+      let input : TimelineScrollRequest = @common.request(change)
+      session.scroll_timeline(
         revision,
         sheet,
-        field_string(change, "name"),
+        input.name,
+        input.level.value,
+        input.position.value,
       )
     }
-    return session.delete_slicer(revision, sheet, field_string(change, "name"))
-  }
-  if action == "selectSlicer" || action == "scrollSlicer" {
-    let keys = if action == "selectSlicer" {
-      ["action", "layout", "id", "index", "additive"]
-    } else {
-      ["action", "layout", "id", "position"]
-    }
-    guard change is Object(fields) &&
-      fields.length() == keys.length() &&
-      fields.keys().all(key => keys.contains(key)) else {
-      @failure.reject("invalid-operation", "Invalid slicer pointer command")
-    }
-    let layout = field_int(change, "layout")
-    let id = field_string(change, "id")
-    if action == "scrollSlicer" {
-      guard fields.get("position") is Some(Number(position, ..)) &&
-        position >= 0 &&
-        position <= 4095 &&
-        position == position.trunc() else {
-        @failure.reject("invalid-operation", "Invalid slicer scroll position")
+    "filterTimeline" if fields.length() == 3 => {
+      guard fields.get("range") is Some(Null) ||
+        (fields.get("range") is Some(Object(range)) && range.length() == 2) else {
+        @failure.reject("invalid-operation", "Invalid timeline range")
       }
-      return session.scroll_slicer(
+      let input : TimelineFilterRequest = @common.request(change)
+      let range = input.range.value.map(range => (range.start, range.end))
+      session.filter_timeline(revision, sheet, input.name, range)
+    }
+    "deleteSlicer" | "deleteTimeline" if fields.length() == 2 => {
+      let input : SheetRenameRequest = @common.request(change)
+      if action == "deleteTimeline" {
+        session.delete_timeline(revision, sheet, input.name)
+      } else {
+        session.delete_slicer(revision, sheet, input.name)
+      }
+    }
+    "scrollSlicer" if fields.length() == 4 => {
+      let input : SlicerScrollRequest = @common.request(change)
+      session.scroll_slicer(
         revision,
         sheet,
-        layout,
-        id,
-        position.to_int(),
+        input.layout.value,
+        input.id,
+        slicer_member_index(input.position),
       )
     }
-    guard fields.get("additive") is Some(True | False) else {
-      @failure.reject("invalid-operation", "Invalid slicer selection mode")
+    "selectSlicer" if fields.length() == 5 => {
+      let input : SlicerSelectionRequest = @common.request(change)
+      let index = match input.index.value {
+        Some(value) => Some(slicer_member_index(value))
+        None => None
+      }
+      session.select_slicer(
+        revision,
+        sheet,
+        input.layout.value,
+        input.id,
+        index,
+        input.additive,
+      )
     }
-    let index = match fields.get("index") {
-      Some(Null) => None
-      Some(Number(value, ..)) if value >= 0 &&
-        value <= 4095 &&
-        value == value.trunc() => Some(value.to_int())
-      _ => @failure.reject("invalid-operation", "Invalid slicer member index")
-    }
-    return session.select_slicer(
-      revision,
-      sheet,
-      layout,
-      id,
-      index,
-      fields.get("additive") == Some(Json(true)),
-    )
-  }
-  if action == "filterSlicer" {
-    guard change is Object(fields) &&
-      fields.length() == 3 &&
-      fields.keys().all(key => ["action", "name", "indices"].contains(key)) &&
+    "filterSlicer" if fields.length() == 3 &&
       fields.get("indices") is Some(Array(indices)) &&
       !indices.is_empty() &&
-      indices.length() <= 4096 else {
-      @failure.reject("invalid-operation", "Invalid slicer command")
-    }
-    return session.filter_slicer(
-      revision,
-      sheet,
-      field_string(change, "name"),
-      indices.map(value => {
-        guard value is Number(number, ..) &&
-          number >= 0 &&
-          number <= 4095 &&
-          number == number.trunc() else {
-          @failure.reject("invalid-operation", "Invalid slicer member index")
-        }
-        number.to_int()
-      }),
-    )
-  }
-  let keys = if action == "createPivot" {
-    ["action", "name", "destination", "settings", "sourceRevision"]
-  } else if action == "updatePivot" {
-    ["action", "part", "settings", "sourceRevision"]
-  } else {
-    ["action", "part"]
-  }
-  guard change is Object(fields) &&
-    fields.length() == keys.length() &&
-    fields.keys().all(key => keys.contains(key)) else {
-    @failure.reject("invalid-operation", "Invalid pivot command")
-  }
-  if action == "createPivot" || action == "updatePivot" {
-    guard field_int(change, "sourceRevision") == revision else {
-      @failure.reject(
-        "stale-revision", "Preview the current source before changing a pivot",
+      indices.length() <= @model.SlicerMembers => {
+      let input : SlicerFilterRequest = @common.request(change)
+      session.filter_slicer(
+        revision,
+        sheet,
+        input.name,
+        input.indices.map(slicer_member_index),
       )
     }
+    "createPivot" | "updatePivot" => {
+      let keys = if action == "createPivot" {
+        ["action", "name", "destination", "settings", "sourceRevision"]
+      } else {
+        ["action", "part", "settings", "sourceRevision"]
+      }
+      guard fields.length() == keys.length() &&
+        fields.keys().all(key => keys.contains(key)) else {
+        @failure.reject("invalid-operation", "Invalid pivot command")
+      }
+      let preview : PivotSourceRevisionRequest = @common.request(change)
+      guard preview.sourceRevision.value == revision else {
+        @failure.reject(
+          "stale-revision", "Preview the current source before changing a pivot",
+        )
+      }
+      if action == "createPivot" {
+        let input : PivotCreateRequest = @common.request(change)
+        ignore(
+          session.create_pivot(
+            revision,
+            sheet,
+            input.name,
+            input.destination,
+            input.settings.value,
+          ),
+        )
+      } else {
+        let input : PivotUpdateRequest = @common.request(change)
+        ignore(
+          session.update_pivot(
+            revision,
+            sheet,
+            input.part,
+            input.settings.value,
+          ),
+        )
+      }
+      session.query(sheet=Some(sheet))
+    }
+    "deletePivot" | "refreshPivot" if fields.length() == 2 => {
+      let input : PivotPartRequest = @common.request(change)
+      if action == "deletePivot" {
+        ignore(session.delete_pivot(revision, sheet, input.part))
+      } else {
+        ignore(session.refresh_pivot(revision, sheet, input.part))
+      }
+      session.query(sheet=Some(sheet))
+    }
+    _ => @failure.reject("invalid-operation", "Invalid analysis command")
   }
-  if action == "createPivot" {
-    ignore(
-      session.create_pivot(
-        revision,
-        sheet,
-        field_string(change, "name"),
-        field_string(change, "destination"),
-        xlsx_pivot_settings(fields["settings"]),
-      ),
-    )
-  } else if action == "updatePivot" {
-    ignore(
-      session.update_pivot(
-        revision,
-        sheet,
-        field_string(change, "part"),
-        xlsx_pivot_settings(fields["settings"]),
-      ),
-    )
-  } else if action == "deletePivot" {
-    ignore(session.delete_pivot(revision, sheet, field_string(change, "part")))
-  } else {
-    ignore(session.refresh_pivot(revision, sheet, field_string(change, "part")))
-  }
-  session.query(sheet=Some(sheet))
 }

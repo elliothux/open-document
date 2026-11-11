@@ -54,8 +54,8 @@ fn read_chart_sheet(
     protection_reason: "Chart sheet protection requires editing support",
     data: -1,
     dimensions: {
-      rows: { default_size: 15, spans: [], limit: 1048576, },
-      columns: { default_size: 8, spans: [], limit: 16384, },
+      rows: { default_size: 15, spans: [], limit: WorksheetRows, },
+      columns: { default_size: 8, spans: [], limit: WorksheetColumns, },
       base_column_width: Some(8),
       automatic_rows: Map([]),
       automatic_columns: [],

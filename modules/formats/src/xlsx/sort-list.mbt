@@ -1,4 +1,10 @@
 ///|
+pub const SortListLabels : Int32 = 4096
+
+///|
+pub const SortListUnits : Int32 = 32767
+
+///|
 priv struct SortValue {
   value : Value
   rank : Int32?
@@ -12,7 +18,7 @@ priv struct SortList {
 
 ///|
 fn check_sort_list(values : Array[String]) -> Unit raise @failure.Failure {
-  guard values.length() <= 4096 else {
+  guard values.length() <= SortListLabels else {
     @failure.reject(
       "limit-exceeded", "Custom sort lists support at most 4096 labels",
     )
@@ -27,7 +33,7 @@ fn check_sort_list(values : Array[String]) -> Unit raise @failure.Failure {
       !value.contains("\r") &&
       @xml.valid_text(value) &&
       !seen.contains(value) &&
-      units <= 32767 else {
+      units <= SortListUnits else {
       @failure.reject(
         "invalid-operation", "Custom sort labels must be distinct nonempty text without commas or line breaks and fit 32767 units",
       )

@@ -166,8 +166,8 @@ fn vml_note_shapes(
       },
     )
     let address : Address = {
-      row: natural(row.text.trim().to_owned(), 1048575) + 1,
-      column: natural(column.text.trim().to_owned(), 16383) + 1,
+      row: natural(row.text.trim().to_owned(), WorksheetRows - 1) + 1,
+      column: natural(column.text.trim().to_owned(), WorksheetColumns - 1) + 1,
     }
     guard !shapes.contains(address.name()) && shapes.length() < 4096 else {
       @failure.reject(
@@ -183,7 +183,16 @@ fn vml_note_shapes(
         ignore(
           natural(
             value.trim().to_owned(),
-            [16383, 1023, 1048575, 255, 16383, 1023, 1048575, 255][index],
+            [
+              WorksheetColumns - 1,
+              1023,
+              WorksheetRows - 1,
+              255,
+              WorksheetColumns - 1,
+              1023,
+              WorksheetRows - 1,
+              255,
+            ][index],
           ),
         )
       }

@@ -51,10 +51,10 @@ fn Session::layout_choices(
           master.part.length() +
           name.length() +
           master_name.length()
-        guard choices.length() < 256 &&
-          units <= 1048576 &&
-          name.length() <= 1024 &&
-          master_name.length() <= 1024 else {
+        guard choices.length() < LayoutCatalogCount &&
+          units <= SourceCatalogUnits &&
+          name.length() <= SourceNameUnits &&
+          master_name.length() <= SourceNameUnits else {
           @failure.reject(
             "limit-exceeded", "Slide layout catalog exceeds budget",
           )
@@ -68,7 +68,22 @@ fn Session::layout_choices(
 }
 
 ///|
-fn Session::layout_query(self : Session, slide : Slide) -> Json {
+priv struct LayoutChoiceQuery {
+  id : String
+  name : String
+  master : String
+  masterName : String
+} derive(ToJson)
+
+///|
+priv struct SlideLayoutQuery {
+  current : String
+  choices : Array[LayoutChoiceQuery]
+  reason : String
+} derive(ToJson)
+
+///|
+fn Session::layout_query(self : Session, slide : Slide) -> SlideLayoutQuery {
   let current = slide_layout(self.opc, slide.tree.part, self.parts).unwrap_or(
     "",
   ) catch {
@@ -82,21 +97,17 @@ fn Session::layout_query(self : Session, slide : Slide) -> Json {
       )
     }
     {
-      "current": current,
-      "choices": choices.map(choice => {
-        let value : Json = {
-          "id": choice.tree.part,
-          "name": choice.name,
-          "master": choice.master.part,
-          "masterName": choice.master_name,
-        }
-        value
+      current,
+      choices: choices.map(choice => {
+        id: choice.tree.part,
+        name: choice.name,
+        master: choice.master.part,
+        masterName: choice.master_name,
       }),
-      "reason": self.slide_visibility_reason(),
+      reason: self.slide_visibility_reason(),
     }
   } catch {
-    @failure.Failure(message~, ..) =>
-      { "current": current, "choices": [], "reason": message }
+    @failure.Failure(message~, ..) => { current, choices: [], reason: message, }
   }
 }
 

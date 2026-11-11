@@ -1,8 +1,36 @@
 ///|
-fn xlsx_chart_settings(
-  value : Json,
-) -> @model.SheetChartSettings raise @failure.Failure {
-  guard value is Object(fields) &&
+priv struct ChartReferences {
+  value : Array[String]
+}
+
+///|
+impl @json.FromJson for ChartReferences with fn from_json(input, path) {
+  guard input is Array(items) && items.length() <= @model.ChartSeriesCount else {
+    raise @json.JsonDecodeError((path, "Chart reference list exceeds limits"))
+  }
+  { value: @json.from_json(input, path~), }
+}
+
+///|
+priv struct ChartSettingsRequest {
+  kind : String
+  title : String
+  label : String
+  legend : String
+  holeSize : @common.RequiredNullable[@common.RequestInt]
+  categories : String
+  names : ChartReferences
+  values : ChartReferences
+} derive(@json.FromJson)
+
+///|
+priv struct ChartSettingsInput {
+  value : @model.SheetChartSettings
+}
+
+///|
+impl @json.FromJson for ChartSettingsInput with fn from_json(input, path) {
+  guard input is Object(fields) &&
     fields.length() == 8 &&
     fields
     .keys()
@@ -11,120 +39,137 @@ fn xlsx_chart_settings(
         "kind", "title", "label", "legend", "holeSize", "categories", "names", "values",
       ].contains(key)
     }) else {
-    @failure.reject("invalid-operation", "Chart settings require known fields")
+    raise @json.JsonDecodeError((path, "Chart settings require known fields"))
   }
-  let refs = fn(name : String) raise @failure.Failure {
-    guard fields.get(name) is Some(Array(items)) && items.length() <= 32 else {
-      @failure.reject(
-        "invalid-operation", "Chart reference list exceeds limits",
-      )
-    }
-    items.map(value => {
-      match value {
-        String(value) => value
-        _ =>
-          @failure.reject("invalid-operation", "Chart reference must be text")
-      }
-    })
-  }
+  let command : ChartSettingsRequest = @json.from_json(input, path~)
   {
-    kind: field_string(value, "kind"),
-    title: field_string(value, "title"),
-    label: field_string(value, "label"),
-    legend: field_string(value, "legend"),
-    hole_size: if fields.get("holeSize") == Some(Json::null()) {
-      None
-    } else {
-      Some(field_int(value, "holeSize"))
+    value: {
+      kind: command.kind,
+      title: command.title,
+      label: command.label,
+      legend: command.legend,
+      hole_size: command.holeSize.value.map(value => value.value),
+      categories: command.categories,
+      names: command.names.value,
+      values: command.values.value,
     },
-    categories: field_string(value, "categories"),
-    names: refs("names"),
-    values: refs("values"),
   }
 }
 
 ///|
-fn Context::xlsx_chart_operation(
-  self : Context,
-  operation : String,
-  request : Json,
-) -> Json raise @failure.Failure {
-  guard self.xlsx is Some(session) else {
-    @failure.reject("session-required", "Open an XLSX workbook first")
-  }
-  let revision = field_int(request, "revision")
-  let sheet = field_string(request, "sheet")
-  let profile = font_profile(request)
-  match operation {
-    "getXlsxChart" => session.charts(revision, sheet, self.probe, profile)
-    "insertXlsxChart" | "setXlsxChart" => {
-      guard request is { "settings": settings, .. } else {
-        @failure.reject("invalid-operation", "Chart settings required")
-      }
-      let settings = xlsx_chart_settings(settings)
-      if operation == "insertXlsxChart" {
-        session.insert_chart(
-          revision,
-          sheet,
-          settings,
-          field_number(request, "width"),
-          field_number(request, "height"),
-          self.probe,
-          profile,
-        )
-      } else {
-        session.set_chart(
-          revision,
-          sheet,
-          field_string(request, "id"),
-          settings,
-          self.probe,
-          profile,
-        )
-      }
-    }
-    "insertRangeXlsxChart" =>
-      session.insert_chart_range(
-        revision,
-        sheet,
-        field_string(request, "range"),
-        field_string(request, "kind"),
-        field_string(request, "title"),
-        field_number(request, "width"),
-        field_number(request, "height"),
-        self.probe,
-        profile,
-      )
-    "frameXlsxChart" => {
-      guard request is { "settings": settings, .. } else {
-        @failure.reject("invalid-operation", "Chart frame settings required")
-      }
-      session.set_chart_frame(
-        revision,
-        sheet,
-        field_string(request, "id"),
-        field_string(settings, "anchor"),
-        {
-          x: field_number(settings, "x"),
-          y: field_number(settings, "y"),
-          width: field_number(settings, "width"),
-          height: field_number(settings, "height"),
-        },
-        field_string(settings, "name"),
-        field_string(settings, "description"),
-        self.probe,
-        profile,
-      )
-    }
-    "deleteXlsxChart" =>
-      session.delete_chart(
-        revision,
-        sheet,
-        field_string(request, "id"),
-        self.probe,
-        profile,
-      )
-    _ =>
-      @failure.reject("invalid-operation", "Unknown worksheet chart operation")
-  }
+priv struct InsertChartRequest {
+  revision : @common.RequestInt
+  sheet : String
+  settings : ChartSettingsInput
+  width : @common.RequestNumber
+  height : @common.RequestNumber
+  profile : @common.RequestProfile
+} derive(@json.FromJson)
+
+///|
+priv struct SetChartRequest {
+  revision : @common.RequestInt
+  sheet : String
+  id : String
+  settings : ChartSettingsInput
+  profile : @common.RequestProfile
+} derive(@json.FromJson)
+
+///|
+priv struct InsertRangeChartRequest {
+  revision : @common.RequestInt
+  sheet : String
+  range : String
+  kind : String
+  title : String
+  width : @common.RequestNumber
+  height : @common.RequestNumber
+  profile : @common.RequestProfile
+} derive(@json.FromJson)
+
+///|
+priv struct ObjectFrameCommand {
+  revision : @common.RequestInt
+  sheet : String
+  id : String
+  settings : ObjectFrameRequest
+  profile : @common.RequestProfile
+} derive(@json.FromJson)
+
+///|
+let chart_handlers : Map[
+  String,
+  (Context, @model.Session, Json) -> Json raise @failure.Failure,
+] = {
+  "getXlsxChart": (context, session, input) => {
+    let command : SheetProfileRequest = @common.request(input)
+    session.charts(
+      command.revision.value,
+      command.sheet,
+      context.probe,
+      command.profile.value,
+    )
+  },
+  "insertXlsxChart": (context, session, input) => {
+    let command : InsertChartRequest = @common.request(input)
+    session.insert_chart(
+      command.revision.value,
+      command.sheet,
+      command.settings.value,
+      command.width.value,
+      command.height.value,
+      context.probe,
+      command.profile.value,
+    )
+  },
+  "setXlsxChart": (context, session, input) => {
+    let command : SetChartRequest = @common.request(input)
+    session.set_chart(
+      command.revision.value,
+      command.sheet,
+      command.id,
+      command.settings.value,
+      context.probe,
+      command.profile.value,
+    )
+  },
+  "insertRangeXlsxChart": (context, session, input) => {
+    let command : InsertRangeChartRequest = @common.request(input)
+    session.insert_chart_range(
+      command.revision.value,
+      command.sheet,
+      command.range,
+      command.kind,
+      command.title,
+      command.width.value,
+      command.height.value,
+      context.probe,
+      command.profile.value,
+    )
+  },
+  "frameXlsxChart": (context, session, input) => {
+    let command : ObjectFrameCommand = @common.request(input)
+    let frame = command.settings
+    session.set_chart_frame(
+      command.revision.value,
+      command.sheet,
+      command.id,
+      frame.anchor,
+      frame.rect(),
+      frame.name,
+      frame.description,
+      context.probe,
+      command.profile.value,
+    )
+  },
+  "deleteXlsxChart": (context, session, input) => {
+    let command : ObjectIdRequest = @common.request(input)
+    session.delete_chart(
+      command.revision.value,
+      command.sheet,
+      command.id,
+      context.probe,
+      command.profile.value,
+    )
+  },
 }

@@ -7,9 +7,9 @@ fn image_size(
   let height = integer(get(document, object, "Height"))
   guard width > 0 &&
     height > 0 &&
-    width <= 4096 &&
-    height <= 4096 &&
-    width.to_int64() * height.to_int64() * 4 <= 16777216 else {
+    width <= @layout.ImageDimension &&
+    height <= @layout.ImageDimension &&
+    width.to_int64() * height.to_int64() * 4 <= @layout.ImageBytes.to_int64() else {
     @failure.reject("limit-exceeded", "PDF image dimensions exceed budget")
   }
   guard (
@@ -304,6 +304,7 @@ fn add_image(
         bytes,
         width,
         height,
+        blocks,
         decode,
         alpha,
         matte,

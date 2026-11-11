@@ -1,4 +1,12 @@
 import { useEffect, useState } from "react";
+import {
+  docxSourceAuthorUnits,
+  docxSourcePublisherUnits,
+  docxSourceTagUnits,
+  docxSourceTitleUnits,
+  docxSourceUrlUnits,
+  docxSourceYearUnits,
+} from "@open-document/wasm/engine-source";
 import type { DocumentEditor, DocumentSources } from "../web/editor.js";
 import { sourceKinds, type DocxSource } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
@@ -55,12 +63,12 @@ function SourceFields({
       </label>
       {(
         [
-          ["tag", t.sourceTag, 64],
-          ["author", t.sourceAuthor, 1024],
-          ["title", t.sourceTitle, 1024],
-          ["year", t.sourceYear, 32],
-          ["publisher", t.sourcePublisher, 512],
-          ["url", t.sourceUrl, 2048],
+          ["tag", t.sourceTag, docxSourceTagUnits],
+          ["author", t.sourceAuthor, docxSourceAuthorUnits],
+          ["title", t.sourceTitle, docxSourceTitleUnits],
+          ["year", t.sourceYear, docxSourceYearUnits],
+          ["publisher", t.sourcePublisher, docxSourcePublisherUnits],
+          ["url", t.sourceUrl, docxSourceUrlUnits],
         ] as const
       ).map(([key, label, maxLength]) => (
         <label key={key}>
@@ -102,7 +110,7 @@ export function DocxSources({
     controller.run(async () => {
       await editor.whenIdle();
       if (!active) return;
-      const value = await editor.sources();
+      const value = await editor.sources.catalog();
       if (active) setSource(value);
     });
     return () => {
@@ -128,7 +136,7 @@ export function DocxSources({
       <button
         type="button"
         disabled={disabled || blocked || stale}
-        onClick={() => controller.run(() => editor.updateCitations())}
+        onClick={() => controller.run(() => editor.sources.updateCitations())}
       >
         {t.updateCitations}
       </button>
@@ -138,7 +146,7 @@ export function DocxSources({
           event.preventDefault();
           const form = event.currentTarget;
           controller.run(async () => {
-            await editor.createSource(sourceValue(form));
+            await editor.sources.createSource(sourceValue(form));
             form.reset();
           });
         }}
@@ -156,7 +164,10 @@ export function DocxSources({
             event.preventDefault();
             const value = sourceValue(event.currentTarget, entry);
             controller.run(() =>
-              editor.editSource(source, { action: "update", source: value }),
+              editor.sources.editSource(source, {
+                action: "update",
+                source: value,
+              }),
             );
           }}
         >
@@ -171,7 +182,9 @@ export function DocxSources({
                 !snapshot.selection
               }
               onClick={() =>
-                controller.run(() => editor.insertCitation(source, entry.tag))
+                controller.run(() =>
+                  editor.sources.insertCitation(source, entry.tag),
+                )
               }
             >
               {t.insertCitation}
@@ -182,7 +195,7 @@ export function DocxSources({
               title={entry.deleteReason || undefined}
               onClick={() =>
                 controller.run(() =>
-                  editor.editSource(source, {
+                  editor.sources.editSource(source, {
                     action: "delete",
                     tag: entry.tag,
                   }),

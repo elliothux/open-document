@@ -83,12 +83,40 @@ fn ShowState::advance(
 }
 
 ///|
+priv struct ShowInkQuery {
+  strokes : Int32
+  points : Int32
+  drawing : Bool
+} derive(ToJson)
+
+///|
+priv struct ShowQuery {
+  active : Bool
+  external : Json
+  revision : Int32
+  slide : Json
+  index : Int32
+  order : Array[String]
+  position : Int32
+  custom : Json
+  count : Int32
+  text : String
+  paused : Bool
+  media : Array[ShowMediaQuery]
+  step : Int32
+  steps : Int32
+  ink : ShowInkQuery
+  nextSlide : Json
+  notes : NotesQuery
+} derive(ToJson)
+
+///|
 fn Session::show_state(
   self : Session,
   show : ShowState?,
   external~ : String? = None,
 ) -> Json raise @failure.Failure {
-  if show is Some(show) {
+  let result : ShowQuery = if show is Some(show) {
     let slide = self.slides[show.index]
     let hidden = show.hidden_objects()
     let text = slide.objects
@@ -99,56 +127,58 @@ fn Session::show_state(
       @failure.reject("limit-exceeded", "Slideshow text exceeds budget")
     }
     {
-      "active": true,
-      "external": external.map(value => Json(value)).unwrap_or(Json::null()),
-      "revision": self.revision,
-      "slide": slide.tree.part,
-      "index": show.index,
-      "order": show.route.map(index => self.slides[index].tree.part),
-      "position": show.position,
-      "custom": show.custom.map(value => Json(value)).unwrap_or(Json::null()),
-      "count": self.slides.length(),
-      "text": text,
-      "paused": show.paused,
-      "media": self.show_media_query(show),
-      "step": show.step,
-      "steps": show.animations.length(),
-      "ink": {
-        "strokes": show.ink.get(show.index).unwrap_or([]).length(),
-        "points": show.ink
+      active: true,
+      external: nullable_json(external),
+      revision: self.revision,
+      slide: Json(slide.tree.part),
+      index: show.index,
+      order: show.route.map(index => self.slides[index].tree.part),
+      position: show.position,
+      custom: nullable_json(show.custom),
+      count: self.slides.length(),
+      text,
+      paused: show.paused,
+      media: self.show_media_query(show),
+      step: show.step,
+      steps: show.animations.length(),
+      ink: {
+        strokes: show.ink.get(show.index).unwrap_or([]).length(),
+        points: show.ink
         .get(show.index)
         .unwrap_or([])
         .fold(init=0, (sum, stroke) => sum + stroke.points.length()) +
         show.ink_draft.map(stroke => stroke.points.length()).unwrap_or(0),
-        "drawing": show.ink_draft is Some(_),
+        drawing: show.ink_draft is Some(_),
       },
-      "nextSlide": self
-      .show_neighbor(show, true)
-      .map(i => Json(self.slides[show.route[i]].tree.part))
-      .unwrap_or(Json::null()),
-      "notes": self.notes_query(slide.tree.part),
+      nextSlide: nullable_json(
+        self
+        .show_neighbor(show, true)
+        .map(i => self.slides[show.route[i]].tree.part),
+      ),
+      notes: self.notes_query(slide.tree.part),
     }
   } else {
     {
-      "active": false,
-      "external": Json::null(),
-      "revision": self.revision,
-      "slide": Json::null(),
-      "index": -1,
-      "order": [],
-      "position": -1,
-      "custom": Json::null(),
-      "count": self.slides.length(),
-      "text": "",
-      "paused": false,
-      "media": [],
-      "step": 0,
-      "steps": 0,
-      "ink": { "strokes": 0, "points": 0, "drawing": false },
-      "nextSlide": Json::null(),
-      "notes": { "text": "", "reason": "" },
+      active: false,
+      external: Json::null(),
+      revision: self.revision,
+      slide: Json::null(),
+      index: -1,
+      order: [],
+      position: -1,
+      custom: Json::null(),
+      count: self.slides.length(),
+      text: "",
+      paused: false,
+      media: [],
+      step: 0,
+      steps: 0,
+      ink: { strokes: 0, points: 0, drawing: false, },
+      nextSlide: Json::null(),
+      notes: { text: "", reason: "", },
     }
   }
+  ToJson::to_json(result)
 }
 
 ///|
@@ -242,13 +272,16 @@ fn Session::show_region(
     {
       ..current,
       commands: [
-        FillRect({
-          x: 0,
-          y: 0,
-          width: self.width,
-          height: self.height,
-          color: "000000",
-        }),
+        FillRect(
+          {
+            x: 0,
+            y: 0,
+            width: self.width,
+            height: self.height,
+            color: "000000",
+          },
+          screen_fractional=false,
+        ),
       ],
     }
   }

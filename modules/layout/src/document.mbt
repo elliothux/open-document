@@ -1,4 +1,8 @@
 ///|
+/// Maximum output for positioned PDF and semantic document exports.
+pub const ExportBytes : Int32 = 67108864
+
+///|
 pub(all) struct TextStyle {
   font : String
   size : Double
@@ -11,7 +15,7 @@ pub(all) struct TextStyle {
   spacing : Double
   kerning : String
   fontLeading : Bool
-} derive(ToJson)
+} derive(ToJson, Eq, Hash)
 
 ///|
 pub fn TextStyle::new(
@@ -75,6 +79,12 @@ fn TextStyle::rise(self : TextStyle) -> Double {
 
 ///|
 pub extend TextStyle with ToJson::{to_json}
+
+///|
+pub extend TextStyle with Eq::{equal, not_equal}
+
+///|
+pub extend TextStyle with Hash::{hash, hash_combine}
 
 ///|
 pub(all) struct Span {
@@ -150,6 +160,7 @@ pub(all) struct Paragraph {
   before : Double
   after : Double
   line : LineSpacing
+  lineGrid : Double?
   left : Double
   right : Double
   first : Double
@@ -398,7 +409,7 @@ fn PageSetup::validate(self : PageSetup) -> Unit raise @failure.Failure {
 ///|
 pub(all) struct PlacedImage {
   key : String
-  // An absent source flag uses the drawing host's image sampling policy.
+  // An absent source flag lets the drawing command select a sampling policy.
   interpolate : Bool?
   x : Double
   y : Double

@@ -4,15 +4,16 @@ export interface EngineSource {
 }
 
 declare const engineBrand: unique symbol;
-/** An immutable compiled engine; each document creates its own Instance. */
+/** An immutable compiled engine; each document owns its context. */
 export interface EngineHandle {
   readonly [engineBrand]: true;
 }
 
 const modules = new WeakMap<EngineHandle, WebAssembly.Module>();
-let current: { key: string; promise: Promise<EngineHandle> } | undefined;
+const instances = new WeakMap<WebAssembly.Module, WebAssembly.Instance>();
+const engines = new Map<string, Promise<EngineHandle>>();
 
-/** Share one in-flight fetch/compile in this realm. Cancellation belongs to each waiter. */
+/** Share fetch/compile per engine source. Cancellation belongs to each waiter. */
 export function loadEngine(
   source: EngineSource,
   signal?: AbortSignal,
@@ -26,14 +27,17 @@ export function loadEngine(
       new Error("An absolute engine URL and build identity are required"),
     );
   const key = JSON.stringify([source.url.href, source.build]);
-  if (current?.key !== key) {
-    const entry = { key, promise: compile(source) };
-    current = entry;
-    void entry.promise.catch(() => {
-      if (current === entry) current = undefined;
+  let shared = engines.get(key);
+  if (!shared) {
+    const pending = compile(source);
+    engines.set(key, pending);
+    // The combined engine and four format engines fit in one realm.
+    if (engines.size > 5) engines.delete(engines.keys().next().value!);
+    void pending.catch(() => {
+      if (engines.get(key) === pending) engines.delete(key);
     });
+    shared = pending;
   }
-  const shared = current.promise;
   if (!signal) return shared;
   return new Promise((resolve, reject) => {
     const abort = () => reject(signal.reason);
@@ -79,6 +83,7 @@ export function instantiateEngine(
     "abi_version",
     `${format}_new`,
     `${format}_call`,
+    `${format}_output`,
     `${format}_add_font`,
     `${format}_close`,
   ]) {
@@ -89,14 +94,16 @@ export function instantiateEngine(
     )
       throw new Error(`Missing ${name} export`);
   }
-  const instance = new WebAssembly.Instance(module, {});
+  const instance =
+    instances.get(module) ?? new WebAssembly.Instance(module, {});
   const version = instance.exports.abi_version;
   const create = instance.exports[`${format}_new`];
   if (
     typeof version !== "function" ||
-    version() !== 1 ||
+    version() !== 18 ||
     typeof create !== "function"
   )
     throw new Error("Unsupported engine ABI");
+  instances.set(module, instance);
   return { exports: instance.exports, context: create() };
 }

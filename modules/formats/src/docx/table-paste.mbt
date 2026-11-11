@@ -182,7 +182,7 @@ fn Session::paste_table_cells(
   images : @layout.Images?,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
-  guard text.length() <= command_limit else {
+  guard text.length() <= TextCommandUnits else {
     @failure.reject("limit-exceeded", "Table paste exceeds command text budget")
   }
   let values = @delimited.parse_tsv(text)
@@ -200,9 +200,9 @@ fn Session::paste_table_cells(
   let right = left + values[0].length()
   let rows = bottom.max(grid.rows.length())
   let columns = right.max(grid.model.widths.length())
-  guard rows <= 1000 &&
-    columns <= 63 &&
-    rows.to_int64() * columns.to_int64() <= 4096 else {
+  guard rows <= TableGridRows &&
+    columns <= TableGridColumns &&
+    rows.to_int64() * columns.to_int64() <= TableGridCells.to_int64() else {
     @failure.reject(
       "limit-exceeded", "Pasted table exceeds row column or cell budget",
     )

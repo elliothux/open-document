@@ -89,7 +89,7 @@ fn Session::slicer_creation_cache(
   }
   let uid = slicer_creation_uid(uids, paths.length(), "00000002")
   let values = data.axis_items(field)
-  guard !values.is_empty() && values.length() <= 4096 else {
+  guard !values.is_empty() && values.length() <= SlicerMembers else {
     @failure.reject("limit-exceeded", "Slicer members exceed budget")
   }
   let cache_id = self.part_xml(pivot.part).nodes()[0]

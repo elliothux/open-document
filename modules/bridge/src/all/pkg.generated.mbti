@@ -13,35 +13,43 @@ pub fn abi_version() -> Int32
 
 pub fn docx_add_font(@docx.Context, String, String) -> String
 
-pub fn docx_call(@docx.Context, String) -> String
+pub fn docx_call(@docx.Context, String, String, String) -> String
 
 pub fn docx_close(@docx.Context) -> Unit
 
 pub fn docx_new() -> @docx.Context
 
+pub fn docx_output(@docx.Context, Int32) -> String?
+
 pub fn pdf_add_font(@pdf.Context, String, String) -> String
 
-pub fn pdf_call(@pdf.Context, String) -> String
+pub fn pdf_call(@pdf.Context, String, String, String) -> String
 
 pub fn pdf_close(@pdf.Context) -> Unit
 
 pub fn pdf_new() -> @pdf.Context
 
+pub fn pdf_output(@pdf.Context, Int32) -> String?
+
 pub fn pptx_add_font(@pptx.Context, String, String) -> String
 
-pub fn pptx_call(@pptx.Context, String) -> String
+pub fn pptx_call(@pptx.Context, String, String, String) -> String
 
 pub fn pptx_close(@pptx.Context) -> Unit
 
 pub fn pptx_new() -> @pptx.Context
 
+pub fn pptx_output(@pptx.Context, Int32) -> String?
+
 pub fn xlsx_add_font(@xlsx.Context, String, String) -> String
 
-pub fn xlsx_call(@xlsx.Context, String) -> String
+pub fn xlsx_call(@xlsx.Context, String, String, String) -> String
 
 pub fn xlsx_close(@xlsx.Context) -> Unit
 
 pub fn xlsx_new() -> @xlsx.Context
+
+pub fn xlsx_output(@xlsx.Context, Int32) -> String?
 
 // Errors
 

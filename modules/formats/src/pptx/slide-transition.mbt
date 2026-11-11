@@ -123,21 +123,30 @@ fn read_slide_transition(
 }
 
 ///|
-fn Session::transition_query(self : Session, slide : Slide) -> Json {
-  try {
-    let value = read_slide_transition(slide.tree)
-    {
-      "value": value.map(v => v.to_json()).unwrap_or(Json::null()),
-      "advance": read_slide_advance(slide.tree).json(),
-      "reason": self.slide_visibility_reason(),
-    }
+priv struct QueryTransition {
+  value : SlideTransition?
+  advance : SlideAdvance
+  reason : String
+}
+
+///|
+impl ToJson for QueryTransition with fn to_json(self) {
+  {
+    "value": nullable_json(self.value),
+    "advance": self.advance.json(),
+    "reason": self.reason,
+  }
+}
+
+///|
+fn Session::transition_query(self : Session, slide : Slide) -> QueryTransition {
+  {
+    value: read_slide_transition(slide.tree),
+    advance: read_slide_advance(slide.tree),
+    reason: self.slide_visibility_reason(),
   } catch {
     @failure.Failure(message~, ..) =>
-      {
-        "value": Json::null(),
-        "advance": { "click": true, "after": Json::null() },
-        "reason": message,
-      }
+      { value: None, advance: { click: true, after: None, }, reason: message, }
   }
 }
 

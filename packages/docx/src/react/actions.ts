@@ -32,9 +32,9 @@ export function clipboard(editor: DocumentEditor): ClipboardActions {
     cut: () => editor.copy(true),
     paste: (text, format, mode) =>
       format === "html"
-        ? editor.pasteHtml(text, mode)
+        ? editor.clipboard.pasteHtml(text, mode)
         : format === "markdown"
-          ? editor.pasteMarkdown(text, mode)
+          ? editor.clipboard.pasteMarkdown(text, mode)
           : editor.paste(text),
     pasteClipboard: () => pasteDocxSelection(editor),
   };

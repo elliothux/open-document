@@ -1,4 +1,7 @@
 ///|
+pub const ClipboardFragmentUnits : Int32 = 2097152
+
+///|
 fn Session::read_body_fragment(
   self : Session,
   xml : String,
@@ -8,7 +11,7 @@ fn Session::read_body_fragment(
   media : Map[String, Bytes],
   added : Map[String, Bytes],
 ) -> @xml.Document raise @failure.Failure {
-  let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
+  let limit = self.opc.budget.entry_bytes.min(ClipboardFragmentUnits)
   guard !xml.is_empty() && xml.length() <= limit else {
     @failure.reject(
       "limit-exceeded", "Rich document fragment exceeds source budget",
@@ -82,6 +85,8 @@ pub fn Session::body_fragment_images(
   self : Session,
   revision : Int32,
   fragment : String,
+  encode_image~ : (Bytes) -> Json = fragment_image_base64,
+  prepare_pixels~ : Bool = false,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let parts = self.parts.copy()
@@ -90,12 +95,7 @@ pub fn Session::body_fragment_images(
   let media = self.media.copy()
   let added : Map[String, Bytes] = Map([])
   ignore(self.read_body_fragment(fragment, parts, edits, created, media, added))
-  let view = { ..self, parts, media, }
-  let images : Array[Json] = []
-  for rel in view.relationships() {
-    if rel.owner == self.main && added.get(rel.target) is Some(bytes) {
-      images.push({ "key": rel.id, "bytes": @base64.encode(bytes) })
-    }
-  }
-  { "revision": revision, "images": images }
+  { ..self, parts, media, }.fragment_image_response(
+    revision, added, encode_image, prepare_pixels,
+  )
 }

@@ -3,7 +3,7 @@ pub(all) struct ConditionalIconThreshold {
   kind : String
   value : String
   greaterOrEqual : Bool
-} derive(Eq, ToJson)
+} derive(Eq, ToJson, @json.FromJson)
 
 ///|
 pub extend ConditionalIconThreshold with Eq::{equal, not_equal}
@@ -12,19 +12,25 @@ pub extend ConditionalIconThreshold with Eq::{equal, not_equal}
 pub extend ConditionalIconThreshold with ToJson::{to_json}
 
 ///|
+pub extend ConditionalIconThreshold with @json.FromJson::{from_json}
+
+///|
 pub(all) struct IconSet {
   kind : String
   reverse : Bool
   showValue : Bool
   percent : Bool
   thresholds : Array[ConditionalIconThreshold]
-} derive(Eq, ToJson)
+} derive(Eq, ToJson, @json.FromJson)
 
 ///|
 pub extend IconSet with Eq::{equal, not_equal}
 
 ///|
 pub extend IconSet with ToJson::{to_json}
+
+///|
+pub extend IconSet with @json.FromJson::{from_json}
 
 ///|
 priv struct ConditionalIcon {
@@ -147,7 +153,7 @@ fn ConditionalRules::icon(
   address : Address,
   sheets : Array[Sheet],
   index : Int32,
-  values : Map[(Int32, String), Value],
+  values : Map[(Int32, Address), Value],
   work : FormulaWork,
 ) -> ConditionalIcon? raise @failure.Failure {
   guard rule.icons is Some(icons) &&

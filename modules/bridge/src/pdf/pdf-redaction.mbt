@@ -1,58 +1,77 @@
 ///|
-fn pdf_redaction_regions(
-  request : Json,
-) -> Array[@model.PdfRedactionRegion] raise @failure.Failure {
-  guard request is { "regions": Array(regions), .. } &&
+priv struct RedactionRegionRequest {
+  page : String
+  x : @common.RequestNumber
+  y : @common.RequestNumber
+  width : @common.RequestNumber
+  height : @common.RequestNumber
+} derive(@json.FromJson)
+
+///|
+fn RedactionRegionRequest::region(
+  self : RedactionRegionRequest,
+) -> @model.PdfRedactionRegion {
+  {
+    page: self.page,
+    x: self.x.value,
+    y: self.y.value,
+    width: self.width.value,
+    height: self.height.value,
+  }
+}
+
+///|
+priv struct RedactionRequest {
+  regions : Array[RedactionRegionRequest]
+  profile : @common.RequestProfile
+} derive(@json.FromJson)
+
+///|
+fn redaction_request(
+  input : Json,
+) -> (Int32, RedactionRequest) raise @failure.Failure {
+  // Preserve revision-error precedence over the special selection error.
+  let revision = @common.request_revision(input)
+  guard input is { "regions": Array(regions), .. } &&
     !regions.is_empty() &&
-    regions.length() <= 4096 else {
+    regions.length() <= @model.RedactionRegionCount else {
     @failure.reject(
       "invalid-selection", "Choose bounded PDF redaction rectangles",
     )
   }
-  regions.map(region => {
-    page: field_string(region, "page"),
-    x: field_number(region, "x"),
-    y: field_number(region, "y"),
-    width: field_number(region, "width"),
-    height: field_number(region, "height"),
-  })
+  (revision, @common.request(input))
 }
 
 ///|
-fn Context::pdf_redaction_operation(
-  self : Context,
-  operation : String,
-  request : Json,
-) -> Json raise @failure.Failure {
-  guard self.pdf is Some(session) else {
-    @failure.reject("session-required", "Open a PDF first")
-  }
-  let revision = field_int(request, "revision")
-  let regions = pdf_redaction_regions(request)
-  let profile = font_profile(request)
-  match operation {
-    "previewPdfRedaction" =>
-      session.preview_redaction(
-        revision,
-        regions,
-        self.probe,
-        profile,
-        decoded=self.images,
-      )
-    "exportPdfRedaction" => {
-      let (bytes, warnings) = session.export_redaction(
-        revision,
-        regions,
-        self.probe,
-        profile,
-        decoded=self.images,
-      )
-      {
-        "revision": revision,
-        "bytes": @base64.encode(bytes),
-        "warnings": warnings,
-      }
+let redaction_handlers : Map[
+  String,
+  (Context, @model.PdfSession, Json) -> String raise @failure.Failure,
+] = {
+  "previewPdfRedaction": (context, session, input) => {
+    let (revision, command) = redaction_request(input)
+    let result = session.preview_redaction(
+      revision,
+      command.regions.map(region => region.region()),
+      context.probe,
+      command.profile.value,
+      decoded=context.images,
+    )
+    ToJson::to_json(result).stringify()
+  },
+  "exportPdfRedaction": (context, session, input) => {
+    let (revision, command) = redaction_request(input)
+    let (bytes, warnings) = session.export_redaction(
+      revision,
+      command.regions.map(region => region.region()),
+      context.probe,
+      command.profile.value,
+      decoded=context.images,
+    )
+    let output : PdfExportOutput = {
+      revision,
+      bytes: context.output.add(bytes),
+      warnings,
     }
-    _ => @failure.reject("invalid-operation", "Unknown PDF redaction operation")
-  }
+    ToJson::to_json(output).stringify()
+  },
 }

@@ -1,3 +1,4 @@
+import type { SpreadsheetHost } from "./spreadsheet-host.js";
 import { DocumentError } from "@open-document/wasm/abi/session";
 import type { XlsxFindOptions, XlsxSearchResult } from "../core/xlsx.js";
 import { xlsxFindOptions } from "../core/xlsx.js";
@@ -11,6 +12,50 @@ export interface SpreadsheetSearchResult extends XlsxSearchResult {
   options: XlsxFindOptions;
 }
 
+/** Search reads the host's current state and uses its draft and edit barriers. */
+export function createSpreadsheetSearch(
+  client: XlsxClient,
+  host: SpreadsheetHost & {
+    snapshot(): EditorSnapshot;
+  },
+) {
+  return {
+    find(text: string, options: XlsxFindOptions = {}) {
+      return host.read(() => {
+        const { revision, sheet } = host.state();
+        return findSpreadsheet(
+          client,
+          revision,
+          sheet,
+          text,
+          options,
+          host.snapshot().documentId,
+        );
+      });
+    },
+    selectMatch(result: SpreadsheetSearchResult, index: number) {
+      return host.change(() =>
+        selectSpreadsheetMatch(client, result, host.snapshot(), index),
+      );
+    },
+    replaceMatches(
+      result: SpreadsheetSearchResult,
+      replacement: string,
+      index?: number,
+    ) {
+      return host.change(() =>
+        replaceSpreadsheetMatches(
+          client,
+          result,
+          host.snapshot(),
+          replacement,
+          index,
+        ),
+      );
+    },
+  };
+}
+
 export function replaceSpreadsheetMatches(
   client: XlsxClient,
   result: SpreadsheetSearchResult,
@@ -19,14 +64,15 @@ export function replaceSpreadsheetMatches(
   index?: number,
 ) {
   checkSpreadsheetSearch(result, snapshot, index);
-  return client.replaceMatches(
-    result.revision,
-    result.sheet,
-    result.text,
-    result.options,
-    replacement,
-    index,
-  );
+  return client.execute({
+    operation: "replaceXlsxMatches",
+    revision: result.revision,
+    sheet: result.sheet,
+    text: result.text,
+    options: result.options,
+    replacement: replacement,
+    index: index,
+  });
 }
 
 export async function findSpreadsheet(
@@ -39,7 +85,13 @@ export async function findSpreadsheet(
 ): Promise<SpreadsheetSearchResult> {
   options = xlsxFindOptions(options);
   return {
-    ...(await client.find(revision, sheet, text, options)),
+    ...(await client.execute({
+      operation: "findXlsx",
+      revision: revision,
+      sheet: sheet,
+      text: text,
+      options: options,
+    })),
     documentId,
     sheet,
     text,
@@ -57,7 +109,12 @@ export function selectSpreadsheetMatch(
   const match = result.matches[index]!;
   if (match.hidden)
     throw new Error("Show the worksheet before selecting this match");
-  return client.select(result.revision, match.sheet, match.address);
+  return client.execute({
+    operation: "selectXlsx",
+    revision: result.revision,
+    sheet: match.sheet,
+    range: match.address,
+  });
 }
 
 export function checkSpreadsheetSearch(

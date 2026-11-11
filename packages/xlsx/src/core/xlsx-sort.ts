@@ -1,3 +1,10 @@
+import {
+  xlsxSortKeys,
+  xlsxSortListLabels,
+  xlsxSortListUnits,
+  xlsxWorksheetColumns,
+  xlsxWorksheetRows,
+} from "@open-document/wasm/engine-source";
 import { record, integer } from "@open-document/wasm/abi/validation";
 import { conditionalIconSets, type XlsxIconSet } from "./xlsx-conditional.js";
 
@@ -31,14 +38,18 @@ export function checkXlsxSort(value: unknown): void {
     typeof change.caseSensitive !== "boolean" ||
     !Array.isArray(change.keys) ||
     change.keys.length < 1 ||
-    change.keys.length > 16
+    change.keys.length > xlsxSortKeys
   )
     throw new Error("Invalid sort settings");
   const seen = new Set<string>();
   for (const value of change.keys) {
     const key = record(value);
     if (
-      !integer(key.index, 1, change.rows ? 16384 : 1048576) ||
+      !integer(
+        key.index,
+        1,
+        change.rows ? xlsxWorksheetColumns : xlsxWorksheetRows,
+      ) ||
       typeof key.descending !== "boolean" ||
       Object.keys(key).some(
         (name) =>
@@ -90,7 +101,10 @@ export function checkXlsxSort(value: unknown): void {
     if (seen.has(identity)) throw new Error("Duplicate sort condition");
     seen.add(identity);
     if (key.customList !== undefined) {
-      if (!Array.isArray(key.customList) || key.customList.length > 4096)
+      if (
+        !Array.isArray(key.customList) ||
+        key.customList.length > xlsxSortListLabels
+      )
         throw new Error("Invalid custom sort list");
       const labels = new Set<string>();
       let units = Math.max(0, key.customList.length - 1);
@@ -107,7 +121,7 @@ export function checkXlsxSort(value: unknown): void {
             );
           }) ||
           labels.has(label) ||
-          (units += label.length) > 32767
+          (units += label.length) > xlsxSortListUnits
         )
           throw new Error("Invalid custom sort label");
         labels.add(label);

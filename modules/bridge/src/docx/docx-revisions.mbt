@@ -1,68 +1,38 @@
 ///|
-fn Context::docx_revisions(
+priv struct ResolveRevisionRequest {
+  action : String
+  ids : Array[String]
+} derive(@json.FromJson)
+
+///|
+priv struct ResolveRevisionEnvelope {
+  revision : @common.RequestInt
+  change : ResolveRevisionRequest
+} derive(@json.FromJson)
+
+///|
+fn Context::resolve_revision_command(
   self : Context,
   session : @model.Session,
   request : Json,
-  operation : String,
 ) -> Json raise @failure.Failure {
-  let revision = field_int(request, "revision")
-  if operation == "docxTracking" {
-    return session.tracking(revision)
-  }
-  if operation == "setDocxTracking" {
-    let author = match request {
-      { "author": Null, .. } => None
-      { "author": String(author), .. } => Some(author)
-      _ =>
-        @failure.reject(
-          "invalid-operation", "Revision author must be text or null",
-        )
-    }
-    return session.track_changes(
-      revision,
-      author,
-      field_string(request, "date"),
-    )
-  }
-  if operation == "docxRevisions" {
-    return session.revisions(revision)
-  }
-  if operation == "docxRevisionGeometry" {
-    let layout = self.current_layout(request)
-    return {
-      "layoutId": self.layout_id,
-      "revision": layout.revision,
-      "rects": session.revision_rects(
-        revision,
-        layout,
-        field_string(request, "revisionId"),
-      ),
-    }
-  }
   guard request is { "change": Object(fields), .. } &&
     fields.length() == 2 &&
-    fields.contains("action") &&
-    fields.contains("ids") else {
-    @failure.reject(
-      "invalid-operation", "Explicit revision action and identities are required",
-    )
-  }
-  let change = Json::object(fields)
-  let action = field_string(change, "action")
-  guard ["accept", "reject"].contains(action) &&
     fields.get("ids") is Some(Array(ids)) &&
     !ids.is_empty() &&
-    ids.length() <= 4096 else {
+    ids.length() <= @model.RevisionEntries else {
     @failure.reject("invalid-operation", "Invalid revision command")
   }
-  let ids = ids.map(value => {
-    match value {
-      String(id) => id
-      _ =>
-        @failure.reject("invalid-operation", "Revision identity must be text")
-    }
-  })
-  let result = session.resolve_revisions(revision, ids, action == "accept")
+  let envelope : ResolveRevisionEnvelope = @common.request(request)
+  let command = envelope.change
+  guard ["accept", "reject"].contains(command.action) else {
+    @failure.reject("invalid-operation", "Invalid revision command")
+  }
+  let result = session.resolve_revisions(
+    envelope.revision.value,
+    command.ids,
+    command.action == "accept",
+  )
   self.layout = None
   result
 }

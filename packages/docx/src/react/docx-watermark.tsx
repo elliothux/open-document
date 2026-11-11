@@ -1,7 +1,6 @@
 import { useState } from "react";
 import type { DocumentEditor } from "../web/editor.js";
 import type { DocxTextWatermark } from "../web/foundation.js";
-import { imageDimensions } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 
@@ -30,7 +29,7 @@ export function DocxWatermark({
 }) {
   const t = messages(state.locale);
   const [source, setSource] =
-    useState<Awaited<ReturnType<DocumentEditor["watermark"]>>>();
+    useState<Awaited<ReturnType<DocumentEditor["pages"]["watermark"]>>>();
   const [draft, setDraft] = useState(initial);
   const [kind, setKind] = useState<"text" | "picture">("text");
   const [image, setImage] = useState<string | Uint8Array>();
@@ -45,7 +44,7 @@ export function DocxWatermark({
     source.revision !== snapshot.revision ||
     source.section !== section;
   const load = async () => {
-    const value = await editor.watermark(section);
+    const value = await editor.pages.watermark(section);
     setSource(value);
     setDraft(value.value?.kind === "text" ? value.value.value : initial);
     setKind(value.value?.kind ?? "text");
@@ -74,7 +73,7 @@ export function DocxWatermark({
             event.preventDefault();
             controller.run(async () => {
               if (kind === "picture" && !image) return;
-              await editor.setWatermark(
+              await editor.pages.setWatermark(
                 section,
                 kind === "picture" && image
                   ? { kind, image, ...picture }
@@ -117,11 +116,15 @@ export function DocxWatermark({
                       if (!file) return;
                       controller.run(async () => {
                         const before = editor.getSnapshot();
-                        if (!file.size || file.size > 4194304)
+                        if (
+                          !file.size ||
+                          file.size > editor.inputLimits.imageBytes
+                        )
                           throw new Error(t.imageInputLimit);
                         const bytes = new Uint8Array(await file.arrayBuffer());
-                        const dimensions = imageDimensions(bytes);
-                        const settings = await editor.pageSetup();
+                        const dimensions =
+                          await editor.pages.imageDimensions(bytes);
+                        const settings = await editor.pages.pageSetup();
                         if (
                           editor.getSnapshot().documentId !==
                             before.documentId ||
@@ -312,7 +315,7 @@ export function DocxWatermark({
               disabled={!source.value && !source.mixed}
               onClick={() =>
                 controller.run(async () => {
-                  await editor.setWatermark(section, null);
+                  await editor.pages.setWatermark(section, null);
                   await load();
                 })
               }

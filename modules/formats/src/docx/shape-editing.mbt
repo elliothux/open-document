@@ -73,13 +73,40 @@ fn WordTree::shape_locked(self : WordTree, id : Int32, name : String) -> Bool {
 }
 
 ///|
+priv struct DrawingCatalog[T] {
+  revision : Int32
+  items : Array[T]
+} derive(ToJson)
+
+///|
+priv struct ShapeQuery {
+  id : Int32
+  selected : Bool
+  name : String
+  preset : String
+  width : Double
+  height : Double
+  fill : String
+  stroke : String
+  lineWidth : Double
+  textBox : Json
+  textReason : String
+  anchor : Json
+  positionReason : String
+  reason : String
+  sizeReason : String
+  deleteReason : String
+  hyperlink : DrawingLinkQuery
+} derive(ToJson)
+
+///|
 pub fn Session::shapes(
   self : Session,
   revision : Int32,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
-  let items : Array[Json] = []
+  let items : Array[ShapeQuery] = []
   let links = self.hyperlink_relationships()
   let bookmarks = tree.bookmark_targets()
   for id in tree.order {
@@ -120,48 +147,46 @@ pub fn Session::shapes(
     }
     let wp = tree.drawing_data(id).0
     items.push({
-      "id": id,
-      "selected": self.selected_drawing(tree) == Some(id) &&
+      id,
+      selected: self.selected_drawing(tree) == Some(id) &&
       !tree.shape_locked(id, "noSelect"),
-      "name": tree.nodes[tree.anchor_child(wp.id, "docPr")]
+      name: tree.nodes[tree.anchor_child(wp.id, "docPr")]
       .attribute("name")
       .unwrap_or("Shape"),
-      "preset": shape.preset,
-      "width": frame.width,
-      "height": frame.height,
-      "fill": shape.fill,
-      "stroke": shape.stroke,
-      "lineWidth": shape.lineWidth,
-      "textBox": match frame.content {
+      preset: shape.preset,
+      width: frame.width,
+      height: frame.height,
+      fill: shape.fill,
+      stroke: shape.stroke,
+      lineWidth: shape.lineWidth,
+      textBox: match frame.content {
         @layout.TextBox(_, text) => Json(text.properties())
         _ => Json::null()
       },
-      "textReason": if tree.shape_locked(id, "noTextEdit") ||
+      textReason: if tree.shape_locked(id, "noTextEdit") ||
         tree.shape_locked(id, "noSelect") {
         "Text box text editing is locked"
       } else {
         reason
       },
-      "anchor": frame.anchor
-      .map(value => value.to_json())
-      .unwrap_or(Json::null()),
-      "positionReason": try {
+      anchor: frame.anchor.map(value => value.to_json()).unwrap_or(Json::null()),
+      positionReason: try {
         ignore(self.editable_drawing_position(tree, id))
         ""
       } catch {
         @failure.Failure(message~, ..) => message
       },
-      "reason": reason,
-      "sizeReason": if tree.shape_locked(id, "noResize") {
+      reason,
+      sizeReason: if tree.shape_locked(id, "noResize") {
         "Shape resizing is locked"
       } else {
         reason
       },
-      "deleteReason": delete_reason,
-      "hyperlink": self.drawing_link_summary(tree, id, links~, bookmarks~),
+      deleteReason: delete_reason,
+      hyperlink: self.drawing_link_summary(tree, id, links~, bookmarks~),
     })
   }
-  { "revision": revision, "items": items }
+  ToJson::to_json(DrawingCatalog::{ revision, items, })
 }
 
 ///|
@@ -210,6 +235,12 @@ fn WordTree::shape_property_change(
 }
 
 ///|
+pub const ShapeDimensionPoints : Int32 = 14400
+
+///|
+pub const ShapeStrokePoints : Int32 = 1584
+
+///|
 fn check_shape_properties(
   preset : String,
   width : Double,
@@ -219,11 +250,16 @@ fn check_shape_properties(
   line_width : Double,
 ) -> (Double, Double, Double) raise @failure.Failure {
   guard ["rect", "ellipse", "line", "polyline"].contains(preset) &&
-    [width, height].all(v => !v.is_nan() && !v.is_inf() && v >= 0 && v <= 14400) &&
+    [width, height].all(v => {
+      !v.is_nan() &&
+      !v.is_inf() &&
+      v >= 0 &&
+      v <= ShapeDimensionPoints.to_double()
+    }) &&
     !line_width.is_nan() &&
     !line_width.is_inf() &&
     line_width >= 0 &&
-    line_width <= 1584 &&
+    line_width <= ShapeStrokePoints.to_double() &&
     [fill, stroke].all(v => {
       v.is_empty() ||
       (v.length() == 6 && v.iter().all(c => c.is_ascii_hexdigit()))

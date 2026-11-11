@@ -44,41 +44,6 @@ export function checkDocxTocEdit(value: unknown): asserts value is DocxTocEdit {
     throw new Error("Invalid DOCX table of contents command");
 }
 
-export function docxTableOfContents(value: unknown): DocxTableOfContents {
-  const result = record(value);
-  if (
-    !integer(result.revision, 0, 2147483647) ||
-    !Array.isArray(result.items) ||
-    result.items.length > 256
-  )
-    throw new Error("Invalid DOCX table of contents catalog");
-  const seen = new Set<number>();
-  for (const value of result.items) {
-    const item = record(value);
-    if (
-      !integer(item.paragraph, 0, 2147483647) ||
-      seen.has(Number(item.paragraph)) ||
-      !integer(item.endParagraph, 0, 2147483647) ||
-      !integer(item.firstLevel, 1, 9) ||
-      !integer(item.lastLevel, Number(item.firstLevel), 9) ||
-      typeof item.hyperlink !== "boolean" ||
-      typeof item.outline !== "boolean" ||
-      ("sequence" in item &&
-        (!captionSequence(item.sequence) ||
-          item.firstLevel !== 1 ||
-          item.lastLevel !== 1)) ||
-      typeof item.instruction !== "string" ||
-      item.instruction.length > 257 ||
-      !item.instruction.isWellFormed() ||
-      typeof item.reason !== "string" ||
-      item.reason.length > 8192
-    )
-      throw new Error("Invalid DOCX table of contents item");
-    seen.add(Number(item.paragraph));
-  }
-  return value as DocxTableOfContents;
-}
-
 function captionSequence(value: unknown): value is string {
   return (
     typeof value === "string" &&

@@ -1,4 +1,5 @@
 import { record } from "@open-document/wasm/abi/validation";
+import { docxListLevelPatternUnits } from "@open-document/wasm/engine-source";
 
 export const listFormats = [
   "decimal",
@@ -85,7 +86,7 @@ export function validListLevelSettings(
     listFormats.some((format) => format === value.format) &&
     typeof value.pattern === "string" &&
     value.pattern.length > 0 &&
-    value.pattern.length <= 256 &&
+    value.pattern.length <= docxListLevelPatternUnits &&
     value.pattern.isWellFormed() &&
     !Array.from(value.pattern).some((character) => {
       const code = character.charCodeAt(0);
@@ -103,33 +104,4 @@ export function validListLevelSettings(
     ["left", "center", "right"].some((align) => align === value.align) &&
     ["tab", "space", "nothing"].some((suffix) => suffix === value.suffix)
   );
-}
-
-export function docxListCatalog(value: unknown): DocxListCatalog {
-  const fields = record(value);
-  if (
-    !integer(fields.revision, 0, 2147483647) ||
-    typeof fields.truncated !== "boolean" ||
-    !Array.isArray(fields.lists) ||
-    fields.lists.length > 1024 ||
-    !fields.lists.every((value) => {
-      const list = record(value);
-      return (
-        integer(list.id, 1, 2147483646) &&
-        typeof list.preview === "string" &&
-        typeof list.reason === "string" &&
-        Array.isArray(list.levels) &&
-        list.levels.length <= 9 &&
-        list.levels.every((value) => {
-          const level = record(value);
-          return (
-            integer(level.level, 0, 8) &&
-            validListLevelSettings(level, level.level)
-          );
-        })
-      );
-    })
-  )
-    throw new Error("Invalid list catalog");
-  return value as DocxListCatalog;
 }

@@ -6,14 +6,13 @@ import type {
   PptxGuide,
 } from "../core/pptx.js";
 import { CanvasSurface } from "@open-document/web-core/canvas-surface";
-import { decodeImage, imageColorPlane } from "@open-document/web-core/image";
+import {
+  imageColorPlane,
+  materializeImage,
+} from "@open-document/web-core/image";
 import type { PptxClient } from "./pptx.js";
 
 export class PresentationCanvas extends CanvasSurface {
-  constructor() {
-    super();
-    this.setGlyphRasterMode("fractional");
-  }
   point(event: MouseEvent, scale: number): PptxPoint {
     const rect = this.canvas.getBoundingClientRect();
     return {
@@ -26,11 +25,19 @@ export class PresentationCanvas extends CanvasSurface {
     current: { revision: number; slide: string },
     scale: number,
     outputBytes: number,
+    maxOutputBytes: number,
     format: "png" | "jpeg",
   ): Promise<Uint8Array> {
     if (layout.revision !== current.revision || layout.slide !== current.slide)
       throw new Error("Slide layout is stale; refresh before exporting");
-    return this.exportImage(layout, 0, scale, outputBytes, format);
+    return this.exportImage(
+      layout,
+      0,
+      scale,
+      outputBytes,
+      maxOutputBytes,
+      format,
+    );
   }
   async exportPageImages(
     client: PptxClient,
@@ -42,10 +49,11 @@ export class PresentationCanvas extends CanvasSurface {
     assertOpen: () => void,
     format: "png" | "jpeg",
   ): Promise<Uint8Array[]> {
+    const maxOutputBytes = client.inputLimits().exportBytes;
     if (
       !Number.isInteger(outputBytes) ||
       outputBytes < 1 ||
-      outputBytes > 67108864
+      outputBytes > maxOutputBytes
     )
       throw new Error("Invalid image output budget");
     try {
@@ -71,6 +79,7 @@ export class PresentationCanvas extends CanvasSurface {
           index,
           scale,
           remaining,
+          maxOutputBytes,
           format,
         );
         assertOpen();
@@ -82,7 +91,6 @@ export class PresentationCanvas extends CanvasSurface {
       await this.prepare(client);
     }
   }
-  private readonly keys = new Map<string, string>();
   async prepare(
     client: PptxClient,
     all = false,
@@ -102,41 +110,39 @@ export class PresentationCanvas extends CanvasSurface {
     );
   }
   private async prepareKeys(client: PptxClient, keys: string[]): Promise<void> {
-    for (const key of this.keys.keys())
-      if (!keys.includes(key)) this.keys.delete(key);
-    const retained = new Set(this.keys.values());
-    for (const [identity, bitmap] of this.images)
-      if (!retained.has(identity)) {
-        bitmap.close();
-        this.images.delete(identity);
-        this.imageColors.get(identity)?.close();
-        this.imageColors.delete(identity);
-      }
+    this.retainImageKeys(new Set(keys));
     for (const key of keys) {
-      if (this.keys.has(key)) continue;
-      const bytes = await client.execute({ operation: "imageBytesPptx", key });
-      const { bitmap, rgba } = await decodeImage(bytes);
+      if (this.imageKeys.has(key)) continue;
+      const image = await client.execute({
+        operation: "prepareImagePptx",
+        key,
+      });
+      const { bitmap, rgba } = await materializeImage(image);
       let colors: ImageBitmap | undefined;
+      let identity: string;
       try {
-        const { key: identity } = await client.execute({
-          operation: "imagePptx",
-          key,
-          width: bitmap.width,
-          height: bitmap.height,
-          bytes: rgba,
-        });
-        if (this.images.has(identity)) bitmap.close();
-        else {
+        identity =
+          image.kind === "rgba"
+            ? image.key
+            : (
+                await client.execute({
+                  operation: "imagePptx",
+                  key,
+                  width: bitmap.width,
+                  height: bitmap.height,
+                  bytes: rgba,
+                })
+              ).key;
+        if (!this.images.has(identity)) {
           colors = await imageColorPlane(bitmap.width, bitmap.height, rgba);
-          this.images.set(identity, bitmap);
-          if (colors) this.imageColors.set(identity, colors);
         }
-        this.keys.set(key, identity);
       } catch (error) {
         bitmap.close();
         colors?.close();
         throw error;
       }
+      this.cacheImage(identity, bitmap, undefined, colors);
+      this.imageKeys.set(key, identity);
     }
   }
   drawSelection(
@@ -295,9 +301,5 @@ export class PresentationCanvas extends CanvasSurface {
     } finally {
       await this.prepare(client);
     }
-  }
-  override dispose(): void {
-    this.keys.clear();
-    super.dispose();
   }
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { docxRevisionAuthorUnits } from "@open-document/wasm/engine-source";
 import type { DocumentEditor } from "../web/editor.js";
 import type { DocxTracking as Tracking } from "../web/foundation.js";
 import type { EditorController, UiSnapshot } from "./context.js";
@@ -21,7 +22,7 @@ export function DocxTracking({
   useEffect(() => {
     let active = true;
     controller.run(async () => {
-      const value = await editor.tracking();
+      const value = await editor.review.tracking();
       if (active) {
         setMode(value);
         setAuthor(value.author);
@@ -33,8 +34,8 @@ export function DocxTracking({
   }, [controller, editor]);
   const toggle = () =>
     controller.run(async () => {
-      await editor.setTracking(mode?.enabled ? null : author);
-      setMode(await editor.tracking());
+      await editor.review.setTracking(mode?.enabled ? null : author);
+      setMode(await editor.review.tracking());
     });
   return (
     <fieldset disabled={disabled || !mode || !!mode.reason}>
@@ -43,7 +44,7 @@ export function DocxTracking({
         {t.revisionRecordingAuthor}
         <input
           type="text"
-          maxLength={255}
+          maxLength={docxRevisionAuthorUnits}
           value={author}
           disabled={mode?.enabled}
           onChange={(event) => setAuthor(event.currentTarget.value)}

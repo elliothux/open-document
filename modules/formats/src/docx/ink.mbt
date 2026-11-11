@@ -1,4 +1,7 @@
 ///|
+pub const InkStrokePoints : Int32 = 4096
+
+///|
 /// Page-local ink samples in points; each completed stroke is one native drawing.
 pub(all) struct InkStroke {
   points : Array[(Double, Double)]
@@ -38,8 +41,11 @@ fn InkStroke::geometry(
   self : InkStroke,
   page : @layout.PageFrame,
 ) -> InkGeometry raise @failure.Failure {
-  guard self.points.length() > 0 && self.points.length() <= 4096 else {
-    @failure.reject("limit-exceeded", "Ink requires 1 to 4096 points")
+  guard self.points.length() > 0 && self.points.length() <= InkStrokePoints else {
+    @failure.reject(
+      "limit-exceeded",
+      "Ink requires 1 to \{InkStrokePoints} points",
+    )
   }
   guard self.color.length() == 6 &&
     self.color.iter().all(ch => ch.is_ascii_hexdigit()) &&
@@ -122,6 +128,8 @@ pub fn Session::preview_ink(
   let region : @layout.DrawingRegion = {
     width: frame.width,
     height: frame.height,
+    strokeRaster: FractionalStroke,
+    glyphRaster: FractionalGlyphs,
     commands: [
       @layout.Style({
         ..@layout.DrawStyle::default(),

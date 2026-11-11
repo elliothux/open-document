@@ -1,4 +1,10 @@
 import { PptxConnectors } from "./pptx-connectors.js";
+import {
+  pptxTableCellCount,
+  pptxTableColumnCount,
+  pptxTableRowCount,
+  pptxTextFrameUnits,
+} from "@open-document/wasm/engine-source";
 import { PptxShapeOptions } from "./pptx-shape-options.js";
 import { PptxDiagram } from "./pptx-diagram.js";
 import { WordArt } from "@open-document/ui/word-art";
@@ -144,7 +150,7 @@ export function PptxObjects({
             {t.objectText}
             <textarea
               value={draft.text}
-              maxLength={32767}
+              maxLength={pptxTextFrameUnits}
               disabled={draft.kind === "line"}
               onChange={(event) =>
                 setDraft({ ...draft, text: event.currentTarget.value })
@@ -256,7 +262,7 @@ export function PptxObjects({
             <input
               type="number"
               min={1}
-              max={1000}
+              max={pptxTableRowCount}
               step={1}
               required
               value={rows}
@@ -268,7 +274,7 @@ export function PptxObjects({
             <input
               type="number"
               min={1}
-              max={63}
+              max={pptxTableColumnCount}
               step={1}
               required
               value={columns}
@@ -280,7 +286,7 @@ export function PptxObjects({
             disabled={
               !Number.isInteger(Number(rows)) ||
               !Number.isInteger(Number(columns)) ||
-              Number(rows) * Number(columns) > 4096
+              Number(rows) * Number(columns) > pptxTableCellCount
             }
           >
             {t.insertTable}
@@ -295,7 +301,7 @@ export function PptxObjects({
                   !!selected.tableFillReason ||
                   !Number.isInteger(Number(rows)) ||
                   !Number.isInteger(Number(columns)) ||
-                  Number(rows) * Number(columns) > 4096
+                  Number(rows) * Number(columns) > pptxTableCellCount
                 }
                 title={selected.tableFillReason}
                 onClick={() =>
@@ -408,7 +414,7 @@ export function PptxObjects({
               event.currentTarget.value = "";
               if (!file) return;
               controller.run(async () => {
-                if (!file.size || file.size > 4194304)
+                if (!file.size || file.size > editor.inputLimits.imageBytes)
                   throw new Error(t.imageInputLimit);
                 await editor.editObjects({
                   action: "insertImage",
