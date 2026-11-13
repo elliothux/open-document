@@ -42,6 +42,7 @@ priv struct PdfImageOutput {
   bytes : Int32
   width : Int32
   height : Int32
+  sourceSamples : Bool
   header : @common.ImageHeader?
 }
 

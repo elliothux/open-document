@@ -10,6 +10,18 @@ priv struct PdfQueryPage {
 }
 
 ///|
+fn SourcePage::query_page(self : SourcePage) -> PdfQueryPage {
+  {
+    id: self.id,
+    object: self.number,
+    generation: self.generation,
+    width: self.width,
+    height: self.height,
+    rotate: self.rotate,
+  }
+}
+
+///|
 #derive(ToJson)
 priv struct PdfQueryAnnotation {
   id : String
@@ -41,7 +53,7 @@ pub fn PdfSession::query(self : PdfSession) -> Json raise @failure.Failure {
   self.check(self.revision)
   pdf_bound(self.budget, () => {
     let annotations : Array[PdfQueryAnnotation] = []
-    for page in self.pages {
+    for page in (if self.ranged is None { self.pages } else { [] }) {
       for
         index, reference in annotation_refs(
           self.document,
@@ -84,21 +96,22 @@ pub fn PdfSession::query(self : PdfSession) -> Json raise @failure.Failure {
         })
       }
     }
-    let order_reason = self.page_order_reason()
-    let pages : Array[PdfQueryPage] = self.pages.map(page => {
-      id: page.id,
-      object: page.number,
-      generation: page.generation,
-      width: page.width,
-      height: page.height,
-      rotate: page.rotate,
-    })
+    let order_reason = if self.ranged is None {
+      self.page_order_reason()
+    } else {
+      self.readOnlyReason
+    }
+    let pages = self.pages.map(SourcePage::query_page)
     let state : PdfQueryState = {
       revision: self.revision,
       page: self.current,
       pages,
       annotations,
-      fields: self.fields().map(field_query),
+      fields: if self.ranged is None {
+        self.fields().map(field_query)
+      } else {
+        []
+      },
       readOnlyReason: self.readOnlyReason,
       pageOrderReason: order_reason,
       canUndo: !self.undo.is_empty(),

@@ -7,6 +7,7 @@ export async function pdfThumbnail(
   revision: number,
   page: string,
   profile: Record<string, string>,
+  signal?: AbortSignal,
 ): Promise<Blob> {
   const layout = await client.execute({
     operation: "renderPdfPage",
@@ -18,19 +19,10 @@ export async function pdfThumbnail(
   });
   const surface = new PdfCanvas();
   try {
+    signal?.throwIfAborted();
     await surface.prepare(client, layout);
-    surface.draw(layout, 0, 0.25);
-    const blob = await new Promise<Blob>((resolve, reject) =>
-      surface.canvas.toBlob(
-        (value) =>
-          value
-            ? resolve(value)
-            : reject(new Error("PDF thumbnail encoding failed")),
-        "image/png",
-      ),
-    );
-    if (blob.size > 1048576) throw new Error("PDF thumbnail exceeds budget");
-    return blob;
+    signal?.throwIfAborted();
+    return await surface.previewImage(layout, 0);
   } finally {
     surface.dispose();
     if (!layout.reused)

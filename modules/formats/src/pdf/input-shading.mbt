@@ -306,16 +306,10 @@ fn ContentContext::axial_shading(
     get(document, resources, "Shading"),
     @utf8.decode_lossy(name.bytes())[1:].to_owned(),
   )
-  guard object is PdfDictionary(_) &&
-    integer(get(document, object, "ShadingType")) == 2 else {
-    @failure.reject("unsupported-pdf", "Only axial PDF shading is supported")
+  let kind = integer(get(document, object, "ShadingType"))
+  guard object is PdfDictionary(_) && (kind == 2 || kind == 3) else {
+    @failure.reject("unsupported-pdf", "Unsupported PDF shading type")
   }
-  guard get(document, object, "Coords") is PdfArray([x0, y0, x1, y1]) else {
-    @failure.reject(
-      "invalid-pdf", "PDF axial shading requires four coordinates",
-    )
-  }
-  let (x0, y0, x1, y1) = (number(x0), number(y0), number(x1), number(y1))
   let space = self.color_space(resources, get(document, object, "ColorSpace"))
   guard space is (GrayColor | RgbColor | IccColor(_)) else {
     @failure.reject(
@@ -334,6 +328,32 @@ fn ContentContext::axial_shading(
     PdfNull => (false, false)
     PdfArray([PdfBoolean(a), PdfBoolean(b)]) => (a, b)
     _ => @failure.reject("invalid-pdf", "Invalid PDF shading extension flags")
+  }
+  let axis = match (kind, get(document, object, "Coords")) {
+    (2, PdfArray([x0, y0, x1, y1])) => {
+      let (x, y) = (number(x0), number(y0))
+      let dx = number(x1) - x
+      let dy = number(y1) - y
+      if dx == 0 && dy == 0 {
+        return
+      }
+      state.matrix.then({ a: dx, b: dy, c: -dy, d: dx, e: x, f: y, })
+    }
+    (3, PdfArray([x0, y0, r0, x1, y1, r1])) => {
+      let (x, y, r) = (number(x0), number(y0), number(r1))
+      guard x == number(x1) &&
+        y == number(y1) &&
+        number(r0) == 0 &&
+        r > 0 &&
+        extend_first &&
+        extend_last else {
+        @failure.reject(
+          "unsupported-pdf", "PDF radial shading requires extended concentric circles starting at zero radius",
+        )
+      }
+      state.matrix.then({ a: r, b: 0, c: 0, d: r, e: x, f: y, })
+    }
+    _ => @failure.reject("invalid-pdf", "Invalid PDF shading coordinates")
   }
   guard [@syntax.PdfNull, @syntax.PdfBoolean(false), @syntax.PdfBoolean(true)].contains(
     get(document, object, "AntiAlias"),
@@ -362,41 +382,41 @@ fn ContentContext::axial_shading(
     value => Some(rectangle(value))
   }
   // The sh operator ignores Background; that entry applies to shading patterns.
-  let dx = x1 - x0
-  let dy = y1 - y0
-  if dx == 0 && dy == 0 {
-    return
+  let (left, top, right, bottom) = page_bounds_in(self.page, axis)
+  let (left, right) = if kind == 3 {
+    (left, right)
+  } else {
+    (
+      if extend_first {
+        left.min(0)
+      } else {
+        0.0
+      },
+      if extend_last {
+        right.max(1)
+      } else {
+        1.0
+      },
+    )
   }
-  let axis = state.matrix.then({ a: dx, b: dy, c: -dy, d: dx, e: x0, f: y0, })
-  let inverse = axis.inverse()
-  let corners = [
-    (0.0, 0.0),
-    (self.page.width, 0.0),
-    (0.0, self.page.height),
-    (self.page.width, self.page.height),
-  ].map(p => checked_point(inverse, p.0, p.1))
-  let left = corners.fold(init=corners[0].0, (a, p) => a.min(p.0))
-  let right = corners.fold(init=corners[0].0, (a, p) => a.max(p.0))
-  let top = corners.fold(init=corners[0].1, (a, p) => a.min(p.1))
-  let bottom = corners.fold(init=corners[0].1, (a, p) => a.max(p.1))
-  let left = if extend_first { left.min(0) } else { 0.0 }
-  let right = if extend_last { right.max(1) } else { 1.0 }
   if right <= left || bottom <= top {
     return
   }
   let stops : Array[@layout.GradientStop] = []
+  let (first, last) = if kind == 3 { (0.0, 1.0) } else { (left, right) }
   for point in shading_color_points(points, space) {
-    let position = ((point.0 - domain.0) / (domain.1 - domain.0) - left) /
-      (right - left)
+    let position = ((point.0 - domain.0) / (domain.1 - domain.0) - first) /
+      (last - first)
     let stop : @layout.GradientStop = { position, color: point.1, opacity: 1, }
     if stops.last() != Some(stop) {
       stops.push(stop)
     }
   }
-  guard stops.length() <= @layout.GradientStopCount else {
+  guard stops.length() <= PdfShadingStopCount else {
     @failure.reject("limit-exceeded", "PDF shading stops exceed budget")
   }
-  @layout.validate_gradient_stops(stops)
+  @pdfcore.sdk_decoded(stops.length() * 32)
+  @layout.validate_gradient_stops(stops, limit=PdfShadingStopCount)
   guard self.nesting + (if bbox is Some(_) { 2 } else { 1 }) <= 32 &&
     self.commands.length() <= 1048568 else {
     @failure.reject(
@@ -415,11 +435,18 @@ fn ContentContext::axial_shading(
   }
   self.scope(@layout.Transform(axis))
   self.commands.push(@layout.Style(state.style))
+  let rect : @layout.Border = {
+    x: left,
+    y: top,
+    width: right - left,
+    height: bottom - top,
+  }
   self.commands.push(
-    @layout.GradientRect(
-      { x: left, y: top, width: right - left, height: bottom - top, },
-      stops,
-    ),
+    if kind == 3 {
+      @layout.RadialGradientRect(rect, stops, circles=Some([0, 0, 0, 0, 0, 1]))
+    } else {
+      @layout.GradientRect(rect, stops)
+    },
   )
   self.restore()
   if bbox is Some(_) {

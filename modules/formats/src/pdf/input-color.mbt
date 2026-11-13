@@ -11,6 +11,7 @@ priv enum InputColorSpace {
 priv enum IccCurve {
   GammaCurve(Double)
   SampleCurve(Array[Double])
+  PiecewiseCurve(Double, Double, Double, Double, Double, Double, Double)
 }
 
 ///|
@@ -47,6 +48,12 @@ fn icc_fixed(data : Bytes, offset : Int32) -> Double raise @failure.Failure {
 fn IccCurve::apply(self : IccCurve, value : Double) -> Double {
   match self {
     GammaCurve(gamma) => @math.pow(value, gamma)
+    PiecewiseCurve(gamma, scale, offset, slope, threshold, upper, lower) =>
+      if value < threshold {
+        slope * value + lower
+      } else {
+        @math.pow((scale * value + offset).max(0), gamma) + upper
+      }
     SampleCurve(values) => {
       let position = value * (values.length() - 1).to_double()
       let index = position.floor().to_int().min(values.length() - 2)
@@ -58,7 +65,66 @@ fn IccCurve::apply(self : IccCurve, value : Double) -> Double {
 
 ///|
 fn icc_curve(data : Bytes, offset : Int32, length : Int32) -> IccCurve raise {
-  guard length >= 12 && icc_word(data, offset) == 0x63757276L else {
+  guard length >= 12 else {
+    @failure.reject("invalid-pdf", "Truncated ICC tone curve")
+  }
+  let signature = icc_word(data, offset)
+  let kind = if signature == 0x70617261L {
+    icc_word(data, offset + 8, bytes=2)
+  } else {
+    -1L
+  }
+  if kind == 0 {
+    guard length == 16 &&
+      icc_word(data, offset + 4) == 0 &&
+      icc_word(data, offset + 10, bytes=2) == 0 else {
+      @failure.reject("invalid-pdf", "Invalid ICC type 0 tone curve")
+    }
+    let gamma = icc_fixed(data, offset + 12)
+    guard gamma > 0 && gamma <= 10 else {
+      @failure.reject(
+        "unsupported-pdf", "ICC gamma is outside supported bounds",
+      )
+    }
+    return GammaCurve(gamma)
+  }
+  if kind == 3 || kind == 4 {
+    let extended = kind == 4
+    guard length == (if extended { 40 } else { 32 }) &&
+      icc_word(data, offset + 4) == 0 &&
+      icc_word(data, offset + 10, bytes=2) == 0 else {
+      @failure.reject("invalid-pdf", "Invalid ICC piecewise tone curve")
+    }
+    let gamma = icc_fixed(data, offset + 12)
+    let scale = icc_fixed(data, offset + 16)
+    let bias = icc_fixed(data, offset + 20)
+    let slope = icc_fixed(data, offset + 24)
+    let threshold = icc_fixed(data, offset + 28)
+    let upper = if extended { icc_fixed(data, offset + 32) } else { 0.0 }
+    let lower = if extended { icc_fixed(data, offset + 36) } else { 0.0 }
+    let at_threshold = scale * threshold + bias
+    guard gamma > 0 &&
+      gamma <= 10 &&
+      scale > 0 &&
+      scale <= 4 &&
+      bias.abs() <= 4 &&
+      slope >= 0 &&
+      slope <= 4 &&
+      threshold >= 0 &&
+      threshold <= 1 &&
+      upper.abs() <= 4 &&
+      lower >= -4 &&
+      at_threshold >= 0 &&
+      @math.pow(at_threshold, gamma) + upper + 4.0 / 65536 >=
+      slope * threshold + lower &&
+      @math.pow(scale + bias, gamma) + upper <= 4 else {
+      @failure.reject(
+        "unsupported-pdf", "ICC piecewise tone curve is outside supported bounds",
+      )
+    }
+    return PiecewiseCurve(gamma, scale, bias, slope, threshold, upper, lower)
+  }
+  guard signature == 0x63757276L else {
     @failure.reject(
       "unsupported-pdf", "ICC profile requires supported tone curves",
     )
@@ -290,38 +356,26 @@ fn InputColorSpace::color(
 
 ///|
 fn IccProfile::rgb(self : IccProfile, values : Array[Double]) -> Array[Double] {
-  let linear = values.mapi((index, value) => {
-    self.curves[index].apply(value.max(0).min(1))
-  })
-  let xyz = self.matrix.map(row => {
-    row
-    .mapi((i, value) => value * linear[i])
-    .fold(init=0.0, (sum, value) => sum + value)
-  })
-  // Bradford D50 -> D65 and XYZ -> linear sRGB coefficients: W3C CSS Color 4, conversions.js.
-  let adapted = [
-    0.955473421488075 * xyz[0] -
-    0.02309845494876471 * xyz[1] +
-    0.06325924320057072 * xyz[2],
-    -0.0283697093338637 * xyz[0] +
-    1.0099953980813041 * xyz[1] +
-    0.021041441191917323 * xyz[2],
-    0.012314014864481998 * xyz[0] -
-    0.020507649298898964 * xyz[1] +
-    1.330365926242124 * xyz[2],
-  ]
-  let output = [
-    12831.0 / 3959 * adapted[0] -
-    329.0 / 214 * adapted[1] -
-    1974.0 / 3959 * adapted[2],
-    -851781.0 / 878810 * adapted[0] +
-    1648619.0 / 878810 * adapted[1] +
-    36519.0 / 878810 * adapted[2],
-    705.0 / 12673 * adapted[0] -
-    2585.0 / 12673 * adapted[1] +
-    705.0 / 667 * adapted[2],
-  ]
-  output.map(value => {
+  let red = self.curves[0].apply(values[0].max(0).min(1))
+  if self.curves.length() == 1 {
+    return self.rgb_from_linear(red, 0, 0)
+  }
+  self.rgb_from_linear(
+    red,
+    self.curves[1].apply(values[1].max(0).min(1)),
+    self.curves[2].apply(values[2].max(0).min(1)),
+  )
+}
+
+///|
+fn IccProfile::rgb_from_linear(
+  self : IccProfile,
+  red : Double,
+  green : Double,
+  blue : Double,
+) -> Array[Double] {
+  let (r, g, b) = self.linear_srgb(red, green, blue)
+  [r, g, b].map(value => {
     let value = value.max(0).min(1)
     if value <= 0.0031308 {
       value * 12.92
@@ -329,6 +383,43 @@ fn IccProfile::rgb(self : IccProfile, values : Array[Double]) -> Array[Double] {
       1.055 * @math.pow(value, 1.0 / 2.4) - 0.055
     }
   })
+}
+
+///|
+fn IccProfile::linear_srgb(
+  self : IccProfile,
+  red : Double,
+  green : Double,
+  blue : Double,
+) -> (Double, Double, Double) {
+  let gray = self.curves.length() == 1
+  let row = index => {
+    let values = self.matrix[index]
+    let first = values[0] * red
+    if gray {
+      first
+    } else {
+      first + values[1] * green + values[2] * blue
+    }
+  }
+  let x = row(0)
+  let y = row(1)
+  let z = row(2)
+  // Bradford D50 -> D65 and XYZ -> linear sRGB coefficients: W3C CSS Color 4, conversions.js.
+  let ax = 0.955473421488075 * x -
+    0.02309845494876471 * y +
+    0.06325924320057072 * z
+  let ay = -0.0283697093338637 * x +
+    1.0099953980813041 * y +
+    0.021041441191917323 * z
+  let az = 0.012314014864481998 * x -
+    0.020507649298898964 * y +
+    1.330365926242124 * z
+  (
+    12831.0 / 3959 * ax - 329.0 / 214 * ay - 1974.0 / 3959 * az,
+    -851781.0 / 878810 * ax + 1648619.0 / 878810 * ay + 36519.0 / 878810 * az,
+    705.0 / 12673 * ax - 2585.0 / 12673 * ay + 705.0 / 667 * az,
+  )
 }
 
 ///|

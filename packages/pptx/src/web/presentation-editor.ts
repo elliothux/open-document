@@ -10,6 +10,7 @@ import {
 } from "./presentation-search.js";
 import {
   presentationSnapshot,
+  trackTextEdit,
   updatePresentationObjects,
 } from "./presentation-semantics.js";
 import {
@@ -58,7 +59,7 @@ export class PresentationEditor {
   private readonly holder: HTMLDivElement;
   private readonly input: HTMLTextAreaElement;
   readonly objectList: HTMLOListElement;
-  private readonly surface = new PresentationCanvas();
+  private readonly surface = new PresentationCanvas(true);
   private readonly listeners = new AbortController();
   private readonly observable: EditorState<PptxQuery>;
   private paused = false;
@@ -128,9 +129,10 @@ export class PresentationEditor {
           this.available &&
           !this.state.readOnlyReason &&
           this.state.selection.mode === "text",
-        enqueue: (operation, composition) =>
-          this.enqueue(operation, composition),
-        changed: (state, relayout) => this.changed(state, relayout),
+        enqueue: (operation, kind) =>
+          this.enqueue(operation, kind === "composition" ? true : kind),
+        changed: (state, relayout) =>
+          this.changed(trackTextEdit(this, this.state, state), relayout),
         history: (redo) => (redo ? this.redo() : this.undo()),
         stop: (error) => this.fail(error),
       },
@@ -162,7 +164,7 @@ export class PresentationEditor {
       select: (selection) => this.selectNow(selection),
       focus: () => this.input.focus({ preventScroll: true }),
       changed: (state, relayout) => this.changed(state, relayout),
-      enqueue: (operation) => this.enqueue(operation, true),
+      enqueue: (operation) => this.enqueue(operation, "pointer"),
     });
     this.pointer = new PresentationPointer(
       this.surface.canvas,
@@ -235,11 +237,8 @@ export class PresentationEditor {
   }
   preview(target: PreviewTarget): Promise<Blob> {
     return this.queue.barrier(async () => {
-      if (
-        this.closed ||
-        this.closing ||
-        this.state.revision !== target.revision
-      )
+      this.assertOpen();
+      if (this.state.revision !== target.revision)
         throw new Error("Slide preview is stale");
       return PresentationCanvas.preview(this.client, this.profile, target);
     });
@@ -285,8 +284,9 @@ export class PresentationEditor {
       ...presentationSnapshot(this.state),
       zoom: this.zoomValue,
       composition: this.inputEvents?.active ?? false,
-      dragging: this.gestures?.active || (this.pointer?.active ?? false),
+      dragging: this.gestures?.dragging ?? false,
       busy: this.queue.pending,
+      blocking: this.queue.blocking,
       paused: this.paused,
       stopped: this.blocked,
       closed: this.closed,
@@ -313,7 +313,7 @@ export class PresentationEditor {
   }
   private enqueue<T>(
     operation: () => Promise<T>,
-    gesture = false,
+    gesture: boolean | "input" | "pointer" = false,
     recovery = false,
     output = false,
   ): Promise<T> {
@@ -326,8 +326,8 @@ export class PresentationEditor {
     if (this.blocked && !recovery && !output)
       return Promise.reject(new Error("Refresh or undo before editing"));
     if (
-      !gesture &&
-      (this.inputEvents.active || this.pointer.active || this.gestures.active)
+      (gesture === false || gesture === "input") &&
+      (this.inputEvents.active || this.pointer.active)
     )
       return Promise.reject(
         new Error("Complete or cancel the active gesture first"),
@@ -351,6 +351,7 @@ export class PresentationEditor {
             );
         }
       },
+      gesture === "input" || gesture === "pointer",
     );
   }
   private async changed(state: PptxQuery, relayout = false): Promise<void> {
@@ -359,7 +360,6 @@ export class PresentationEditor {
       this.state.revision !== state.revision ||
       this.state.slide !== state.slide;
     this.state = state;
-    this.publish();
     if (content) await this.present();
     else {
       this.updateSemantics();
@@ -399,7 +399,6 @@ export class PresentationEditor {
       (object, mode, extend) =>
         this.handle(() => this.select(object, mode, 0, 0, extend)),
     );
-    this.publish();
   }
   select(
     object: string,

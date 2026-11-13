@@ -2,14 +2,28 @@
 fn image_size(
   document : @pdflite.PdfDocument,
   object : @syntax.PdfObject,
+  preview~ : Bool = false,
+  streaming~ : Bool = false,
 ) -> (Int32, Int32) raise @failure.Failure {
   let width = integer(get(document, object, "Width"))
   let height = integer(get(document, object, "Height"))
+  let dimension = if streaming {
+    16384
+  } else if preview {
+    8192
+  } else {
+    @layout.ImageDimension
+  }
+  let pixels = if preview || streaming {
+    16777216L
+  } else {
+    (@layout.ImageBytes / 4).to_int64()
+  }
   guard width > 0 &&
     height > 0 &&
-    width <= @layout.ImageDimension &&
-    height <= @layout.ImageDimension &&
-    width.to_int64() * height.to_int64() * 4 <= @layout.ImageBytes.to_int64() else {
+    width <= dimension &&
+    height <= dimension &&
+    width.to_int64() * height.to_int64() <= pixels else {
     @failure.reject("limit-exceeded", "PDF image dimensions exceed budget")
   }
   guard (
@@ -62,7 +76,7 @@ fn check_jpeg(
   width : Int32,
   height : Int32,
   channels : Int32,
-) -> (Int32?, Int32) raise {
+) -> (Int32?, Int32, Bytes) raise {
   guard bytes.length() >= 4 && bytes[0:2] == b"\xff\xd8" else {
     @failure.reject("invalid-image", "DCT image is not a JPEG")
   }
@@ -70,8 +84,11 @@ fn check_jpeg(
   let mut found = false
   let mut transform : Int32? = None
   let mut blocks = 0
+  let mut kept_start = 0
+  let kept : Array[BytesView] = []
   while index < bytes.length() {
     @pdfcore.sdk_check(1)
+    let marker_start = index
     guard bytes[index] == 255 else {
       @failure.reject("invalid-image", "Malformed JPEG marker")
     }
@@ -88,7 +105,19 @@ fn check_jpeg(
       guard found else {
         @failure.reject("invalid-image", "JPEG has no frame header")
       }
-      return (transform, blocks)
+      if kept.is_empty() {
+        return (transform, blocks, bytes)
+      }
+      kept.push(bytes[kept_start:])
+      let length = kept.fold(init=0, (total, part) => total + part.length())
+      @pdfcore.sdk_decoded(length)
+      let output = FixedArray::make(length, b'\x00')
+      let mut offset = 0
+      for part in kept {
+        output.blit_from_bytesview(offset, part)
+        offset += part.length()
+      }
+      return (transform, blocks, Bytes::from_array(output))
     }
     guard marker != 0xd9 && index + 2 <= bytes.length() else {
       @failure.reject("invalid-image", "Truncated JPEG header")
@@ -100,7 +129,10 @@ fn check_jpeg(
     if marker == 0xe2 &&
       length >= 14 &&
       bytes[index + 2:index + 14] == b"ICC_PROFILE\x00" {
-      @failure.reject("unsupported-pdf", "JPEG ICC profiles are unsupported")
+      // The PDF color space controls conversion. Hide JPEG ICC metadata from
+      // the display decoder and leave the original PDF stream untouched.
+      kept.push(bytes[kept_start:marker_start])
+      kept_start = index + length
     }
     if marker == 0xee && length >= 14 && bytes[index + 2:index + 7] == b"Adobe" {
       guard transform is None else {
@@ -195,6 +227,22 @@ fn image_mask(
 }
 
 ///|
+fn flate_image_mask(
+  document : @pdflite.PdfDocument,
+  mask : @syntax.PdfObject,
+  width : Int32,
+  height : Int32,
+) -> (@syntax.PdfObject, Array[Double]) raise @failure.Failure {
+  guard image_size(document, mask, streaming=true) == (width, height) &&
+    integer(get(document, mask, "BitsPerComponent")) == 8 &&
+    is_name(get(document, mask, "ColorSpace"), "DeviceGray") &&
+    raw(mask, "SMask") == @syntax.PdfNull else {
+    @failure.reject("unsupported-pdf", "Unsupported PDF soft mask")
+  }
+  (mask, image_decode(document, mask, 1))
+}
+
+///|
 fn image_matte(
   document : @pdflite.PdfDocument,
   object : @syntax.PdfObject,
@@ -258,7 +306,28 @@ fn add_image(
     @failure.reject("limit-exceeded", "PDF image count exceeds budget")
   }
   let document = context.session.document
-  let (width, height) = image_size(document, object)
+  let filter = get(document, object, "Filter")
+  let jpeg = is_name(filter, "DCTDecode") ||
+    (filter is PdfArray([PdfNameObject(name)]) && name == pdf_name("DCTDecode"))
+  let mask = get(document, object, "SMask")
+  let jpeg_flate_mask = jpeg &&
+    context.extraction is None &&
+    raw(object, "Mask") == @syntax.PdfNull &&
+    is_plain_flate(document, mask)
+  let preview_jpeg = jpeg &&
+    raw(object, "Mask") == @syntax.PdfNull &&
+    (raw(object, "SMask") == @syntax.PdfNull || jpeg_flate_mask)
+  let preview_flate = context.extraction is None &&
+    raw(object, "Mask") == @syntax.PdfNull &&
+    get(document, object, "BitsPerComponent") == @syntax.PdfInteger(8) &&
+    is_plain_flate(document, object) &&
+    (mask == @syntax.PdfNull || is_plain_flate(document, mask))
+  let (width, height) = image_size(
+    document,
+    object,
+    preview=preview_jpeg,
+    streaming=preview_flate,
+  )
   if jpx_filter(document, object) {
     add_jpx_image(context, object, key, resources, width, height)
     context.imageKeys.push(key)
@@ -280,12 +349,41 @@ fn add_image(
   let channels = space.components()
   let bits = integer(get(document, object, "BitsPerComponent"))
   let decode = image_decode(document, object, channels)
-  let alpha = image_mask(document, object, width, height)
+  if preview_flate && !cmyk {
+    let mask = if mask == @syntax.PdfNull {
+      None
+    } else {
+      Some(flate_image_mask(document, mask, width, height))
+    }
+    context.flateImages[key] = {
+      source: object,
+      width,
+      height,
+      channels,
+      preview: None,
+      decode,
+      mask,
+      matte: image_matte(document, object, channels),
+      profile,
+    }
+    context.imageKeys.push(key)
+    return
+  }
+  if preview_flate {
+    @layout.check_raster_size(width.to_int64(), height.to_int64())
+  }
+  let flate_mask = if jpeg_flate_mask && !cmyk {
+    Some(flate_image_mask(document, mask, width, height))
+  } else {
+    None
+  }
+  let alpha = if flate_mask is None {
+    image_mask(document, object, width, height)
+  } else {
+    None
+  }
   let matte = image_matte(document, object, channels)
-  @pdfcore.sdk_check(width * height)
-  let filter = get(document, object, "Filter")
-  if is_name(filter, "DCTDecode") ||
-    (filter is PdfArray([PdfNameObject(name)]) && name == pdf_name("DCTDecode")) {
+  if jpeg {
     guard bits == 8 else {
       @failure.reject("invalid-pdf", "JPEG requires 8-bit samples")
     }
@@ -293,8 +391,10 @@ fn add_image(
       @failure.reject("unsupported-pdf", "JPEG DecodeParms are unsupported")
     }
     let bytes = object.deep_copy().stream_bytes()
-    let (transform, blocks) = check_jpeg(bytes, width, height, channels)
+    let (transform, blocks, bytes) = check_jpeg(bytes, width, height, channels)
     if cmyk {
+      @layout.check_raster_size(width.to_int64(), height.to_int64())
+      @pdfcore.sdk_check(width * height)
       cmyk_pixels(
         context, key, bytes, width, height, transform, blocks, decode, alpha, matte,
       )
@@ -304,14 +404,17 @@ fn add_image(
         bytes,
         width,
         height,
+        preview: None,
         blocks,
         decode,
         alpha,
+        flateMask: flate_mask,
         matte,
         profile,
       }
     }
   } else {
+    @pdfcore.sdk_check(width * height)
     let bytes = image_stream_bytes(
       document, object, width, height, channels, bits,
     )
@@ -378,44 +481,4 @@ fn add_image(
     context.images.add(key, width, height, icc_rgba(rgba, profile))
   }
   context.imageKeys.push(key)
-}
-
-///|
-fn icc_rgba(rgba : Bytes, profile : IccProfile?) -> Bytes raise {
-  guard profile is Some(profile) else { return rgba }
-  @pdfcore.sdk_check(rgba.length() / 4)
-  @pdfcore.sdk_decoded(rgba.length())
-  let channels = profile.curves.length()
-  let mut color = [0.0, 0.0, 0.0]
-  let cache : Map[Int32, Array[Double]] = Map([])
-  Bytes::makei(rgba.length(), i => {
-    let channel = i % 4
-    if channel == 3 {
-      return rgba[i]
-    }
-    if channel == 0 {
-      let key = if channels == 1 {
-        rgba[i].to_int()
-      } else {
-        (rgba[i].to_int() << 16) |
-        (rgba[i + 1].to_int() << 8) |
-        rgba[i + 2].to_int()
-      }
-      color = match cache.get(key) {
-        Some(value) => value
-        None => {
-          @pdfcore.sdk_check(96)
-          let value = profile.rgb(
-            Array::makei(channels, c => rgba[i + c].to_int().to_double() / 255),
-          )
-          if cache.length() < 256 {
-            @pdfcore.sdk_decoded(32)
-            cache[key] = value
-          }
-          value
-        }
-      }
-    }
-    (color[channel] * 255).round().to_int().max(0).min(255).to_byte()
-  })
 }

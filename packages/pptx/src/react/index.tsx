@@ -38,15 +38,17 @@ function product(
     ],
     prepare: (document, parent, signal, locale) =>
       prepareFile({ ...options, locale }, document, parent, signal),
+    prepareFile: (file, parent, signal, locale) =>
+      prepareFile({ ...options, locale }, file, parent, signal),
     commands({ state, file, disabled }) {
       const t = messages(state.locale);
       const { editor } = file;
-      const format = editor.query.formatting;
+      const format = editor.getSnapshot().data.formatting;
       const reason =
         state.mode === "view"
           ? t.viewOnly
           : format.reason ||
-            (disabled || state.saving || state.document?.busy
+            (disabled || state.saving || state.document?.blocking
               ? t.commandUnavailable
               : "");
       return pptxTextToggles.map((id) => ({

@@ -34,38 +34,35 @@ fn stream_bytes(
     PdfArray([single]) => resolve(document, single)
     _ => parameters
   }
-  if parameters != @syntax.PdfNull {
-    let predictor = get(document, parameters, "Predictor")
-    if predictor != @syntax.PdfNull && integer(predictor) != 1 {
-      let columns = get(document, parameters, "Columns")
-      let colors = get(document, parameters, "Colors")
-      let bits = get(document, parameters, "BitsPerComponent")
-      let columns = if columns == @syntax.PdfNull {
-        1
-      } else {
-        integer(columns)
-      }
-      let colors = if colors == @syntax.PdfNull { 1 } else { integer(colors) }
-      let bits = if bits == @syntax.PdfNull { 8 } else { integer(bits) }
-      guard columns > 0 &&
-        columns <= 4096 &&
-        colors > 0 &&
-        colors <= 4 &&
-        [1, 2, 4, 8, 16].contains(bits) else {
-        @failure.reject(
-          "limit-exceeded", "PDF predictor geometry exceeds budget",
-        )
-      }
+  if filter == @syntax.PdfNull {
+    return source.stream_bytes()
+  }
+  let predictor = get(document, parameters, "Predictor")
+  if predictor == @syntax.PdfNull || integer(predictor) == 1 {
+    // The decoder charges its output. Reading that output through the stream
+    // accessors again would charge the same decoded bytes a second time.
+    return @flate.pdf_flate_decode(source.stream_bytes())
+  }
+  {
+    let columns = get(document, parameters, "Columns")
+    let colors = get(document, parameters, "Colors")
+    let bits = get(document, parameters, "BitsPerComponent")
+    let columns = if columns == @syntax.PdfNull { 1 } else { integer(columns) }
+    let colors = if colors == @syntax.PdfNull { 1 } else { integer(colors) }
+    let bits = if bits == @syntax.PdfNull { 8 } else { integer(bits) }
+    guard columns > 0 &&
+      columns <= 4096 &&
+      colors > 0 &&
+      colors <= 4 &&
+      [1, 2, 4, 8, 16].contains(bits) else {
+      @failure.reject("limit-exceeded", "PDF predictor geometry exceeds budget")
     }
   }
-  let copied = source.deep_copy()
-  if filter == @syntax.PdfNull {
-    let bytes = copied.stream_bytes()
-    @pdfcore.sdk_decoded(bytes.length())
-    bytes
-  } else {
-    document.pdf_decode_stream(copied).stream_bytes()
+  guard document.pdf_decode_stream(source)
+    is PdfStreamObject({ data: StreamGot(bytes), .. }) else {
+    @failure.reject("invalid-pdf", "PDF predictor did not return decoded bytes")
   }
+  bytes
 }
 
 ///|
@@ -133,6 +130,7 @@ priv struct SourceFont {
   family : String
   font : @pdflite.PdfFont
   cff : @pdflite.SdkCffFont?
+  cffByGid : Bool
   type1 : @pdflite.SdkType1Font?
   index : Int32?
   gidMap : Bytes?
@@ -180,6 +178,7 @@ fn font_resource(
     }
   }
   // Validate font streams before the dependency's font parser consumes them.
+  let true_type_programs : Map[Int32, Bytes] = Map([])
   for
     target in [object] +
     (match get(document, object, "DescendantFonts") {
@@ -189,7 +188,11 @@ fn font_resource(
     let descriptor = get(document, target, "FontDescriptor")
     for key in ["FontFile", "FontFile2", "FontFile3"] {
       let stream = raw(descriptor, key)
-      if stream != @syntax.PdfNull {
+      if key == "FontFile2" && stream is PdfIndirect(id) {
+        if !true_type_programs.contains(id) {
+          true_type_programs[id] = stream_bytes(document, stream)
+        }
+      } else if stream != @syntax.PdfNull {
         ignore(stream_bytes(document, stream))
       }
     }
@@ -217,25 +220,6 @@ fn font_resource(
   }
   let font = document.read_font(object)
   let cid = font is PdfFontCIDKeyed(_)
-  let cff = embedded_cff(document, object, cid)
-  let type1 = embedded_type1(document, object)
-  let encoding = match cff {
-    Some(value) => Some(value.encoding())
-    None => type1.map(pair => pair.1)
-  }
-  let font = if encoding is Some(encoding) &&
-    raw(object, "Encoding") == @syntax.PdfNull &&
-    font is PdfFontSimple(simple) {
-    @pdflite.PdfFontSimple({
-      ..simple,
-      encoding: @pdflite.PdfCustomEncoding(
-        @pdflite.PdfImplicitInFontFile,
-        encoding.map(pair => { code: pair.0, name: pair.1, }),
-      ),
-    })
-  } else {
-    font
-  }
   let mut supported = is_name(get(document, object, "Subtype"), "TrueType")
   let mut gid_map : Bytes? = None
   if cid {
@@ -253,6 +237,33 @@ fn font_resource(
         @failure.reject("invalid-pdf", "Invalid CIDToGIDMap length")
       }
     }
+  }
+  let program = match font.embedded_fontfile_number() {
+    Some(id) => true_type_programs.get(id)
+    None => None
+  }
+  let (cff, cff_by_gid) = match program {
+    Some(bytes) if supported && cid && bytes.has_prefix(b"OTTO") =>
+      (Some(@pdflite.SdkCffFont::new(bytes, true, false)), true)
+    _ => (embedded_cff(document, object, cid), false)
+  }
+  let type1 = embedded_type1(document, object)
+  let encoding = match cff {
+    Some(value) => Some(value.encoding())
+    None => type1.map(pair => pair.1)
+  }
+  let font = if encoding is Some(encoding) &&
+    raw(object, "Encoding") == @syntax.PdfNull &&
+    font is PdfFontSimple(simple) {
+    @pdflite.PdfFontSimple({
+      ..simple,
+      encoding: @pdflite.PdfCustomEncoding(
+        @pdflite.PdfImplicitInFontFile,
+        encoding.map(pair => { code: pair.0, name: pair.1, }),
+      ),
+    })
+  } else {
+    font
   }
   let base = get(document, object, "BaseFont")
   let base = if base is PdfNameObject(name) {
@@ -284,10 +295,11 @@ fn font_resource(
       if probe.font_info().any(font => font.identity == identity) {
         probe.font_index(identity)
       } else {
-        probe.add_source_font(
-          stream_bytes(document, @syntax.PdfIndirect(id)),
-          identity,
-        )
+        let bytes = match program {
+          Some(bytes) => bytes
+          None => stream_bytes(document, @syntax.PdfIndirect(id))
+        }
+        probe.add_source_font(bytes, identity)
       },
     )
   } else if @layout.font_profile_identity(profile, base) is Some(identity) {
@@ -312,6 +324,7 @@ fn font_resource(
     family: base,
     font,
     cff,
+    cffByGid: cff_by_gid,
     type1: type1.map(pair => pair.0),
     index,
     gidMap: gid_map,
@@ -321,6 +334,16 @@ fn font_resource(
     explicitUnicode: unicode != @syntax.PdfNull,
     unicodeMap: unicode_map,
     glyphs: Map([]),
+  }
+}
+
+///|
+fn SourceFont::cid_gid(self : SourceFont, code : Int32) -> Int32 {
+  match self.gidMap {
+    None => code
+    Some(bytes) if code >= 0 && code < bytes.length() / 2 =>
+      bytes[code * 2].to_int() * 256 + bytes[code * 2 + 1].to_int()
+    Some(_) => 0
   }
 }
 

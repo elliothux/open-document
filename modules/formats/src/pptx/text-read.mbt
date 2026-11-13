@@ -96,14 +96,10 @@ fn text_style(
       !["none", "all", "small"].contains(value) {
       @failure.reject("unsupported-text", "Unsupported text decoration: cap")
     }
-    for name in ["kumimoji"] {
-      if source.node.attribute(name) is Some(value) &&
-        !["none", "noStrike", "0", "false"].contains(value) {
-        @failure.reject(
-          "unsupported-text",
-          "Unsupported text decoration: " + name,
-        )
-      }
+    // ONLYOFFICE keeps drawing text when kumimoji is set.
+    if source.node.attribute("kumimoji") is Some(value) &&
+      !["0", "1", "false", "true"].contains(value) {
+      @failure.reject("unsupported-text", "Invalid kumimoji flag")
     }
     for child in source.tree.children.get(source.node.id).unwrap_or([]) {
       if child.uri == drawing_uri && ["uFillTx", "uLnTx"].contains(child.name) {

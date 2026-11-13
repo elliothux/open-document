@@ -52,6 +52,7 @@ export interface PptxShowState {
 }
 export interface PptxShowLayout extends DrawingBatch {
   media: PptxShowMediaDrawing[];
+  diagnostics: string[];
   links: {
     id: string;
     label: string;

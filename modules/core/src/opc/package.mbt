@@ -29,6 +29,27 @@ pub fn Package::open(
 ) -> Package raise @failure.Failure {
   let archive = @archive.Package::open(bytes, budget)
   errdefer archive.close()
+  Package::open_archive(archive, budget)
+}
+
+///|
+/// Opens OPC metadata from a stable random-access ZIP source.
+pub fn Package::open_reader(
+  size : Int32,
+  read_at : (Int32, Int32) -> BytesView raise @failure.Failure,
+  budget : @archive.Budget,
+) -> Package raise @failure.Failure {
+  let archive = @archive.Package::open_reader(size, read_at, budget)
+  errdefer archive.close()
+  Package::open_archive(archive, budget)
+}
+
+///|
+/// Opens OPC metadata and takes ownership of the ZIP on success.
+pub fn Package::open_archive(
+  archive : @archive.Package,
+  budget : @archive.Budget,
+) -> Package raise @failure.Failure {
   let names : Map[String, String] = Map([])
   for name in archive.names() {
     if name.has_suffix("/") {
@@ -125,8 +146,17 @@ pub fn Package::save(
   replacements : Map[String, Bytes],
   removed~ : Array[String] = [],
 ) -> Bytes raise @failure.Failure {
+  self.start_save(replacements, removed~).finish()
+}
+
+///|
+pub fn Package::start_save(
+  self : Package,
+  replacements : Map[String, Bytes],
+  removed~ : Array[String] = [],
+) -> @archive.Writer raise @failure.Failure {
   self.validate_changes(replacements, removed~)
-  self.archive.save(replacements, removed~)
+  self.archive.start_save(replacements, removed~)
 }
 
 ///|

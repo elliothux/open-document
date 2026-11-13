@@ -61,3 +61,115 @@ fn resized_rgba(
   }
   Bytes::from_array(output)
 }
+
+///|
+fn fitted_image_size(
+  width : Int32,
+  height : Int32,
+  scale : Double,
+) -> (Int32, Int32) {
+  let scale = scale
+    .min(@layout.ImageDimension.to_double() / width.to_double())
+    .min(@layout.ImageDimension.to_double() / height.to_double())
+  (
+    (width.to_double() * scale).floor().to_int().max(1),
+    (height.to_double() * scale).floor().to_int().max(1),
+  )
+}
+
+///|
+fn ContentContext::fit_image_budget(self : ContentContext) -> Int32 raise {
+  let mut fixed = 0L
+  let mut resizable = 0L
+  let mut oversized = false
+  let mut flateSamples = 0L
+  let limit = (@layout.ImageBytes / 4).to_int64()
+  for key in self.imageKeys {
+    if self.jpeg.get(key) is Some(image) {
+      let pixels = image.width.to_int64() * image.height.to_int64()
+      if image.flateMask is Some(_) {
+        flateSamples += pixels
+      }
+      if image.alpha is None {
+        resizable += pixels
+        oversized = oversized ||
+          pixels > limit ||
+          image.width > @layout.ImageDimension ||
+          image.height > @layout.ImageDimension
+      } else {
+        fixed += pixels
+      }
+    } else if self.flateImages.get(key) is Some(image) {
+      let pixels = image.width.to_int64() * image.height.to_int64()
+      resizable += pixels
+      flateSamples += pixels *
+        (image.channels + (if image.mask is Some(_) { 1 } else { 0 })).to_int64()
+      oversized = oversized ||
+        pixels > limit ||
+        image.width > @layout.ImageDimension ||
+        image.height > @layout.ImageDimension
+    } else {
+      fixed += (self.images.get(key).rgba.length() / 4).to_int64()
+    }
+  }
+  // These samples are streamed through two rows, so bound inflation by work.
+  guard flateSamples <= self.session.budget.steps.to_int64() * 16L else {
+    @failure.reject("limit-exceeded", "PDF page Flate samples exceed budget")
+  }
+  let scale = if !oversized && fixed + resizable <= limit {
+    1.0
+  } else {
+    // Preserve room for a second view when the page uses resized images.
+    let available = (limit - fixed).min(limit / 2L)
+    guard available > 0L && resizable > 0L else {
+      @failure.reject("limit-exceeded", "PDF page decoded images exceed budget")
+    }
+    (available.to_double() / resizable.to_double()).sqrt().min(1.0)
+  }
+  let mut pixels = fixed
+  for key in self.imageKeys {
+    if self.jpeg.get(key) is Some(image) && image.alpha is None {
+      let (width, height) = fitted_image_size(image.width, image.height, scale)
+      let (width, height) = if image.flateMask is Some(_) &&
+        (width, height) != (image.width, image.height) &&
+        width.to_int64() * height.to_int64() * 12 >
+        @layout.ImageBytes.to_int64() {
+        let tap_scale = ((@layout.ImageBytes / 12).to_double() /
+        (image.width.to_double() * image.height.to_double())).sqrt()
+        fitted_image_size(image.width, image.height, scale.min(tap_scale))
+      } else {
+        (width, height)
+      }
+      pixels += width.to_int64() * height.to_int64()
+      if (width, height) != (image.width, image.height) {
+        self.jpeg[key] = { ..image, preview: Some((width, height)), }
+      }
+    } else if self.flateImages.get(key) is Some(image) {
+      let (width, height) = fitted_image_size(image.width, image.height, scale)
+      if (width, height) != (image.width, image.height) {
+        self.flateImages[key] = { ..image, preview: Some((width, height)), }
+        pixels += width.to_int64() * height.to_int64()
+        continue
+      }
+      self.flateImages.remove(key)
+      try image.raster(width, height) catch {
+        @failure.Failure(code="invalid-pdf", message~, ..) => {
+          self.displayComplete = false
+          self.diagnostics.push(message)
+          self.images.add(key, 1, 1, b"\x00\x00\x00\x00")
+          pixels += 1L
+        }
+        error => raise error
+      } noraise {
+        rgba => {
+          self.images.add(key, width, height, rgba)
+          pixels += width.to_int64() * height.to_int64()
+        }
+      }
+    }
+  }
+  guard pixels <= limit else {
+    @failure.reject("limit-exceeded", "PDF page decoded images exceed budget")
+  }
+  (pixels * 4L).to_int()
+}

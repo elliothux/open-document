@@ -21,8 +21,33 @@ fn PdfSession::build_display(
   images : @layout.Images,
   extract~ : Bool = false,
 ) -> PageDisplay raise @failure.Failure {
+  if self.ranged is Some(source) {
+    return source.with_objects(self.document, id, check_source => {
+      self.interpret_display(
+        id,
+        supplied,
+        profile,
+        images,
+        extract~,
+        check_source~,
+      )
+    })
+  }
+  self.interpret_display(id, supplied, profile, images, extract~)
+}
+
+///|
+fn PdfSession::interpret_display(
+  self : PdfSession,
+  id : String,
+  supplied : @layout.TextProbe,
+  profile : Map[String, String],
+  images : @layout.Images,
+  extract~ : Bool,
+  check_source~ : () -> Unit raise @failure.Failure = () => (),
+) -> PageDisplay raise @failure.Failure {
   let page = self.page(id)
-  let probe = @layout.TextProbe::new()
+  let probe = @layout.TextProbe::new(embedded_faces=true)
   errdefer probe.close()
   pdf_bound(self.budget, () => {
     let context : ContentContext = {
@@ -48,12 +73,14 @@ fn PdfSession::build_display(
       displayComplete: true,
       fonts: Map([]),
       nativeOutlines: Map([]),
+      strokeGlyphs: Map([]),
       nativeOutlineBytes: Ref(0),
       preparedStrokePoints: Ref(0),
       colors: Map([]),
       optional: None,
       imageKeys: [],
       jpeg: Map([]),
+      flateImages: Map([]),
       forms: Map([]),
       marked: [],
       nesting: 0,
@@ -82,6 +109,7 @@ fn PdfSession::build_display(
       ),
     )
     let object = resolve(self.document, @syntax.PdfIndirect(page.number))
+    check_source()
     try {
       let grouped = page_transparency_group(context, object, page.resources)
       let start = context.commands.length()
@@ -111,6 +139,7 @@ fn PdfSession::build_display(
         context.commands.clear()
         context.imageKeys.clear()
         context.jpeg.clear()
+        context.flateImages.clear()
         images.clear()
         context.commands.push(
           @layout.FillRect(
@@ -135,6 +164,7 @@ fn PdfSession::build_display(
         context.commands.clear()
         context.imageKeys.clear()
         context.jpeg.clear()
+        context.flateImages.clear()
         images.clear()
         context.commands.push(
           @layout.FillRect(
@@ -160,17 +190,8 @@ fn PdfSession::build_display(
     context.marked.clear()
     context.collectSource = false
     render_appearances(context, state)
-    let mut imageBytes : Int64 = 0
-    for key in context.imageKeys {
-      imageBytes += if context.jpeg.get(key) is Some(image) {
-        image.width.to_int64() * image.height.to_int64() * 4
-      } else {
-        images.get(key).rgba.length().to_int64()
-      }
-    }
-    guard imageBytes <= 16777216 else {
-      @failure.reject("limit-exceeded", "PDF page decoded images exceed budget")
-    }
+    check_source()
+    let imageBytes = context.fit_image_budget()
     let outlines : Map[String, @layout.Outline] = Map([])
     for outline in probe.outline_resources() {
       outlines[outline.key] = outline
@@ -193,7 +214,7 @@ fn PdfSession::build_display(
       profile: profile.copy(),
       supplied_fonts: Json(supplied.font_info()).stringify(),
       resources: images,
-      imageBytes: imageBytes.to_int(),
+      imageBytes,
       page: id,
       id: self.layoutId + 1,
       revision: self.revision,
@@ -211,6 +232,7 @@ fn PdfSession::build_display(
       diagnostics: context.diagnostics,
       images: context.imageKeys,
       jpeg: context.jpeg,
+      flateImages: context.flateImages,
       probe,
       outlines,
     }
@@ -293,7 +315,7 @@ fn PdfSession::retain_display(
   }
   images.clear()
   for key in display.images {
-    if !display.jpeg.contains(key) {
+    if !display.jpeg.contains(key) && !display.flateImages.contains(key) {
       let image = display.resources.get(key)
       images.add(key, image.width, image.height, image.rgba)
     }
@@ -615,31 +637,49 @@ pub fn PdfSession::image(
   key : String,
   images : @layout.Images,
   size~ : (Int32, Int32)? = None,
-) -> (String, Bytes, Int32, Int32) raise @failure.Failure {
+) -> (String, Bytes, Int32, Int32, Bool) raise @failure.Failure {
   let display = self.current_display(layout_id)
   guard display.images.contains(key) else {
     @failure.reject("missing-image", "Unknown PDF page image")
   }
   let image = display.resources.get(key) catch {
     @failure.Failure(code="missing-image", ..) as missing => {
-      guard display.jpeg.get(key) is Some(jpeg) else { raise missing }
-      guard jpeg.core_pixels(self.budget) is Some(output) else {
-        if size is None {
-          return ("jpeg", jpeg.bytes, jpeg.width, jpeg.height)
+      let (width, height, output) = if display.flateImages.get(key)
+        is Some(flate) &&
+        flate.preview is Some((width, height)) {
+        (
+          width,
+          height,
+          pdf_bound(self.budget, () => flate.raster(width, height)),
+        )
+      } else {
+        guard display.jpeg.get(key) is Some(jpeg) else { raise missing }
+        let (width, height) = jpeg.display_size()
+        guard jpeg.core_pixels(self.budget) is Some(output) else {
+          if size is None {
+            return (
+              "jpeg",
+              jpeg.bytes,
+              width,
+              height,
+              jpeg.needs_source_samples(),
+            )
+          }
+          raise missing
         }
-        raise missing
+        (width, height, output)
       }
-      images.add(key, jpeg.width, jpeg.height, output)
-      display.resources.add(key, jpeg.width, jpeg.height, output)
+      images.add(key, width, height, output)
+      display.resources.add(key, width, height, output)
       display.resources.get(key)
     }
     error => raise error
   }
   if size is Some((width, height)) {
     let rgba = pdf_bound(self.budget, () => resized_rgba(image, width, height))
-    return ("rgba", rgba, width, height)
+    return ("rgba", rgba, width, height, false)
   }
-  ("rgba", image.rgba, image.width, image.height)
+  ("rgba", image.rgba, image.width, image.height, false)
 }
 
 ///|
@@ -654,9 +694,11 @@ pub fn PdfSession::decoded_image(
 ) -> Unit raise @failure.Failure {
   let display = self.current_display(layout_id)
   guard display.jpeg.get(key) is Some(jpeg) &&
-    width == jpeg.width &&
-    height == jpeg.height &&
-    width.to_int64() * height.to_int64() * 4 == rgba.length().to_int64() else {
+    (width, height) == jpeg.display_size() &&
+    width.to_int64() *
+    height.to_int64() *
+    (if jpeg.needs_source_samples() { 12L } else { 4L }) ==
+    rgba.length().to_int64() else {
     @failure.reject("invalid-image", "JPEG decoder dimensions do not match PDF")
   }
   let output = pdf_bound(self.budget, () => jpeg.pixels(rgba))

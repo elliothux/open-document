@@ -1,7 +1,7 @@
 {
   "file": "sdk-cff.mbt",
   "originalSha256": null,
-  "patchedSha256": "d64c55132f2eaebdb38466d326543eb1358ae73f162155e1dc00a14d9dd4032a",
+  "patchedSha256": "fd090141be21341b8bbcc44aa6aa354a0750ff969335b2e5e73ea63c4b744385",
   "lineEdits": [
     [
       0,
@@ -201,14 +201,15 @@
         "  self : SdkCffFont,",
         "  code : Int,",
         "  name : String,",
+        "  glyph? : Int,",
         ") -> Array[SdkCffSegment] raise @core.PdfError {",
         "  guard @core.sdk_active() else {",
         "    raise @core.PdfError::HardError(\"CFF reads require an active SDK budget\")",
         "  }",
-        "  let glyph = if self.use_codes {",
-        "    self.codes.get(code)",
-        "  } else {",
-        "    self.names.get(name)",
+        "  let glyph = match glyph {",
+        "    Some(gid) if gid >= 0 && gid < self.font.num_glyphs() => Some(gid)",
+        "    Some(_) => None",
+        "    None => if self.use_codes { self.codes.get(code) } else { self.names.get(name) }",
         "  }",
         "  guard glyph is Some(gid) else {",
         "    raise @core.PdfError::HardError(\"Missing embedded CFF glyph\")",

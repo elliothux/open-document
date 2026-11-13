@@ -90,7 +90,9 @@ export class DocumentEditor {
       state: () => this.state,
       selection: () => this.selection(),
       endGroup: () => this.inputEvents.endGroup(),
-      read: <T>(operation: () => Promise<T>) => this.enqueue(operation),
+      read: <T>(operation: () => Promise<T>) =>
+        this.enqueue(operation, false, "non-blocking"),
+      write: <T>(operation: () => Promise<T>) => this.enqueue(operation),
       edit: (operation: () => Promise<EditState>) => this.format(operation),
       changed: (state: EditState) => this.changed(state),
       snapshot: () => this.getSnapshot(),
@@ -244,8 +246,12 @@ export class DocumentEditor {
         layoutId: () => this.currentLayout.id,
         available: () =>
           !this.closed && !this.paused && !this.blocked && !this.resuming,
-        enqueue: (operation, composition) =>
-          this.enqueue(operation, false, composition),
+        enqueue: (operation, kind) =>
+          this.enqueue(
+            operation,
+            false,
+            kind === "composition" ? true : "non-blocking",
+          ),
         changed: this.changed.bind(this),
         history: (redo) => this.history(redo),
         stop: (error) => this.stop(error),
@@ -370,7 +376,7 @@ export class DocumentEditor {
   private enqueue<T>(
     operation: () => Promise<T>,
     pointer = false,
-    composition = false,
+    composition: boolean | "non-blocking" = false,
     output: false | EditorOutput["format"] | "images" = false,
   ): Promise<T> {
     if (!pointer) this.pointerSelection.finish();
@@ -379,7 +385,7 @@ export class DocumentEditor {
       if (this.paused && !output) throw new Error("Editor input is paused");
       if (this.blocked && !output) throw this.blocked;
       if (this.resuming) throw new Error("Wait for editing to resume");
-      if (!composition && this.inputEvents.active) {
+      if (composition !== true && this.inputEvents.active) {
         throw new DocumentError(
           "busy",
           "Complete or cancel composition before this operation",
@@ -440,6 +446,7 @@ export class DocumentEditor {
       },
       () => this.publish(),
       () => this.publish(),
+      composition === "non-blocking",
     );
   }
   private handle(operation: () => Promise<void>): void {
@@ -536,7 +543,6 @@ export class DocumentEditor {
     const revision = this.state.revision;
     const { selectionView, ...next } = state;
     this.state = next;
-    this.publish();
     let view = selectionView;
     if (relayout || state.revision !== revision) {
       const { selectionView, ...layout } = await this.surface.layout(
@@ -646,6 +652,7 @@ export class DocumentEditor {
       composition: this.inputEvents?.active ?? false,
       dragging: this.pointerSelection?.active ?? false,
       busy: this.queue.pending,
+      blocking: this.queue.blocking,
       paused: this.paused,
       stopped: !!this.blocked || this.resuming,
       closed: this.closed,

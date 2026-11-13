@@ -87,6 +87,7 @@ fn font_line_extents(
 ///|
 pub struct TextProbe {
   fonts : Array[Font]
+  face_limit : Int32
   outlines : Map[String, String]
   outline_boxes : Map[String, Array[Double]]
   mut font_bytes : Int32
@@ -102,9 +103,15 @@ pub struct TextProbe {
 }
 
 ///|
-pub fn TextProbe::new() -> TextProbe {
+/// Create a text probe. Page-local embedded font sets can use up to 32 faces.
+pub fn TextProbe::new(embedded_faces~ : Bool = false) -> TextProbe {
   {
     fonts: [],
+    face_limit: if embedded_faces {
+      32
+    } else {
+      FontFaceCount
+    },
     outlines: Map([]),
     outline_boxes: Map([]),
     font_bytes: 0,
@@ -176,7 +183,7 @@ fn TextProbe::admit_font(
 ) -> Unit raise @failure.Failure {
   self.check()
   self.measured_shape = None
-  guard self.fonts.length() < FontFaceCount &&
+  guard self.fonts.length() < self.face_limit &&
     length <= FontInputBytes - self.font_bytes else {
     @failure.reject("limit-exceeded", "Font budget exceeded")
   }

@@ -1,0 +1,43 @@
+{
+  "file": "sdk-range.mbt",
+  "originalSha256": null,
+  "patchedSha256": "fc17e6763bf2676c5a4bb205b78519c876a13d32642ad30282e283660c458f86",
+  "lineEdits": [
+    [
+      0,
+      0,
+      [
+        "///|",
+        "let sdk_object_loader : Ref[(PdfObjects, (Int) -> (Int, @syntax.PdfObject)?)?] = Ref(None)",
+        "",
+        "///|",
+        "/// Resolve objects on demand only while interpreting the specified document.",
+        "pub fn[T] PdfDocument::sdk_with_object_loader(",
+        "  self : PdfDocument,",
+        "  load : (Int) -> (Int, @syntax.PdfObject)?,",
+        "  run : () -> T raise,",
+        ") -> T raise {",
+        "  let previous = sdk_object_loader.val",
+        "  sdk_object_loader.val = Some((self.objects, load))",
+        "  defer { sdk_object_loader.val = previous }",
+        "  run()",
+        "}",
+        "",
+        "///|",
+        "fn PdfObjects::sdk_load_missing_object(self : PdfObjects, number : Int) -> PdfObjectEntry? {",
+        "  guard sdk_object_loader.val is Some((owner, load)) && physical_equal(self, owner) &&",
+        "    load(number) is Some((generation, object)) else { return None }",
+        "  let entry : PdfObjectEntry = { generation, data: ObjectParsed(object) }",
+        "  self.set_entry(number, entry)",
+        "  Some(entry)",
+        "}",
+        "",
+        "///|",
+        "pub fn PdfDocument::sdk_clear_loaded_objects(self : PdfDocument) -> Unit {",
+        "  self.objects.object_map.entries.clear()",
+        "  self.objects.max_object_number = 0",
+        "}"
+      ]
+    ]
+  ]
+}

@@ -3,7 +3,10 @@ export interface NativeInputHost<State extends { revision: number }> {
   state(): State;
   limit(): number;
   available(): boolean;
-  enqueue(operation: () => Promise<void>, composition?: boolean): Promise<void>;
+  enqueue(
+    operation: () => Promise<void>,
+    kind: "input" | "composition",
+  ): Promise<void>;
   changed(state: State, relayout?: boolean, reveal?: boolean): Promise<void>;
   history(redo: boolean): Promise<void>;
   stop(error: Error): void;
@@ -85,7 +88,7 @@ export class NativeTextInput<State extends { revision: number }> {
 
   private send(operation: () => Promise<void>, ordinaryInput = false): void {
     if (!ordinaryInput) this.endGroup();
-    void this.host.enqueue(operation).catch(() => {});
+    void this.host.enqueue(operation, "input").catch(() => {});
   }
 
   private readonly begin = (): void => {
@@ -106,7 +109,7 @@ export class NativeTextInput<State extends { revision: number }> {
           id,
         };
         await this.host.changed(state, true);
-      }, true)
+      }, "composition")
       .catch(() => {});
   };
 
@@ -132,7 +135,7 @@ export class NativeTextInput<State extends { revision: number }> {
           await this.commands.update(token.revision, token.id, text),
           true,
         );
-      }, true)
+      }, "composition")
       .catch(() => {});
   };
 
@@ -155,7 +158,7 @@ export class NativeTextInput<State extends { revision: number }> {
         );
         this.owned = undefined;
         await this.host.changed(state, true);
-      }, true)
+      }, "composition")
       .catch(() => {});
   };
 

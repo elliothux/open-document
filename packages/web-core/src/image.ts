@@ -9,8 +9,9 @@ export async function decodeImage(
   bytes: Uint8Array | Blob,
   header: RasterHeader,
   signal?: AbortSignal,
+  size?: { width: number; height: number },
 ): Promise<{ bitmap: ImageBitmap; rgba: Uint8Array }> {
-  const bitmap = await decodeBitmap(bytes, header, signal);
+  const bitmap = await decodeBitmap(bytes, header, signal, size);
   const canvas = document.createElement("canvas");
   try {
     signal?.throwIfAborted();
@@ -33,22 +34,43 @@ export async function decodeImage(
   }
 }
 
-async function decodeBitmap(
+export async function decodeBitmap(
   bytes: Uint8Array | Blob,
   header: RasterHeader,
   signal?: AbortSignal,
+  size?: { width: number; height: number },
 ): Promise<ImageBitmap> {
   signal?.throwIfAborted();
   if ("error" in header) throw new Error(header.error);
+  if (
+    size &&
+    (!Number.isSafeInteger(size.width) ||
+      !Number.isSafeInteger(size.height) ||
+      size.width < 1 ||
+      size.height < 1 ||
+      size.width > Math.min(header.width, imageDimension) ||
+      size.height > Math.min(header.height, imageDimension) ||
+      size.width * size.height * 4 > imageBytes)
+  )
+    throw new Error("Invalid image preview dimensions");
   const bitmap = await createImageBitmap(
     bytes instanceof Blob ? bytes : new Blob([new Uint8Array(bytes).buffer]),
-    { imageOrientation: header.allowTranspose ? "from-image" : "none" },
+    {
+      imageOrientation: header.allowTranspose ? "from-image" : "none",
+      ...(size && {
+        resizeWidth: size.width,
+        resizeHeight: size.height,
+        resizeQuality: "high",
+      }),
+    },
   );
   try {
     signal?.throwIfAborted();
+    const expected = size ?? header;
     const matches =
-      bitmap.width === header.width && bitmap.height === header.height;
+      bitmap.width === expected.width && bitmap.height === expected.height;
     const transposed =
+      !size &&
       header.allowTranspose &&
       bitmap.width === header.height &&
       bitmap.height === header.width;

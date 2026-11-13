@@ -29,8 +29,10 @@ pub struct Context {
   output : @common.OutputBytes
   outlines : @common.OutlineDelta
   mut pdf : @open_document/formats/pdf.PdfSession?
+  mut ranged : @common.RangeInput?
   mut closed : Bool
   images : @layout.Images
+  // private fields
 }
 
 // Type aliases

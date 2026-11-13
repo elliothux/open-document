@@ -1,6 +1,7 @@
 import {
   "open_document/core/failure",
   "open_document/core/archive",
+  "open_document/core/opc",
   "open_document/formats/pptx" @model,
   "open_document/layout",
   "open_document/bridge/common",

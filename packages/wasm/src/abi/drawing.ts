@@ -149,7 +149,12 @@ export type DrawCommand =
       replay?: true;
     }
   | { op: "layer"; opacity: number; commands: DrawCommand[] }
-  | { op: "mask"; mask: DrawCommand[]; commands: DrawCommand[] }
+  | {
+      op: "mask";
+      mask: DrawCommand[];
+      commands: DrawCommand[];
+      luminosity?: true;
+    }
   | { op: "style"; style: DrawStyle }
   // Scoped by transform/clip restores; vector paths use device pixel centers.
   | { op: "pixelCenters" }
@@ -229,7 +234,14 @@ export interface DrawStyle {
   miter: number;
   dash: number[];
   dashOffset: number;
-  blend: "normal" | "multiply" | "difference";
+  blend:
+    | "normal"
+    | "multiply"
+    | "difference"
+    | "overlay"
+    | "darken"
+    | "soft-light"
+    | "color";
 }
 
 /** Platform-independent drawing, with resources shared across regions. */

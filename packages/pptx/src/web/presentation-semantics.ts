@@ -1,5 +1,40 @@
 import type { PptxQuery } from "../core/pptx.js";
 import { focusedElement } from "@open-document/web-core/editor-state";
+import { ThumbnailRevisions } from "@open-document/web-core/thumbnail-revisions";
+
+const thumbnailVersions = new WeakMap<object, ThumbnailRevisions>();
+const localTextEdits = new WeakSet<PptxQuery>();
+
+export function trackTextEdit(
+  editor: object,
+  before: PptxQuery,
+  next: PptxQuery,
+): PptxQuery {
+  if (
+    next.revision !== before.revision &&
+    next.slide === before.slide &&
+    before.editView.kind === "slide" &&
+    next.editView.kind === "slide"
+  ) {
+    const versions = thumbnailVersions.get(editor) ?? new ThumbnailRevisions();
+    versions.update(before.revision, next.revision, [next.slide]);
+    thumbnailVersions.set(editor, versions);
+    localTextEdits.add(next);
+  }
+  return next;
+}
+
+export function isLocalTextEdit(state: PptxQuery): boolean {
+  return localTextEdits.has(state);
+}
+
+export function presentationThumbnailVersion(
+  editor: object,
+  slide: string,
+  revision: number,
+): number {
+  return thumbnailVersions.get(editor)?.version(slide, revision) ?? revision;
+}
 
 export function presentationSnapshot(state: PptxQuery) {
   return {

@@ -25,7 +25,7 @@ pub fn Budget::default() -> Self
 type Entry
 
 pub struct Package {
-  mut source : Bytes
+  mut source : Source
   index : Map[String, Entry]
   cache : Map[String, Bytes]
   budget : Budget
@@ -37,9 +37,24 @@ pub fn Package::create(Map[String, Bytes], Budget) -> Self raise @failure.Failur
 pub fn Package::decoded_bytes(Self) -> Int32 raise @failure.Failure
 pub fn Package::names(Self) -> Array[String] raise @failure.Failure
 pub fn Package::open(Bytes, Budget) -> Self raise @failure.Failure
+pub fn Package::open_reader(Int32, (Int32, Int32) -> BytesView raise @failure.Failure, Budget) -> Self raise @failure.Failure
 pub fn Package::read(Self, String) -> Bytes raise @failure.Failure
 pub fn Package::save(Self, Map[String, Bytes], removed? : Array[String]) -> Bytes raise @failure.Failure
+pub fn Package::start_save(Self, Map[String, Bytes], removed? : Array[String]) -> Writer raise @failure.Failure
 pub fn Package::validate_changes(Self, Map[String, Bytes], removed? : Array[String]) -> Int32 raise @failure.Failure
+
+pub struct Reader {
+  // private fields
+}
+pub fn Reader::finish(Self) -> Package raise @failure.Failure
+pub fn Reader::open(Int32, (Int32, Int32) -> BytesView raise @failure.Failure, Budget) -> Self raise @failure.Failure
+
+type Source
+
+pub struct Writer {
+  // private fields
+}
+pub fn Writer::finish(Self, checkpoint? : () -> Unit) -> Bytes raise @failure.Failure
 
 // Type aliases
 

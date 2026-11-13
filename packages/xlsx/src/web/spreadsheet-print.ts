@@ -81,6 +81,19 @@ export class SpreadsheetPrint {
     return layout;
   }
 
+  async exportPdf(
+    state: XlsxQuery,
+    options: PrintOptions | null,
+    outputBytes: number,
+  ): Promise<Uint8Array> {
+    const layout = await this.prepare(state, options);
+    return this.client.execute({
+      operation: "exportXlsxPdf",
+      layoutId: layout.id,
+      outputBytes,
+    });
+  }
+
   showPage(index: number): void {
     if (!this.layout) return;
     this.page = Math.max(0, Math.min(index, this.layout.regions.length - 1));

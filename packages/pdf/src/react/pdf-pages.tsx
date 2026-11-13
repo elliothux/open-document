@@ -1,9 +1,9 @@
-import { useLayoutEffect, useState } from "react";
+import { useCallback, useLayoutEffect, useState } from "react";
 import { Command, Group } from "@open-document/ui/controls";
 import { messages } from "@open-document/ui/messages";
 import { downloadBytes } from "@open-document/web-core/download";
 import type { PdfNavigation, PdfDestination } from "../core/pdf.js";
-import { Thumbnail } from "./thumbnail.js";
+import { CachedThumbnail, useThumbnails } from "@open-document/ui/thumbnails";
 import { PageArrangeControls } from "./page-arrange.js";
 import type { PanelProps } from "./context.js";
 import { Icon } from "@open-document/ui/icons";
@@ -220,12 +220,29 @@ export function PageTools(props: PanelProps) {
 
 export function PageList({ controller, state, file, disabled }: PanelProps) {
   const t = messages(state.locale);
+  const { editor } = file;
+  const { pages, page: activePage, revision } = editor.snapshot;
+  const loadThumbnail = useCallback(
+    (page: string, revision: number, signal: AbortSignal) =>
+      editor.thumbnail(page, revision, signal),
+    [editor],
+  );
+  const thumbnails = useThumbnails(
+    loadThumbnail,
+    pages.map(({ id }) => id),
+    activePage,
+    revision,
+    {
+      paused: disabled || !!state.document?.draft || !!state.document?.stopped,
+      version: editor.thumbnailVersion,
+    },
+  );
   const [navigation, setNavigation] = useState<PdfNavigation>();
   const [navigationError, setNavigationError] = useState("");
   useLayoutEffect(() => {
     if (file.format !== "pdf") return;
     let active = true;
-    void file.editor.navigation().then(
+    void file.editor.navigation(file.editor.snapshot.page).then(
       (result) => {
         if (active) {
           setNavigation(result);
@@ -246,12 +263,8 @@ export function PageList({ controller, state, file, disabled }: PanelProps) {
     return () => {
       active = false;
     };
-  }, [file, state.document?.revision]);
+  }, [file, state.document?.revision, state.document?.page]);
   if (file.format !== "pdf") return null;
-  const pages = file.editor.snapshot.pages.map((page, index) => ({
-    id: page.id,
-    title: `${t.pages} ${index + 1}`,
-  }));
   return (
     <nav className="od-sidebar od-pdf-sidebar" aria-label={t.pages}>
       {navigationError && <p role="status">{navigationError}</p>}
@@ -279,16 +292,14 @@ export function PageList({ controller, state, file, disabled }: PanelProps) {
           className="od-page-thumb"
           onClick={() => controller.run(() => file.editor.goToPage(page.id))}
         >
-          {Math.abs(index - (state.document?.page ?? 0)) <= 2 ? (
-            <Thumbnail
-              editor={file.editor}
-              page={page.id}
-              revision={state.document?.revision ?? 0}
-            />
-          ) : (
-            <span className="od-page-thumb-image" aria-hidden="true" />
-          )}
-          <span className="od-page-thumb-label">{page.title}</span>
+          <CachedThumbnail
+            cache={thumbnails}
+            id={page.id}
+            className="od-page-thumb-image"
+          />
+          <span className="od-page-thumb-label">
+            {t.pages} {index + 1}
+          </span>
         </button>
       ))}
       {navigation?.links

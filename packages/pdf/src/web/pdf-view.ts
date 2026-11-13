@@ -8,13 +8,12 @@ import type {
 } from "../core/pdf.js";
 import type { PdfClient } from "./pdf.js";
 import { PdfCanvas } from "./pdf-canvas.js";
-import { PdfReading, readingPoint } from "./pdf-reading.js";
+import { PdfReading, readingPoint, type ReadingPage } from "./pdf-reading.js";
 import { bindPdfKeyboard } from "./pdf-keyboard.js";
 import {
   type EditorOutput,
   type EditorSnapshot,
 } from "@open-document/web-core/editor-state";
-
 import {
   createPdfEditorState,
   type PdfMatch,
@@ -250,7 +249,7 @@ export class PdfView {
         );
       },
       (result) => {
-        if (result.status === "rejected") {
+        if (!background && result.status === "rejected") {
           const error: unknown = result.reason;
           this.errorMessage =
             error instanceof Error ? error.message : String(error);
@@ -286,6 +285,21 @@ export class PdfView {
       .sort((left, right) => order.get(left.page)! - order.get(right.page)!);
     this.matchIndex = -1;
   }
+  private useReadingPage({ layout, surface, scale }: ReadingPage): void {
+    this.layout = layout;
+    this.surface = surface;
+    this.scale = scale;
+    this.state = { ...this.state, page: layout.page };
+  }
+  private async paintReadingPage(page: ReadingPage): Promise<void> {
+    this.useReadingPage(page);
+    await this.updateSelection(0, 0);
+    this.semantics.textContent = page.layout.text;
+    this.pageDiagnostics = page.layout.diagnostics;
+    this.stopped = false;
+    this.errorMessage = "";
+    this.stateChanged();
+  }
   async paint(page = this.state.page): Promise<void> {
     this.rangeSelection = undefined;
     this.gesture++;
@@ -294,25 +308,18 @@ export class PdfView {
     this.selection = { anchor: 0, focus: 0 };
     try {
       if (this.reading) {
-        const view = await this.reading.update(this.state, page, this.zoom);
-        this.layout = view.layout;
-        this.surface = view.surface;
-        this.scale = view.scale;
-        await this.client.execute({
-          operation: "selectPdf",
-          layoutId: view.layout.id,
-          anchor: 0,
-          focus: 0,
-        });
-        this.state = { ...this.state, page };
-        this.semantics.textContent = view.layout.text;
-        this.pageDiagnostics = view.layout.diagnostics;
-        this.stopped = false;
-        this.errorMessage = "";
-        this.stateChanged();
+        await this.paintReadingPage(
+          await this.reading.update(this.state, page, this.zoom),
+        );
         return;
       }
       const previous = this.layout;
+      if (previous && previous.page !== page) {
+        await this.client.execute({
+          operation: "releasePdfView",
+          layoutId: previous.id,
+        });
+      }
       const layout = await this.client.execute({
         operation: "renderPdfPage",
         revision: this.state.revision,
@@ -320,11 +327,6 @@ export class PdfView {
         profile: this.profile,
       });
       if (this.closing || this.closed) return;
-      if (previous && previous.id !== layout.id)
-        await this.client.execute({
-          operation: "releasePdfView",
-          layoutId: previous.id,
-        });
       this.state = { ...this.state, page: layout.page };
       this.layout = layout;
       await this.surface.prepare(this.client, layout);
@@ -341,8 +343,8 @@ export class PdfView {
       this.layout = undefined;
       this.stopped = true;
       if (!this.closed && !this.closing) {
-        this.surface.canvas.width = 0;
-        this.surface.overlay.width = 0;
+        if (!this.reading)
+          this.surface.canvas.width = this.surface.overlay.width = 0;
         this.semantics.textContent = "";
         this.errorMessage =
           "Page presentation stopped. Refresh the page or undo; committed changes remain available for saving.";
@@ -386,8 +388,13 @@ export class PdfView {
     return this.enqueue(async () => {
       if (!this.layout) throw new Error("PDF page is not displayed");
       this.zoom = zoom;
-      this.scale = this.surface.draw(this.layout, 0, zoom);
+      if (this.reading) {
+        this.useReadingPage(
+          await this.reading.update(this.state, this.state.page, zoom),
+        );
+      } else this.scale = this.surface.draw(this.layout, 0, zoom);
       await this.updateSelection();
+      this.publish();
     });
   }
   async updateSelection(
@@ -441,10 +448,12 @@ export class PdfView {
       }),
     );
   }
-  async navigation() {
-    return this.enqueue(() =>
-      this.client.execute({ operation: "pdfNavigation" }),
-    );
+  async navigation(page?: string) {
+    const request = {
+      operation: "pdfNavigation",
+      ...(page === undefined ? {} : { page }),
+    } as const;
+    return this.enqueue(() => this.client.execute(request), false, true);
   }
   async setReadingMode(
     mode: "single" | "continuous" | "double",
@@ -471,7 +480,17 @@ export class PdfView {
           this.viewport,
           this.profile,
           mode,
-          (action) => this.enqueue(action),
+          (action) =>
+            this.enqueue(async () => {
+              const page = await action(
+                !this.dragging &&
+                  !this.rangeSelection &&
+                  this.selection.anchor === this.selection.focus &&
+                  !this.hooks.inputState?.().draft,
+              );
+              if (page && this.layout?.id !== page.layout.id)
+                await this.paintReadingPage(page);
+            }),
         );
       }
       await this.paint();
@@ -654,12 +673,7 @@ export class PdfView {
       "pointerdown",
       (event) => {
         const page = this.reading?.at(event.clientX, event.clientY);
-        if (page) {
-          this.layout = page.layout;
-          this.surface = page.surface;
-          this.scale = page.scale;
-          this.state = { ...this.state, page: page.layout.page };
-        }
+        if (page) this.useReadingPage(page);
         if (
           event.button !== 0 ||
           !this.layout ||

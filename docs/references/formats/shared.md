@@ -191,7 +191,7 @@ PDF 图案原点按五位小数写出，变换基向量与页面内容保留布�
 
 PPTX 宿主为含透明像素的图片缓存独立颜色位图，全透明像素的 RGB 归白，颜色面的 Alpha 为 255。原始 RGBA、压缩源和资源身份保持。全不透明图片跳过该资源。普通图片的插值为 null、平滑开启且设备矩阵为正向轴缩放时，Canvas 按相同小数几何独立采样颜色与原始透明遮罩；最终八位 Alpha 合并对象透明度，再以一次像素拷贝合成。完整源覆盖的优化裁剪使用相同路径。实际源裁剪、旋转、剪切、明确的 true/false 及最近像素路径保留既有采样。派生位图随资源淘汰、替换和表面销毁关闭。
 
-采样目标限制在 backing canvas 内。每次区域绘制按两次 RGBA 回读计入累计 67108864 像素工作预算，并沿用 16777216 活跃层像素和四层上限。源图沿用单边 4096、总计 4194304 像素上限。归白及独立遮罩依据固定 [ONLYOFFICE `CPdfWriter::LoadImage`](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/PdfWriter.cpp#L3367-L3448)，由三个透明调色板控制和普通图片编辑流程核对；未增加 JPEG 编码器。
+采样目标限制在 backing canvas 内。每次区域绘制按两次 RGBA 回读计入累计 67108864 像素工作预算。主画布和活跃层合计最多 16777216 像素，离屏层最多八层。源图沿用单边 4096、总计 4194304 像素上限。归白及独立遮罩依据固定 [ONLYOFFICE `CPdfWriter::LoadImage`](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/PdfWriter.cpp#L3367-L3448)，由三个透明调色板控制和普通图片编辑流程核对。
 
 完整页面的首个矩形裁剪与无偏移、正向轴缩放的 backing canvas 完全对应时，Canvas 将裁剪边界对齐到 backing 像素，避免最外列重复混色。保存/恢复作用域保持，页面后的批注继续绘制。局部裁剪、较大表面、偏移、反射及剪切保留原边界。DOCX 实心斜接矩形复用既有像素边缘绘制；其他路径保持原规则。
 
@@ -209,7 +209,7 @@ PDF 中声明插值的图片使用平台 `medium` 插值滤波。轴向字形保
 
 `CanvasSurface` 共用尺寸、DPR、透明覆盖层、绘制身份与资源释放。DOCX 的 `PageCanvas` 继续准备文档图片。相同 `id`、区域、zoom、DPR 和字形规则下，只清除并重画覆盖层；仅像素尺寸变化时重设画布尺寸。缩放、窗口 DPR 或字形规则变化重新呈现，覆盖层几何须匹配当前布局身份与 revision。
 
-预览与编辑共用此路径。宿主在关闭时释放 Canvas、Path2D 和 ImageBitmap；内容与覆盖层共同计入像素预算。JSON/Worker 仍按批次传输。PDF writer 消费 `PositionedDocument.pages[].primitives` 的有序矩形、边框、文字、独立图片、路径、矩阵、裁剪和恢复操作。DOCX 从内部布局转换，XLSX 从独立打印布局生成，PPTX 从幻灯片布局生成；旧分组结构已删除。字体嵌入、Unicode 与裁剪仍由核心处理。
+预览与编辑共用此路径。宿主在关闭时释放 Canvas、Path2D 和 ImageBitmap。内容与覆盖层共同计入 16,777,216 像素的预览预算。高 DPR 或大页面超出预算时，两个画布使用相同的较低栅格密度，保留 CSS 尺寸和选区坐标。JSON/Worker 仍按批次传输。PDF writer 消费 `PositionedDocument.pages[].primitives` 的有序矩形、边框、文字、独立图片、路径、矩阵、裁剪和恢复操作。DOCX 从内部布局转换，XLSX 从独立打印布局生成，PPTX 从幻灯片布局生成；旧分组结构已删除。字体嵌入、Unicode 与裁剪仍由核心处理。
 
 ## 预算
 
@@ -231,9 +231,19 @@ GSUB 每个中间字形数组最多 65536 项，cluster/mask 数组同步受限�
 
 一次段落塑形的全部字体/script run 另共用 67108864 单位的查表预算。指定 OpenType 查表函数的 Result 入口、循环迭代和按长度计费的批量操作递减同一计数器；GSUB/GPOS、Coverage/ClassDef、GDEF 过滤及试探查表超限统一返回 `limit-exceeded`。字体表初次解析另有同限额。该限制可能拒绝工作量过大的合法字体，不能代表整次文档操作的时间上限、所有字体分配或进程峰值内存；具体范围与补丁身份见[依赖说明](../dependencies.md#累计查表工作量)。
 
+## OOXML 按区间读取
+
+MoonBit 的 archive、OPC 和 PPTX 提供 `open_reader(size, read_at, budget)`。宿主在会话期间保持源内容稳定，按零基偏移返回指定长度。核心先读文件末尾的 22 字节，有 ZIP 注释时向前查找至 65,557 字节。随后读取中央目录及各条目的局部头和数据描述符，验证范围、重叠和元数据一致性。随机读取入口的 `retainedBytes` 限制中央目录大小。`fileBytes` 仍限制原始文件长度。
+
+读取条目时，核心每次最多取 256 KiB 的压缩数据，校验解压长度和 CRC 后缓存条目。保存按段校验未缓存的原始条目，保留解压器状态和 CRC。校验完成后分段复制未改动条目的原始记录，再写中央目录。核心在各段完成时记录进度，Worker 可释放已处理的源字节。保存接口返回完整 ZIP 字节，调用方须为输出预留内存。
+
+浏览器 PPTX Worker 的 `openFile(blob, budget?)` 按 Wasm 请求的偏移和长度调用 `Blob.slice()`。Wasm 保留 ZIP 索引和已解析的幻灯片，在缺少字节的位置继续读取。图片和播放媒体按需取源字节。默认源文件与保存输出各限 256 MiB，单条目解压限 64 MiB，累计解压限 512 MiB。PPTX 编辑器对超过内存输入预算的本地文件使用此入口。区间会话支持原格式保存，保存前检查修订，输出前重新打开并检查 ZIP 和 OPC 结构。
+
+实现参照 LibreOffice 的尾部定位和分段解压，以及 Calamine 的可寻址文件入口。ONLYOFFICE 原生转换先解包到临时目录，其浏览器 ZIP 接口接收整份压缩字节。GenOffice 的 PPTX 桌面入口和 BetterOffice 的 DOCX 输入适配也先读整份文件。 [LibreOffice 目录定位](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/package/source/zipapi/ZipFile.cxx#L1148) · [LibreOffice 分段解压](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/package/source/zipapi/XUnbufferedStream.cxx#L233) · [Calamine 文件入口](https://github.com/tafia/calamine/blob/0af05f4f6030351e3b8a999ea0810c8618368776/src/lib.rs#L493) · [ONLYOFFICE 原生](https://github.com/ONLYOFFICE/core/blob/b18715ae811aaa5cd9dae2dd9a4b9412d38b8b7b/X2tConverter/src/lib/pptx.h#L42) · [ONLYOFFICE 浏览器](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/common/libfont/engine/fonts.js#L131) · [GenOffice](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/apps/slides/src/main/slides-main.ts#L848) · [BetterOffice](https://github.com/openooxml/betteroffice/blob/62605af397a309cb81c86aed8b8453a54a4edf22/packages/docx/src/utils/docxInput.ts#L21)
+
 ## 文件 profile 与保真
 
-ZIP 支持单磁盘非加密 ZIP32、stored/deflate、UTF-8 或未标记的 ASCII 名称、12/16 字节 data descriptor。拒绝 ZIP64、加密、未知 method/flag、截断、重叠、重复名字/目录、错误 CRC 与解压长度。保留源记录用于未改条目；ZIP 包级 comment 和修改条目的压缩方式不保证词法恒等。
+ZIP 支持单磁盘非加密 ZIP32、stored/deflate、有效 UTF-8 名称及 12/16 字节 data descriptor。UTF-8 名称允许缺少编码标记。ZIP32 本地头内的 ZIP64 扩展字段仅可重复中央目录的两个尺寸。拒绝 ZIP64 目录或超出 32 位的尺寸和偏移，以及加密、未知 method/flag、截断、重叠、重复名字/目录、错误 CRC 与解压长度。保留源记录用于未改条目；ZIP 包级 comment 和修改条目的压缩方式不保证词法恒等。
 
 旧版 Office 文件和加密 OOXML 可使用 OLE 复合容器。DOCX 打开路径读取根目录中的 `EncryptionInfo` 和 `EncryptedPackage`，检查分配链、范围和预算。旧二进制内容沿用 `unsupported-package`。依据 [Microsoft Compound File Header](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-cfb/05060311-bfce-4b12-874d-71fd4ce63aea)。
 

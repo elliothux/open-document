@@ -2,10 +2,11 @@ import type { PdfLayout } from "../core/pdf.js";
 import { CanvasSurface } from "@open-document/web-core/canvas-surface";
 import { documentFailure } from "@open-document/web-core/connection";
 import {
+  decodeImage,
   imageBitmapFromPixels,
-  materializeImage,
 } from "@open-document/web-core/image";
 import type { PdfClient } from "./pdf.js";
+import { sampleJpeg } from "./pdf-jpeg-samples.js";
 
 export class PdfCanvas extends CanvasSurface {
   async prepare(client: PdfClient, layout: PdfLayout): Promise<void> {
@@ -18,23 +19,28 @@ export class PdfCanvas extends CanvasSurface {
           key,
         });
         if (resource.kind === "jpeg") {
-          const decoded = await materializeImage({
-            kind: "encoded",
-            bytes: resource.bytes,
-            header: resource.header,
-          });
-          try {
-            resource = await client.execute({
-              operation: "decodedImagePdf",
-              layoutId: layout.id,
-              key,
-              width: decoded.bitmap.width,
-              height: decoded.bitmap.height,
-              bytes: decoded.rgba,
-            });
-          } finally {
+          const { width, height, header, bytes } = resource;
+          const size =
+            "width" in header &&
+            (width !== header.width || height !== header.height)
+              ? { width, height }
+              : undefined;
+          let pixels: Uint8Array;
+          if (resource.sourceSamples) {
+            pixels = await sampleJpeg(bytes, header, width, height);
+          } else {
+            const decoded = await decodeImage(bytes, header, undefined, size);
+            pixels = decoded.rgba;
             decoded.bitmap.close();
           }
+          resource = await client.execute({
+            operation: "decodedImagePdf",
+            layoutId: layout.id,
+            key,
+            width,
+            height,
+            bytes: pixels,
+          });
         }
         const bitmap = await imageBitmapFromPixels(
           resource.width,

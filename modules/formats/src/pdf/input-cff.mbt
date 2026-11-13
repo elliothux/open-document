@@ -46,11 +46,14 @@ fn draw_font_outline(
   outline : Array[@pdflite.SdkCffSegment],
   width : Double,
   transform : @layout.Matrix,
+  placement : @layout.Matrix,
   state : GraphicsState,
   value : String,
 ) -> Unit raise {
   @pdfcore.sdk_decoded(32)
   let cached = context.nativeOutlines.get(identity)
+  let stroked = text_stroked(state.text.rendering_mode)
+  let serialize = !stroked && cached is None
   let path = StringBuilder()
   let ink : Array[Double] = []
   fn point(x : Double, y : Double) -> Unit raise @failure.Failure {
@@ -69,13 +72,13 @@ fn draw_font_outline(
     match segment {
       CffMove(x, y) => {
         point(x, y)
-        if cached is None {
+        if serialize {
           path <+ "M\{x} \{y}"
         }
       }
       CffLine(x, y) => {
         point(x, y)
-        if cached is None {
+        if serialize {
           path <+ "L\{x} \{y}"
         }
       }
@@ -83,11 +86,11 @@ fn draw_font_outline(
         point(a, b)
         point(c, d)
         point(x, y)
-        if cached is None {
+        if serialize {
           path <+ "C\{a} \{b} \{c} \{d} \{x} \{y}"
         }
       }
-      CffClose => if cached is None { path.write_char('Z') }
+      CffClose => if serialize { path.write_char('Z') }
     }
   }
   if ink.is_empty() && value.iter().all(c => c.is_whitespace()) {
@@ -98,6 +101,18 @@ fn draw_font_outline(
   context.spans[index] = {
     ..context.spans[index],
     cropVisible: crop_intersects(context.page, ink),
+  }
+  if stroked {
+    let path = outline.map(segment => {
+      match segment {
+        CffMove(x, y) => @layout.Move(x, y)
+        CffLine(x, y) => @layout.Line(x, y)
+        CffCubic(a, b, c, d, x, y) => @layout.Cubic(a, b, c, d, x, y)
+        CffClose => @layout.Close
+      }
+    })
+    draw_stroked_glyph(context, path, placement, state)
+    return
   }
   if !outline.is_empty() {
     let key = if cached is Some(outline) {
@@ -121,7 +136,7 @@ fn draw_font_outline(
       context.nativeOutlines[identity] = { key, path, }
       key
     }
-    check_style(state.style, state.width)
+    check_style(state.style, 0)
     context.commands.push(@layout.Style(state.style))
     context.scope(@layout.Transform(transform))
     context.commands.push(

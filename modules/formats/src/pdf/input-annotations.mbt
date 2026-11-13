@@ -163,6 +163,10 @@ fn appearance_style(style : @layout.DrawStyle) -> @syntax.PdfObject {
                   Normal => "Normal"
                   Multiply => "Multiply"
                   Difference => "Difference"
+                  Overlay => "Overlay"
+                  Darken => "Darken"
+                  SoftLight => "SoftLight"
+                  Color => "Color"
                 },
               ),
             ),

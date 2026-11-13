@@ -1,5 +1,14 @@
 ///|
 fn JpegImage::pixels(self : JpegImage, rgba : Bytes) -> Bytes raise {
+  if self.flateMask is Some((source, decode)) {
+    return self.masked_pixels(source, decode, rgba)
+  }
+  if self.alpha is None &&
+    self.decode
+    .mapi((index, value) => value == (index % 2).to_double())
+    .all(value => value) {
+    return icc_rgba(rgba, self.profile)
+  }
   let channels = self.decode.length() / 2
   let output = Bytes::makei(rgba.length(), i => {
     let channel = i % 4
@@ -27,6 +36,7 @@ fn JpegImage::core_pixels(
   self : JpegImage,
   budget : PdfBudget,
 ) -> Bytes? raise @failure.Failure {
+  guard self.preview is None else { return None }
   let pixels = self.width.to_int64() * self.height.to_int64()
   let compressed = self.bytes.length().to_int64()
   let blocks = self.blocks.to_int64()
@@ -51,4 +61,14 @@ fn JpegImage::core_pixels(
     @failure.Failure(code="limit-exceeded", ..) => None
     error => raise error
   }
+}
+
+///|
+fn JpegImage::display_size(self : JpegImage) -> (Int32, Int32) {
+  self.preview.unwrap_or((self.width, self.height))
+}
+
+///|
+fn JpegImage::needs_source_samples(self : JpegImage) -> Bool {
+  self.flateMask is Some(_) && self.preview is Some(_)
 }

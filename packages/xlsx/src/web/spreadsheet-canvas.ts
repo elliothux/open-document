@@ -5,6 +5,7 @@ import type { XlsxClient } from "./xlsx.js";
 
 /** Keeps decoded worksheet resources with the existing Canvas surface. */
 export class SpreadsheetCanvas extends CanvasSurface {
+  private prepared: { client: XlsxClient; key: string } | undefined;
   constructor(private readonly mode: "screen" | "print" = "screen") {
     super();
   }
@@ -78,6 +79,9 @@ export class SpreadsheetCanvas extends CanvasSurface {
     signal?: AbortSignal,
   ): Promise<void> {
     signal?.throwIfAborted();
+    const key = JSON.stringify([revision, sheets, profile]);
+    if (this.prepared?.client === client && this.prepared.key === key) return;
+    this.prepared = undefined;
     const keys = new Set<string>();
     for (const sheet of sheets) {
       const pictures = await client.execute({
@@ -104,5 +108,6 @@ export class SpreadsheetCanvas extends CanvasSurface {
         );
     }
     signal?.throwIfAborted();
+    this.prepared = { client, key };
   }
 }

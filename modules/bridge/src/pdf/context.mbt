@@ -34,6 +34,8 @@ pub struct Context {
   output : @common.OutputBytes
   outlines : @common.OutlineDelta
   mut pdf : @model.PdfSession?
+  mut ranged : @common.RangeInput?
+  priv mut source_candidate : PdfSource?
   mut closed : Bool
   images : @layout.Images
 }
@@ -45,6 +47,8 @@ pub fn new_context() -> Context {
     output: @common.OutputBytes::new(),
     outlines: @common.OutlineDelta::new(),
     pdf: None,
+    ranged: None,
+    source_candidate: None,
     closed: false,
     images: @layout.Images::new(),
   }
@@ -73,7 +77,12 @@ pub fn call(
       guard context.pdf is Some(session) else {
         @failure.reject("session-required", "Open a PDF first")
       }
-      return handler(context, session, request)
+      let result = handler(context, session, request)
+      if context.ranged is Some(ranges) {
+        ranges.require_ranges()
+        ranges.clear()
+      }
+      return result
     }
     guard context.pdf is Some(_) else {
       @failure.reject("session-required", "Open a PDF first")
@@ -109,6 +118,8 @@ pub fn close(context : Context) -> Unit {
     session.close()
   }
   context.pdf = None
+  context.clear_pdf_ranges()
+  context.source_candidate = None
   context.images.clear()
 }
 

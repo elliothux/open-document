@@ -14,7 +14,11 @@ fn interpret(
     @failure.reject("limit-exceeded", "PDF Form depth exceeds budget")
   }
   let document = context.session.document
-  let ops = @pdflite.pdf_parse_content_ops_from_view(bytes)
+  let (ops, ranges) = if context.collectSource && origin is Some(_) {
+    @pdflite.pdf_parse_content_ops_with_ranges(bytes)
+  } else {
+    (@pdflite.pdf_parse_content_ops_from_view(bytes), None)
+  }
   let glyph_uncolored = if type3 {
     guard ops.get(0) is Some(Op_d0(_, _) | Op_d1(_, _, _, _, _, _)) else {
       @failure.reject(
@@ -26,13 +30,6 @@ fn interpret(
     false
   }
   let uncolored = uncolored || glyph_uncolored
-  let ranges = if context.collectSource {
-    Some(pdf_operator_ranges(bytes, ops.length())) catch {
-      _ => None
-    }
-  } else {
-    None
-  }
   let stack : Array[GraphicsState] = []
   let mut state = initial
   let path : Array[@layout.PathSegment] = []
@@ -41,6 +38,7 @@ fn interpret(
   let mut clip : Bool? = None
   let mut compatibility = 0
   let marked_start = context.marked.length()
+  let source_start = context.sources.length()
   let mut textDepth = 0
   for op_index, op in ops {
     let location = source_location(origin, ranges, op_index, resources)
@@ -549,7 +547,14 @@ fn interpret(
               state.softMask
             },
           }
-          let (x, y, r, t) = rectangle(get(document, object, "BBox"))
+          guard visible_form_bbox(
+              context.page,
+              get(document, object, "BBox"),
+              form_state.matrix,
+            )
+            is Some((x, y, r, t)) else {
+            continue
+          }
           let bbox : Array[@layout.PathSegment] = [
             @layout.Move(x, y),
             @layout.Line(r, y),
@@ -738,7 +743,12 @@ fn interpret(
           },
         )
       }
-      Op_EMC => finish_marked(context)
+      Op_EMC => {
+        guard context.marked.length() > marked_start else {
+          @failure.reject("invalid-pdf", "PDF marked content stack underflow")
+        }
+        finish_marked(context)
+      }
       Op_MP(_) | Op_DP(_, _) | Op_ri(_) | Op_i(_) => ()
       Op_BX => compatibility += 1
       Op_EX => {
@@ -752,10 +762,39 @@ fn interpret(
         @failure.reject("unsupported-pdf", "Unsupported PDF content operator")
     }
   }
-  guard stack.is_empty() &&
-    compatibility == 0 &&
-    context.marked.length() == marked_start else {
-    @failure.reject("invalid-pdf", "Unbalanced PDF content state")
+  guard compatibility == 0 else {
+    @failure.reject("invalid-pdf", "Unclosed PDF compatibility section")
+  }
+  let unclosed_marks = context.marked.length() > marked_start
+  if !stack.is_empty() || unclosed_marks {
+    guard context.extraction is None &&
+      context.marked[marked_start:]
+      .iter()
+      .all(mark => mark.visible && mark.replacement is None) else {
+      @failure.reject("invalid-pdf", "Unbalanced PDF content state")
+    }
+    for index in source_start..<context.sources.length() {
+      let source = context.sources[index]
+      if source.reason.is_empty() {
+        context.sources[index] = {
+          ..source,
+          reason: "Source PDF content required state recovery",
+        }
+      }
+    }
+    if unclosed_marks {
+      context.diagnostics.push("Recovered unclosed PDF marked content")
+      context.marked.truncate(marked_start)
+    }
+    if !stack.is_empty() {
+      context.diagnostics.push("Recovered unclosed PDF graphics state")
+      while stack.pop() is Some(saved) {
+        for _ in 0..<(state.clips - saved.clips + 1) {
+          context.restore()
+        }
+        state = saved
+      }
+    }
   }
   for _ in initial.clips..<state.clips {
     context.restore()

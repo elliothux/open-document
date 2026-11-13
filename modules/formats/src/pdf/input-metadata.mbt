@@ -27,6 +27,13 @@ pub fn PdfSession::metadata(
   self : PdfSession,
 ) -> PdfMetadata raise @failure.Failure {
   self.check(self.revision)
+  self.read_source("metadata", () => self.read_metadata())
+}
+
+///|
+fn PdfSession::read_metadata(
+  self : PdfSession,
+) -> PdfMetadata raise @failure.Failure {
   pdf_bound(self.budget, () => {
     let info = get(self.document, self.document.trailer_dict(), "Info")
     let fields : Map[String, String] = Map([])

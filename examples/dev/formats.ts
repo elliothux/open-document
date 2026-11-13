@@ -5,10 +5,14 @@ import type { MountedEditor as XlsxEditor } from "@open-document/xlsx/react";
 import type { MountedEditor as PptxEditor } from "@open-document/pptx/react";
 import type { MountedEditor as PdfEditor } from "@open-document/pdf/react";
 export type MountedEditor = DocxEditor | XlsxEditor | PptxEditor | PdfEditor;
-export type EditorOptions = CommonOptions & {
-  format: EditorFormat;
-  document: EditorDocument;
-};
+export type EditorOptions = CommonOptions &
+  (
+    | { format: "pptx" | "pdf"; document: EditorDocument | File }
+    | {
+        format: Exclude<EditorFormat, "pptx" | "pdf">;
+        document: EditorDocument;
+      }
+  );
 export async function mountEditor(
   container: HTMLElement,
   options: EditorOptions,

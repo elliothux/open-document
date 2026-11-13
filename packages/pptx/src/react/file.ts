@@ -3,6 +3,7 @@ import { PptxClient, PresentationEditor } from "../web/index.js";
 import type { EditorOptions } from "./types.js";
 import type { OwnedFile } from "./context.js";
 import type { OfficeDocument } from "@open-document/ui/types";
+import { readFile } from "@open-document/ui/file";
 import {
   documentFailure,
   registerFonts,
@@ -10,12 +11,13 @@ import {
 import type { DocumentStage } from "@open-document/wasm/abi/session";
 export async function prepareFile(
   options: EditorOptions,
-  document: OfficeDocument,
+  document: OfficeDocument | File,
   parent: HTMLElement,
   signal: AbortSignal,
 ): Promise<OwnedFile> {
   signal.throwIfAborted();
-  if (document.delimited !== undefined && true)
+  const fromFile = document instanceof File;
+  if (!fromFile && document.delimited !== undefined)
     throw new Error("Import options require CSV/TSV input in an XLSX editor");
   const surface = parent.ownerDocument.createElement("div");
   surface.className = "od-surface";
@@ -41,17 +43,23 @@ export async function prepareFile(
       signal,
     ));
     const budget = options.budget ?? (await connection.defaultBudget());
+    const fileBudget = options.budget ?? (await connection.defaultFileBudget());
     stage = "input";
     inputLimit = Math.min(budget.fileBytes, budget.retainedBytes);
-    if ((document.bytes?.length ?? 0) > inputLimit)
+    if (
+      (fromFile ? document.size : (document.bytes?.length ?? 0)) >
+      (fromFile ? fileBudget.fileBytes : inputLimit)
+    )
       throw new Error("Document input exceeds budget");
     stage = "open";
-    if (document.blank)
+    if (fromFile && document.size > inputLimit)
+      await connection.openFile(document, fileBudget);
+    else if (!fromFile && document.blank)
       await connection.execute({ operation: "createPptx", budget });
     else
       await connection.execute({
         operation: "openPptx",
-        bytes: document.bytes,
+        bytes: fromFile ? await readFile(document, signal) : document.bytes,
         budget,
       });
     stage = "font";
@@ -86,6 +94,7 @@ export async function prepareFile(
         opened.editor.exportPageImages(1, undefined, false, format),
       surface,
       inputLimit,
+      fileInputLimit: fileBudget.fileBytes,
       dispose() {
         cleanup ??= (async () => {
           try {

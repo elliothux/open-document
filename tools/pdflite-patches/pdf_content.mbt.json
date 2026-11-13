@@ -1,14 +1,78 @@
 {
   "file": "pdf_content.mbt",
   "originalSha256": "3add9b17902fbf11e6b2b432bc1f587a015d23238e75b9a99001be84010895b1",
-  "patchedSha256": "2c7bcc3ed5cfd20352002c14d0d1cf025d2bad3400e3a9f34cb73bf011b692f3",
+  "patchedSha256": "977c75fa9617c59963bc489da54d79f1de9a8824ac0ee89962fcc8d39da1902c",
   "lineEdits": [
+    [
+      42,
+      0,
+      [
+        "///|",
+        "/// Record source byte ranges while parsing editable content operators.",
+        "pub fn pdf_parse_content_ops_with_ranges(",
+        "  data : BytesView,",
+        ") -> (Array[@content.PdfContentOp], Array[(Int, Int)]?) raise @core.PdfError {",
+        "  let ranges : Array[(Int, Int)] = []",
+        "  let ops = pdf_parse_content_ops_from_view_with_context(",
+        "    data,",
+        "    pdf_content_parse_context(None),",
+        "    ranges=Some(ranges),",
+        "  )",
+        "  (ops, if ranges.length() == ops.length() { Some(ranges) } else { None })",
+        "}",
+        ""
+      ]
+    ],
+    [
+      46,
+      0,
+      [
+        "  ranges~ : Array[(Int, Int)]? = None,"
+      ]
+    ],
+    [
+      51,
+      0,
+      [
+        "  let mut recorded = ranges",
+        "  let mut start = 0"
+      ]
+    ],
     [
       53,
       0,
       [
-        "    @core.sdk_check(1)"
+        "    @core.sdk_check(1)",
+        "    if recorded is Some(_) {",
+        "      @syntax.pdf_cursor_drop_whitespace(cursor)",
+        "    }"
+      ]
+    ],
+    [
+      57,
+      2,
+      [
+        "      ContentOperand(object) => {",
+        "        if operands.is_empty() {",
+        "          start = before",
+        "        }",
+        "        operands.push(object)",
+        "      }",
+        "      ContentOperator(operator) => {",
+        "        if operator == pdf_content_inline_image_begin_operator {",
+        "          recorded = None",
+        "        } else if recorded is Some(records) {",
+        "          records.push((if operands.is_empty() { before } else { start }, cursor.position()))",
+        "        }"
+      ]
+    ],
+    [
+      66,
+      0,
+      [
+        "      }"
       ]
     ]
-  ]
+  ],
+  "source": "Capture source byte spans during content lexing so dense pages retain editable locations under the same work budget. Streams containing BI keep their source-edit protection."
 }

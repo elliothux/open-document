@@ -3,7 +3,7 @@ import { PdfClient, PdfEditor } from "../web/index.js";
 import type { EditorOptions } from "./types.js";
 import type { OwnedFile } from "./context.js";
 import type { OfficeDocument } from "@open-document/ui/types";
-import { openWithPassword } from "@open-document/ui/file";
+import { openWithPassword, readFile } from "@open-document/ui/file";
 import {
   documentFailure,
   registerFonts,
@@ -11,12 +11,13 @@ import {
 import type { DocumentStage } from "@open-document/wasm/abi/session";
 export async function prepareFile(
   options: EditorOptions,
-  document: OfficeDocument,
+  document: OfficeDocument | File,
   parent: HTMLElement,
   signal: AbortSignal,
 ): Promise<OwnedFile> {
   signal.throwIfAborted();
-  if (document.delimited !== undefined && true)
+  const fromFile = document instanceof File;
+  if (!fromFile && document.delimited !== undefined)
     throw new Error("Import options require CSV/TSV input in an XLSX editor");
   const surface = parent.ownerDocument.createElement("div");
   surface.className = "od-surface";
@@ -42,12 +43,21 @@ export async function prepareFile(
       signal,
     ));
     const budget = options.budget ?? (await connection.defaultBudget());
+    const fileBudget =
+      options.fileBudget ??
+      options.budget ??
+      (await connection.defaultFileBudget());
     stage = "input";
     inputLimit = budget.fileBytes;
-    if (document.bytes && document.bytes.length > inputLimit)
+    if (
+      (fromFile ? document.size : (document.bytes?.length ?? 0)) >
+      (fromFile ? fileBudget.fileBytes : inputLimit)
+    )
       throw new Error("Document input exceeds budget");
     stage = "open";
-    if (document.blank)
+    if (fromFile && document.size > inputLimit) {
+      await connection.openFile(document, fileBudget);
+    } else if (!fromFile && document.blank)
       await connection.execute({
         operation: "createPdf",
         width: 595,
@@ -55,7 +65,10 @@ export async function prepareFile(
         budget,
       });
     else {
-      if (!document.bytes) throw new Error("PDF input bytes are required");
+      const bytes = fromFile
+        ? await readFile(document, signal)
+        : document.bytes;
+      if (!bytes) throw new Error("PDF input bytes are required");
       await openWithPassword(
         parent,
         "PDF",
@@ -64,7 +77,7 @@ export async function prepareFile(
         (password) =>
           connection.execute({
             operation: "openPdf",
-            bytes: document.bytes,
+            bytes,
             budget,
             ...(password === undefined ? {} : { password }),
           }),
@@ -84,7 +97,7 @@ export async function prepareFile(
     return {
       ...opened,
       originalName: document.name,
-      imported: document.blank === true,
+      imported: !fromFile && document.blank === true,
       draftCanSave: false,
       cancelDraft: () => opened.editor.cancelDraft(),
       navigate: (index) => {
@@ -97,6 +110,7 @@ export async function prepareFile(
       pageImages: (format) => opened.editor.operations.exportPageImages(format),
       surface,
       inputLimit,
+      fileInputLimit: fileBudget.fileBytes,
       dispose() {
         cleanup ??= (async () => {
           try {

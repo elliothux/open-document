@@ -540,7 +540,9 @@ export class PresentationShow {
     this.pause!.textContent = this.current.paused
       ? this.labels.resume
       : this.labels.pause;
-    this.error!.textContent = "";
+    const diagnostics = this.drawing.diagnostics.join("; ");
+    if (this.error!.textContent !== diagnostics)
+      this.error!.textContent = diagnostics;
     this.resize();
     if (!this.drawing.animating)
       for (const surface of this.surfaces)

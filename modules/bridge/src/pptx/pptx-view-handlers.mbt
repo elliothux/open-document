@@ -104,7 +104,11 @@ let view_handlers : Map[
   "queryPptx": (_context, session, _input) => session.query(),
   "savePptx": (context, session, input) => {
     let revision = @common.request_revision(input)
-    { "bytes": context.output.add(session.save(revision)) }
+    let bytes = match context.ranged {
+      Some(ranged) => ranged.save(session, revision)
+      None => session.save(revision)
+    }
+    { "bytes": context.output.add(bytes) }
   },
   "layoutPptx": (context, session, input) => {
     let command : ProfileRequest = @common.request(input)

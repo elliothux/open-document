@@ -240,7 +240,7 @@ fn pattern_repeatable(commands : Array[@layout.DrawCommand]) -> Bool {
     match command {
       Style(style) =>
         style.fillAlpha == 1 && style.strokeAlpha == 1 && style.blend == Normal
-      Mask(_, _) | Layer(_, _) | Tile(_, _, _, _, _, _, _, _) => false
+      Mask(_, _, ..) | Layer(_, _) | Tile(_, _, _, _, _, _, _, _) => false
       _ => true
     }
   })

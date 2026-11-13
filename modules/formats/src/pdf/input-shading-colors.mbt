@@ -1,9 +1,12 @@
 ///|
+const PdfShadingStopCount : Int32 = 128
+
+///|
 fn shading_color_points(
   points : Array[(Double, Array[Double])],
   space : InputColorSpace,
 ) -> Array[(Double, String)] raise {
-  if !(space is IccColor(_)) && points.length() <= 32 {
+  if !(space is IccColor(_)) && points.length() <= PdfShadingStopCount {
     return points.map(p => (p.0, space.color(p.1)))
   }
   let samples : Array[(Double, String)] = []
@@ -79,7 +82,7 @@ fn shading_color_points(
       reduce(split, last, depth + 1)
     } else {
       result.push(samples[first])
-      guard result.length() < 32 else {
+      guard result.length() < PdfShadingStopCount else {
         @failure.reject("limit-exceeded", "PDF shading stops exceed budget")
       }
     }

@@ -7,6 +7,8 @@ import type {
   WorkerOperation,
 } from "@open-document/web-core/protocol";
 import type { Budget } from "@open-document/wasm/abi/session";
+import type { PptxFileCommand } from "./worker/file.js";
+import type { PptxQuery } from "./core/pptx.js";
 import { type PptxCommand, type PptxResult } from "./core/pptx.js";
 import {
   checkPptxInput,
@@ -15,9 +17,9 @@ import {
 } from "./core/pptx.js";
 export type { PptxCommand, PptxResult } from "./core/pptx.js";
 
-type Operation = WorkerOperation<OfficeCommand<PptxCommand>>;
+type Operation = WorkerOperation<OfficeCommand<PptxCommand | PptxFileCommand>>;
 
-/** An asynchronous Pptx session. File I/O and platform resources belong to the caller. */
+/** An asynchronous presentation session with bytes and Blob input. */
 export class PptxWorkerSession {
   protected constructor(
     private readonly connection: Connection<Operation, PptxInputLimits>,
@@ -45,6 +47,25 @@ export class PptxWorkerSession {
 
   async defaultBudget(): Promise<Budget> {
     return (await this.connection.request({ operation: "budget" })) as Budget;
+  }
+
+  async defaultFileBudget(): Promise<Budget> {
+    return (await this.connection.request({
+      operation: "fileBudgetPptx",
+    })) as Budget;
+  }
+
+  async openFile(
+    file: Blob,
+    budget?: Budget,
+    dateTime?: string,
+  ): Promise<PptxQuery> {
+    return (await this.connection.request({
+      operation: "openPptxFile",
+      file,
+      ...(budget === undefined ? {} : { budget }),
+      ...(dateTime === undefined ? {} : { dateTime }),
+    })) as PptxQuery;
   }
 
   async addFont(bytes: Uint8Array, identity: string): Promise<void> {

@@ -35,6 +35,7 @@ pub struct Context {
   output : @common.OutputBytes
   outlines : @common.OutlineDelta
   mut pptx : @model.Session?
+  priv mut ranged : RangeInput?
   mut closed : Bool
   images : @layout.Images
   preview_images : @layout.Images
@@ -47,6 +48,7 @@ pub fn new_context() -> Context {
     output: @common.OutputBytes::new(),
     outlines: @common.OutlineDelta::new(),
     pptx: None,
+    ranged: None,
     closed: false,
     images: @layout.Images::new(),
     preview_images: @layout.Images::new(),
@@ -76,7 +78,19 @@ pub fn call(
       @failure.reject("session-required", "Open a PPTX presentation first")
     }
     if session_handlers.get(operation) is Some(handler) {
-      return context.outlines.drawing(handler(context, session, request))
+      let value = handler(context, session, request) catch {
+        @failure.Failure(..) as error => {
+          if context.ranged is Some(ranged) {
+            ranged.ranges.require_ranges()
+            ranged.cancel()
+          }
+          raise error
+        }
+      }
+      if context.ranged is Some(ranged) {
+        ranged.ranges.clear()
+      }
+      return context.outlines.drawing(value)
     }
     @failure.reject("invalid-operation", "Unknown PPTX operation")
   })
@@ -109,6 +123,10 @@ pub fn close(context : Context) -> Unit {
     session.close()
   }
   context.pptx = None
+  if context.ranged is Some(ranged) {
+    ranged.close()
+  }
+  context.ranged = None
   context.images.clear()
   context.preview_images.clear()
 }

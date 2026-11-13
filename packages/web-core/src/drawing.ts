@@ -9,6 +9,7 @@ import type {
   PdfGlyphCommand,
 } from "@open-document/wasm/abi/drawing";
 import type { ShapeBatch } from "@open-document/wasm/abi/shape";
+import { drawingLayerCount } from "@open-document/wasm/engine-source";
 import { ChartBitmaps, type ChartFrame } from "./drawing-chart.js";
 import {
   clipDeviceRectangle,
@@ -22,6 +23,7 @@ import {
   type GlyphPath,
 } from "./drawing-glyphs.js";
 import { drawBitmapPattern, drawTile } from "./drawing-tile.js";
+import { textDamage } from "./drawing-damage.js";
 import {
   drawImage,
   drawCroppedImage,
@@ -68,6 +70,25 @@ export class CanvasRenderer {
       (region.glyphRaster === "coverage"
         ? "pdf"
         : (region.glyphRaster ?? "integer"))
+    );
+  }
+
+  textDamage(
+    before: DrawingRegion,
+    after: DrawingRegion,
+    previousOutlines: DrawingBatch["outlines"],
+    outlines: DrawingBatch["outlines"],
+    scale: number,
+    imageUnchanged: (key: string) => boolean,
+  ): DrawRect | undefined {
+    return textDamage(
+      before,
+      after,
+      scale,
+      previousOutlines,
+      outlines,
+      this.paths,
+      imageUnchanged,
     );
   }
 
@@ -284,6 +305,7 @@ export class CanvasRenderer {
               liveImages,
               raster,
               command.mask,
+              command.luminosity,
             );
             break;
           case "fillRect": {
@@ -612,13 +634,27 @@ export class CanvasRenderer {
     liveImages: ReadonlyMap<DrawCommand, CanvasImageSource>,
     raster: DrawingRegion,
     mask: DrawCommand[] | null,
+    luminosity = false,
   ): void {
-    const nextDepth = depth + (mask === null ? 1 : 2);
     const target = this.layerContext(context, depth);
-    this.drawCommands(target, commands, images, nextDepth, liveImages, raster);
+    this.drawCommands(target, commands, images, depth + 1, liveImages, raster);
     if (mask !== null) {
       const alpha = this.layerContext(context, depth + 1);
-      this.drawCommands(alpha, mask, images, nextDepth, liveImages, raster);
+      this.drawCommands(alpha, mask, images, depth + 2, liveImages, raster);
+      if (luminosity) {
+        const { width, height } = alpha.canvas;
+        this.imageWork += width * height * 2;
+        if (this.imageWork > 67108864)
+          throw new Error("Luminosity mask exceeds pixel work budget");
+        const pixels = alpha.getImageData(0, 0, width, height);
+        const data = pixels.data;
+        for (let at = 0; at < data.length; at += 4) {
+          const gray =
+            0.3 * data[at]! + 0.59 * data[at + 1]! + 0.11 * data[at + 2]!;
+          data[at + 3] = Math.round((data[at + 3]! * gray) / 255);
+        }
+        alpha.putImageData(pixels, 0, 0);
+      }
       target.save();
       try {
         target.resetTransform();
@@ -662,7 +698,7 @@ export class CanvasRenderer {
     for (let i = 0; i < depth; i++)
       pixels += (this.layers[i]?.width ?? 0) * (this.layers[i]?.height ?? 0);
     if (
-      depth >= 4 ||
+      depth >= drawingLayerCount ||
       !Number.isSafeInteger(width) ||
       !Number.isSafeInteger(height) ||
       width < 1 ||

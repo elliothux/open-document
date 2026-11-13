@@ -520,12 +520,7 @@ fn read_object(
       diagnostic = "Missing embedded image"
     }
     if blip_fill.child("srcRect") is Some(rect) {
-      crop = ["l", "t", "r", "b"].map(key => {
-        number(rect.node.attribute(key).unwrap_or("0"), 0, 99999) / 100000
-      })
-      guard crop[0] + crop[2] < 1 && crop[1] + crop[3] < 1 else {
-        @failure.reject("malformed-pptx", "Invalid image crop")
-      }
+      crop = read_image_crop(rect)
     }
     if blip_fill.child("tile") is Some(_) {
       try {

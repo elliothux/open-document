@@ -54,8 +54,8 @@ fn geometry(
   }
   let x = number(x, -182880000, 182880000) / 12700
   let y = number(y, -182880000, 182880000) / 12700
-  let width = number(width, if group { 1 } else { 0 }, 182880000) / 12700
-  let height = number(height, if group { 1 } else { 0 }, 182880000) / 12700
+  let width = number(width, 0, 182880000) / 12700
+  let height = number(height, 0, 182880000) / 12700
   let rotation = number(
       attribute(transforms, "rot").unwrap_or("0"),
       -21600000,
@@ -116,6 +116,10 @@ fn group_matrix(
   }
   let off = transform.child("chOff")
   let ext = transform.child("chExt")
+  guard ext.bind(item => item.node.attribute("cx")) is Some(child_width) &&
+    ext.bind(item => item.node.attribute("cy")) is Some(child_height) else {
+    @failure.reject("malformed-pptx", "Missing group child extent")
+  }
   let x = number(
       off.bind(item => item.node.attribute("x")).unwrap_or("0"),
       -182880000,
@@ -128,20 +132,11 @@ fn group_matrix(
       182880000,
     ) /
     12700
-  let width = number(
-      ext.bind(item => item.node.attribute("cx")).unwrap_or("0"),
-      1,
-      182880000,
-    ) /
-    12700
-  let height = number(
-      ext.bind(item => item.node.attribute("cy")).unwrap_or("0"),
-      1,
-      182880000,
-    ) /
-    12700
-  let sx = geometry.width / width
-  let sy = geometry.height / height
+  let width = number(child_width, 0, 182880000) / 12700
+  let height = number(child_height, 0, 182880000) / 12700
+  // ONLYOFFICE uses unit scale on a zero child axis, such as grouped lines.
+  let sx = if width == 0 { 1.0 } else { geometry.width / width }
+  let sy = if height == 0 { 1.0 } else { geometry.height / height }
   let matrix = geometry.matrix.then({
     a: sx,
     b: 0,

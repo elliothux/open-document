@@ -31,7 +31,7 @@ export class PageCanvas extends CanvasSurface {
     return context;
   }
   private constructor(private readonly client: FoundationClient) {
-    super();
+    super(true);
   }
   async layout(
     profile: Record<string, string>,

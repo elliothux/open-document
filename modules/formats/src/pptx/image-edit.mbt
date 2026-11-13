@@ -64,6 +64,18 @@ fn Session::selected_image(
 }
 
 ///|
+fn read_image_crop(rect : Ref) -> Array[Double] raise @failure.Failure {
+  // DrawingML source rectangles use signed offsets from the image edges.
+  let crop = ["l", "t", "r", "b"].map(key => {
+    number(rect.node.attribute(key).unwrap_or("0"), -2147483648, 99999) / 100000
+  })
+  guard crop[0] + crop[2] < 1 && crop[1] + crop[3] < 1 else {
+    @failure.reject("malformed-pptx", "Invalid image crop")
+  }
+  crop
+}
+
+///|
 fn normalized_image_crop(
   crop : Array[Double],
 ) -> Array[Double] raise @failure.Failure {

@@ -16,12 +16,17 @@ export function slideActions(
   const t = messages(state.locale);
   const { editor } = file;
   const { slides, slideOrderReason, slideVisibilityReason, revision } =
-    editor.query;
+    editor.getSnapshot().data;
   const target = slides[index];
   if (!target) return [];
   const orderBlocked = disabled || !!slideOrderReason;
-  const edit = (change: PptxSlideEdit) => () =>
-    controller.run(() => editor.editSlides(change, target.id, revision));
+  const edit = (change: PptxSlideEdit) => () => {
+    const { busy, blocking } = editor.getSnapshot();
+    if (blocking) return;
+    controller.run(() =>
+      editor.editSlides(change, target.id, busy ? undefined : revision),
+    );
+  };
   return [
     {
       label: t.copySlide,

@@ -131,3 +131,48 @@ fn form_clip_redundant(
   }
   stack.is_empty()
 }
+
+///|
+fn page_bounds_in(
+  page : SourcePage,
+  matrix : @layout.Matrix,
+) -> (Double, Double, Double, Double) raise @failure.Failure {
+  let inverse = matrix.inverse()
+  let corners = [
+    (0.0, 0.0),
+    (page.width, 0.0),
+    (0.0, page.height),
+    (page.width, page.height),
+  ].map(p => checked_point(inverse, p.0, p.1))
+  (
+    corners.fold(init=corners[0].0, (a, p) => a.min(p.0)),
+    corners.fold(init=corners[0].1, (a, p) => a.min(p.1)),
+    corners.fold(init=corners[0].0, (a, p) => a.max(p.0)),
+    corners.fold(init=corners[0].1, (a, p) => a.max(p.1)),
+  )
+}
+
+///|
+fn visible_form_bbox(
+  page : SourcePage,
+  value : @syntax.PdfObject,
+  matrix : @layout.Matrix,
+) -> (Double, Double, Double, Double)? raise @failure.Failure {
+  let (x, y, r, b) = rectangle(value, limit=2147483648.0)
+  if [x, y, r, b].all(v => v.abs() <= 1000000000) {
+    return Some((x, y, r, b))
+  }
+  let (left, top, right, bottom) = page_bounds_in(page, matrix)
+  // The enclosing page clip already bounds this part of the form.
+  let (x, y, r, b) = (
+    x.max(left - 1),
+    y.max(top - 1),
+    r.min(right + 1),
+    b.min(bottom + 1),
+  )
+  if x < r && y < b {
+    Some((x, y, r, b))
+  } else {
+    None
+  }
+}

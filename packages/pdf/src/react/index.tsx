@@ -31,6 +31,8 @@ function product(options: EditorOptions): Product<PdfHost> & { format: "pdf" } {
     ],
     prepare: (document, parent, signal, locale) =>
       prepareFile({ ...options, locale }, document, parent, signal),
+    prepareFile: (file, parent, signal, locale) =>
+      prepareFile({ ...options, locale }, file, parent, signal),
     tabs: () => pdfTabs,
     fileActions: pdfFileActions,
     contextActions: pdfContextActions,

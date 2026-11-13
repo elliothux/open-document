@@ -174,8 +174,9 @@ priv struct ArchiveBudgetResponse {
 }
 
 ///|
-pub fn archive_budget() -> Json {
-  let budget = @archive.Budget::default()
+pub fn archive_budget(
+  budget~ : @archive.Budget = @archive.Budget::default(),
+) -> Json {
   let result : ArchiveBudgetResponse = {
     fileBytes: budget.file_bytes,
     entryBytes: budget.entry_bytes,

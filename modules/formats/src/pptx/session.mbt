@@ -44,12 +44,52 @@ pub fn Session::open(
 }
 
 ///|
+/// Opens a presentation from a stable byte source that supports exact ranges.
+pub fn Session::open_reader(
+  size : Int32,
+  read_at : (Int32, Int32) -> BytesView raise @failure.Failure,
+  budget : @archive.Budget,
+  date_time? : String,
+) -> Session raise @failure.Failure {
+  Session::from_package(
+    @opc.Package::open_reader(size, read_at, budget),
+    budget,
+    date_time~,
+  )
+}
+
+///|
 fn Session::from_package(
   opc : @opc.Package,
   budget : @archive.Budget,
   date_time~ : String? = None,
 ) -> Session raise @failure.Failure {
   errdefer opc.close()
+  PresentationReader::open(opc, budget, date_time?).finish()
+}
+
+///|
+pub struct PresentationReader {
+  priv opc : @opc.Package
+  priv budget : @archive.Budget
+  priv date_time : DateTime?
+  priv main : Tree
+  priv cache : Map[String, Tree]
+  priv width : Double
+  priv height : Double
+  priv targets : Array[String]
+  priv slides : Array[Slide]
+  priv mut object_count : Int32
+  priv mut finished : Bool
+}
+
+///|
+/// Reads the presentation manifest before loading individual slides.
+pub fn PresentationReader::open(
+  opc : @opc.Package,
+  budget : @archive.Budget,
+  date_time? : String,
+) -> PresentationReader raise @failure.Failure {
   let date_time = date_time.map(read_date_time)
   guard !opc.signed else {
     @failure.reject("unsupported-pptx", "Signed presentations are unsupported")
@@ -77,10 +117,9 @@ fn Session::from_package(
   let main = load_tree(opc, cache, main_part)
   let root = main.root("presentation")
   let (width, height) = presentation_size(main)
-  let slides : Array[Slide] = []
+  let targets : Array[String] = []
   let ids : Map[String, Bool] = Map([])
   let paths : Map[String, Bool] = Map([])
-  let mut count = 0
   let list = main.required(root.id, "sldIdLst", uri=presentation_uri)
   for node in main.all(list.id, "sldId", uri=presentation_uri) {
     let id = source_identity(node.attribute("id").unwrap_or(""))
@@ -103,28 +142,74 @@ fn Session::from_package(
         "malformed-pptx", "Invalid slide identity or relationship",
       )
     }
-    guard slides.length() < SlideCountLimit else {
+    guard targets.length() < SlideCountLimit else {
       @failure.reject("limit-exceeded", "Slides exceed \{SlideCountLimit}")
     }
+    targets.push(rel.target)
+    paths[rel.target] = true
+    ids[id] = true
+  }
+  guard !targets.is_empty() else {
+    @failure.reject("malformed-pptx", "Presentation has no slides")
+  }
+  {
+    opc,
+    budget,
+    date_time,
+    main,
+    cache,
+    width,
+    height,
+    targets,
+    slides: [],
+    object_count: 0,
+    finished: false,
+  }
+}
+
+///|
+/// Loads slides from the current cursor. A failed source read leaves earlier
+/// slides intact. The checkpoint runs before each loaded slide is retained.
+pub fn PresentationReader::finish(
+  self : PresentationReader,
+  checkpoint~ : () -> Unit raise @failure.Failure = () => (),
+) -> Session raise @failure.Failure {
+  guard !self.finished else {
+    @failure.reject("invalid-operation", "Presentation reader already finished")
+  }
+  let {
+    opc,
+    budget,
+    date_time,
+    main,
+    cache,
+    width,
+    height,
+    targets,
+    slides,
+    ..
+  } = self
+  for index in slides.length()..<targets.length() {
+    let target = targets[index]
     let slide = read_slide(
       opc,
       main,
       cache,
-      load_tree(opc, cache, rel.target),
-      index=slides.length(),
+      load_tree(opc, cache, target),
+      index~,
       date_time~,
       media=Map([]),
-    )
-    count += slide.objects.length()
-    guard count <= 16384 else {
+    ) catch {
+      @failure.Failure(code~, part="", offset~, message~) =>
+        @failure.reject(code, message, part=target, offset~)
+      @failure.Failure(..) as error => raise error
+    }
+    checkpoint()
+    guard slide.objects.length() <= 16384 - self.object_count else {
       @failure.reject("limit-exceeded", "Presentation objects exceed 16384")
     }
+    self.object_count += slide.objects.length()
     slides.push(slide)
-    paths[rel.target] = true
-    ids[id] = true
-  }
-  guard !slides.is_empty() else {
-    @failure.reject("malformed-pptx", "Presentation has no slides")
   }
   let session : Session = {
     opc,
@@ -165,6 +250,8 @@ fn Session::from_package(
     show_drawing: None,
   }
   session.validate(slides[0])
+  checkpoint()
+  self.finished = true
   session
 }
 

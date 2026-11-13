@@ -1,5 +1,6 @@
 import {
   createContext,
+  memo,
   useContext,
   useSyncExternalStore,
   type ReactNode,
@@ -52,7 +53,7 @@ export class CommandUnavailable extends DocumentError {
 
 export class EditorCommands<E extends EditorHost> implements EditorCommandApi {
   private current?: UiSnapshot<E>;
-  private readonly entries = new Map<
+  private entries = new Map<
     string,
     { state: CommandState; run: CommandDefinition["run"] }
   >();
@@ -66,7 +67,8 @@ export class EditorCommands<E extends EditorHost> implements EditorCommandApi {
     const state = this.controller.getUiSnapshot();
     if (this.current === state) return;
     this.current = state;
-    this.entries.clear();
+    const previous = this.entries;
+    this.entries = new Map();
     const { file, document } = state;
     if (!file || !document || document.closed) return;
     const t = messages(state.locale);
@@ -133,13 +135,21 @@ export class EditorCommands<E extends EditorHost> implements EditorCommandApi {
       }) ?? []),
     ];
     for (const { run, ...command } of definitions) {
+      const next = {
+        ...command,
+        available: true,
+        enabled: !command.disabledReason,
+      };
+      const before = previous.get(command.id)?.state;
+      const stable =
+        before &&
+        Object.keys(before).length === Object.keys(next).length &&
+        Object.keys(next).every((key) =>
+          Object.is(Reflect.get(before, key), Reflect.get(next, key)),
+        );
       this.entries.set(command.id, {
         run,
-        state: Object.freeze({
-          ...command,
-          available: true,
-          enabled: !command.disabledReason,
-        }),
+        state: stable ? before : Object.freeze(next),
       });
     }
   }
@@ -233,7 +243,7 @@ export function useEditorCommand(
   );
 }
 
-export function EditorCommandButton({
+export const EditorCommandButton = memo(function EditorCommandButton({
   id,
   commands,
   iconOnly = false,
@@ -264,4 +274,4 @@ export function EditorCommandButton({
       <span>{children ?? state?.label ?? id}</span>
     </button>
   );
-}
+});

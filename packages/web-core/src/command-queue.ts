@@ -2,6 +2,7 @@
 export class CommandQueue {
   private tail: Promise<void> = Promise.resolve();
   private count = 0;
+  private nonBlockingCount = 0;
   private epoch = 0;
 
   constructor(
@@ -11,6 +12,10 @@ export class CommandQueue {
 
   get pending(): number {
     return this.count;
+  }
+
+  get blocking(): number {
+    return this.count - this.nonBlockingCount;
   }
 
   get generation(): number {
@@ -29,17 +34,21 @@ export class CommandQueue {
     operation: () => Promise<T>,
     started: () => void,
     settled: (result: PromiseSettledResult<void>) => void,
+    nonBlocking = false,
   ): Promise<T> {
     if (this.count >= this.limit) return Promise.reject(this.overflow());
     this.count++;
+    if (nonBlocking) this.nonBlockingCount++;
     const result = this.tail.then(operation);
     this.tail = result.then(
       () => {
         this.count--;
+        if (nonBlocking) this.nonBlockingCount--;
         settled({ status: "fulfilled", value: undefined });
       },
       (reason: unknown) => {
         this.count--;
+        if (nonBlocking) this.nonBlockingCount--;
         settled({ status: "rejected", reason });
       },
     );

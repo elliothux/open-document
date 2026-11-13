@@ -6,19 +6,13 @@ import {
 } from "../core/foundation.js";
 import type { EditState, DocxSelection } from "../core/foundation.js";
 
-import { NativeTextInput } from "@open-document/web-core/text-input";
-interface InputHost {
-  state(): EditState;
+import {
+  NativeTextInput,
+  type NativeInputHost,
+} from "@open-document/web-core/text-input";
+
+interface InputHost extends Omit<NativeInputHost<EditState>, "limit"> {
   layoutId(): number;
-  available(): boolean;
-  enqueue(operation: () => Promise<void>, composition?: boolean): Promise<void>;
-  changed(
-    state: EditState,
-    relayout?: boolean,
-    reveal?: boolean,
-  ): Promise<void>;
-  history(redo: boolean): Promise<void>;
-  stop(error: Error): void;
 }
 
 export class TextInput extends NativeTextInput<EditState> {

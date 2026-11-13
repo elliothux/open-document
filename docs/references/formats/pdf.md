@@ -6,6 +6,10 @@
 
 `PdfSession.inputLimits()`、`PdfClient.inputLimits()` 与 `PdfEditor.inputLimits` 提供核心字节限额，字段与累计预算的区别归[共享合同](shared.md#输入字节限额)。页面导入、RGBA 注册、图片与印章输入沿相同限额检查，打开文件保留显式 `PdfBudget`。
 
+嵌入字体校验和注册复用已解码的 `FontFile2` 字节。声明为 `CIDFontType2`、实际嵌入 CID OpenType CFF 的字体使用现有 CFF 轮廓。字形按 PDF 的 `CIDToGIDMap` 选择，Unicode 仍来自 ToUnicode。源字体字节保持，CFF 正文重构仍受保护。[ONLYOFFICE 字体类型检测](https://github.com/ONLYOFFICE/core/blob/b18715ae811aaa5cd9dae2dd9a4b9412d38b8b7b/PdfFile/lib/xpdf/GfxFont.cc#L358-L409) · [PDF 字体映射](../../../modules/formats/src/pdf/input-resources.mbt)
+
+经典 xref 表中的固定宽度记录若把偏移量 `0` 标为 `n`，按空槽处理，与空白分隔记录的规则一致。非零偏移的对象号和代数仍须与实际对象匹配。[xref 读取补丁](../../../tools/pdflite-patches/reader-pdf_reader_xref_classic.mbt.json)
+
 独立 TrueType 接收 `0x00010000` 和 Apple `true` 标识，复用同一目录与轮廓校验。普通 TrueType 源字形先按编码对应的 cmap 查找，再回退到字形名；Unicode 提取与显示字形分别保留。此规则修正重编码子集的 `S` 被同名字形错误替换的问题，不改变 CID 显式 GID 或符号字体路径。xref 分流允许指针位置的合法前置空白，仍拒绝非空白错误前缀，不做任意位置重建。
 
 标准 14 字体同样读取 ToUnicode。局部 CMap 后定义覆盖早定义，局部映射优先于 UseCMap 继承；无效 UTF-16 或缺失条目保持未知。显式替代简单字体时，优先按原编码选择显示字形，编码缺项才采用可信 Unicode；CID 替代仍按 Unicode 选择。无嵌入 Type1 仍要求显式替代。`nonembedded_type1_tounicode.pdf` 在 SDK 和 Poppler 使用同一 Arimo 的条件下通过定向视觉、文字、页面旋转及源保存检查。
@@ -20,7 +24,11 @@ Type3 字形程序复用内容解释器，支持 `d0/d1` 和水平 FontMatrix（
 
 读取支持 DeviceGray/DeviceRGB 的 1 位打包样本，按行忽略填充位并应用 Decode。CCITT/CCF 只用于 1 位 DeviceGray 图像，支持 Group 3 一维/混合编码和 Group 4；Rows 缺省或为零时以图像高度约束解码。尺寸冲突、截断和预算耗尽拒绝。普通软遮罩仍限既有 8 位灰度范围；JPX 灰度按下述解码精度归一，损坏传真行恢复与无压缩传真扩展尚未实现；阅读支持不自动开放源对象重写。
 
-DeviceRGB/DeviceGray 的绘制分量先截为 16.16 定点值，再舍入到 RGB 字节，依据 [ONLYOFFICE 颜色转换](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/lib/xpdf/GfxState.h#L75-L99)。核心读取 ICC v2/v4 的 RGB 色度矩阵和 Gray 曲线，支持 XYZ 矩阵、单调采样曲线和 gamma，并转换到 sRGB。Gray 的相对色度使用 PCS D50 轴，保留并验证源白点。命名 ColorSpace、DefaultRGB 及标准分量范围沿同一路径解析。配置最多 1 MiB、128 个标签、每曲线 4096 个样本，每页最多 256 份。截断、越界、循环别名、查找表配置和未支持的参数曲线拒绝。色彩适配矩阵依据 [W3C CSS Color 4](https://www.w3.org/TR/css-color-4/#color-conversion-code)。受支持 ICC 图像在 Decode、SMask 和 Matte 后由核心转换，JPEG 在平台解码后走同一路径；每张图像缓存最多 256 种颜色，逐像素和新颜色转换均扣预算，alpha 保持。
+DeviceRGB/DeviceGray 的绘制分量先截为 16.16 定点值，再舍入到 RGB 字节，依据 [ONLYOFFICE 颜色转换](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/lib/xpdf/GfxState.h#L75-L99)。核心读取 ICC v2/v4 的 RGB 色度矩阵和 Gray 曲线，支持 XYZ 矩阵、单调采样曲线、gamma、type 0 幂函数和 type 3/4 分段参数曲线，再转换到 sRGB。Gray 的相对色度使用 PCS D50 轴，保留并验证源白点。命名 ColorSpace、DefaultRGB 及标准分量范围沿同一路径解析。配置最多 1 MiB、128 个标签、每曲线 4096 个样本，每页最多 256 份。截断、越界、循环别名、查找表配置和其他参数曲线拒绝。受支持 ICC 图像在 Decode、SMask 和 Matte 后由核心转换。每张图像缓存最先遇到的 256 种颜色及最多 4096 个近期 RGB 颜色。RGB 表复用每通道的 8 位曲线结果和 sRGB 舍入阈值，临界值按原始计算顺序求值。表、像素和颜色转换均扣预算，alpha 保持。 [ICC.1:2022](https://www.color.org/specifications/ICC.1-2022-05.pdf) · [W3C CSS Color 4](https://www.w3.org/TR/css-color-4/#color-conversion-code)
+
+`Tr` 模式 1 和 2 分别绘制描边与填充加描边。TrueType、CFF 和 Type1 的轮廓先转到 PDF 用户坐标，页面变换再统一作用于轮廓和线宽。描边使用源颜色、线型及透明度。文字仍可搜索和选择，源对象重构受保护。文字裁剪模式保留明确诊断。 [ONLYOFFICE 文字渲染](https://github.com/ONLYOFFICE/core/blob/b18715ae811aaa5cd9dae2dd9a4b9412d38b8b7b/PdfFile/lib/xpdf/SplashOutputDev.cc#L2216-L2280)
+
+8 位 RGB 或 Gray 的无预测器 Flate 图像可参与页面预览尺寸分配。源图最大单边 16,384、最多 16,777,216 像素。支持同尺寸的无预测器 Flate 灰度软遮罩。尺寸需要缩小时，布局先登记目标尺寸，绘制再逐张请求。Wasm 对颜色和遮罩分别逐行解压，校验完整样本数和 zlib 校验和，用相邻行的预乘色彩插值后恢复直通 RGBA。每页流式源样本总量最多为 `steps × 16`，临时行缓冲及 RGBA 仍扣解码字节预算。原件保存使用源数据，图片提取仍按原尺寸及其解码预算执行。
 
 JBIG2Decode 接受单页、已知尺寸的嵌入段流或顺序文件头。即时通用区域支持 MMR，以及带四个合法自适应像素的算术模板 0；按页默认值或允许覆盖的区域操作合成，处理 OR/AND/XOR/XNOR/REPLACE、非字节对齐和页面外裁剪。结果反转成 PDF 的默认灰度位，沿用 Decode、颜色和源保存路径。实现归 [`input-jbig2.mbt`](../../../modules/formats/src/pdf/input-jbig2.mbt)及[算术解码](../../../modules/formats/src/pdf/input-jbig2-arithmetic.mbt)，算法参照固定 [ONLYOFFICE JBIG2Stream](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/lib/xpdf/JBIG2Stream.cc)和[算术状态](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/lib/xpdf/JArithmeticDecoder.cc)，未复制上游执行代码。
 
@@ -34,15 +42,21 @@ JPXDecode 由 MoonBit 有界解码 JP2 容器和裸 J2K，读取 1–16 位有�
 
 DeviceCMYK 支持 `k/K`、命名资源、DefaultCMYK 和初始黑色。1 位打包与 8 位样本沿既有流读取，baseline 四分量 JPEG 在 MoonBit 解码，保留 Adobe CMYK/YCCK 样本语义；Decode、软遮罩和 Matte 在 CMYK 分量上处理，再转成 RGB。转换使用[依赖记录](../dependencies.md#jpeg-解码)中的固定 PDFium 样本表和插值。JPEG 先验证尺寸、精度、组件与 MCU 数量。符合解码和预算条件的 RGB/Gray JPEG 由核心按需解码，其余使用现有宿主路径。渐进式 CMYK、CMYK ICC、DCT DecodeParms 和真实叠印仍未支持。
 
-`SA` 接受合法布尔值并保留源字典。绘制按固定 ONLYOFFICE 后端使用统一设备像素提示，不因该开关拒绝实际描边；非布尔值仍拒绝。依据 [RendererOutputDev::updateStrokeAdjust](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/SrcReader/RendererOutputDev.cpp#L621-L624)和 [SplashOutputDev](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/lib/xpdf/SplashOutputDev.cc#L938-L951)。
+DCT 图像按 PDF 声明的色彩空间转换。送给解码器的 JPEG 会移除首个扫描段前的内嵌 ICC 标记，保存时保留原始压缩流。 [PDF.js JPEG 标记解析](https://github.com/mozilla/pdf.js/blob/24de17e81b3357b30ffd710ec080be00d65ac98d/src/core/jpg.js#L913)
+
+无图像遮罩或仅有无预测器 Flate 灰度软遮罩的 RGB/Gray JPEG 支持最高 8192 像素边长及 16,777,216 源像素。超出常规单图或页面像素预算时，核心为页面上的可缩放图像分配预览尺寸，预览像素合计最多占用 8 MiB RGBA。图像响应的 `header` 给出源尺寸，`width` 和 `height` 给出解码目标。缩小带软遮罩的 JPEG 时，Chrome 解码原图并分条读取像素，给每个目标像素提供左上、右上、左下、右下四个 RGB 样本。核心逐行解压软遮罩，在相同源坐标处理 Decode 和 Matte，再按 alpha 加权插值并转换色彩。样本传输最多 16 MiB。页面继续使用原始图像位置和尺寸。原格式保存使用源流，提取和脱敏继续要求对应操作所需的完整数据。
+
+`SA` 接受合法布尔值并保留源字典。绘制按固定 ONLYOFFICE 后端使用统一设备像素提示，不因该开关拒绝实际描边；非布尔值仍拒绝。描边宽度按当前变换后的最大宽度检查页面预算，绘制仍使用原始坐标和线宽。依据 [RendererOutputDev::updateStrokeAdjust](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/SrcReader/RendererOutputDev.cpp#L621-L624)和 [SplashOutputDev](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/lib/xpdf/SplashOutputDev.cc#L938-L951)。
 
 页面与 Form 的 `/Group /S /Transparency` 支持 DeviceRGB 和已支持的 RGB matrix/TRC ICC，限非挖空合成。源颜色仍按 ICC 转换；组在 RGB 输出目标中混合，依据固定 [ONLYOFFICE RGB 输出与混合](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/SrcReader/RendererOutputDev.cpp#L624-L710)及 [Splash 组目标](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/lib/xpdf/SplashOutputDev.cc#L3932-L3955)。DefaultRGB 仍要求等效 sRGB。此范围不授予任意色域中的原生组混合资格。页面组忽略 I 值，批注随后绘制。
 
-绘制样式使用 `DrawBlend` 的 Normal、Multiply 和 Difference，JSON 使用 `normal/multiply/difference`。原 `multiply` 布尔字段已移除。Difference 按分量绝对差进入既有 Canvas 合成，依据 [W3C 混合公式](https://www.w3.org/TR/compositing-1/#blendingdifference)。隔离 Form 重置内部 alpha、混合及软遮罩，结束后应用调用方状态。外层为 alpha=1、Normal、无软遮罩时，非隔离组继续直接使用背景；其他外层合成要求内部全部为 Normal，再整体应用组 alpha、混合和软遮罩。内部其他混合、挖空及未支持空间继续保护。
+绘制样式使用 `DrawBlend` 的 Normal、Multiply、Difference、Overlay、Darken、SoftLight 和 Color，各自映射到 Canvas 合成。隔离 Form 重置内部 alpha、混合及软遮罩，结束后应用调用方状态。外层为 alpha=1、Normal、无软遮罩时，非隔离组继续直接使用背景。其他外层合成要求内部全部为 Normal，再整体应用组 alpha、混合和软遮罩。内部其他混合、挖空及未支持空间继续保护。 [W3C 混合公式](https://www.w3.org/TR/compositing-1/#blending)
 
 有界几何检查只有在能证明全部描边与填充落在 Form BBox 内时，才省去重复的边界裁剪，避免贴边描边再乘一次抗锯齿覆盖。检查控制点包围盒、仿射变换、描边半径、平滑闭合曲线、斜接和方帽余量、内部裁剪及作用域。突出边界、尖角、细线、无界渐变或不能证明的命令保留原裁剪；几何遍历扣除工作预算。源对象与重构保护不变。实现归 [`input-groups.mbt`](../../../modules/formats/src/pdf/input-groups.mbt)及 [`input-form-clip.mbt`](../../../modules/formats/src/pdf/input-form-clip.mbt)。
 
-ExtGState `/SMask` 支持 `None` 或 `S=Alpha` 的 Form 透明组。遮罩保存设置时的矩阵和资源，应用自身 Matrix/BBox；RGB 不参与 alpha 计算，空遮罩使内容透明。转移函数仅接受缺省、Identity 或 Default；Luminosity 和其他函数仍保护。遮罩组独立解释，文字不进入页面语义，资源、递归和临时层受共同预算约束。路径、文字、图片、着色及隔离 Form 复用同一遮罩命令；Type3 在字形程序内部应用一次。同一路径的填充与描边分别遮罩，遵循 [ONLYOFFICE 绘制顺序](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/lib/xpdf/Gfx.cc#L1856-L1930)。遮罩文字/图片保持源编辑保护，普通保存与页面旋转保留源对象和压缩流。实现归 [`input-soft-mask.mbt`](../../../modules/formats/src/pdf/input-soft-mask.mbt)，状态依据 [ONLYOFFICE 软遮罩](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/lib/xpdf/Gfx.cc#L1135-L1310)。
+ExtGState `/SMask` 支持 `None`、Form 透明组 `S=Alpha`，以及黑色背景上的隔离 DeviceGray 组 `S=Luminosity`。遮罩保存设置时的矩阵和资源，应用自身 Matrix/BBox。Alpha 使用组覆盖率，Luminosity 使用组在黑色背景上的亮度。转移函数接受缺省、Identity 或 Default。遮罩组独立解释，资源、递归、临时层及亮度读取像素量受预算约束。路径、文字、图片、着色及隔离 Form 复用遮罩命令。Type3 在字形程序内部应用一次。同一路径的填充与描边分别遮罩。普通保存与页面旋转保留源对象和压缩流。 [实现](../../../modules/formats/src/pdf/input-soft-mask.mbt) · [ONLYOFFICE 绘制顺序](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/lib/xpdf/Gfx.cc#L1856-L1930) · [PDFium 亮度遮罩](https://pdfium.googlesource.com/pdfium/+/a84323421e94f484faca52dd9d027934eba42ab8/core/fpdfapi/render/cpdf_renderstatus.cpp#1438)
+
+绘制遮罩时先画内容，再复用空闲表面画遮罩。Wasm 和 Canvas 共用最多八层的上限，主画布与活跃层合计最多 16,777,216 像素。
 
 可选内容读取默认 View 配置的 BaseState、ON/OFF、Intent 和 ViewState；ViewState 优先级参照 [PDFium](https://github.com/chromium/pdfium/blob/a84323421e94f484faca52dd9d027934eba42ab8/core/fpdfapi/page/cpdf_occontext.cpp#L139-L160)。配置在首次引用时读取，未使用的配置不阻断页面。OCMD 支持四种成员策略及 Not/And/Or 表达式；组最多 256 个，成员和单个表达式最多 256 项，嵌套最多 32 层。隐藏内容不绘制或提取，仍执行颜色、裁剪和文字推进；整个隐藏 XObject 或批注可跳过。未知身份、非法条件和超限拒绝。仅读取默认屏幕状态，其他配置切换和动态缩放等 usage 尚未实现。源保存保留全部图层；页面关系重写、重构、转换和脱敏沿原保护规则。
 
@@ -50,7 +64,9 @@ ExtGState `/SMask` 支持 `None` 或 `S=Alpha` 的 Form 透明组。遮罩保存
 
 轴向 `sh` 支持 RGB/Gray/已支持 ICC 的 Type 2 指数函数、Type 3 拼接和一维 Type 0 采样，保留反向 Encode 和硬颜色边界。指数函数先验证有限、有效域和颜色分量；在每段四分之一、二分之一、四分之三处检查线性误差，超过 1/4096 时继续细分，最多 24 层及 4096 点。非法幂、超限或有效 Range 截断保持保护。工作和临时样本扣除预算。
 
-Type 0 仍限 order=1、2–4096 个样本、1/2/4/8/12/16 位和一或三分量，解码长度必须匹配。函数流只解码一次，准备对象不修改源流。函数域、BBox、裁剪、Extend、alpha 和受支持混合进入既有图元；变换不改变后续状态。复用固定 pdflite 读取器；函数深度最多 8、函数 32 个、参数数组 64 项。ICC 按分量间隔至多 1/256 采样颜色，最多 8192 点，再压缩为最多 32 个停点，保留采样点的通道误差不超过 1。计算器函数、分量函数数组、其他渐变色彩空间及径向/网格着色继续诊断。普通保存保留源函数和操作符，原生重构保持保护。实现归 [`input-shading.mbt`](../../../modules/formats/src/pdf/input-shading.mbt)与 [`input-shading-colors.mbt`](../../../modules/formats/src/pdf/input-shading-colors.mbt)，裁剪和 Extend 依据固定 [ONLYOFFICE Gfx](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/lib/xpdf/Gfx.cc#L2369-L2445)。
+径向 `sh` 支持从零半径开始、两端延伸的同心圆渐变。色彩和函数共用轴向处理。Form 的宽整数 BBox 在应用绘制变换前与页面可见范围相交，绘制坐标继续受预算约束。
+
+Type 0 仍限 order=1、2–4096 个样本、1/2/4/8/12/16 位和一或三分量，解码长度必须匹配。函数流只解码一次，准备对象不修改源流。函数域、BBox、裁剪、Extend、alpha 和受支持混合进入既有图元。复用固定 pdflite 读取器，函数深度最多 8、函数 32 个、参数数组 64 项。ICC 按分量间隔至多 1/256 采样颜色，最多 8192 点，再压缩为最多 128 个停点，保留采样点的通道误差不超过 1。计算器函数、分量函数数组、其他渐变色彩空间和网格着色继续诊断。普通保存保留源函数和操作符。 [着色实现](../../../modules/formats/src/pdf/input-shading.mbt) · [ONLYOFFICE Gfx](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/lib/xpdf/Gfx.cc#L2369-L2445)
 
 Pattern 色彩空间支持着色与带 Gray/RGB/CMYK/已支持 ICC 基色的无着色 Type 1 平铺填充。选择图案时验证 PaintType、TilingType、资源、BBox、有限非零步长和可逆 Matrix；切换普通颜色或色彩空间清除当前填充图案，q/Q 保留状态。图案跟随页面/Form 的基准矩阵，不随后续 cm 重新锚定。每格按 BBox 裁剪，保留间隔、重叠、外层裁剪、alpha、Multiply 和软遮罩；内部文字不进入页面语义。单次路径最多 4096 格，按路径控制点包围框与页面框保守估算，并沿既有递归、工作及绘制预算。实现归 [`input-pattern.mbt`](../../../modules/formats/src/pdf/input-pattern.mbt)与[`input-path.mbt`](../../../modules/formats/src/pdf/input-path.mbt)，语义依据 [ONLYOFFICE 平铺与基准矩阵](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/lib/xpdf/Gfx.cc#L2046-L2269)。
 
@@ -69,8 +85,8 @@ TilingType 1/3 在 BBox 等于步长且内外样式均为 alpha=1 的 Normal 时
 | `extractPdfText` / `searchPdfPage` | revision、page、profile；提取或给出 query 的字面命中与 quads，不切换展示页 |
 | `hitTestPdf` / `selectPdf` / `selectedPdfText` | layoutId；point 命中、UTF-16 anchor/focus 选区和复制文字；未知映射明确失败 |
 | `selectPdfRange` / `selectedPdfRange` | revision、两端 page/offset、profile；按文档顺序返回跨页文字和逐页 quads |
-| `imagePdf` / `decodedImagePdf` | 按 layoutId/key 返回已解码 RGBA 或供宿主解码的原始 JPEG。两条路径由核心应用 Decode、SMask 和 Matte。`imagePdf` 可选 `size: { width, height }`，按 alpha 加权缩小已解码资源，保留原图 |
-| `pdfNavigation` / `pdfMetadata` / `setPdfMetadata` | 查询目录、链接和 Title/Author/Subject/Keywords；元数据修改按 revision 提交 |
+| `imagePdf` / `decodedImagePdf` | 按 layoutId/key 返回 RGBA 或供宿主解码的 JPEG。JPEG 带 `sourceSamples: true` 时，宿主回传每个目标像素的四组 RGB 源样本。其余 JPEG 回传目标尺寸的 RGBA。核心应用 Decode、SMask 和 Matte。`imagePdf` 可选 `size: { width, height }`，按 alpha 加权缩小已解码资源 |
+| `pdfNavigation` / `pdfMetadata` / `setPdfMetadata` | 查询目录、链接和 Title/Author/Subject/Keywords。`pdfNavigation` 可用 `page` 限定链接所属页。元数据修改按 revision 提交 |
 | `undoPdf` / `redoPdf` / `savePdf` | revision；历史操作返回快照，原格式保存返回 `{ revision, bytes }` |
 
 `PdfClient.defaultBudget()` 包装 `defaultPdfBudget`；同步 session 为 `defaultPdfBudget()`。page/field/annotation 身份绑定对象号和代数，页序单独返回。revision 单调递增，失败不提交。保留视图在同 revision 内可跨页共存；编辑、字体变化、换文档或显式释放使相应 layoutId 失效。`PdfQuery` 返回 pages、annotations、fields、当前 page、历史、modified、diagnostics 及 readOnlyReason/pageOrderReason；对象、字段和批注分别提供保护原因。
@@ -92,6 +108,8 @@ TilingType 1/3 在 BBox 等于步长且内外样式均为 alpha=1 的 Normal 时
 未支持的图形状态、组混合空间、挖空组、可选内容配置、颜色/字体/图片编码明确诊断；已知图片/批注可以局部限制，未知影响使整页预览不完整。输入范围和排除项见 [P7](../../implemented/p7-pdf-input.md#已交付范围)。签名只读且未验证，非零代数保护改写，不执行脚本或外部资源。导航仅返回目标；外部 URI 是否打开由宿主决定。
 
 普通编辑在原对象图上构造局部候选，检查后原子提交。普通保存保留非目标字典及 stream 压缩 payload，重建 xref/trailer 并去掉旧增量/线性化声明。无编辑或全部撤销返回原字节。保存不替换基线、不清空历史；输出失败不改源。未引用对象仍保留，普通删除、裁剪、覆盖和保存不提供安全擦除；真正脱敏使用下述独立清理输出。
+
+内容流末尾遗漏 `Q` 或可见的普通标记内容结束符时，预览在流边界恢复图形栈与标记状态，并报告诊断。作用域下溢、未结束的替代文字和可选内容仍保持保护。恢复后的源对象重构与提取受保护。
 
 ### 文字、图片和页面编排
 
@@ -199,6 +217,16 @@ viewer 提供 `snapshot`、`displayedPage`、`refresh`、`goToPage`、`navigateP
 
 队列最多 128 个已接受意图，保存排在已接受编辑之后。低层 `close()` 校验草稿并等待已接受操作后释放表面；`dispose()` 停止接收新操作和搜索，等待已接受操作后释放表面，两者都保留调用者的 client。呈现失败保留已提交源，停止新编辑，允许保存、刷新或显式撤销。单页、连续及双页阅读共用绘制器；连续/双页仅保留可见页和有限邻页，最多 8 页 Canvas，合计 64 MiB。核心最多保留 9 个视图，其中一个供缩略图或后台输出临时使用，保留视图的解码图像合计仍限 16 MiB。缩略图和输出不改变活动页或选区；取消搜索及关闭后旧回复不能重绘。
 
+单页阅读翻页前释放上一个核心视图，使两张大图页可在同一 16 MiB 预算下依次显示。邻页缩略图失败时保留可点击的页码，缩略图 API 仍返回失败原因。
+
+### PDF 区间读取
+
+MoonBit 的 `PdfRangeReader::new(size, read_at, budget)` 接收长度固定的本地或宿主数据源。`read_at(offset, length)` 返回指定范围，偏移从零开始。`catalog_number()` 读取文件尾和文件头，按 `startxref`、`/XRefStm` 和 `/Prev` 建立对象索引。`pages()` 返回页标识、尺寸和旋转，读取页树及其直接依赖。`read_object(number)` 按需校验对象头，读取流时先核对声明长度和结束标记。压缩对象按 xref 中的对象流及成员位置读取。
+
+`open_preview()` 将区间源接到 PDF 页面解释器。解释器按对象引用补读，遇到缺段时保留已解析对象，收到字节后重试当前页。补齐所需区间后才提交本次绘制。一次操作完成或取消后释放对象缓存。页面、目录和文档元数据共用同一源。只读会话的首屏查询只加载页树，批注外观随页面绘制。
+
+`PdfWorkerSession.openFile(blob, budget?)` 打开区间源。Worker 使用 `Blob.slice()`，并缓存最多 4 MiB 的 64 KiB 字节块。React 编辑器在本地 `File` 超过默认 64 MiB 整文件预算时自动使用区间入口，`fileBudget` 可收紧默认 512 MiB 的文件上限。小文件保留原编辑入口。区间预览适用于未加密文件，支持翻页、文字选择和页面图像输出。编辑保持只读，`savePdf` 仅在原件能装入输出预算时返回原始字节。损坏 xref 的恢复仍由整文件入口处理。 [ISO 32000-1 §7.5](https://opensource.adobe.com/dc-acrobat-sdk-docs/standards/pdfstandards/pdf/PDF32000_2008.pdf)
+
 ### PDF 默认预算
 
 预算必须为正且不大于核心默认值。可从默认值复制并收紧：
@@ -215,4 +243,4 @@ viewer 提供 `snapshot`、`displayedPage`、`refresh`、`goToPage`、`navigateP
 
 PDF 核心定义查询长度上限，浏览器查看器使用构建生成的同一数值。
 
-字体、RGBA、图元、轮廓与 Canvas 沿用前述共同限制。PDF 源字体只显示时允许合法子集省略 cmap/OS2；需要重新嵌入时仍检查字体权限，未知权限拒绝。预算检查覆盖分配和循环，保存先保守估计编码大小，再核对确切大小；不保证总堆峰值或延迟。同步 Wasm 不可抢占，宿主只能在异步步骤间取消或终止 Worker。
+PDF 单页字体探针最多接收 32 个字体，总字体字节仍限 32 MiB。RGBA、图元、轮廓与 Canvas 沿用前述共同限制。PDF 源字体只显示时允许合法子集省略 cmap/OS2；需要重新嵌入时仍检查字体权限，未知权限拒绝。预算检查覆盖分配和循环，保存先保守估计编码大小，再核对确切大小；不保证总堆峰值或延迟。同步 Wasm 不可抢占，宿主只能在异步步骤间取消或终止 Worker。

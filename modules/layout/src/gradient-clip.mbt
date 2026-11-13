@@ -6,7 +6,7 @@ fn gradient_clip(
 ) -> GradientClip? {
   if !device {
     let first = commands.get(start)
-    if first is Some(GradientRect(_, _) | RadialGradientRect(_, _)) ||
+    if first is Some(GradientRect(_, _) | RadialGradientRect(_, _, ..)) ||
       (
         first is Some(Transform(_)) &&
         commands.get(start + 1) is Some(GradientRect(_, _))
@@ -26,7 +26,7 @@ fn gradient_clip(
     next += 1
   }
   let gradient = commands.get(next)
-  if !(gradient is Some(GradientRect(_, _) | RadialGradientRect(_, _))) {
+  if !(gradient is Some(GradientRect(_, _) | RadialGradientRect(_, _, ..))) {
     return None
   }
   let axial = match gradient {
@@ -65,7 +65,7 @@ pub fn annotate_gradient_clips(
         }
       Layer(_, children) | Tile(_, _, _, _, _, _, _, children) =>
         annotate_gradient_clips(children, device~)
-      Mask(mask, children) => {
+      Mask(mask, children, ..) => {
         annotate_gradient_clips(mask, device~)
         annotate_gradient_clips(children, device~)
       }

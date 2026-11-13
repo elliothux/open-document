@@ -101,6 +101,26 @@ R2.7 的私有 `cases/documentation.json` 只维护文档证据入口；`cases/h
    - 入口：`references/office_oxide/tests/`（`test_robustness_and_safety.rs`、`test_allocation_budget.rs`、`test_docx_ir_fidelity.rs`、`test_pptx_package_fidelity.rs`）与 `references/anydoc/tests/robustness.rs`。
    - 方法：复用其畸形 ZIP/XML 构造模式与保存重开幂等性（Idempotence）断言，验证预算拒绝与错误恢复。
 
+### 大文件按需读取
+
+目标是在 Chrome 选择本地大文件后，先显示可操作的首屏。首屏按页、幻灯片或工作表的实际依赖读取。保留独立的源文件、缓存、单条目解压和渲染工作量限额。
+
+| 本地参考 | 源码行为 | 可复用的做法 |
+| --- | --- | --- |
+| PDF.js | 解析器报告缺失区间，管理器合并相邻请求并去重，补齐后重试。区间流仍分配与文件等长的数组。 | 复用缺区间协议与调度，缓存改用独立且可淘汰的字节块。[区间管理](https://github.com/mozilla/pdf.js/blob/24de17e81b3357b30ffd710ec080be00d65ac98d/src/core/chunked_stream.js#L25) · [缺数据重试](https://github.com/mozilla/pdf.js/blob/24de17e81b3357b30ffd710ec080be00d65ac98d/src/core/pdf_manager.js#L194) |
+| PDFium | 宿主通过 `IsDataAvail` 告知已取得的字节，核心用 `AddSegment` 报告缺段。文档和页面各有可用性查询。 | 分别报告索引就绪与目标页就绪。[可用性接口](https://pdfium.googlesource.com/pdfium/+/a84323421e94f484faca52dd9d027934eba42ab8/public/fpdf_dataavail.h) |
+| GenOffice | Sheets 用 Rust sidecar 顺序解压并解析工作表 XML，每 256 行写一个临时块。界面请求可见范围和缓冲区。遇到尚未索引的远处行时，sidecar 返回当前索引进度。Slides 路径先读整份 PPTX，再解包。 | 在 Wasm 中逐行解析，按需提供行块。浏览器先用有上限的内存缓存，需要保留更多已解析行时再加入临时存储。[Sheets 架构](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/apps/sheets/docs/architecture.md#large-workbook-reads) · [范围请求](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/apps/sheets/native/xlsx-engine/src/lib.rs#L713) · [Slides 解包](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/packages/pptx-engine/src/zip.ts#L72) |
+| Univer | 表格渲染器计算各视口的行列范围。服务端文件交换负责导入 Excel。 | 用可见行列驱动渲染与行块请求。[视口范围](https://github.com/dream-num/univer/blob/d61608dace76b0db299c552eb3d1dccf0f8986dc/packages/engine-render/src/components/sheets/sheet.render-skeleton.ts#L383) · [文件交换](https://docs.univer.ai/server/import-export) |
+| BetterOffice | DOCX 文件选择器读完整的 ArrayBuffer。检查的 XLSX Wasm 入口接收完整工作簿字节。 | 作为整文件打开路径的对照。[DOCX 文件选择器](https://github.com/openooxml/betteroffice/blob/62605af397a309cb81c86aed8b8453a54a4edf22/packages/docx/src/utils/readDocxFile.ts#L28) · [XLSX 工作簿入口](https://github.com/openooxml/betteroffice/blob/62605af397a309cb81c86aed8b8453a54a4edf22/packages/xlsx/src/wasm/loader.ts#L832) |
+
+- **读取接口**。沿用 PPTX 的 `open_reader(size, read_at, budget)` 和 Worker 缺区间重试。MoonBit 确定偏移、校验数据并维护解析进度。Worker 通过 `Blob.slice()` 提供字节。原生宿主用定位读取实现同一接口。缓存按字节设上限，按需合并相邻请求。切换文档后丢弃旧请求结果。可复用的入口见[现有 OOXML 区间读取](references/formats/shared.md#ooxml-按区间读取)。
+- **OOXML**。先复用 ZIP 中央目录和 OPC 关系。PPTX 已按需读取媒体，支持分段校验及保存。保存保留未改条目的压缩记录，输出仍为完整字节数组。XLSX 先读工作簿索引，再加载当前表和所需共享资源。ZIP 可按条目定位。同一个 Deflate 条目内部需要顺序解压，跳到深处的行先推进索引，之后才能直接读取已索引的行块。DOCX 先加载正文与排版依赖，延迟读取图片、嵌入对象等资源，分页继续处理跨页表格和字段。XLSX 和 DOCX 的区间入口仍待接入。 [LibreOffice 条目流](https://github.com/LibreOffice/core/blob/2821d29a87b28785d74fa64d975465e4c99d4416/package/source/zipapi/XUnbufferedStream.cxx#L233) · [Calamine 工作表读取器](https://github.com/tafia/calamine/blob/0af05f4f6030351e3b8a999ea0810c8618368776/src/xlsx/mod.rs#L2505)
+- **PDF**。把 pdflite 的全文件读取改为可寻址数据源。先读文件头和尾部 `startxref`，解析交叉引用表或流并跟随 `/Prev`，再按对象号加载页面树、内容流和当前页资源。有效的线性化提示可加速首页。xref 损坏时允许在既定预算内扫描修复。参考 PDF.js 的缺区间重试和请求合并，缓存使用有上限的独立字节块。保留单页的解压和绘制预算，密集路径与大图的成本单独处理。 [PDF.js 分块读取](https://github.com/mozilla/pdf.js/blob/master/src/core/chunked_stream.js) · [PDFium 页面可用性接口](https://pdfium.googlesource.com/pdfium/+/refs/heads/main/public/fpdf_dataavail.h)
+- **PDF 校验顺序**。当前 pdflite 打开时解析全部在用对象，`PdfSession::open` 再遍历引用和签名标记。区间预览需要保留 xref 对象索引，按需校验对象编号、代数、流长度及引用。首屏只等待当前页和依赖。编辑和原格式重写前执行整份对象图及签名检查。缺段重试时复用已验证的 xref 和对象，避免从文件头反复解析。 [当前打开入口](../modules/formats/src/pdf/input-read.mbt)
+- **PDF 区间预览**。`PdfRangeReader` 已接到页面解释器及浏览器 Worker。超过整文件预算的本地 PDF 进入只读区间预览。区间编辑保存、线性化首页优化和损坏索引恢复仍待接入。 [PDF 区间读取](references/formats/pdf.md#pdf-区间读取)
+- **布局**。PDF 单页操作超限需要独立处理。内容流执行应保留 token 位置、图形状态栈、资源解析栈及累计预算，分批恢复后再提交完整页面。降低每批主线程绘制量和像素量可以改善响应，但仍需遵守单页累计工作量限制。
+- **验收**。用真实大文件测量首屏前读取字节数、首屏耗时与缓存峰值。验证跳到后页、切换文档、读取失败后恢复、未改资源原样保留及编辑后保存重开。远程源接入时使用同一接口，校验 HTTP `206`、`Content-Range` 与源版本。服务器忽略 Range 时，只在整文件预算允许时继续。
+
 ---
 
 ## C1.4 PDF 字体、色彩、表单与修复容错集

@@ -182,7 +182,7 @@ let page_handlers : Map[
     }
     let command : ImageReadRequest = @common.request(input)
     let size = command.size.map(size => (size.width.value, size.height.value))
-    let (kind, bytes, width, height) = session.image(
+    let (kind, bytes, width, height, sourceSamples) = session.image(
       command.layoutId.value,
       command.key,
       context.images,
@@ -193,8 +193,20 @@ let page_handlers : Map[
       bytes: context.output.add(bytes),
       width,
       height,
+      sourceSamples,
       header: if kind == "jpeg" {
-        Some(@common.image_header(bytes))
+        guard @layout.raster_header(bytes)
+          is Some(("jpeg", source_width, source_height)) else {
+          @failure.reject("invalid-image", "Missing PDF JPEG dimensions")
+        }
+        Some(
+          @common.ImageDimensions(
+            source_width.to_int(),
+            source_height.to_int(),
+            transpose=false,
+            verified=false,
+          ),
+        )
       } else {
         None
       },
@@ -217,6 +229,7 @@ let page_handlers : Map[
       bytes: context.output.add(image.rgba),
       width: image.width,
       height: image.height,
+      sourceSamples: false,
       header: None,
     }
     ToJson::to_json(result).stringify()

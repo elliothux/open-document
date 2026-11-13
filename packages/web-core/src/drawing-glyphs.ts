@@ -12,11 +12,13 @@ type GlyphSegment = { op: string; values: number[] };
 export interface GlyphPath {
   path: Path2D;
   bounds: Point[] | null;
+  empty?: true;
   segments?: GlyphSegment[] | undefined;
 }
 
 export function compileGlyphPath(source: string): GlyphPath {
   const path = new Path2D(source);
+  if (!source.trim()) return { path, bounds: null, empty: true };
   // shortcut: other SVG grammars retain Canvas strokes; extend after independent native evidence.
   if (source.length > 65536) return { path, bounds: null };
   const tokens: readonly string[] =

@@ -9,6 +9,8 @@ fn read_soft_mask(
     return None
   }
   let kind = get(document, object, "Type")
+  let subtype = get(document, object, "S")
+  let luminosity = is_name(subtype, "Luminosity")
   guard kind == @syntax.PdfNull || is_name(kind, "Mask") else {
     @failure.reject("invalid-pdf", "Invalid PDF soft mask type")
   }
@@ -18,7 +20,7 @@ fn read_soft_mask(
         @utf8.decode_lossy(entry.0.bytes()),
       )
     }) &&
-    is_name(get(document, object, "S"), "Alpha") else {
+    (luminosity || is_name(subtype, "Alpha")) else {
     @failure.reject("unsupported-pdf", "Unsupported PDF soft mask")
   }
   let transfer = get(document, object, "TR")
@@ -39,13 +41,19 @@ fn read_soft_mask(
     for value in values {
       ignore(number(resolve(document, value)))
     }
+    guard !luminosity ||
+      (values.length() == 1 && number(resolve(document, values[0])) == 0) else {
+      @failure.reject(
+        "unsupported-pdf", "PDF luminosity mask requires a black gray backdrop",
+      )
+    }
   }
   let group = raw(object, "G")
   guard group is PdfIndirect(_) &&
     resolve(document, group) is PdfStreamObject(_) else {
     @failure.reject("invalid-pdf", "PDF soft mask requires a Form stream")
   }
-  Some({ group, resources, state: { ..state, softMask: None, }, })
+  Some({ group, resources, state: { ..state, softMask: None, }, luminosity, })
 }
 
 ///|
@@ -73,10 +81,20 @@ fn ContentContext::soft_mask_commands(
   }
   let own = get(document, object, "Resources")
   let resources = if own == @syntax.PdfNull { mask.resources } else { own }
-  guard transparency_group(self, object, resources, alpha=true) is Some(_) else {
+  let isolated = transparency_group(self, object, resources, alpha=true)
+  guard isolated is Some(_) else {
     @failure.reject(
       "invalid-pdf", "PDF soft mask requires a transparency group",
     )
+  }
+  if mask.luminosity {
+    let group = get(document, object, "Group")
+    guard isolated == Some(true) &&
+      self.color_space(resources, get(document, group, "CS")) is GrayColor else {
+      @failure.reject(
+        "unsupported-pdf", "PDF luminosity mask requires an isolated gray group",
+      )
+    }
   }
   let state = {
     ..mask.state,
@@ -101,7 +119,14 @@ fn ContentContext::soft_mask_commands(
     marked: [],
     nesting: 0,
   }
-  let (x, y, r, t) = rectangle(get(document, object, "BBox"))
+  guard visible_form_bbox(
+      self.page,
+      get(document, object, "BBox"),
+      state.matrix,
+    )
+    is Some((x, y, r, t)) else {
+    return []
+  }
   child.scope(
     @layout.ClipPath(
       path_in(
@@ -143,11 +168,13 @@ fn ContentContext::apply_mask(
   guard state.softMask is Some(mask) && self.commands.length() > start else {
     return
   }
-  let mask = self.soft_mask_commands(mask, depth)
+  let mask_commands = self.soft_mask_commands(mask, depth)
   let commands = self.commands[start:].to_owned()
-  input_layer_budget(mask, 2)
-  input_layer_budget(commands, 2)
+  input_layer_budget(mask_commands, 2)
+  input_layer_budget(commands, 1)
   self.commands.truncate(start)
   self.commands.push(@layout.Style(state.style))
-  self.commands.push(@layout.Mask(mask, commands))
+  self.commands.push(
+    @layout.Mask(mask_commands, commands, luminosity=mask.luminosity),
+  )
 }

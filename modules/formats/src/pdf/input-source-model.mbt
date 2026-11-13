@@ -55,67 +55,6 @@ priv struct PdfSourceObject {
 }
 
 ///|
-fn pdf_operator_ranges(
-  bytes : Bytes,
-  count : Int32,
-) -> Array[(Int32, Int32)] raise {
-  let cursor = @pdfcore.byte_cursor_of_view(bytes)
-  let ranges : Array[(Int32, Int32)] = []
-  let mut start : Int32? = None
-  let mut depth = 0
-  while cursor.position() < bytes.length() {
-    @syntax.pdf_cursor_drop_whitespace(cursor)
-    if cursor.position() >= bytes.length() {
-      break
-    }
-    let before = cursor.position()
-    if cursor.peek_byte() == 37 {
-      ignore(@syntax.pdf_cursor_lex_comment(cursor))
-      continue
-    }
-    if start is None {
-      start = Some(before)
-    }
-    let first = cursor.peek_byte()
-    if [40, 47, 60, 62, 91, 93].contains(first) ||
-      @syntax.pdf_is_number_start_byte(first) {
-      let lexeme = @syntax.pdf_cursor_lex_token(cursor)
-      match lexeme {
-        LexLeftSquare | LexLeftDict => depth += 1
-        LexRightSquare | LexRightDict => depth -= 1
-        _ => ()
-      }
-      guard depth >= 0 && depth <= 64 else {
-        @failure.reject(
-          "protected-content", "PDF operand boundaries are unsupported",
-        )
-      }
-    } else {
-      let token = @syntax.pdf_cursor_read_regular_token_view(cursor)
-      let keyword = @utf8.decode_lossy(token.to_owned())
-      if !["true", "false", "null"].contains(keyword) {
-        guard depth == 0 && keyword != "BI" && !keyword.is_empty() else {
-          @failure.reject(
-            "protected-content", "PDF inline or nested operator boundaries are protected",
-          )
-        }
-        ranges.push((start.unwrap(), cursor.position()))
-        start = None
-      }
-    }
-    guard cursor.position() > before else {
-      @failure.reject("protected-content", "PDF source token did not advance")
-    }
-  }
-  guard start is None && depth == 0 && ranges.length() == count else {
-    @failure.reject(
-      "protected-content", "PDF source ranges do not match parsed operators",
-    )
-  }
-  ranges
-}
-
-///|
 fn page_source(
   document : @pdflite.PdfDocument,
   contents : @syntax.PdfObject,

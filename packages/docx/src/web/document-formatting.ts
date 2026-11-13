@@ -21,6 +21,7 @@ export function createDocumentFormatting(
     selection(): DocxSelection;
     endGroup(): void;
     read<T>(operation: () => Promise<T>): Promise<T>;
+    write<T>(operation: () => Promise<T>): Promise<T>;
     edit(operation: () => Promise<EditState>): Promise<void>;
     changed(state: EditState): Promise<void>;
   },
@@ -178,7 +179,7 @@ export function createDocumentFormatting(
     },
     createStyle(style: DocxStyleCreation): Promise<string> {
       host.endGroup();
-      return host.read(async () => {
+      return host.write(async () => {
         const result = await client.execute({
           operation: "createStyle",
           revision: host.state().revision,

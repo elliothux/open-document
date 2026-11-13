@@ -18,7 +18,8 @@ export type {
   EditorSlots,
 } from "@open-document/ui/types";
 export interface EditorOptions extends CommonOptions {
-  readonly document: OfficeDocument;
+  readonly document: OfficeDocument | File;
   readonly budget?: PdfBudget;
+  readonly fileBudget?: PdfBudget;
 }
 export type MountedEditor = MountedProduct<PdfEditor, "pdf">;

@@ -289,7 +289,7 @@
   background: var(--od-ui-subtle);
   border-radius: 0 0 12px 12px;
 }
-.od-dialog-actions button {
+:where(.od-dialog-actions) button {
   min-height: var(--od-ui-control);
   padding: 0 14px;
   border: 1px solid var(--od-ui-line-strong);

@@ -2,6 +2,12 @@
 pub const PageOperationCount : Int32 = 1024
 
 ///|
+const PdfFileBytes : Int32 = 67108864
+
+///|
+pub const PdfRangeFileBytes : Int32 = 536870912
+
+///|
 #derive(ToJson)
 pub(all) struct PdfBudget {
   fileBytes : Int32
@@ -22,7 +28,7 @@ pub extend PdfBudget with ToJson::{to_json}
 ///|
 pub fn PdfBudget::default() -> PdfBudget {
   {
-    fileBytes: 67108864,
+    fileBytes: PdfFileBytes,
     objects: 100000,
     objectNumber: 1000000,
     pages: 1024,
@@ -32,6 +38,33 @@ pub fn PdfBudget::default() -> PdfBudget {
     decodedBytes: 67108864,
     steps: 10000000,
     outputBytes: 67108864,
+  }
+}
+
+///|
+/// Defaults for a seekable PDF source. Parser and output budgets are unchanged.
+pub fn PdfBudget::range_default() -> PdfBudget {
+  { ..PdfBudget::default(), fileBytes: PdfRangeFileBytes, }
+}
+
+///|
+fn PdfBudget::validate(
+  self : PdfBudget,
+  defaults : PdfBudget,
+) -> Unit raise @failure.Failure {
+  guard self.to_json() is Object(values) && defaults.to_json() is Object(maxima) else {
+    @failure.reject("invalid-budget", "Invalid PDF budget")
+  }
+  for key, value in values {
+    guard value is Number(n, ..) &&
+      maxima.get(key) is Some(Number(maximum, ..)) &&
+      n > 0 &&
+      n <= maximum else {
+      @failure.reject(
+        "invalid-budget",
+        "PDF budget must be positive and bounded: " + key,
+      )
+    }
   }
 }
 
@@ -199,6 +232,7 @@ struct PageDisplay {
   diagnostics : Array[String]
   images : Array[String]
   jpeg : Map[String, JpegImage]
+  flateImages : Map[String, FlateImage]
   probe : @layout.TextProbe
   outlines : Array[@layout.Outline]
 }
@@ -208,9 +242,11 @@ priv struct JpegImage {
   bytes : Bytes
   width : Int32
   height : Int32
+  preview : (Int32, Int32)?
   blocks : Int32
   decode : Array[Double]
   alpha : Bytes?
+  flateMask : (@syntax.PdfObject, Array[Double])?
   matte : Array[Double]?
   profile : IccProfile?
 }
@@ -240,6 +276,7 @@ struct PdfHistory {
 pub struct PdfSession {
   document : @pdflite.PdfDocument
   mut original : Bytes
+  priv mut ranged : PdfRangeDocument?
   budget : PdfBudget
   generations : Map[Int32, Int32]
   mut pages : Array[SourcePage]
@@ -329,6 +366,7 @@ fn PdfSession::check(
 pub fn PdfSession::close(self : PdfSession) -> Unit {
   self.closed = true
   self.original = b""
+  self.ranged = None
   self.pages = []
   self.undo.clear()
   self.redo.clear()

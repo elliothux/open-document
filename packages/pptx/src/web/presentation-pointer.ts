@@ -5,13 +5,17 @@ import type {
   PptxSelection,
 } from "../core/pptx.js";
 import type { PptxClient } from "./pptx.js";
-import { pointerSelection } from "./presentation-selection.js";
+import {
+  pointerSelection,
+  samePresentationSelection,
+} from "./presentation-selection.js";
 
 export interface PresentationGesture {
   start: PptxPoint;
   kind: "text" | "transform" | "connector" | "guide" | "adjustment";
   anchor: number;
   handle: number;
+  dragging?: true;
   token?: { revision: number; id: number };
 }
 
@@ -34,14 +38,24 @@ export class PresentationGestures {
     private readonly profile: Record<string, string>,
     private readonly host: GestureHost,
   ) {}
-  get active(): boolean {
-    return !!this.gesture;
+  get dragging(): boolean {
+    return this.gesture?.dragging === true || this.gesture?.token !== undefined;
   }
   reset(): void {
     this.gesture = undefined;
   }
-  press(point: PptxPoint, text: boolean, extend: boolean): Promise<void> {
+  private enqueue(operation: () => Promise<void>): Promise<void> {
     return this.host.enqueue(async () => {
+      try {
+        await operation();
+      } catch (error) {
+        this.reset();
+        throw error;
+      }
+    });
+  }
+  press(point: PptxPoint, text: boolean, extend: boolean): Promise<void> {
+    return this.enqueue(async () => {
       const state = this.host.state(),
         scale = this.host.scale(),
         handle = presentationHandle(this.host.geometry(), state, point, scale);
@@ -59,7 +73,11 @@ export class PresentationGestures {
         !handle &&
         state.guides.visible &&
         !state.guides.reason &&
-        state.guides.items.length &&
+        state.guides.items.some(
+          ({ orientation, position }) =>
+            Math.abs(position - (orientation === "horz" ? point.y : point.x)) <=
+            4 / scale,
+        ) &&
         !state.selection.objects.includes(hit.object)
       ) {
         const next = await this.client.execute({
@@ -82,7 +100,9 @@ export class PresentationGestures {
         }
       }
       const selection = pointerSelection(state, hit, handle, text, extend);
-      await this.host.select(selection);
+      if (samePresentationSelection(state.selection, selection))
+        this.host.focus();
+      else await this.host.select(selection);
       this.gesture = {
         start: point,
         kind: presentationGestureKind(this.host.state(), handle),
@@ -97,72 +117,82 @@ export class PresentationGestures {
     shift = false,
     center = false,
   ): Promise<void> {
-    return this.host.enqueue(async () => {
-      const gesture = this.gesture,
-        state = this.host.state(),
-        scale = this.host.scale();
-      if (!gesture || (!state.selection.object && gesture.kind !== "guide"))
-        return;
-      if (gesture.kind === "text") {
-        const hit = await this.client.execute({
-          operation: "hitPptx",
-          layoutId: this.host.layoutId(),
-          ...point,
-          tolerance: 4 / scale,
-          text: true,
-        });
-        if (hit.object === state.selection.object)
-          await this.host.select({
-            ...state.selection,
-            anchor: gesture.anchor,
-            focus: hit.offset,
-          });
-      } else if (!this.client.readOnly) {
-        const dx = point.x - gesture.start.x,
-          dy = point.y - gesture.start.y;
-        if (!gesture.token && Math.hypot(dx, dy) < 2 / scale) return;
-        if (!gesture.token) {
-          if (gesture.kind === "guide")
-            throw new Error("Missing guide gesture identity");
-          const next = await this.client.execute({
-            operation: "beginPptx",
-            revision: state.revision,
-            kind: gesture.kind,
-          });
-          if (next.candidateId === null)
-            throw new Error("Core did not begin drag");
-          gesture.token = { revision: next.revision, id: next.candidateId };
-          await this.host.changed(next);
-        }
-        await this.host.changed(
-          await this.client.execute({
-            operation: "dragPptx",
-            revision: gesture.token.revision,
-            candidateId: gesture.token.id,
-            dx,
-            dy,
-            handle:
-              gesture.kind === "adjustment"
-                ? gesture.handle - 4
-                : gesture.handle,
-            tolerance: snap ? 6 / scale : 0,
-            shift,
-            center,
-          }),
-          true,
-        );
-      }
-    });
+    return this.enqueue(() => this.moveNow(point, snap, shift, center));
   }
-  async release(
+  private async moveNow(
+    point: PptxPoint,
+    snap: boolean,
+    shift: boolean,
+    center: boolean,
+  ): Promise<void> {
+    const gesture = this.gesture,
+      state = this.host.state(),
+      scale = this.host.scale();
+    if (!gesture || (!state.selection.object && gesture.kind !== "guide"))
+      return;
+    const dx = point.x - gesture.start.x,
+      dy = point.y - gesture.start.y;
+    if (!gesture.dragging && Math.hypot(dx, dy) < 2 / scale) return;
+    if (gesture.kind === "text") {
+      const hit = await this.client.execute({
+        operation: "hitPptx",
+        layoutId: this.host.layoutId(),
+        ...point,
+        tolerance: 4 / scale,
+        text: true,
+      });
+      if (
+        hit.object === state.selection.object &&
+        hit.offset !== state.selection.focus
+      ) {
+        gesture.dragging = true;
+        await this.host.select({
+          ...state.selection,
+          anchor: gesture.anchor,
+          focus: hit.offset,
+        });
+      }
+    } else if (!this.client.readOnly) {
+      gesture.dragging = true;
+      if (!gesture.token) {
+        if (gesture.kind === "guide")
+          throw new Error("Missing guide gesture identity");
+        const next = await this.client.execute({
+          operation: "beginPptx",
+          revision: state.revision,
+          kind: gesture.kind,
+        });
+        if (next.candidateId === null)
+          throw new Error("Core did not begin drag");
+        gesture.token = { revision: next.revision, id: next.candidateId };
+        await this.host.changed(next);
+      }
+      await this.host.changed(
+        await this.client.execute({
+          operation: "dragPptx",
+          revision: gesture.token.revision,
+          candidateId: gesture.token.id,
+          dx,
+          dy,
+          handle:
+            gesture.kind === "adjustment" ? gesture.handle - 4 : gesture.handle,
+          tolerance: snap ? 6 / scale : 0,
+          shift,
+          center,
+        }),
+        true,
+      );
+    }
+  }
+  release(
     point: PptxPoint,
     cancel: boolean,
     snap: boolean,
     shift = false,
     center = false,
   ): Promise<void> {
-    if (!cancel) await this.move(point, snap, shift, center);
-    await this.host.enqueue(async () => {
+    return this.enqueue(async () => {
+      if (!cancel) await this.moveNow(point, snap, shift, center);
       const gesture = this.gesture;
       this.gesture = undefined;
       if (gesture?.token)
@@ -170,7 +200,7 @@ export class PresentationGestures {
           await this.client.execute({
             revision: gesture.token.revision,
             candidateId: gesture.token.id,
-            ...(cancel
+            ...(cancel || !gesture.dragging
               ? { operation: "cancelPptx" as const }
               : { operation: "finishPptx" as const, profile: this.profile }),
           }),
@@ -237,8 +267,6 @@ export class PresentationPointer {
   private pending:
     | { point: PptxPoint; snap: boolean; shift: boolean; center: boolean }
     | undefined;
-  private tail: Promise<void> = Promise.resolve();
-  private queued = 0;
   private moving = false;
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -255,7 +283,7 @@ export class PresentationPointer {
         canvas.setPointerCapture(event.pointerId);
         const point = host.point(event),
           extend = event.shiftKey;
-        this.append(() => host.press(point, false, extend), true);
+        this.run(host.press(point, false, extend));
       },
       options,
     );
@@ -265,16 +293,16 @@ export class PresentationPointer {
         if (!host.available()) return;
         event.preventDefault();
         const point = host.point(event);
-        this.append(async () => {
-          await host.press(point, true, event.shiftKey);
-          await host.finish(
+        this.run(host.press(point, true, event.shiftKey));
+        this.run(
+          host.finish(
             point,
             false,
             true,
             event.shiftKey,
             centeredResize(event),
-          );
-        });
+          ),
+        );
       },
       options,
     );
@@ -311,7 +339,7 @@ export class PresentationPointer {
           const snap = !event.altKey;
           const shift = event.shiftKey;
           const center = centeredResize(event);
-          this.append(() =>
+          this.run(
             host.finish(point, type !== "pointerup", snap, shift, center),
           );
         },
@@ -321,18 +349,8 @@ export class PresentationPointer {
   get active(): boolean {
     return this.pointer !== undefined;
   }
-  private append(operation: () => Promise<void>, recover = false): void {
-    if (this.queued >= 64) {
-      this.host.fail(new Error("Pointer queue exceeds budget"));
-      return;
-    }
-    this.queued++;
-    this.tail = (recover ? this.tail.catch(() => {}) : this.tail)
-      .then(operation)
-      .finally(() => {
-        this.queued--;
-      });
-    void this.tail.catch((error) =>
+  private run(operation: Promise<void>): void {
+    void operation.catch((error) =>
       this.host.fail(error instanceof Error ? error : new Error(String(error))),
     );
   }
@@ -344,19 +362,14 @@ export class PresentationPointer {
       this.pending = undefined;
       if (!pending) return;
       this.moving = true;
-      this.append(async () => {
-        try {
-          await this.host.move(
-            pending.point,
-            pending.snap,
-            pending.shift,
-            pending.center,
-          );
-        } finally {
-          this.moving = false;
-          this.schedule();
-        }
-      });
+      this.run(
+        this.host
+          .move(pending.point, pending.snap, pending.shift, pending.center)
+          .finally(() => {
+            this.moving = false;
+            this.schedule();
+          }),
+      );
     });
   }
   reset(): void {

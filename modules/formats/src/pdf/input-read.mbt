@@ -48,12 +48,20 @@ fn get(
 
 ///|
 fn number(value : @syntax.PdfObject) -> Double raise @failure.Failure {
+  bounded_number(value, 1000000000)
+}
+
+///|
+fn bounded_number(
+  value : @syntax.PdfObject,
+  limit : Double,
+) -> Double raise @failure.Failure {
   let result = match value {
     PdfInteger(v) => v.to_double()
     PdfReal(v) | PdfExactReal(v) => v
     _ => @failure.reject("invalid-pdf", "PDF number is required")
   }
-  guard !result.is_nan() && !result.is_inf() && result.abs() <= 1000000000 else {
+  guard !result.is_nan() && !result.is_inf() && result.abs() <= limit else {
     @failure.reject("invalid-pdf", "PDF number exceeds coordinate budget")
   }
   result
@@ -76,11 +84,17 @@ fn is_name(value : @syntax.PdfObject, name : String) -> Bool {
 ///|
 fn rectangle(
   value : @syntax.PdfObject,
+  limit~ : Double = 1000000000,
 ) -> (Double, Double, Double, Double) raise @failure.Failure {
   guard value is PdfArray([a, b, c, d]) else {
     @failure.reject("invalid-pdf", "PDF rectangle is required")
   }
-  let (x, y, r, t) = (number(a), number(b), number(c), number(d))
+  let (x, y, r, t) = (
+    bounded_number(a, limit),
+    bounded_number(b, limit),
+    bounded_number(c, limit),
+    bounded_number(d, limit),
+  )
   guard r != x && t != y else {
     @failure.reject("invalid-pdf", "PDF rectangle is empty")
   }
@@ -89,24 +103,24 @@ fn rectangle(
 
 ///|
 fn validate_value(
-  numbers : Map[Int32, Int32],
+  has_number : (Int32) -> Bool,
   value : @syntax.PdfObject,
   depth : Int32,
 ) -> Unit raise {
   @pdfcore.sdk_depth(depth)
   match value {
     PdfIndirect(n) => {
-      guard numbers.contains(n) else {
+      guard has_number(n) else {
         @failure.reject("invalid-pdf", "Dangling PDF reference")
       }
     }
     PdfArray(items) =>
       for item in items {
-        validate_value(numbers, item, depth + 1)
+        validate_value(has_number, item, depth + 1)
       }
     PdfDictionary(entries) =>
       for (_, item) in entries {
-        validate_value(numbers, item, depth + 1)
+        validate_value(has_number, item, depth + 1)
       }
     PdfStreamObject(stream) => {
       guard raw(stream.dictionary, "F") == @syntax.PdfNull else {
@@ -114,7 +128,7 @@ fn validate_value(
           "unsupported-pdf", "External PDF streams are unsupported",
         )
       }
-      validate_value(numbers, stream.dictionary, depth + 1)
+      validate_value(has_number, stream.dictionary, depth + 1)
     }
     PdfReal(_) | PdfExactReal(_) => ignore(number(value))
     _ => ()
@@ -128,8 +142,29 @@ fn read_pages(
   budget : PdfBudget,
 ) -> Array[SourcePage] raise {
   let catalog = resolve(document, @syntax.PdfIndirect(document.root()))
+  read_page_tree(
+    catalog,
+    object => resolve(document, object),
+    id => generations.get(id).unwrap_or(0),
+    budget,
+  )
+}
+
+///|
+fn read_page_tree(
+  catalog : @syntax.PdfObject,
+  resolve_object : (@syntax.PdfObject) -> @syntax.PdfObject raise,
+  generation_of : (Int32) -> Int32,
+  budget : PdfBudget,
+) -> Array[SourcePage] raise {
   let pages : Array[SourcePage] = []
   let visited : Map[Int32, Bool] = Map([])
+  fn lookup(
+    object : @syntax.PdfObject,
+    key : String,
+  ) -> @syntax.PdfObject raise {
+    resolve_object(raw(object, key))
+  }
   fn walk(
     reference : @syntax.PdfObject,
     inherited : Map[String, @syntax.PdfObject],
@@ -140,26 +175,26 @@ fn read_pages(
       @failure.reject("invalid-pdf", "PDF page tree is cyclic or not indirect")
     }
     visited[id] = true
-    let object = resolve(document, reference)
+    let object = resolve_object(reference)
     guard object is PdfDictionary(_) else {
       @failure.reject("invalid-pdf", "Invalid PDF page dictionary")
     }
     let effective = inherited.copy()
     for key in ["Resources", "MediaBox", "CropBox", "Rotate"] {
-      let value = get(document, object, key)
+      let value = lookup(object, key)
       if value != @syntax.PdfNull {
         effective[key] = value
       }
     }
     if is_name(raw(object, "Type"), "Pages") {
-      guard get(document, object, "Kids") is PdfArray(kids) else {
+      guard lookup(object, "Kids") is PdfArray(kids) else {
         @failure.reject("invalid-pdf", "PDF page tree requires Kids")
       }
       let mut count = 0
       for child in kids {
         count += walk(child, effective, depth + 1)
       }
-      guard integer(get(document, object, "Count")) == count else {
+      guard integer(lookup(object, "Count")) == count else {
         @failure.reject(
           "invalid-pdf", "PDF page count does not match page tree",
         )
@@ -189,7 +224,7 @@ fn read_pages(
         )
       }
       let rotate = (angle % 360 + 360) % 360
-      let user_unit = get(document, object, "UserUnit")
+      let user_unit = lookup(object, "UserUnit")
       let unit = if user_unit == @syntax.PdfNull {
         1.0
       } else {
@@ -207,7 +242,7 @@ fn read_pages(
         _ => { a: 0, b: -unit, c: -unit, d: 0, e: t * unit, f: r * unit, }
       }
       ignore(matrix.inverse())
-      let generation = generations.get(id).unwrap_or(0)
+      let generation = generation_of(id)
       pages.push({
         number: id,
         generation,
@@ -248,21 +283,7 @@ pub fn PdfSession::open(
   budget : PdfBudget,
   password~ : String? = None,
 ) -> PdfSession raise @failure.Failure {
-  let defaults = PdfBudget::default().to_json()
-  guard budget.to_json() is Object(values) && defaults is Object(maxima) else {
-    @failure.reject("invalid-budget", "Invalid PDF budget")
-  }
-  for key, value in values {
-    guard value is Number(n, ..) &&
-      maxima.get(key) is Some(Number(maximum, ..)) &&
-      n > 0 &&
-      n <= maximum else {
-      @failure.reject(
-        "invalid-budget",
-        "PDF budget must be positive and bounded: " + key,
-      )
-    }
-  }
+  budget.validate(PdfBudget::default())
   guard bytes.length() <= budget.fileBytes else {
     @failure.reject("limit-exceeded", "PDF input exceeds budget")
   }
@@ -352,7 +373,7 @@ pub fn PdfSession::open(
       }
     }
     for (_, _, value) in document.parsed_object_entries() {
-      validate_value(generations, value, 0)
+      validate_value(number => generations.contains(number), value, 0)
     }
     let catalog = resolve(document, @syntax.PdfIndirect(document.root()))
     let catalog_version = get(document, catalog, "Version")
@@ -374,28 +395,51 @@ pub fn PdfSession::open(
       @failure.reject("unsupported-pdf", "Encrypted PDF is unsupported")
     }
     let pages = read_pages(document, generations, budget)
-    {
+    PdfSession::from_source(
       document,
-      original: bytes,
+      bytes,
       budget,
       generations,
       pages,
-      revision: 0,
-      layoutId: 0,
-      display: None,
-      views: Map([]),
-      encodedDisplay: None,
-      current: pages[0].id,
-      selection: (0, 0),
-      textRange: None,
-      nextObject: maximum + 1,
-      stateId: 0,
-      nextState: 1,
-      undo: [],
-      redo: [],
-      historyBytes: 0,
-      readOnlyReason: reason,
-      closed: false,
-    }
+      maximum + 1,
+      reason,
+    )
   })
+}
+
+///|
+fn PdfSession::from_source(
+  document : @pdflite.PdfDocument,
+  original : Bytes,
+  budget : PdfBudget,
+  generations : Map[Int32, Int32],
+  pages : Array[SourcePage],
+  next_object : Int32,
+  reason : String,
+  ranged~ : PdfRangeDocument? = None,
+) -> PdfSession {
+  {
+    document,
+    original,
+    ranged,
+    budget,
+    generations,
+    pages,
+    revision: 0,
+    layoutId: 0,
+    display: None,
+    views: Map([]),
+    encodedDisplay: None,
+    current: pages[0].id,
+    selection: (0, 0),
+    textRange: None,
+    nextObject: next_object,
+    stateId: 0,
+    nextState: 1,
+    undo: [],
+    redo: [],
+    historyBytes: 0,
+    readOnlyReason: reason,
+    closed: false,
+  }
 }

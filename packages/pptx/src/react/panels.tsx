@@ -40,7 +40,7 @@ const tabs = [
 ] as const satisfies readonly RibbonTab[];
 
 export function pptxTabs(props?: PanelProps): readonly RibbonTab[] {
-  const query = props?.file.editor.query;
+  const query = props?.file.editor.getSnapshot().data;
   const selected = query?.objects.find(
     (object) => object.id === query.selection.object,
   );
@@ -104,7 +104,7 @@ function taskAction(props: PanelProps, task: Task): RibbonAction {
 export function pptxContextActions(props: PanelProps): readonly RibbonAction[] {
   const find = taskAction(props, "find");
   if (props.state.mode === "view") return [find];
-  if (props.file.editor.query.selection.object)
+  if (props.file.editor.getSnapshot().data.selection.object)
     return [taskAction(props, "objects"), taskAction(props, "arrange"), find];
   return [taskAction(props, "layout"), find];
 }
@@ -113,7 +113,7 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
   const { controller, state, file, disabled, tab, workspace } = props;
   const t = messages(state.locale);
   const { editor } = file;
-  const query = editor.query;
+  const query = editor.getSnapshot().data;
   if (!workspace) return null;
   const show = (id: Task) => {
     const action = taskAction(props, id);
@@ -289,7 +289,7 @@ export function Properties(props: PanelProps) {
     return null;
   const t = messages(state.locale);
   const { editor } = file;
-  const query = editor.query;
+  const query = editor.getSnapshot().data;
   const snapshot = editor.getSnapshot();
   const readDisabled =
     state.loading ||

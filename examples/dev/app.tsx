@@ -67,26 +67,27 @@ export function App() {
       )
         throw new Error("请选择 DOCX、XLSX、CSV、TSV、PPTX 或 PDF");
       const inputLimit =
-        format === "pdf"
-          ? 67108864
-          : extension === "csv" || extension === "tsv"
-            ? 4194304
-            : 33554432;
-      if (file.size > inputLimit)
+        extension === "csv" || extension === "tsv" ? 4194304 : 33554432;
+      if (format !== "pptx" && format !== "pdf" && file.size > inputLimit)
         throw new Error("Document input exceeds budget");
-      const document = {
-        name: file.name,
-        bytes: new Uint8Array(await file.arrayBuffer()),
-      };
+      const source =
+        format === "pptx" || format === "pdf"
+          ? ({ format, document: file } as const)
+          : ({
+              format,
+              document: {
+                name: file.name,
+                bytes: new Uint8Array(await file.arrayBuffer()),
+              },
+            } as const);
       if (editor?.format === format) {
-        await editor.open(document);
+        await editor.open(source.document);
         return;
       }
       const resources = await previewResources(format);
       if (editor && !(await editor.close())) return;
       setOptions({
-        format,
-        document,
+        ...source,
         resources,
         locale: "zh-CN",
         onOpen: chooseFile,
@@ -151,7 +152,7 @@ export function App() {
             <button type="button" disabled={opening} onClick={chooseFile}>
               {opening ? "正在打开…" : "打开文件"}
             </button>
-            <ul aria-label="支持的格式">
+            <ul aria-label="支持的格式" translate="no" className="notranslate">
               {["DOCX", "XLSX", "CSV", "PPTX", "PDF"].map((format) => (
                 <li key={format}>{format}</li>
               ))}

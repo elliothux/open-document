@@ -355,7 +355,7 @@ fn source_edit_probe(
   source : @layout.TextProbe,
   selected : String?,
 ) -> @layout.TextProbe raise @failure.Failure {
-  let combined = @layout.TextProbe::new()
+  let combined = @layout.TextProbe::new(embedded_faces=true)
   errdefer combined.close()
   for probe in [supplied, source] {
     for index, info in probe.font_info() {

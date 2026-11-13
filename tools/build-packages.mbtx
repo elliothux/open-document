@@ -225,6 +225,7 @@ async fn main {
     ("layout/src", "ImageDimension", "imageDimension"),
     ("layout/src", "TabStopCount", "tabStopCount"),
     ("layout/src", "GradientStopCount", "gradientStopCount"),
+    ("layout/src", "DrawingLayerCount", "drawingLayerCount"),
     ("layout/src", "TileReplayWork", "tileReplayWork"),
     ("layout/src", "MathTextUnits", "mathTextUnits"),
     ("layout/src", "MathFontUnits", "mathFontUnits"),

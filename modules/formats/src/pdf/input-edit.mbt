@@ -165,9 +165,9 @@ fn PdfTransaction::commit(
       )
     }
     for change in changes {
-      validate_value(numbers, change.after, 0)
+      validate_value(number => numbers.contains(number), change.after, 0)
     }
-    validate_value(numbers, self.trailer, 0)
+    validate_value(number => numbers.contains(number), self.trailer, 0)
     let pages = read_pages(view, numbers, session.budget)
     guard pages.any(item => item.id == page) else {
       @failure.reject("invalid-page", "PDF transaction removed the active page")
@@ -342,6 +342,9 @@ pub fn PdfSession::save(
   revision : Int32,
 ) -> Bytes raise @failure.Failure {
   self.check(revision)
+  if self.ranged is Some(source) {
+    return source.reader.original_bytes()
+  }
   if self.stateId == 0 {
     return self.original
   }

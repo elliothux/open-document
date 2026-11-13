@@ -9,7 +9,8 @@ fn ContentContext::paint_path(
 ) -> Unit raise {
   let fill = !(op is (Op_S | Op_s))
   let stroke = !(op is (Op_f | Op_F | Op_fstar))
-  check_style(state.style, state.width)
+  let width = if stroke { state.width } else { 0.0 }
+  check_style(state.style, width, matrix=state.matrix)
   let even_odd = op is (Op_fstar | Op_Bstar | Op_bstar)
   // Fill/stroke are separate painting steps when either requires a pattern or soft mask.
   let paints = if fill &&
@@ -44,7 +45,7 @@ fn ContentContext::paint_path(
       path_in(path, state.matrix.inverse()),
       fill,
       stroke,
-      state.width,
+      width,
       style,
       8192 - self.preparedStrokePoints.val,
     )

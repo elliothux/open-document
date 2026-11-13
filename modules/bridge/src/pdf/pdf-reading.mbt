@@ -78,8 +78,14 @@ let reading_handlers : Map[
   (Context, @model.PdfSession, Json) -> String raise @failure.Failure,
 ] = {
   "queryPdf": (_context, session, _input) => session.query().stringify(),
-  "pdfNavigation": (_context, session, _input) => {
-    ToJson::to_json(session.navigation()).stringify()
+  "pdfNavigation": (_context, session, input) => {
+    let page = match input {
+      { "page": String(page), .. } => Some(page)
+      { "page": _, .. } =>
+        @failure.reject("invalid-operation", "Invalid PDF navigation page")
+      _ => None
+    }
+    ToJson::to_json(session.navigation(page~)).stringify()
   },
   "pdfMetadata": (_context, session, _input) => {
     ToJson::to_json(session.metadata()).stringify()

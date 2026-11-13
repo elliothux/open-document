@@ -19,6 +19,8 @@ export interface EditorFields<T> {
   dragging: boolean;
   draft: boolean;
   busy: number;
+  /** Pending operations that suspend editor controls. */
+  blocking: number;
   paused: boolean;
   stopped: boolean;
   closed: boolean;
@@ -64,6 +66,7 @@ export class EditorState<T> {
       dragging: false,
       draft: false,
       busy: 0,
+      blocking: fields.busy ?? 0,
       paused: false,
       stopped: false,
       closed: false,
@@ -90,6 +93,8 @@ export class EditorState<T> {
 
   update(fields: Partial<EditorFields<T>>): void {
     const next = { ...this.value, ...fields };
+    if (fields.busy !== undefined && fields.blocking === undefined)
+      next.blocking = fields.busy;
     next.modified = next.revision !== next.savedRevision;
     if (
       Object.keys(next).every((key) =>

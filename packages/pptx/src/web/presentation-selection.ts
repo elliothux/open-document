@@ -1,5 +1,20 @@
 import type { PptxHit, PptxQuery, PptxSelection } from "../core/pptx.js";
 
+export function samePresentationSelection(
+  before: PptxSelection,
+  after: PptxSelection,
+): boolean {
+  return (
+    before.slide === after.slide &&
+    before.mode === after.mode &&
+    before.object === after.object &&
+    before.anchor === after.anchor &&
+    before.focus === after.focus &&
+    before.objects.length === after.objects.length &&
+    before.objects.every((id, index) => id === after.objects[index])
+  );
+}
+
 export function exitTextSelection(state: PptxQuery): PptxSelection {
   const object = state.objects.find(
     (item) => item.id === state.selection.object,

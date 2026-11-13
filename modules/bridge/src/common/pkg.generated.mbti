@@ -11,7 +11,7 @@ import {
 // Values
 pub fn abi_version() -> Int32
 
-pub fn archive_budget() -> @json.Json
+pub fn archive_budget(budget? : @archive.Budget) -> @json.Json
 
 pub fn byte_input(String, Int32) -> Bytes raise @failure.Failure
 
@@ -88,6 +88,15 @@ pub fn OutputBytes::clear(Self) -> Unit
 pub fn OutputBytes::new() -> Self
 pub fn OutputBytes::take(Self, Int32) -> Bytes?
 pub fn OutputBytes::take_string(Self, Int32) -> String?
+
+pub struct RangeInput {
+  // private fields
+}
+pub fn RangeInput::clear(Self) -> Unit
+pub fn RangeInput::new() -> Self
+pub fn RangeInput::read(Self, Int32, Int32) -> BytesView raise @failure.Failure
+pub fn RangeInput::require_ranges(Self) -> Unit raise @failure.Failure
+pub fn RangeInput::supply(Self, String) -> Unit raise @failure.Failure
 
 pub struct RequestArchiveBudget {
   value : @archive.Budget

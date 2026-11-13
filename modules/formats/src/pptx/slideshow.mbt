@@ -234,6 +234,7 @@ pub fn Session::show_layout(
     let parts : Array[Array[(String, Array[@layout.DrawCommand])]] = []
     let keys : Array[String] = []
     let texts : Array[TextGeometry] = []
+    let current_diagnostics : Array[String] = []
     for
       role, i in [
         Some(show.index),
@@ -265,13 +266,7 @@ pub fn Session::show_layout(
         )
         if role == 0 {
           texts.append(geometry)
-        }
-        guard diagnostics.is_empty() else {
-          @failure.reject(
-            "unsupported-show",
-            diagnostics.join("; "),
-            part=slide.tree.part,
-          )
+          current_diagnostics.append(diagnostics)
         }
         pages.push(page)
         parts.push(
@@ -320,6 +315,7 @@ pub fn Session::show_layout(
       images: resources,
       texts,
       links: self.show_links(self.slides[show.index], self.relationships()),
+      diagnostics: current_diagnostics,
     }
     self.show_drawing = Some(drawing)
     drawing
@@ -379,6 +375,7 @@ pub fn Session::show_layout(
     "outlines": probe.outline_resources(),
     "images": drawing.images,
     "links": show_link_query(drawing, show),
+    "diagnostics": drawing.diagnostics,
     "media": media,
     "animating": !show.paused &&
     (

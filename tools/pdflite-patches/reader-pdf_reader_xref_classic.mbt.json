@@ -1,8 +1,22 @@
 {
   "file": "reader/pdf_reader_xref_classic.mbt",
   "originalSha256": "bd2146f8a7c4e2ce81b9206d4782cdbef6cb69212b923b788ddb32c00c3d5040",
-  "patchedSha256": "022bd4aefaad7ce6e147bb5c2fff711b0f05c826cf8c47fe9f6ff99cf65d0ddf",
+  "patchedSha256": "95befb4c7e8ee8221e564563709019cd0b9528a33194b87832209229db6d8284",
   "lineEdits": [
+    [
+      45,
+      5,
+      [
+        "    let offset = @core.pdf_parse_ascii_int_view(line[0:10])",
+        "    // Some writers mark empty slots in-use even though offset zero cannot be an object.",
+        "    let empty = in_use && offset == 0",
+        "    Some({",
+        "      object_number,",
+        "      offset,",
+        "      generation: if empty { 0 } else { @core.pdf_parse_ascii_int_view(line[11:16]) },",
+        "      in_use: in_use && !empty,"
+      ]
+    ],
     [
       108,
       0,

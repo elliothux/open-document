@@ -1,3 +1,4 @@
+import { DocumentError } from "@open-document/wasm/abi/session";
 import type { PdfLayout, PdfQuery } from "../core/pdf.js";
 import type { PdfClient } from "./pdf.js";
 import { PdfCanvas } from "./pdf-canvas.js";
@@ -33,8 +34,10 @@ export function readingPoint(
 export class PdfReading {
   private state: PdfQuery | undefined;
   private zoom = 1;
+  private dpr = 0;
   private readonly hosts = new Map<string, HTMLElement>();
   private readonly rendered = new Map<string, ReadingPage>();
+  private readonly limited = new Set<string>();
   private pending = false;
   private disposed = false;
   private readonly events = new AbortController();
@@ -44,7 +47,9 @@ export class PdfReading {
     private readonly viewport: HTMLElement,
     private readonly profile: Record<string, string>,
     private readonly mode: "continuous" | "double",
-    private readonly request: (action: () => Promise<void>) => Promise<void>,
+    private readonly request: (
+      action: (canSwitchPage: boolean) => Promise<ReadingPage | undefined>,
+    ) => Promise<void>,
   ) {
     viewport.addEventListener("scroll", () => this.schedule(), {
       signal: this.events.signal,
@@ -55,28 +60,79 @@ export class PdfReading {
     if (this.pending || this.disposed || !this.state) return;
     this.pending = true;
     requestAnimationFrame(() => {
-      void this.request(async () => {
+      const scrollPosition = () =>
+        `${this.viewport.scrollTop}:${this.viewport.scrollLeft}`;
+      let position = scrollPosition();
+      void this.request(async (canSwitchPage) => {
+        position = scrollPosition();
         if (this.state && !this.disposed)
-          await this.update(this.state, this.state.page, this.zoom, false);
+          return this.update(
+            this.state,
+            this.state.page,
+            this.zoom,
+            false,
+            canSwitchPage,
+          );
       })
         .finally(() => {
           this.pending = false;
+          if (position !== scrollPosition()) this.schedule();
         })
         .catch(() => {});
     });
   }
 
+  private async release(id: string, page: ReadingPage): Promise<void> {
+    page.surface.dispose();
+    page.host.replaceChildren();
+    this.rendered.delete(id);
+    await this.client.execute({
+      operation: "releasePdfView",
+      layoutId: page.layout.id,
+    });
+  }
+
   private async clear(): Promise<void> {
-    for (const page of this.rendered.values()) {
-      page.surface.dispose();
-      await this.client.execute({
-        operation: "releasePdfView",
-        layoutId: page.layout.id,
-      });
-    }
-    this.rendered.clear();
+    for (const [id, page] of this.rendered) await this.release(id, page);
     this.hosts.clear();
+    this.limited.clear();
     this.viewport.replaceChildren();
+  }
+
+  private visiblePages(pages: PdfQuery["pages"]): number[] {
+    const bounds = this.viewport.getBoundingClientRect();
+    const columns = this.mode === "double" ? 2 : 1;
+    const rect = (index: number) =>
+      this.hosts.get(pages[index]!.id)!.getBoundingClientRect();
+    let start = 0,
+      end = Math.ceil(pages.length / columns);
+    // Grid rows have increasing bottom edges, even when the two pages differ in height.
+    while (start < end) {
+      const middle = Math.floor((start + end) / 2),
+        index = middle * columns;
+      const bottom =
+        columns === 2 && index + 1 < pages.length
+          ? Math.max(rect(index).bottom, rect(index + 1).bottom)
+          : rect(index).bottom;
+      if (bottom <= bounds.top) start = middle + 1;
+      else end = middle;
+    }
+    const visible: number[] = [];
+    for (
+      let index = start * columns;
+      index < pages.length && visible.length < 6;
+      index++
+    ) {
+      const page = rect(index);
+      if (page.top >= bounds.bottom) break;
+      if (
+        page.bottom > bounds.top &&
+        page.right > bounds.left &&
+        page.left < bounds.right
+      )
+        visible.push(index);
+    }
+    return visible;
   }
 
   async update(
@@ -84,12 +140,19 @@ export class PdfReading {
     active: string,
     zoom: number,
     navigate = true,
+    canSwitchPage = false,
   ): Promise<ReadingPage> {
     if (this.disposed) throw new Error("PDF reading view is disposed");
-    if (this.state?.revision !== state.revision || this.zoom !== zoom) {
+    const dpr = window.devicePixelRatio;
+    if (
+      this.state?.revision !== state.revision ||
+      this.zoom !== zoom ||
+      this.dpr !== dpr
+    ) {
       await this.clear();
       this.state = state;
       this.zoom = zoom;
+      this.dpr = dpr;
       const content = document.createElement("div");
       Object.assign(content.style, {
         display: "grid",
@@ -115,59 +178,87 @@ export class PdfReading {
       }
       this.viewport.append(content);
     }
+    if (this.state?.page !== active) this.limited.clear();
     this.state = { ...state, page: active };
     if (navigate)
       this.hosts
         .get(active)
         ?.scrollIntoView({ block: "nearest", inline: "nearest" });
-    const bounds = this.viewport.getBoundingClientRect();
-    const visible = state.pages
-      .filter((page) => {
-        const rect = this.hosts.get(page.id)!.getBoundingClientRect();
-        return (
-          rect.bottom > bounds.top &&
-          rect.top < bounds.bottom &&
-          rect.right > bounds.left &&
-          rect.left < bounds.right
-        );
-      })
-      .slice(0, 6);
-    const keep = new Set([active, ...visible.map((page) => page.id)]);
+    const visible = this.visiblePages(state.pages);
+    const visibleIds = new Set(visible.map((index) => state.pages[index]!.id));
+    const keep = new Set([active, ...visibleIds]);
     const last = visible.at(-1);
-    const neighbor = last
-      ? state.pages[state.pages.findIndex((page) => page.id === last.id) + 1]
-      : undefined;
+    const neighbor = last === undefined ? undefined : state.pages[last + 1];
     if (neighbor && keep.size < 8) keep.add(neighbor.id);
-    for (const [id, page] of this.rendered) {
-      if (keep.has(id)) continue;
-      page.surface.dispose();
-      page.host.replaceChildren();
-      this.rendered.delete(id);
-      await this.client.execute({
-        operation: "releasePdfView",
-        layoutId: page.layout.id,
-      });
-    }
+    const offscreen = [...this.rendered].filter(([id]) => !keep.has(id));
+    const spare = Math.min(2, 8 - keep.size);
+    // Leave the engine's shared image budget available for incoming pages.
+    const cached = new Map(
+      spare > 0
+        ? offscreen
+            .filter(([, page]) => !page.layout.images.length)
+            .slice(-spare)
+        : [],
+    );
+    for (const [id, page] of offscreen)
+      if (!cached.has(id)) await this.release(id, page);
     for (const id of keep) {
       if (this.rendered.has(id)) continue;
-      const layout = await this.client.execute({
-        operation: "renderPdfPage",
-        revision: state.revision,
-        page: id,
-        profile: this.profile,
-        activate: false,
-      });
+      const promote =
+        canSwitchPage && visibleIds.has(id) && !visibleIds.has(active);
+      if (id !== active && this.limited.has(id) && !promote) continue;
+      const render = () =>
+        this.client.execute({
+          operation: "renderPdfPage",
+          revision: state.revision,
+          page: id,
+          profile: this.profile,
+          activate: false,
+          reuse: true,
+        });
+      let layout: PdfLayout;
+      try {
+        layout = await render();
+      } catch (error) {
+        if (
+          !(error instanceof DocumentError) ||
+          error.code !== "limit-exceeded" ||
+          !error.message.startsWith("Release PDF views")
+        )
+          throw error;
+        if (id !== active && !promote) {
+          this.limited.add(id);
+          continue;
+        }
+        const images = [...this.rendered].filter(
+          ([, page]) => page.layout.images.length,
+        );
+        if (!images.length) throw error;
+        for (const [previous, page] of images)
+          await this.release(previous, page);
+        layout = await render();
+        this.limited.clear();
+        active = id;
+        this.state = { ...state, page: id };
+      }
       const surface = new PdfCanvas();
       const host = this.hosts.get(id)!;
       try {
         await surface.prepare(this.client, layout);
         host.append(surface.canvas, surface.overlay);
         const scale = surface.draw(layout, 0, zoom);
-        const retained = [...this.rendered.values()].reduce(
+        let retained = [...this.rendered.values()].reduce(
           (bytes, item) =>
             bytes + item.surface.canvas.width * item.surface.canvas.height * 8,
           surface.canvas.width * surface.canvas.height * 8,
         );
+        for (const [cachedId, page] of cached) {
+          if (retained <= 67108864) break;
+          retained -=
+            page.surface.canvas.width * page.surface.canvas.height * 8;
+          cached.delete(cachedId);
+          await this.release(cachedId, page);
+        }
         if (retained > 67108864)
           throw new Error("PDF page canvases exceed the 64 MiB reading budget");
         this.rendered.set(id, { layout, surface, scale, host });

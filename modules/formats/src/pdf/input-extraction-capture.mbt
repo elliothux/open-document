@@ -20,7 +20,13 @@ fn ContentContext::extracted_glyph(
   }
   let invisible = text.rendering_mode == 3 ||
     text.font_size == 0 ||
-    state.style.fillAlpha == 0
+    (if text.rendering_mode == 1 {
+      state.style.strokeAlpha == 0
+    } else if text.rendering_mode == 2 {
+      state.style.fillAlpha == 0 && state.style.strokeAlpha == 0
+    } else {
+      state.style.fillAlpha == 0
+    })
   let clipped = self.extraction_clipped(quad)
   let (x, y) = transform.point(px, -py)
   let reason = if encoded is None {
@@ -29,6 +35,8 @@ fn ContentContext::extracted_glyph(
     "Vertical source text cannot be reconstructed"
   } else if invisible {
     "Invisible source text is not emitted as visible content"
+  } else if text_stroked(text.rendering_mode) {
+    "Stroked source text requires outline reconstruction"
   } else if font.substituted {
     "Source font was substituted"
   } else if font.index is None {

@@ -68,7 +68,7 @@ fn input_layer_budget(
   depth : Int32,
   normal~ : Bool = false,
 ) -> Unit raise {
-  guard depth <= 4 else {
+  guard depth <= @layout.DrawingLayerCount else {
     @failure.reject("limit-exceeded", "PDF drawing layers exceed budget")
   }
   for command in commands {
@@ -81,9 +81,9 @@ fn input_layer_budget(
       Layer(_, children) => input_layer_budget(children, depth + 1, normal~)
       Tile(_, _, _, _, _, _, _, children) =>
         input_layer_budget(children, depth + 1, normal~)
-      Mask(mask, children) => {
+      Mask(mask, children, ..) => {
         input_layer_budget(mask, depth + 2, normal~)
-        input_layer_budget(children, depth + 2, normal~)
+        input_layer_budget(children, depth + 1, normal~)
       }
       _ => ()
     }

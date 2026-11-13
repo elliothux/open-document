@@ -1,21 +1,42 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { RibbonMenu } from "@open-document/ui/ribbon";
 import type { PanelProps } from "./context.js";
 import { messages } from "@open-document/ui/messages";
 import { Icon } from "@open-document/ui/icons";
-import { PptxPreview } from "./pptx-preview.js";
+import { CachedThumbnail, useThumbnails } from "@open-document/ui/thumbnails";
 import { slideActions } from "./pptx-slide-actions.js";
+import { presentationThumbnailVersion } from "../web/presentation-semantics.js";
 
 export function PptxSlideList(props: PanelProps) {
   const { file, controller, state, disabled, workspace } = props;
   const { editor } = file;
   const t = messages(state.locale),
-    query = editor.query,
+    query = editor.getSnapshot().data,
     sections = query.sections.items,
     prefix = useId();
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const drag = useRef<{ slide: string; revision: number } | null>(null);
   const [drop, setDrop] = useState<string>();
+  const loadThumbnail = useCallback(
+    (slide: string, revision: number, signal: AbortSignal) =>
+      editor.preview({ slide, revision, signal }),
+    [editor],
+  );
+  const version = useCallback(
+    (slide: string) =>
+      presentationThumbnailVersion(editor, slide, query.revision),
+    [editor, query.revision],
+  );
+  const thumbnails = useThumbnails(
+    loadThumbnail,
+    query.slides.map(({ id }) => id),
+    query.slide,
+    query.revision,
+    {
+      paused: disabled || !!state.document?.busy || !!state.document?.stopped,
+      version,
+    },
+  );
   const canEdit = state.mode === "edit" && !state.document?.stopped;
   const canMove = canEdit && !disabled && !query.slideOrderReason;
   const active = sections.find((s) => s.slides.includes(query.slide))?.id;
@@ -41,9 +62,10 @@ export function PptxSlideList(props: PanelProps) {
       return next;
     });
   }, [query.slide, active]);
+  const indices = new Map(query.slides.map(({ id }, index) => [id, index]));
   const owned = new Set(sections.flatMap((s) => s.slides));
   const page = (id: string) => {
-    const index = query.slides.findIndex((s) => s.id === id),
+    const index = indices.get(id)!,
       slide = query.slides[index]!;
     const label = `${index + 1}. ${slide.title || t.slide}${slide.hidden ? ` (${t.hiddenSlide})` : ""}`;
     const actions = slideActions(props, index);
@@ -83,12 +105,16 @@ export function PptxSlideList(props: PanelProps) {
         <button
           type="button"
           className="od-slide-select"
-          disabled={disabled}
+          disabled={disabled || !!state.document?.stopped}
           draggable={canMove && query.slides.length > 1}
           aria-keyshortcuts={canMove ? "Alt+ArrowUp Alt+ArrowDown" : undefined}
           aria-current={query.slide === id ? "page" : undefined}
           onClick={() => controller.run(() => editor.showSlide(id))}
           onDragStart={(event) => {
+            if (!canMove || editor.getSnapshot().busy) {
+              event.preventDefault();
+              return;
+            }
             drag.current = { slide: id, revision: query.revision };
             event.dataTransfer.effectAllowed = "move";
             event.dataTransfer.setData(
@@ -109,22 +135,23 @@ export function PptxSlideList(props: PanelProps) {
               return;
             const target = index + (event.key === "ArrowUp" ? -1 : 1);
             if (target < 0 || target >= query.slides.length) return;
+            const { busy, blocking } = editor.getSnapshot();
+            if (blocking) return;
             event.preventDefault();
             controller.run(() =>
               editor.editSlides(
                 { action: "move", index: target },
                 id,
-                query.revision,
+                busy ? undefined : query.revision,
               ),
             );
           }}
         >
-          <PptxPreview
-            editor={editor}
-            slide={id}
-            revision={query.revision}
-            width={query.width}
-            height={query.height}
+          <CachedThumbnail
+            cache={thumbnails}
+            id={id}
+            className="od-slide-preview"
+            aspectRatio={query.width / query.height}
           />
           <span>{label}</span>
         </button>
@@ -211,7 +238,7 @@ export function PptxViewSelector({
   const id = useId();
   const t = messages(state.locale);
   const { editor } = file;
-  const { editView, slide } = editor.query;
+  const { editView, slide } = editor.getSnapshot().data;
   return (
     <>
       <label htmlFor={id}>{t.pptxEditView}</label>

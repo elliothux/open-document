@@ -4,7 +4,9 @@ import type {
   PptxLayout,
   PptxGuides,
   PptxGuide,
+  PptxQuery,
 } from "../core/pptx.js";
+import { DocumentError } from "@open-document/wasm/abi/session";
 import { CanvasSurface } from "@open-document/web-core/canvas-surface";
 import { documentFailure } from "@open-document/web-core/connection";
 import {
@@ -12,6 +14,7 @@ import {
   materializeImage,
 } from "@open-document/web-core/image";
 import type { PptxClient } from "./pptx.js";
+import { isLocalTextEdit } from "./presentation-semantics.js";
 
 export interface PreviewTarget {
   slide: string;
@@ -113,12 +116,24 @@ export class PresentationCanvas extends CanvasSurface {
   async prepareLayout(
     client: PptxClient,
     profile: Record<string, string>,
-    current: { revision: number; slide: string },
+    current: PptxQuery,
   ): Promise<PptxLayout> {
-    await this.prepare(client).catch((error: unknown) => {
-      throw documentFailure("image", error);
-    });
-    const layout = await client.execute({ operation: "layoutPptx", profile });
+    const request = () => client.execute({ operation: "layoutPptx", profile });
+    let layout: PptxLayout | undefined;
+    if (isLocalTextEdit(current)) {
+      try {
+        layout = await request();
+      } catch (error) {
+        if (!(error instanceof DocumentError) || error.code !== "missing-image")
+          throw error;
+      }
+    }
+    if (!layout) {
+      await this.prepare(client).catch((error: unknown) => {
+        throw documentFailure("image", error);
+      });
+      layout = await request();
+    }
     if (layout.revision !== current.revision || layout.slide !== current.slide)
       throw new Error("Slide changed while preparing layout");
     return layout;
@@ -151,8 +166,7 @@ export class PresentationCanvas extends CanvasSurface {
       });
       signal.throwIfAborted();
       const limit = Math.min(1_048_576, client.inputLimits().exportBytes);
-      const bytes = await surface.exportImage(drawing, 0, 0.25, limit, limit);
-      return new Blob([new Uint8Array(bytes)], { type: "image/png" });
+      return await surface.previewImage(drawing, 0, limit);
     } finally {
       surface.dispose();
     }

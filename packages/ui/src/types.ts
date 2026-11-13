@@ -80,7 +80,7 @@ export interface EditorEvents<Instance> {
 }
 /** Internal shell options; each domain owns its public options and budget. */
 export interface EditorOptions extends CommonOptions {
-  readonly document: OfficeDocument;
+  readonly document: OfficeDocument | File;
 }
 export type MountedSnapshot = EditorSnapshot & {
   readonly name: string;
@@ -93,7 +93,7 @@ export type MountedSnapshot = EditorSnapshot & {
 export interface MountedMethods {
   getSnapshot(): MountedSnapshot;
   subscribe(listener: () => void): () => void;
-  open(document: OfficeDocument): Promise<boolean>;
+  open(document: OfficeDocument | File): Promise<boolean>;
   save(): Promise<SavedDocument>;
   saveAs(name: string): Promise<SavedDocument>;
   print(): Promise<void>;
@@ -144,6 +144,7 @@ export interface OwnedFile<E extends EditorHost = EditorHost> {
   readonly editor: E;
   readonly surface: HTMLElement;
   readonly inputLimit: number;
+  readonly fileInputLimit?: number;
   readonly delimitedInputLimit?: number;
   readonly originalName: string;
   readonly imported: boolean;
@@ -216,6 +217,12 @@ export interface Product<E extends EditorHost> {
   }[];
   prepare(
     document: OfficeDocument,
+    parent: HTMLElement,
+    signal: AbortSignal,
+    locale: Locale,
+  ): Promise<OwnedFile<E>>;
+  prepareFile?(
+    file: File,
     parent: HTMLElement,
     signal: AbortSignal,
     locale: Locale,

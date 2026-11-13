@@ -1,0 +1,27 @@
+{
+  "file": "pdf_document_objects.mbt",
+  "originalSha256": "3ded9129331f58bc1644fed14be7417630b6a01539f1281ea57fce11710b4ce5",
+  "patchedSha256": "04f963449e76f167141d2c63b457b74a54705beab15ca8f68a7737196f849238",
+  "lineEdits": [
+    [
+      140,
+      1,
+      [
+        "  match self.object_map.get_entry(number) {",
+        "    Some(entry) => Some(entry)",
+        "    None => self.sdk_load_missing_object(number)",
+        "  }"
+      ]
+    ],
+    [
+      222,
+      1,
+      [
+        "  match self.get_entry(number) {",
+        "    Some({ data: ObjectParsed(value) | ObjectParsedAlreadyDecrypted(value), .. }) => value",
+        "    _ => PdfNull",
+        "  }"
+      ]
+    ]
+  ]
+}

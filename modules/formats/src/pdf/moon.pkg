@@ -12,6 +12,8 @@ import {
   "moonbitlang/pdflite/geometry",
   "moonbitlang/pdflite/reader" @pdfreader,
   "moonbitlang/pdflite/flate",
+  "moonbit-community/flate" @deflate,
+  "moonbit-community/flate/zlib",
   "moonbitlang/core/encoding/utf16",
   "moonbitlang/pdflite/subsetter",
   "shunge/image" @jpeg,

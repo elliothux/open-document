@@ -435,7 +435,7 @@ export class SpreadsheetEditor {
     this.styleInput();
     this.publish();
   }
-  private async commitDraft(): Promise<void> {
+  private async commitDraft(paint = true): Promise<void> {
     const draft = this.draft;
     if (!draft) return;
     requireCellCompositionEnd(this.composing);
@@ -455,7 +455,7 @@ export class SpreadsheetEditor {
       this.formula.show(false);
       this.input.value = "";
       this.generation++;
-      await this.present(true);
+      if (paint) await this.present(true);
     } finally {
       this.committing = false;
       this.input.readOnly = this.client.readOnly || this.paused;
@@ -656,14 +656,17 @@ export class SpreadsheetEditor {
     extend = false,
   ): Promise<void> {
     return this.enqueue(async () => {
-      await this.commitDraft();
-      this.state = await this.client.execute({
-        operation: "navigateXlsx",
-        revision: this.state.revision,
-        direction: direction,
-        extend: extend,
-      });
-      await this.present(true);
+      await this.commitDraft(false);
+      try {
+        this.state = await this.client.execute({
+          operation: "navigateXlsx",
+          revision: this.state.revision,
+          direction,
+          extend,
+        });
+      } finally {
+        await this.present(true);
+      }
       this.input.focus({ preventScroll: true });
     });
   }
@@ -754,14 +757,9 @@ export class SpreadsheetEditor {
     options: PrintOptions | null = null,
     outputBytes = this.inputLimits.exportBytes,
   ): Promise<EditorOutput> {
-    return this.output("pdf", async () => {
-      const layout = await this.printView.prepare(this.state, options);
-      return this.client.execute({
-        operation: "exportXlsxPdf",
-        layoutId: layout.id,
-        outputBytes: outputBytes,
-      });
-    });
+    return this.output("pdf", () =>
+      this.printView.exportPdf(this.state, options, outputBytes),
+    );
   }
   clear(mode: XlsxClearMode = "contents"): Promise<void> {
     return this.change(() =>

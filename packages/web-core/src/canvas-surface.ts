@@ -2,8 +2,16 @@ import { CanvasRenderer } from "./drawing.js";
 import { documentFailure } from "./connection.js";
 import type {
   DrawingBatch,
+  DrawingRegion,
   DrawCommand,
 } from "@open-document/wasm/abi/drawing";
+
+interface PaintedRegion {
+  region: DrawingRegion;
+  outlines: DrawingBatch["outlines"];
+  images: Map<string, ImageBitmap>;
+  scale: number;
+}
 
 /** Canvas size, DPR, overlays and renderer resources shared by format hosts. */
 export class CanvasSurface {
@@ -15,9 +23,11 @@ export class CanvasSurface {
   protected readonly imageColors = new Map<string, ImageBitmap>();
   protected readonly imageKeys = new Map<string, string>();
   private key: string | undefined;
+  private painted: PaintedRegion | undefined;
+  private rasterDpr: number | undefined;
   private closed = false;
 
-  constructor() {
+  constructor(private readonly patchText = false) {
     this.renderer = new CanvasRenderer(
       undefined,
       this.imagePixels,
@@ -92,13 +102,25 @@ export class CanvasSurface {
     const cssScale = (zoom * 96) / 72;
     const dpr = window.devicePixelRatio;
     if (!Number.isFinite(dpr) || dpr <= 0) throw new Error("Invalid DPR");
-    const scale = cssScale * dpr;
-    const width = Math.ceil(page.width * scale);
-    const height = Math.ceil(page.height * scale);
-    if (width * height * (this.overlayCanvas ? 2 : 1) > 16777216)
+    let scale = cssScale * dpr;
+    let width = Math.ceil(page.width * scale);
+    let height = Math.ceil(page.height * scale);
+    const pixelLimit = this.overlayCanvas ? 8388608 : 16777216;
+    if (width * height > pixelLimit) {
+      // Preserve CSS geometry and lower raster density to fit both canvases.
+      const fit = Math.sqrt(pixelLimit / width / height);
+      width = Math.max(1, Math.floor(width * fit));
+      height = Math.max(1, Math.floor(height * fit));
+      scale = Math.min(scale, width / page.width, height / page.height);
+    }
+    if (!(width * height > 0 && width * height <= pixelLimit))
       throw new Error("Preview canvas exceeds budget");
     const key = `${layout.id}:${index}:${zoom}:${dpr}:${page.glyphRaster ?? "integer"}`;
     if (this.key === key && !liveImages?.size) return cssScale;
+    const previous = this.painted;
+    this.painted = undefined;
+    const sameRaster =
+      this.canvas.width === width && this.canvas.height === height;
     const canvases = this.overlayCanvas
       ? [this.canvas, this.overlayCanvas]
       : [this.canvas];
@@ -109,25 +131,56 @@ export class CanvasSurface {
       canvas.style.height = `${page.height * cssScale}px`;
     }
     this.key = undefined;
+    this.rasterDpr = scale / cssScale;
     try {
       const context = this.canvas.getContext("2d");
       if (!context) throw new Error("Canvas is unavailable");
-      context.resetTransform();
-      context.clearRect(0, 0, width, height);
-      context.setTransform(scale, 0, 0, scale, 0, 0);
-      this.renderer.drawRegion(
-        context,
-        layout,
-        index,
-        this.images,
-        liveImages,
-        true,
-      );
+      const damage =
+        previous && sameRaster && !liveImages?.size && previous.scale === scale
+          ? this.renderer.textDamage(
+              previous.region,
+              page,
+              previous.outlines,
+              layout.outlines,
+              scale,
+              (key) => previous.images.get(key) === this.images.get(key),
+            )
+          : undefined;
+      if (!damage || (damage.width > 0 && damage.height > 0)) {
+        context.save();
+        try {
+          context.resetTransform();
+          if (damage) {
+            const clip = new Path2D();
+            clip.rect(damage.x, damage.y, damage.width, damage.height);
+            context.clip(clip);
+            context.clearRect(damage.x, damage.y, damage.width, damage.height);
+          } else context.clearRect(0, 0, width, height);
+          context.setTransform(scale, 0, 0, scale, 0, 0);
+          this.renderer.drawRegion(
+            context,
+            layout,
+            index,
+            this.images,
+            liveImages,
+            true,
+          );
+        } finally {
+          context.restore();
+        }
+      }
       if (this.overlayCanvas) this.clearOverlay(cssScale);
     } catch (error) {
       throw documentFailure("draw", error);
     }
     this.key = liveImages?.size ? undefined : key;
+    if (this.patchText && !liveImages?.size)
+      this.painted = {
+        region: page,
+        outlines: layout.outlines,
+        images: new Map(this.images),
+        scale,
+      };
     return cssScale;
   }
 
@@ -137,7 +190,7 @@ export class CanvasSurface {
     if (!context) throw new Error("Canvas is unavailable");
     context.resetTransform();
     context.clearRect(0, 0, this.overlay.width, this.overlay.height);
-    const scale = cssScale * window.devicePixelRatio;
+    const scale = cssScale * (this.rasterDpr ?? window.devicePixelRatio);
     context.setTransform(scale, 0, 0, scale, 0, 0);
     return context;
   }
@@ -172,6 +225,37 @@ export class CanvasSurface {
       outputBytes > maxOutputBytes
     )
       throw new Error("Invalid image output budget");
+    const blob = await this.encodeImage(
+      layout,
+      index,
+      scale,
+      outputBytes,
+      format,
+    );
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    if (this.closed) throw new Error("Canvas surface is disposed");
+    return bytes;
+  }
+
+  previewImage(
+    layout: DrawingBatch,
+    index: number,
+    outputBytes = 1_048_576,
+  ): Promise<Blob> {
+    const page = layout.regions[index];
+    if (!page) throw new Error("Unknown page");
+    const scale = Math.min(1 / 3, 256 / Math.max(page.width, page.height));
+    return this.encodeImage(layout, index, scale, outputBytes, "png");
+  }
+
+  private async encodeImage(
+    layout: DrawingBatch,
+    index: number,
+    scale: number,
+    outputBytes: number,
+    format: "png" | "jpeg",
+  ): Promise<Blob> {
+    if (this.closed) throw new Error("Canvas surface is disposed");
     const page = layout.regions[index];
     if (!page) throw new Error("Unknown page");
     const width = Math.ceil(page.width * scale),
@@ -214,9 +298,7 @@ export class CanvasSurface {
       if (this.closed) throw new Error("Canvas surface is disposed");
       if (blob.size > outputBytes)
         throw new Error("Image output exceeds byte budget");
-      const bytes = new Uint8Array(await blob.arrayBuffer());
-      if (this.closed) throw new Error("Canvas surface is disposed");
-      return bytes;
+      return blob;
     } finally {
       canvas.width = canvas.height = 0;
     }
@@ -225,6 +307,7 @@ export class CanvasSurface {
   dispose(): void {
     if (this.closed) return;
     this.closed = true;
+    this.painted = undefined;
     this.key = undefined;
     this.canvas.width = this.canvas.height = 0;
     if (this.overlayCanvas)

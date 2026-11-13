@@ -18,6 +18,8 @@
 
 ### 放映与演讲者视图
 
+按区间打开的文稿在放映时继续读取设置、备注和画面所需字节。放映画面沿用编辑器的对象占位框。`PptxShowLayout.diagnostics` 返回当前页的绘制提示。资源读取或预算失败仍会返回错误。
+
 `PresentationEditor.slideshow.start("settings" | "first" | "current" | { show: id }, labels?)` 按已保存设置、从头、当前页或指定自定义放映开始。省略参数时使用 settings。默认页列表提供这些入口。`labels` 使用 `PresentationShowLabels`，从 `web/presentation-editor` 导出，默认 UI 随语言提供名称。`navigate(action, slide?)` 接受 `next/previous/first/last/goto/gotoPosition/click/tick/pause/resume/end`，`end()` 退出。goto 使用页身份并定位当前序列的首次出现；gotoPosition 使用从 0 开始的条目序号字符串，可以区分重复页。click 遵守单击换页设置，next 保持显式导航；tick 根据时间推进自动换页。`active` 包含开始中的状态，`state` 返回当前快照，未放映时为 undefined；`paused` 表示切换及自动换页计时暂停。Wasm/Web PPTX 模块导出 `PptxQuery/PptxShowAction/PptxShowState/PptxShowLayout`。
 
 核心保留编辑页及文字/对象选择，以已提交 revision 管理独立播放位置。普通及自定义导航均跳过隐藏页；当前页开始与显式跳页可到达隐藏页。普通 goto 在自定义放映中限于该序列；源链接的跨序列规则归[放映链接](#放映链接)。没有可见页时开始拒绝。切换尚未结束时，next 先完成当前切换；再次前进才换页或退出末页。后退直接显示目标条目，条目改变后重置入场、动画与计时，包括连续重复同一页。首屏从黑底进入。`index/count` 表示源页序和源页总数，包含隐藏页；`order` 为播放条目的页身份数组，`position` 为当前条目序号，`custom` 为自定义放映 ID 或 null。条目与计数保留隐藏页，默认导航跳过它们。`nextSlide` 是序列中的下一可见页或 null。结束状态的 order 为空、position 为 −1、custom 为 null。候选须先完成或取消；放映期间核心拒绝文档、选择和历史修改。保存及静态输出读取已提交的编辑布局，不改变播放位置或源内容。

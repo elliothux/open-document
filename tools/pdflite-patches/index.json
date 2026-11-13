@@ -37,6 +37,8 @@
     "pdf_fun_eval.mbt.json",
     "glyph-symbols.mbt.json",
     "pdf_writer_real.mbt.json",
-    "pdf_content_parse_entry.mbt.json"
+    "pdf_content_parse_entry.mbt.json",
+    "pdf_document_objects.mbt.json",
+    "sdk-range.mbt.json"
   ]
 }

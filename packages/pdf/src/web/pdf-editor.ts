@@ -19,6 +19,7 @@ import { PdfView } from "./pdf-view.js";
 import type { PdfViewer } from "./pdf-viewer.js";
 import type { PdfClient } from "./pdf.js";
 import type { EditorOutput } from "@open-document/web-core/editor-state";
+import { ThumbnailRevisions } from "@open-document/web-core/thumbnail-revisions";
 import { pdfThumbnail } from "./pdf-thumbnail.js";
 import { PdfPropertyInputs } from "./pdf-property-input.js";
 import { PdfObjectDrag } from "./pdf-object-drag.js";
@@ -108,19 +109,23 @@ export class PdfEditor {
   }
 
   private thumbnails: Promise<unknown> = Promise.resolve();
-  async thumbnail(page: string): Promise<Blob> {
-    const task = this.thumbnails.then(async () => {
-      await new Promise<void>((resolve) =>
-        requestAnimationFrame(() => resolve()),
-      );
+  private readonly thumbnailRevisions = new ThumbnailRevisions();
+  readonly thumbnailVersion = (page: string): number =>
+    this.thumbnailRevisions.version(page, this.view.state.revision);
+  async thumbnail(
+    page: string,
+    revision?: number,
+    signal?: AbortSignal,
+  ): Promise<Blob> {
+    const task = this.thumbnails.then(() => {
       return this.view.enqueue(
-        () =>
-          pdfThumbnail(
-            this.client,
-            this.view.state.revision,
-            page,
-            this.profile,
-          ),
+        () => {
+          signal?.throwIfAborted();
+          const current = this.view.state.revision;
+          if (revision !== undefined && current !== revision)
+            throw new Error("PDF thumbnail is stale");
+          return pdfThumbnail(this.client, current, page, this.profile, signal);
+        },
         false,
         true,
       );
@@ -658,7 +663,21 @@ export class PdfEditor {
         !["undoPdf", "redoPdf"].includes(request.operation)
       )
         throw new Error("Refresh or undo before further PDF edits");
+      const before = this.view.state;
       const state = await this.client.execute(request);
+      if (request.operation === "setPdfFieldValue") {
+        const field = state.fields.find(({ id }) => id === request.field);
+        if (field)
+          this.thumbnailRevisions.update(
+            before.revision,
+            state.revision,
+            field.widgets.map(({ page }) => page),
+          );
+      } else if (request.operation === "replacePdfText") {
+        this.thumbnailRevisions.update(before.revision, state.revision, [
+          request.page,
+        ]);
+      }
       this.view.state = state;
       this.view.retainSearch();
       this.draft = undefined;

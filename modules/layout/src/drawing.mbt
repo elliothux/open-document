@@ -58,7 +58,14 @@ pub(all) enum DrawBlend {
   Normal
   Multiply
   Difference
+  Overlay
+  Darken
+  SoftLight
+  Color
 }
+
+///|
+pub const DrawingLayerCount : Int32 = 8
 
 ///|
 pub extend DrawBlend with Eq::{equal, not_equal}
@@ -70,6 +77,10 @@ pub impl ToJson for DrawBlend with fn to_json(self) {
       Normal => "normal"
       Multiply => "multiply"
       Difference => "difference"
+      Overlay => "overlay"
+      Darken => "darken"
+      SoftLight => "soft-light"
+      Color => "color"
     },
   )
 }
@@ -142,7 +153,7 @@ pub const TileReplayWork : Int32 = 1048576
 pub(all) enum DrawCommand {
   FillRect(Fill, screen_fractional~ : Bool)
   GradientRect(Border, Array[GradientStop])
-  RadialGradientRect(Border, Array[GradientStop])
+  RadialGradientRect(Border, Array[GradientStop], circles~ : Array[Double]?)
   PatternRect(Border, Double, Bytes, String, String, screen_device~ : Bool)
   StrokeRect(Border, String, Double, screen_fractional~ : Bool)
   Glyphs(Double, Double, String, Array[DrawGlyph])
@@ -175,7 +186,7 @@ pub(all) enum DrawCommand {
   GradientClipPath(Array[PathSegment], Bool, GradientClip)
   Restore
   Layer(Double, Array[DrawCommand])
-  Mask(Array[DrawCommand], Array[DrawCommand])
+  Mask(Array[DrawCommand], Array[DrawCommand], luminosity~ : Bool)
   Tile(Double, Double, Int32, Int32, Matrix, Double, Double, Array[DrawCommand])
   CachedDrawing(String, Json)
 }
@@ -195,21 +206,21 @@ pub impl ToJson for DrawCommand with fn to_json(self) {
         "rect": rect,
         "stops": drawing_gradient_stops(stops),
       }
-    RadialGradientRect(rect, stops) => {
+    RadialGradientRect(rect, stops, circles~) => {
       let x = rect.x + rect.width / 2
       let y = rect.y + rect.height / 2
       {
         "op": "radialGradientRect",
         "rect": rect,
         "stops": drawing_gradient_stops(stops),
-        "circles": [
+        "circles": circles.unwrap_or([
           x,
           y,
           RADIAL_GRADIENT_INNER_RADIUS,
           x,
           y,
           rect.width.max(rect.height) / 2,
-        ],
+        ]),
       }
     }
     PatternRect(rect, period, mask, zero, one, screen_device~) =>
@@ -277,7 +288,12 @@ pub impl ToJson for DrawCommand with fn to_json(self) {
     Restore => { "op": "restore" }
     Layer(opacity, commands) =>
       { "op": "layer", "opacity": opacity, "commands": commands }
-    Mask(mask, commands) => { "op": "mask", "mask": mask, "commands": commands }
+    Mask(mask, commands, luminosity~) =>
+      if luminosity {
+        { "op": "mask", "mask": mask, "commands": commands, "luminosity": true }
+      } else {
+        { "op": "mask", "mask": mask, "commands": commands }
+      }
     Tile(width, height, columns, rows, matrix, x, y, commands) => {
       let tile : Json = {
         "op": "tile",

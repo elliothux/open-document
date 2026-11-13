@@ -465,12 +465,43 @@ pub fn Session::save(
   self : Session,
   revision : Int32,
 ) -> Bytes raise @failure.Failure {
+  let bytes = self.start_save(revision).archive.finish()
+  let checked = @opc.Package::open(bytes, self.budget)
+  checked.close()
+  bytes
+}
+
+///|
+pub struct PresentationWriter {
+  priv session : Session
+  priv revision : Int32
+  priv archive : @archive.Writer
+}
+
+///|
+pub fn Session::start_save(
+  self : Session,
+  revision : Int32,
+) -> PresentationWriter raise @failure.Failure {
   self.check_revision(revision)
   self.check_candidate_idle()
   let replacements = self.replacements(self.main, self.slides, self.parts)
-  let bytes = self.opc.save(replacements, removed=self.removed)
-  let checked = @opc.Package::open(bytes, self.budget)
-  checked.close()
+  {
+    session: self,
+    revision,
+    archive: self.opc.start_save(replacements, removed=self.removed),
+  }
+}
+
+///|
+pub fn PresentationWriter::finish(
+  self : PresentationWriter,
+  checkpoint : () -> Unit,
+) -> Bytes raise @failure.Failure {
+  self.session.check_revision(self.revision)
+  self.session.check_candidate_idle()
+  let bytes = self.archive.finish(checkpoint~)
+  self.session.opc.verify_output(bytes, Map([]))
   bytes
 }
 

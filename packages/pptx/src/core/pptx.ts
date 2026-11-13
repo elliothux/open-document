@@ -351,6 +351,35 @@ export class PptxSession extends OfficeSession<PptxInputLimits> {
     super(exports, handle, "pptx");
   }
 
+  /** @internal Used by the file-owning Worker. */
+  fileBudget(): ReturnType<OfficeSession["defaultBudget"]> {
+    return this.call({ operation: "fileBudgetPptx" });
+  }
+
+  /** @internal Used by the file-owning Worker. */
+  startReader(
+    size: number,
+    budget: ReturnType<OfficeSession["defaultBudget"]>,
+    dateTime?: string,
+  ): void {
+    this.call({ operation: "startPptxReader", size, budget, dateTime });
+  }
+
+  /** @internal Used by the file-owning Worker. */
+  openReader(): PptxQuery {
+    return this.call({ operation: "openPptxReader" });
+  }
+
+  /** @internal Used by the file-owning Worker. */
+  cancelRange(): void {
+    this.call({ operation: "cancelPptxRange" });
+  }
+
+  /** @internal Used by the file-owning Worker. */
+  supplyRange(bytes: Uint8Array): void {
+    this.call({ operation: "supplyPptxRange", bytes });
+  }
+
   execute<C extends PptxCommand>(command: C): PptxResult<C> {
     checkPptxInput(command, this.inputLimits());
     let value: unknown;

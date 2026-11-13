@@ -73,16 +73,9 @@ fn shape_image_source(
           "unsupported-style", "Unknown image fill crop is protected",
         )
       }
-      ["l", "t", "r", "b"].map(key => {
-        number(rect.node.attribute(key).unwrap_or("0"), 0, 99999) / 100000
-      })
+      read_image_crop(rect)
     } else {
       [0.0, 0.0, 0.0, 0.0]
-    }
-    guard crop[0] + crop[2] < 1 && crop[1] + crop[3] < 1 else {
-      @failure.reject(
-        "unsupported-style", "Image fill crop must retain positive area",
-      )
     }
     (embed, crop, image_opacity(blip, duotone~), tile, insets)
   } catch {

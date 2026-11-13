@@ -155,8 +155,20 @@ fn PdfSession::navigation_target(
 ///|
 pub fn PdfSession::navigation(
   self : PdfSession,
+  page~ : String? = None,
 ) -> PdfNavigation raise @failure.Failure {
   self.check(self.revision)
+  let pages = if page is Some(id) { [self.page(id)] } else { self.pages }
+  self.read_source("navigation:" + page.unwrap_or(""), () => {
+    self.read_navigation(pages)
+  })
+}
+
+///|
+fn PdfSession::read_navigation(
+  self : PdfSession,
+  pages : Array[SourcePage],
+) -> PdfNavigation raise @failure.Failure {
   pdf_bound(self.budget, () => {
     let outlines : Array[PdfOutlineEntry] = []
     let links : Array[PdfNavigationLink] = []
@@ -191,7 +203,7 @@ pub fn PdfSession::navigation(
       @syntax.PdfIndirect(self.document.root()),
     )
     walk(raw(get(self.document, catalog, "Outlines"), "First"), 0)
-    for page in self.pages {
+    for page in pages {
       for
         index, reference in annotation_refs(
           self.document,

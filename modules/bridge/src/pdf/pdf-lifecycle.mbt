@@ -64,6 +64,7 @@ fn Context::replace_pdf(
   if self.pdf is Some(previous) {
     previous.close()
   }
+  self.clear_pdf_ranges()
   self.images.clear()
   self.pdf = Some(candidate)
   result.stringify()
@@ -89,6 +90,13 @@ let lifecycle_handlers : Map[
   "defaultPdfBudget": (_context, _input) => {
     @model.PdfBudget::default().to_json().stringify()
   },
+  "pdfFileBudget": (_context, _input) => {
+    @model.PdfBudget::range_default().to_json().stringify()
+  },
+  "startPdfReader": (context, input) => context.start_pdf_reader(input),
+  "openPdfReader": (context, _input) => context.open_pdf_reader(),
+  "supplyPdfRange": (context, input) => context.supply_pdf_range(input),
+  "cancelPdfRange": (context, _input) => context.cancel_pdf_range(),
   "defaultPdfOfficeBudget": (_context, _input) => {
     @common.archive_budget().stringify()
   },

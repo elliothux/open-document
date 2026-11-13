@@ -10,7 +10,7 @@ fn pptx_open_request(
   context : Context,
   input : Json,
 ) -> OpenRequest raise @failure.Failure {
-  guard context.pptx is None else {
+  guard context.pptx is None && context.ranged is None else {
     @failure.reject("invalid-operation", "A document session is already open")
   }
   guard input is { "budget": _, .. } else {
@@ -50,6 +50,36 @@ let lifecycle_handlers : Map[
     ToJson::to_json(limits)
   },
   "budget": (_context, _input) => archive_budget(),
+  "fileBudgetPptx": (_context, _input) => {
+    archive_budget(budget={
+      ..@archive.Budget::default(),
+      file_bytes: 256 * 1024 * 1024,
+      entry_bytes: 64 * 1024 * 1024,
+      total_bytes: 512 * 1024 * 1024,
+      output_bytes: 256 * 1024 * 1024,
+    })
+  },
+  "startPptxReader": (context, input) => context.start_reader(input),
+  "openPptxReader": (context, _input) => context.open_reader(),
+  "cancelPptxRange": (context, _input) => {
+    if context.ranged is Some(ranged) {
+      if context.pptx is None {
+        ranged.close()
+        context.ranged = None
+      } else {
+        ranged.cancel()
+      }
+    }
+    Json::null()
+  },
+  "supplyPptxRange": (context, input) => {
+    guard context.ranged is Some(ranged) else {
+      @failure.reject("invalid-operation", "PPTX source reader is unavailable")
+    }
+    let command : @common.BytesRequest = @common.request(input)
+    ranged.ranges.supply(command.bytes)
+    Json::null()
+  },
   "rasterHeaderPptx": (_context, input) => {
     @common.office_upload_header(
       input,

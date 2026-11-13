@@ -30,10 +30,11 @@ fn show_text(
     }
   }
   let text_state = state.text.content_apply_text_state_op(op)
-  guard text_state.font_size.abs() <= 14400 &&
-    [0, 3].contains(text_state.rendering_mode) else {
+  let mode = text_state.rendering_mode
+  let stroked = text_stroked(mode)
+  guard text_state.font_size.abs() <= 14400 && mode >= 0 && mode <= 3 else {
     @failure.reject(
-      "unsupported-pdf", "PDF text stroke, clipping, or size is unsupported",
+      "unsupported-pdf", "PDF text clipping, rendering mode, or size is unsupported",
     )
   }
   let result = state.text.content_apply_text_op(
@@ -45,7 +46,8 @@ fn show_text(
   if !context.visible() {
     return { ..state, text: result.text_state, }
   }
-  guard text_state.rendering_mode == 3 ||
+  guard mode == 1 ||
+    mode == 3 ||
     !(state.fillSpace is PatternColor(_)) ||
     font.font is PdfFontSimple({ fonttype: PdfType3(_), .. }) else {
     @failure.reject("unsupported-pdf", "Pattern text requires glyph clipping")
@@ -81,16 +83,16 @@ fn show_text(
     if !actual {
       context.append(value)
     }
-    let transform = state.matrix
-      .then(matrix(glyph.text_matrix))
-      .then({
-        a: text_state.font_size * text_state.horizontal_scaling,
-        b: 0,
-        c: 0,
-        d: text_state.font_size,
-        e: 0,
-        f: text_state.rise,
-      })
+    let text_matrix = matrix(glyph.text_matrix)
+    let font_matrix : @layout.Matrix = {
+      a: text_state.font_size * text_state.horizontal_scaling,
+      b: 0,
+      c: 0,
+      d: text_state.font_size,
+      e: 0,
+      f: text_state.rise,
+    }
+    let transform = state.matrix.then(text_matrix).then(font_matrix)
     context.spans.push({
       start,
       end: context.units,
@@ -143,9 +145,18 @@ fn show_text(
       draw_font_outline(
         context,
         "pdf-native:\{font.font.embedded_fontfile_number().unwrap()}:\{glyph.charcode}:\{font.font.sdk_glyph_name(glyph.charcode)}",
-        cff.outline(glyph.charcode, font.font.sdk_glyph_name(glyph.charcode)),
+        cff.outline(
+          glyph.charcode,
+          font.font.sdk_glyph_name(glyph.charcode),
+          glyph?=if font.cffByGid {
+            Some(font.cid_gid(glyph.charcode))
+          } else {
+            None
+          },
+        ),
         glyph.width,
         transform,
+        text_matrix.then(font_matrix),
         state,
         value,
       )
@@ -156,21 +167,13 @@ fn show_text(
         type1.outline(font.font.sdk_glyph_name(glyph.charcode)),
         glyph.width,
         transform,
+        text_matrix.then(font_matrix),
         state,
         value,
       )
     } else if font.index is Some(font_index) {
       let id = if font.cid && !font.substituted {
-        match font.gidMap {
-          None => glyph.charcode
-          Some(bytes) =>
-            if glyph.charcode >= 0 && glyph.charcode < bytes.length() / 2 {
-              bytes[glyph.charcode * 2].to_int() * 256 +
-              bytes[glyph.charcode * 2 + 1].to_int()
-            } else {
-              0
-            }
-        }
+        font.cid_gid(glyph.charcode)
       } else {
         -1
       }
@@ -252,7 +255,21 @@ fn show_text(
         ..context.spans[span_index],
         cropVisible: visible,
       }
-      check_style(state.style, state.width)
+      if stroked {
+        let path = context.strokeGlyphs.get_or_init((font_index, outline.2), () => {
+          let path = context.probe.source_glyph_path(font_index, outline.2)
+          @pdfcore.sdk_check(path.length())
+          @pdfcore.sdk_decoded(path.length() * 56)
+          path
+        })
+        let scale = 1.0 / outline.1.to_double()
+        let placement = text_matrix
+          .then(font_matrix)
+          .then({ a: scale, b: 0, c: 0, d: scale, e: glyph.pvx, f: -glyph.pvy, })
+        draw_stroked_glyph(context, path, placement, state)
+        continue
+      }
+      check_style(state.style, 0)
       context.commands.push(@layout.Style(state.style))
       context.scope(@layout.Transform(transform))
       context.extracted_glyph_draw(extracted, outline.2)

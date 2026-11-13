@@ -152,6 +152,21 @@ UI 与交互以 `references/genoffice` 源码为第一参考。GenOffice App 仅
 - Web 编辑器打开文件或生成源文件失败时，可读取错误的 `stage`。`DocumentError` 保留底层 `code`、`part` 和 `offset`。浏览器资源异常保留其 `DOMException` 名称。宿主保存回调的异常由调用方处理。
 - 先用实际垂直切片确定最小 API，不预建通用 RPC、插件协议或复杂二进制协议。
 
+### 编辑、排版与界面更新
+
+浏览器将键盘、IME 和指针输入交给编辑器队列。队列按接受顺序调用文档 Worker。WASM 更新文档、选区和撤销历史，浏览器用返回的修订号和布局标识绘制。主画布显示文档内容，独立画布显示光标和选区。DOCX 与 PPTX 在确认绘制变化限于字形时更新受影响的像素，其他绘制变化走完整重绘。[输入适配](../../packages/web-core/src/text-input.ts)、[命令队列](../../packages/web-core/src/command-queue.ts)、[画布](../../packages/web-core/src/canvas-surface.ts)
+
+界面快照区分待处理工作和控件可用性。`busy` 记录编辑器报告的待处理操作，`blocking` 记录需要暂停控件的操作。DOCX 与 PPTX 的普通原生输入和 DOCX 的只读查询保持工具栏与页面导航可用。PDF 导航目录的查询在后台排队。命令在队列中保持顺序。打开文件、IME 组合、指针手势和其他需要等待的操作仍按各自的条件限制控件。命令的显示状态值相同就复用快照，执行时使用当前命令。侧栏保留已有缩略图，在输入间隙生成失效的预览。[界面状态](../../packages/ui/src/shell.tsx)、[命令订阅](../../packages/ui/src/commands.tsx)、[缩略图](../../packages/ui/src/thumbnails.tsx)
+
+| 格式 | 内容和画布如何更新 |
+| --- | --- |
+| DOCX | 输入后请求排版和当前选区。核心复用可用的段落塑形及分页结果，仍返回包含各页的绘制批次。浏览器绘制当前页和选区。 [排版入口](../../modules/bridge/src/docx/docx-view-handlers.mbt) |
+| PPTX | 输入后请求当前幻灯片布局，再请求该布局的选区几何。普通文本修改复用已解码图片，遇到缺失图片时补齐后重试。受影响的幻灯片缩略图在空闲时更新。 [编辑宿主](../../packages/pptx/src/web/presentation-editor.ts)、[幻灯片布局](../../modules/formats/src/pptx/layout.mbt) |
+| XLSX | 单元格草稿由原生输入框显示。提交后核心写入单元格并更新计算结果。按 Enter 提交并移动选区时，浏览器在移动完成后绘制一次工作表视口。 [电子表格宿主](../../packages/xlsx/src/web/spreadsheet-editor.ts) |
+| PDF | 属性草稿保留在原生控件中。应用后核心提交修订，阅读视图更新页面。存在未应用草稿时，导航要求先应用或取消草稿。 [PDF 编辑宿主](../../packages/pdf/src/web/pdf-editor.ts) |
+
+后续性能分析分别测量核心排版、Worker 传输、Canvas 绘制和 React 控件更新。DOCX 可用核心返回的塑形与分页计数区分重新计算和绘制批次传输。PPTX 当前仍按幻灯片请求布局，布局与选区几何分两次返回。评估减少传输时，用长文档和复杂幻灯片核验画面、选区、IME 及撤销结果。
+
 ## 4. 跨阶段的 SDK 验证目标
 
 每次完成一个真实文档的垂直切片，再扩展功能与兼容面。阶段 P0 的纯文本 POC 只验证了工程与宿主边界，P3–P8 已完成各自声明的有限能力。以下是持续采用的验证方向，不是一次性验收清单。阶段范围见[路线图](roadmap.md)。

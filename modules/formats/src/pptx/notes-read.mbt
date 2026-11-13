@@ -165,7 +165,11 @@ fn Session::read_notes(
 }
 
 ///|
-fn Session::notes_query(self : Session, slide : String) -> NotesQuery {
+fn Session::notes_query(
+  self : Session,
+  slide : String,
+  require_source~ : Bool = false,
+) -> NotesQuery raise @failure.Failure {
   try {
     let notes = self.read_notes(slide)
     {
@@ -173,6 +177,8 @@ fn Session::notes_query(self : Session, slide : String) -> NotesQuery {
       reason: self.slide_visibility_reason(),
     }
   } catch {
+    @failure.Failure(code="source-range-required", ..) as error if require_source =>
+      raise error
     @failure.Failure(message~, ..) => { text: "", reason: message, }
   }
 }

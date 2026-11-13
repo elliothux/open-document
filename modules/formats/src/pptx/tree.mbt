@@ -108,7 +108,10 @@ fn number(
     parsed == parsed.floor() &&
     parsed >= low &&
     parsed <= high else {
-    @failure.reject("malformed-pptx", "Numeric attribute outside bounds")
+    @failure.reject(
+      "malformed-pptx",
+      "Numeric attribute \{parsed} outside bounds \{low} through \{high}",
+    )
   }
   parsed
 }

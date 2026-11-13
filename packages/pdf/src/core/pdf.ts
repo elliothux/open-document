@@ -8,6 +8,7 @@ import type {
   PdfBudget,
   PdfCommand,
   PdfLayout,
+  PdfQuery,
   PdfResult,
 } from "./pdf-types.js";
 export type * from "./pdf-types.js";
@@ -191,6 +192,26 @@ export class PdfSession extends WasmSession<PdfInputLimits> {
 
   defaultPdfBudget(): PdfBudget {
     return this.execute({ operation: "defaultPdfBudget" });
+  }
+  /** @internal Used by the file-owning Worker. */
+  defaultFileBudget(): PdfBudget {
+    return this.call({ operation: "pdfFileBudget" });
+  }
+  /** @internal Used by the file-owning Worker. */
+  startReader(size: number, budget: PdfBudget): void {
+    this.call({ operation: "startPdfReader", size, budget });
+  }
+  /** @internal Used by the file-owning Worker. */
+  openReader(): PdfQuery {
+    return this.call({ operation: "openPdfReader" });
+  }
+  /** @internal Used by the file-owning Worker. */
+  supplyRange(bytes: Uint8Array): void {
+    this.call({ operation: "supplyPdfRange", bytes });
+  }
+  /** @internal Used by the file-owning Worker. */
+  cancelRange(): void {
+    this.call({ operation: "cancelPdfRange" });
   }
   execute<C extends PdfCommand>(command: C): PdfResult<C> {
     if (

@@ -180,22 +180,42 @@ export class EditorController<E extends EditorHost = EditorHost> {
       this.install(
         file,
         this.options.document.name,
-        !!this.options.document.blank,
+        "blank" in this.options.document &&
+          this.options.document.blank === true,
       );
     } finally {
       this.options.signal?.removeEventListener("abort", abort);
     }
   }
 
-  private async prepare(document: OfficeDocument): Promise<OwnedFile<E>> {
+  private async prepare(
+    document: OfficeDocument | File,
+  ): Promise<OwnedFile<E>> {
     if (this.candidate) throw new Error("A file is already opening");
     this.candidateAbort ??= new AbortController();
-    this.candidate = this.product.prepare(
-      document,
-      this.surfaces,
-      this.candidateAbort.signal,
-      this.value.locale,
-    );
+    const signal = this.candidateAbort.signal;
+    this.candidate =
+      document instanceof File
+        ? (this.product.prepareFile?.(
+            document,
+            this.surfaces,
+            signal,
+            this.value.locale,
+          ) ??
+          readFile(document, signal).then((bytes) =>
+            this.product.prepare(
+              { name: document.name, bytes },
+              this.surfaces,
+              signal,
+              this.value.locale,
+            ),
+          ))
+        : this.product.prepare(
+            document,
+            this.surfaces,
+            signal,
+            this.value.locale,
+          );
     try {
       const file = await this.candidate;
       if (this.disposed || this.candidateAbort.signal.aborted) {
@@ -460,7 +480,7 @@ export class EditorController<E extends EditorHost = EditorHost> {
     return true;
   }
 
-  readonly open = (document: OfficeDocument): Promise<boolean> =>
+  readonly open = (document: OfficeDocument | File): Promise<boolean> =>
     this.change(() => this.replace(document));
   create(document: { readonly name: string }): Promise<boolean> {
     if (!this.product.canCreate || this.value.mode === "view")
@@ -480,7 +500,9 @@ export class EditorController<E extends EditorHost = EditorHost> {
     const inputLimit =
       this.product.delimited && /\.(csv|tsv)$/i.test(source.name)
         ? (previous.delimitedInputLimit ?? previous.inputLimit)
-        : previous.inputLimit;
+        : source instanceof File
+          ? (previous.fileInputLimit ?? previous.inputLimit)
+          : previous.inputLimit;
     if (
       (source instanceof File ? source.size : (source.bytes?.length ?? 0)) >
       inputLimit
@@ -494,19 +516,23 @@ export class EditorController<E extends EditorHost = EditorHost> {
     const abort = new AbortController();
     this.candidateAbort = abort;
     try {
-      const document: OfficeDocument =
-        source instanceof File
+      const document =
+        source instanceof File && delimited !== undefined
           ? {
               name: source.name,
               bytes: await readFile(source, abort.signal),
-              ...(delimited === undefined ? {} : { delimited }),
+              delimited,
             }
           : source;
       abort.signal.throwIfAborted();
       this.assertOpen();
       const candidate = await this.prepare(document);
       this.assertOpen();
-      this.install(candidate, document.name, !!document.blank);
+      this.install(
+        candidate,
+        document.name,
+        "blank" in document && document.blank === true,
+      );
       try {
         await previous.dispose();
       } catch (error) {
@@ -603,7 +629,11 @@ export class EditorController<E extends EditorHost = EditorHost> {
     try {
       void Promise.resolve(operation()).then(
         () => {
-          if (!this.disposed && this.errorVersion === errorVersion)
+          if (
+            !this.disposed &&
+            this.value.error &&
+            this.errorVersion === errorVersion
+          )
             this.publish({ error: "" });
         },
         (error: unknown) => this.report(error),

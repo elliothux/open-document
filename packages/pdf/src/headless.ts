@@ -3,7 +3,7 @@ import { engineModule } from "@open-document/wasm/loader";
 import type { Connection } from "@open-document/web-core/connection";
 import { openWorkerConnection } from "@open-document/web-core/worker-connection";
 import type { WorkerOperation } from "@open-document/web-core/protocol";
-import { type PdfCommand, type PdfResult } from "./core/pdf.js";
+import { type PdfCommand, type PdfQuery, type PdfResult } from "./core/pdf.js";
 import {
   checkPdfByteInput,
   type PdfInputLimits,
@@ -11,9 +11,13 @@ import {
 } from "./core/pdf.js";
 export type { PdfCommand, PdfResult } from "./core/pdf.js";
 
-type Operation = WorkerOperation<PdfCommand>;
+export type PdfFileCommand =
+  | { operation: "pdfFileBudget" }
+  | { operation: "openPdfFile"; file: Blob; budget?: PdfBudget };
 
-/** An asynchronous Pdf session. File I/O and platform resources belong to the caller. */
+type Operation = WorkerOperation<PdfCommand | PdfFileCommand>;
+
+/** An asynchronous PDF session with bytes and Blob input. */
 export class PdfWorkerSession {
   protected constructor(
     private readonly connection: Connection<Operation, PdfInputLimits>,
@@ -41,6 +45,21 @@ export class PdfWorkerSession {
 
   async defaultBudget(): Promise<PdfBudget> {
     return this.execute({ operation: "defaultPdfBudget" });
+  }
+
+  async defaultFileBudget(): Promise<PdfBudget> {
+    return (await this.connection.request({
+      operation: "pdfFileBudget",
+    })) as PdfBudget;
+  }
+
+  /** Open a read-only PDF by requesting only the required file ranges. */
+  async openFile(file: Blob, budget?: PdfBudget): Promise<PdfQuery> {
+    return (await this.connection.request({
+      operation: "openPdfFile",
+      file,
+      ...(budget === undefined ? {} : { budget }),
+    })) as PdfQuery;
   }
 
   async addFont(bytes: Uint8Array, identity: string): Promise<void> {

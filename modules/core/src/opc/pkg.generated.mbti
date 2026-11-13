@@ -31,9 +31,12 @@ pub fn Package::content_type(Self, String) -> String? raise @failure.Failure
 pub fn Package::create(Map[String, Bytes], @archive.Budget) -> Self raise @failure.Failure
 pub fn Package::decoded_bytes(Self) -> Int32 raise @failure.Failure
 pub fn Package::open(Bytes, @archive.Budget) -> Self raise @failure.Failure
+pub fn Package::open_archive(@archive.Package, @archive.Budget) -> Self raise @failure.Failure
+pub fn Package::open_reader(Int32, (Int32, Int32) -> BytesView raise @failure.Failure, @archive.Budget) -> Self raise @failure.Failure
 pub fn Package::read(Self, String) -> Bytes raise @failure.Failure
 pub fn Package::relationships(Self, replacements? : Map[String, Bytes], removed? : Array[String]) -> ReadOnlyArray[Relationship] raise @failure.Failure
 pub fn Package::save(Self, Map[String, Bytes], removed? : Array[String]) -> Bytes raise @failure.Failure
+pub fn Package::start_save(Self, Map[String, Bytes], removed? : Array[String]) -> @archive.Writer raise @failure.Failure
 pub fn Package::validate_changes(Self, Map[String, Bytes], removed? : Array[String]) -> Unit raise @failure.Failure
 pub fn Package::verify_output(Self, Bytes, Map[String, Bytes]) -> Unit raise @failure.Failure
 pub fn Package::xml(Self, String) -> @xml.Document raise @failure.Failure

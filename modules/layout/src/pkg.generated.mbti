@@ -8,6 +8,8 @@ import {
 }
 
 // Values
+pub const DrawingLayerCount : Int32 = 8
+
 pub const ExportBytes : Int32 = 67108864
 
 pub const FontInputBytes : Int32 = 33554432
@@ -70,7 +72,7 @@ pub fn stroke_contour(Array[PathSegment], Double, String, String, Double) -> Arr
 
 pub fn validate_gradient(Border, Array[GradientStop]) -> Unit raise @failure.Failure
 
-pub fn validate_gradient_stops(Array[GradientStop]) -> Unit raise @failure.Failure
+pub fn validate_gradient_stops(Array[GradientStop], limit? : Int32) -> Unit raise @failure.Failure
 
 pub fn validate_pattern(Border, Double, Bytes, String, String) -> Unit raise @failure.Failure
 
@@ -236,6 +238,10 @@ pub(all) enum DrawBlend {
   Normal
   Multiply
   Difference
+  Overlay
+  Darken
+  SoftLight
+  Color
 }
 pub fn DrawBlend::equal(Self, Self) -> Bool
 pub fn DrawBlend::not_equal(Self, Self) -> Bool
@@ -245,7 +251,7 @@ pub impl @json.ToJson for DrawBlend
 pub(all) enum DrawCommand {
   FillRect(Fill, screen_fractional~ : Bool)
   GradientRect(Border, Array[GradientStop])
-  RadialGradientRect(Border, Array[GradientStop])
+  RadialGradientRect(Border, Array[GradientStop], circles~ : Array[Double]?)
   PatternRect(Border, Double, Bytes, String, String, screen_device~ : Bool)
   StrokeRect(Border, String, Double, screen_fractional~ : Bool)
   Glyphs(Double, Double, String, Array[DrawGlyph])
@@ -266,7 +272,7 @@ pub(all) enum DrawCommand {
   GradientClipPath(Array[PathSegment], Bool, GradientClip)
   Restore
   Layer(Double, Array[DrawCommand])
-  Mask(Array[DrawCommand], Array[DrawCommand])
+  Mask(Array[DrawCommand], Array[DrawCommand], luminosity~ : Bool)
   Tile(Double, Double, Int32, Int32, Matrix, Double, Double, Array[DrawCommand])
   CachedDrawing(String, @json.Json)
 }
@@ -1207,6 +1213,7 @@ pub fn TextDecoration::to_json(Self) -> @json.Json
 
 pub struct TextProbe {
   fonts : Array[Font]
+  face_limit : Int32
   outlines : Map[String, String]
   outline_boxes : Map[String, Array[Double]]
   mut font_bytes : Int32
@@ -1232,7 +1239,7 @@ pub fn TextProbe::font_index(Self, String) -> Int32 raise @failure.Failure
 pub fn TextProbe::font_info(Self) -> Array[FontInfo] raise @failure.Failure
 pub fn TextProbe::font_style(Self, Int32) -> (Bool, Bool) raise @failure.Failure
 pub fn TextProbe::glyph_width(Self, Int32, UInt32) -> Double raise @failure.Failure
-pub fn TextProbe::new() -> Self
+pub fn TextProbe::new(embedded_faces? : Bool) -> Self
 pub fn TextProbe::outline_resources(Self) -> Array[Outline] raise @failure.Failure
 pub fn TextProbe::paragraph_lines(Self, Paragraph, Map[String, String], Double, Bool, baseLevel? : Int32, ligatures? : Bool) -> Array[Line] raise @failure.Failure
 pub fn TextProbe::prepare_screen_outlines(Self, Array[Glyph], Int32) -> Unit
@@ -1241,6 +1248,7 @@ pub fn TextProbe::shape(Self, String, Double, String, primary? : Int32, base? : 
 pub fn TextProbe::source_glyph(Self, Int32, Int32, String, Int32, Bool) -> (String, Int32, UInt32) raise @failure.Failure
 pub fn TextProbe::source_glyph_bounds(Self, Int32, UInt32) -> Array[Double] raise @failure.Failure
 pub fn TextProbe::source_glyph_contours(Self, Int32, UInt32) -> Array[Array[(Double, Double, Bool)]] raise @failure.Failure
+pub fn TextProbe::source_glyph_path(Self, Int32, UInt32) -> Array[PathSegment] raise @failure.Failure
 pub fn TextProbe::span_block(Self, Array[Span], Double, Map[String, String], Double, Bool, justify? : Bool, distributed? : Bool, cell? : Bool) -> TextBlock raise @failure.Failure
 pub fn TextProbe::text_block(Self, String, TextStyle, Map[String, String], Double, Bool, cell? : Bool) -> TextBlock raise @failure.Failure
 

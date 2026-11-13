@@ -19,6 +19,7 @@ priv struct SoftMask {
   group : @syntax.PdfObject
   resources : @syntax.PdfObject
   state : GraphicsState
+  luminosity : Bool
 }
 
 ///|
@@ -51,12 +52,14 @@ priv struct ContentContext {
   mut displayComplete : Bool
   fonts : Map[String, SourceFont]
   nativeOutlines : Map[String, @layout.Outline]
+  strokeGlyphs : Map[(Int32, UInt32), Array[@layout.PathSegment]]
   nativeOutlineBytes : Ref[Int32]
   preparedStrokePoints : Ref[Int32]
   colors : Map[Int32, InputColorSpace]
   mut optional : Map[Int32, Bool]?
   imageKeys : Array[String]
   jpeg : Map[String, JpegImage]
+  flateImages : Map[String, FlateImage]
   forms : Map[String, Bool]
   marked : Array[MarkedText]
   mut nesting : Int32
@@ -214,22 +217,20 @@ fn ext_state(
           PdfArray([single]) => single
           _ => value
         }
-        guard is_name(value, "Normal") ||
-          is_name(value, "Compatible") ||
-          is_name(value, "Multiply") ||
-          is_name(value, "Difference") else {
+        guard value is PdfNameObject(name) else {
           @failure.reject("unsupported-pdf", "Unsupported PDF blend mode")
         }
-        style = {
-          ..style,
-          blend: if is_name(value, "Multiply") {
-            Multiply
-          } else if is_name(value, "Difference") {
-            Difference
-          } else {
-            Normal
-          },
+        let blend : @layout.DrawBlend = match @utf8.decode_lossy(name.bytes()) {
+          "/Normal" | "/Compatible" => Normal
+          "/Multiply" => Multiply
+          "/Difference" => Difference
+          "/Overlay" => Overlay
+          "/Darken" => Darken
+          "/SoftLight" => SoftLight
+          "/Color" => Color
+          _ => @failure.reject("unsupported-pdf", "Unsupported PDF blend mode")
         }
+        style = { ..style, blend, }
       }
       "/LW" => width = number(value)
       "/LC" => style = { ..style, cap: integer(value), }
@@ -274,12 +275,23 @@ fn ext_state(
 fn check_style(
   style : @layout.DrawStyle,
   width : Double,
+  matrix? : @layout.Matrix,
 ) -> Unit raise @failure.Failure {
+  let scale = if width != 0 && matrix is Some(matrix) {
+    // Largest singular value bounds the transformed pen in every direction.
+    let x = matrix.a * matrix.a + matrix.b * matrix.b
+    let y = matrix.c * matrix.c + matrix.d * matrix.d
+    let cross = matrix.a * matrix.c + matrix.b * matrix.d
+    ((x + y + ((x - y) * (x - y) + 4 * cross * cross).sqrt()) / 2).sqrt()
+  } else {
+    1.0
+  }
   guard !style.dashOffset.is_nan() &&
     !style.dashOffset.is_inf() &&
     style.dashOffset.abs() <= 1000000000 &&
     width >= 0 &&
-    width <= 14400 &&
+    width <= 1000000000 &&
+    width * scale <= 14400 &&
     [0, 1, 2].contains(style.cap) &&
     [0, 1, 2].contains(style.join) &&
     style.miter >= 1 &&

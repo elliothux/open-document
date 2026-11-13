@@ -1,6 +1,6 @@
 ///|
 fn span(
-  data : Bytes,
+  data : BytesView,
   offset : Int32,
   size : Int32,
 ) -> BytesView raise @failure.Failure {
@@ -14,13 +14,13 @@ fn span(
 }
 
 ///|
-fn u16(data : Bytes, offset : Int32) -> Int32 raise @failure.Failure {
+fn u16(data : BytesView, offset : Int32) -> Int32 raise @failure.Failure {
   let bytes = span(data, offset, 2)
   bytes[0].to_int() | (bytes[1].to_int() << 8)
 }
 
 ///|
-fn u32(data : Bytes, offset : Int32) -> UInt32 raise @failure.Failure {
+fn u32(data : BytesView, offset : Int32) -> UInt32 raise @failure.Failure {
   let bytes = span(data, offset, 4)
   bytes[0].to_uint() |
   (bytes[1].to_uint() << 8) |
@@ -29,39 +29,38 @@ fn u32(data : Bytes, offset : Int32) -> UInt32 raise @failure.Failure {
 }
 
 ///|
-fn size32(data : Bytes, offset : Int32) -> Int32 raise @failure.Failure {
+fn size32(
+  data : BytesView,
+  offset : Int32,
+  base~ : Int32 = 0,
+) -> Int32 raise @failure.Failure {
   let value = u32(data, offset)
   guard value <= 0x7fffffffU else {
     @failure.reject(
       "unsupported-package",
       "ZIP64 or size outside i32 range",
-      offset~,
+      offset=base + offset,
     )
   }
   value.reinterpret_as_int()
 }
 
 ///|
-fn extra(
-  data : Bytes,
+fn zip64_extra(
+  data : BytesView,
   offset : Int32,
   size : Int32,
-) -> Unit raise @failure.Failure {
+  base~ : Int32 = 0,
+) -> BytesView? raise @failure.Failure {
   ignore(span(data, offset, size))
   let end = offset + size
+  let mut zip64 = None
   for cursor = offset; cursor < end; {
     guard end - cursor >= 4 else {
       @failure.reject(
         "malformed-package",
         "Truncated ZIP extra field",
-        offset=cursor,
-      )
-    }
-    guard u16(data, cursor) != 1 else {
-      @failure.reject(
-        "unsupported-package",
-        "ZIP64 is unsupported",
-        offset=cursor,
+        offset=base + cursor,
       )
     }
     let length = u16(data, cursor + 2)
@@ -69,11 +68,22 @@ fn extra(
       @failure.reject(
         "malformed-package",
         "Invalid ZIP extra field length",
-        offset=cursor,
+        offset=base + cursor,
       )
+    }
+    if u16(data, cursor) == 1 {
+      guard zip64 is None else {
+        @failure.reject(
+          "malformed-package",
+          "Duplicate ZIP64 extra field",
+          offset=base + cursor,
+        )
+      }
+      zip64 = Some(data[cursor + 4:cursor + 4 + length])
     }
     continue cursor + 4 + length
   }
+  zip64
 }
 
 ///|

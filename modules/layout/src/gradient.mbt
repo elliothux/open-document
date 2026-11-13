@@ -39,9 +39,13 @@ fn drawing_gradient_stops(stops : Array[GradientStop]) -> Array[GradientStop] {
 ///|
 pub fn validate_gradient_stops(
   stops : Array[GradientStop],
+  limit~ : Int32 = GradientStopCount,
 ) -> Unit raise @failure.Failure {
-  guard stops.length() >= 2 && stops.length() <= GradientStopCount else {
-    @failure.reject("invalid-drawing", "Gradients require 2..32 color stops")
+  guard stops.length() >= 2 && stops.length() <= limit else {
+    @failure.reject(
+      "invalid-drawing",
+      "Gradients require 2..\{limit} color stops",
+    )
   }
   for index, stop in stops {
     guard !stop.position.is_nan() &&

@@ -287,7 +287,10 @@ export type PdfImage = {
   bytes: Uint8Array;
   width: number;
   height: number;
-} & ({ kind: "rgba" } | { kind: "jpeg"; header: RasterHeader });
+} & (
+  | { kind: "rgba" }
+  | { kind: "jpeg"; header: RasterHeader; sourceSamples: boolean }
+);
 type PageRequest = {
   revision: number;
   page: string;
@@ -413,7 +416,7 @@ export type PdfCommand =
       scaleContent: boolean;
       anchor: "top-left" | "center";
     }
-  | { operation: "pdfNavigation" }
+  | { operation: "pdfNavigation"; page?: string }
   | {
       operation: "insertPdfPages";
       revision: number;

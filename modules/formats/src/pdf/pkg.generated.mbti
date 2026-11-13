@@ -4,6 +4,7 @@ package "open_document/formats/pdf"
 import {
   "moonbitlang/core/json",
   "moonbitlang/pdflite",
+  "moonbitlang/pdflite/syntax",
   "open_document/core/failure",
   "open_document/layout",
 }
@@ -18,6 +19,8 @@ pub const FieldWidgetCount : Int32 = 4096
 pub const InkStrokeCount : Int32 = 4096
 
 pub const PageOperationCount : Int32 = 1024
+
+pub const PdfRangeFileBytes : Int32 = 536870912
 
 pub const RedactionRegionCount : Int32 = 4096
 
@@ -103,6 +106,7 @@ pub(all) struct PdfBudget {
   outputBytes : Int32
 }
 pub fn PdfBudget::default() -> Self
+pub fn PdfBudget::range_default() -> Self
 pub fn PdfBudget::to_json(Self) -> @json.Json
 
 pub(all) struct PdfDrawingAnnotation {
@@ -347,6 +351,15 @@ pub struct PdfRangePage {
 }
 pub fn PdfRangePage::to_json(Self) -> @json.Json
 
+pub struct PdfRangeReader {
+  // private fields
+}
+pub fn PdfRangeReader::catalog_number(Self) -> Int32 raise @failure.Failure
+pub fn PdfRangeReader::new(Int32, (Int32, Int32) -> BytesView raise @failure.Failure, PdfBudget) -> Self raise @failure.Failure
+pub fn PdfRangeReader::open_preview(Self) -> PdfSession raise @failure.Failure
+pub fn PdfRangeReader::pages(Self) -> @json.Json raise @failure.Failure
+pub fn PdfRangeReader::read_object(Self, Int32) -> @syntax.PdfObject raise @failure.Failure
+
 #derive(@json.ToJson)
 pub struct PdfRangeSelection {
   revision : Int32
@@ -481,6 +494,7 @@ pub fn PdfSession::add_stamp_annotation(Self, Int32, String, PdfAnnotationStyle,
 pub fn PdfSession::add_text(Self, Int32, Array[String], PdfTextSpec, @layout.TextProbe, Map[String, String], replace_numbers? : Bool) -> @json.Json raise @failure.Failure
 pub fn PdfSession::annotation_details(Self, Int32, String, String) -> PdfAnnotationDetails raise @failure.Failure
 pub fn PdfSession::annotation_thread(Self, Int32, String, String) -> PdfAnnotationThread raise @failure.Failure
+pub fn PdfSession::cancel_preview_read(Self) -> Unit
 pub fn PdfSession::change_annotation(Self, Int32, String, String, String, Bool) -> @json.Json raise @failure.Failure
 pub fn PdfSession::change_source_object(Self, Int32, String, String, PdfPlacement?, @layout.TextProbe, Map[String, String]) -> @json.Json raise @failure.Failure
 pub fn PdfSession::close(Self) -> Unit
@@ -502,13 +516,13 @@ pub fn PdfSession::extract_page(Self, Int32, String, @layout.TextProbe, Map[Stri
 pub fn PdfSession::extract_pages(Self, Int32, Array[String]) -> Bytes raise @failure.Failure
 pub fn PdfSession::field_design(Self, Int32, String) -> PdfFieldDesignQuery raise @failure.Failure
 pub fn PdfSession::hit(Self, Int32, Double, Double) -> PdfHit raise @failure.Failure
-pub fn PdfSession::image(Self, Int32, String, @layout.Images, size? : (Int32, Int32)?) -> (String, Bytes, Int32, Int32) raise @failure.Failure
+pub fn PdfSession::image(Self, Int32, String, @layout.Images, size? : (Int32, Int32)?) -> (String, Bytes, Int32, Int32, Bool) raise @failure.Failure
 pub fn PdfSession::insert_blank(Self, Int32, Int32, Double, Double) -> @json.Json raise @failure.Failure
 pub fn PdfSession::insert_pages(Self, Int32, Bytes, Array[String], Int32, replace? : Array[String]) -> @json.Json raise @failure.Failure
 pub fn PdfSession::invalidate(Self) -> Unit
 pub fn PdfSession::metadata(Self) -> PdfMetadata raise @failure.Failure
 pub fn PdfSession::move_object(Self, Int32, String, String, PdfPlacement, @layout.TextProbe, Map[String, String]) -> @json.Json raise @failure.Failure
-pub fn PdfSession::navigation(Self) -> PdfNavigation raise @failure.Failure
+pub fn PdfSession::navigation(Self, page? : String?) -> PdfNavigation raise @failure.Failure
 pub fn PdfSession::nup_pages(Self, Int32, Array[String], Int32, Int32, Double, Double) -> @json.Json raise @failure.Failure
 pub fn PdfSession::objects(Self, Int32, String, @layout.TextProbe, Map[String, String]) -> PdfObjects raise @failure.Failure
 pub fn PdfSession::open(Bytes, PdfBudget, password? : String?) -> Self raise @failure.Failure

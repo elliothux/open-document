@@ -32,6 +32,7 @@ pub struct Context {
   mut closed : Bool
   images : @layout.Images
   preview_images : @layout.Images
+  // private fields
 }
 
 // Type aliases

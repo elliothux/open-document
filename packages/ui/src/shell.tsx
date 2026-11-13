@@ -48,7 +48,7 @@ export function EditorShell<E extends EditorHost>({
     !!snapshot?.composition ||
     !!snapshot?.dragging ||
     !!snapshot?.closed ||
-    !!snapshot?.busy;
+    !!snapshot?.blocking;
   const editDisabled =
     disabled ||
     state.mode === "view" ||

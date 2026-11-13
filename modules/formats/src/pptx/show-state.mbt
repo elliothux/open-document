@@ -55,6 +55,7 @@ priv struct ShowDrawing {
   images : Array[String]
   texts : Array[TextGeometry]
   links : Array[ShowLink]
+  diagnostics : Array[String]
 }
 
 ///|
@@ -157,7 +158,7 @@ fn Session::show_state(
         .show_neighbor(show, true)
         .map(i => self.slides[show.route[i]].tree.part),
       ),
-      notes: self.notes_query(slide.tree.part),
+      notes: self.notes_query(slide.tree.part, require_source=true),
     }
   } else {
     {

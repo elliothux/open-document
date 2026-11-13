@@ -217,7 +217,7 @@ pub fn PositionedDocument::drawing(
         }
         RadialGradientRectangle(rect, stops) => {
           validate_gradient(rect, stops)
-          commands.push(RadialGradientRect(rect, stops))
+          commands.push(RadialGradientRect(rect, stops, circles=None))
         }
         PatternRectangle(rect, period, mask, zero, one, screen_device~) => {
           validate_pattern(rect, period, mask, zero, one)
